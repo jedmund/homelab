@@ -7,6 +7,10 @@ Configuration for my Homelab server.
 
 ### Software
 
+**[Plex Media Server](https://www.plex.tv/media-server-downloads/?cat=computer&plat=macos)**
+
+I like Plex. Other people like other servers, but Plex is good.
+
 **[Automounter](https://pixeleyes.co.nz/automounter/)**
 
 Automounter will automatically mount your network drives on boot and whenever they disconnect
