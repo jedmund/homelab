@@ -25,6 +25,10 @@ This is only necessary if you want to run [HomeAssistant](https://www.home-assis
 
 ### Containers
 
+**[Dockge](https://dockge.kuma.pet/)**
+
+Dockge manages all of the Docker containers. It gives you a single website to manage their processes, update the packages, and edit their configuration files. Don't expose this to the world.
+
 #### management.yaml
 
 **[nginx-proxy-manager](https://github.com/NginxProxyManager/nginx-proxy-manager)**
