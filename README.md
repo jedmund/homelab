@@ -5,7 +5,7 @@ Configuration for my Homelab server.
 - Mac mini M1 16GB (soon to be upgraded)
 - 4K HDMI dummy plug ([Product link](https://www.amazon.com/gp/product/B07FB8GJ1Z]))
 
-I set things up with the following programs:
+### Software
 
 **[Automounter](https://pixeleyes.co.nz/automounter/)**
 Automounter will automatically mount your network drives on boot and whenever they disconnect
