@@ -39,8 +39,9 @@ A combined package of [rtorrent](https://github.com/rakshasa/rtorrent) and [Floo
 **Servarr**
 
 See the [Servarr Wiki](https://wiki.servarr.com/) for more info
-**Prowlarr**: Configure sources
-**Sonarr**: TV Show management
-**Radarr**: Movie management 
-**Lidarr**: Music management
-**Overseerr**: Simple account-based request interface
+
+- **Prowlarr**: Configure sources
+- **Sonarr**: TV Show management
+- **Radarr**: Movie management 
+- **Lidarr**: Music management
+- **Overseerr**: Simple account-based request interface
