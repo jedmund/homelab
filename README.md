@@ -25,7 +25,7 @@ This repository documents the configuration of my Homelab server, including hard
 
 ### Hardware
 
-- **Mac mini M1 16GB** (upgrade planned)
+- **Mac mini M4 24GB**
 - **4K HDMI Dummy Plug**  
   [Product Link](https://www.amazon.com/gp/product/B07FB8GJ1Z)
 
