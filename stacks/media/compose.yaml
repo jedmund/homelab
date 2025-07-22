@@ -1,0 +1,227 @@
+services:
+  # Flux
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: unless-stopped
+    ports:
+      - 8280:8080  # Using 8280 to avoid conflicts
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://miniflux:secret@miniflux-db/miniflux?sslmode=disable
+      - RUN_MIGRATIONS=1
+      - CREATE_ADMIN=1  # Remove after first run
+      - ADMIN_USERNAME=admin  # Change this
+      - ADMIN_PASSWORD=supersecret  # Change this!
+      # Optional configurations
+      - BASE_URL=https://rss.atelier.house  # Set your domain if using reverse proxy
+      - POLLING_FREQUENCY=60  # Feed refresh interval in minutes
+      - BATCH_SIZE=100
+      - POLLING_PARSING_ERROR_LIMIT=3
+      - WORKER_POOL_SIZE=5
+      - OAUTH2_PROVIDER=  # Can be set to google, oidc
+      - METRICS_COLLECTOR=1  # Enable Prometheus metrics
+      - METRICS_ALLOWED_NETWORKS=127.0.0.1/8,::1/128,192.168.0.0/16
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=miniflux
+      - POSTGRES_PASSWORD=secret  # Change this!
+      - POSTGRES_DB=miniflux
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./data/miniflux-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "miniflux"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+
+  # Optional: PostgreSQL backup container
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: unless-stopped
+    depends_on:
+      - miniflux-db
+    environment:
+      - PGHOST=miniflux-db
+      - PGUSER=miniflux
+      - PGPASSWORD=secret  # Same as above
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./backups/miniflux:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U miniflux miniflux > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        # Keep only last 7 backups
+        ls -t /backup/miniflux_backup_*.sql | tail -n +8 | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: unless-stopped
+    ports:
+      - 2000:2000
+    depends_on:
+      - miniflux
+    environment:
+      - TZ=America/Los_Angeles
+
+  # Karakeep
+  karakeep:
+    container_name: karakeep_web
+    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    restart: unless-stopped
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - 3232:3000
+    env_file:
+      - .env
+    environment:
+      MEILI_ADDR: http://karakeep-meilisearch:7700
+      BROWSER_WEB_URL: http://karakeep-chrome:9222
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}  # Uncomment and add to .env if using AI features
+      DATA_DIR: /data
+    depends_on:
+      - karakeep-chrome
+      - karakeep-meilisearch
+
+  karakeep-chrome:
+    container_name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    restart: unless-stopped
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+
+  karakeep-meilisearch:
+    container_name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+
+  # Kavita
+  kavita:
+    image: jvmilazz0/kavita:latest
+    container_name: kavita
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./config/kavita:/config
+      - comics:/manga
+    ports:
+      - 5353:5000
+    restart: unless-stopped
+
+  # Romm
+  romm:
+    image: rommapp/romm:latest
+    container_name: romm
+    restart: unless-stopped
+    environment:
+      - DB_HOST=romm-db
+      - DB_NAME=romm # Should match MARIADB_DATABASE in mariadb
+      - DB_USER= # Should match MARIADB_USER in mariadb
+      - DB_PASSWD= # Should match MARIADB_PASSWORD in mariadb
+      # - ROMM_AUTH_SECRET_KEY=i
+      # Go to https://docs.romm.app/latest/Getting-Started/Generate-API-Keys/ for instructions 
+      # on how to get API keys for these services
+      # - IGDB_CLIENT_ID=
+      # - IGDB_CLIENT_SECRET=
+      # - MOBYGAMES_API_KEY= 
+      # - STEAMGRIDDB_API_KEY=
+      # - SCREENSCRAPER_USER=
+      # - SCREENSCRAPER_PASSWORD=
+      # - RETROACHIEVEMENTS_API_KEY=
+    volumes:
+      - romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
+      - romm_redis_data:/redis-data # Cached data for background tasks
+      - games:/romm/library # Your game library. Check https://github.com/rommapp/romm?tab=readme-ov-file#folder-structure for more details.
+      - games_assets:/romm/assets # Uploaded saves, states, etc.
+      - ./config/romm:/romm/config # Path where config.yml is stored
+    ports:
+      - 8888:8080
+    depends_on:
+      romm-db:
+        condition: service_healthy
+        restart: true
+
+  romm-db:
+    image: mariadb:latest
+    container_name: romm-db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=
+      - MARIADB_DATABASE=
+      - MARIADB_USER=
+      - MARIADB_PASSWORD=
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Replace 192.168.1.999 with the local IP address of your NAS or storage.
+
+# Remember to enable NFS on the shared volume in Synology or otherwise.
+# Also, remember to change the path to the desired directory as well.
+# Synology will always start with /volume1/
+
+volumes:
+  model-cache:
+  karakeep-data:
+  karakeep-meilisearch:
+  mysql_data:
+  romm_resources:
+  romm_redis_data:
+  comics:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/comics"
+  games:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/games/library"
+  games_assets:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/games/assets"
+

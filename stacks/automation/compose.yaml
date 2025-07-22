@@ -1,0 +1,181 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      # Port for Prowlarr (routed through VPN)
+      - 9696:9696
+      # Port for Flood (routed through VPN)
+      - 3001:3001
+      # Torrent ports
+      - 6881:6881/tcp
+      - 6881:6881/udp
+    volumes:
+      - ./config/gluetun:/gluetun
+    environment:
+      # VPN Configuration (following official Gluetun docs)
+      # Remember to update the VPN service provider, username, and password with your values
+      # Refer to the Gluetun docs for further instructions
+      - VPN_SERVICE_PROVIDER=expressvpn 
+      - OPENVPN_USER=username
+      - OPENVPN_PASSWORD=password
+      - SERVER_COUNTRIES=USA
+      # Optional: uncomment to specify city or specific server
+      # - SERVER_CITIES=Amsterdam
+      # - SERVER_HOSTNAMES=netherlands-amsterdam-ca-version-2.expressnetw.com
+      
+      # General Settings
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+      - BLOCK_WITHOUT_VPN=on
+      # Optional but useful settings
+      - DOT=on  # DNS over TLS for privacy
+      - UPDATER_PERIOD=24h  # Update server list daily
+    restart: unless-stopped
+
+  prowlarr:
+    restart: unless-stopped
+    image: linuxserver/prowlarr
+    network_mode: "service:gluetun"  # Route through VPN
+    depends_on:
+      - gluetun
+    volumes:
+      - ./config/prowlarr:/config
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+
+  flood:
+    image: jesec/rtorrent-flood
+    container_name: flood
+    network_mode: "service:gluetun"  # Route through VPN
+    depends_on:
+      - gluetun
+    cap_add:
+      - NET_BIND_SERVICE
+      - NET_RAW
+    restart: unless-stopped
+    command: --port 3001 --allowedpath /downloads
+    volumes:
+      - ./config/rtorrent:/config
+      - downloads:/downloads
+    environment:
+      - HOME=/config
+      - TZ=America/Los_Angeles
+
+  sonarr:
+    restart: unless-stopped
+    image: linuxserver/sonarr
+    ports:
+      - 8989:8989
+    volumes:
+      - ./config/sonarr:/config
+      - television:/television
+      - anime:/anime
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+
+  radarr:
+    restart: unless-stopped
+    image: linuxserver/radarr
+    ports:
+      - 7878:7878
+    volumes:
+      - ./config/radarr:/config
+      - movies:/movies
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+
+  lidarr:
+    restart: unless-stopped
+    image: linuxserver/lidarr
+    ports:
+      - 8686:8686
+    volumes:
+      - ./config/lidarr:/config
+      - music:/music
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+
+  overseerr:
+    image: lscr.io/linuxserver/overseerr:latest
+    restart: unless-stopped
+    ports:
+      - 5055:5055
+    volumes:
+      - ./config/overseerr:/config
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+
+  unpackerr:
+    image: golift/unpackerr
+    restart: unless-stopped
+    volumes:
+      - ./config/unpackerr:/config
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_RADARR_0_URL=http://radarr:7878
+
+# Replace 192.168.1.999 with the local IP address of your NAS or storage.
+
+# Remember to enable NFS on the shared volume in Synology or otherwise.
+# Also, remember to change the path to the desired directory as well.
+# Synology will always start with /volume1/
+
+volumes:
+  television:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/videos/Television"
+
+  anime:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/videos/Anime"
+
+  movies:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/videos/Movies"
+
+  music:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,rw,resvport"
+      device: ":/volume1/music"
+
+  downloads:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/downloads"
+
+networks: {}
+
