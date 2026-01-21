@@ -49,79 +49,79 @@ setup: ## Initial setup - create ansible.cfg and vault password file
 
 deploy-all: ## Deploy entire homelab infrastructure
 	@echo "$(BLUE)Deploying entire homelab...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-all.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG)
 
 deploy-all-check: ## Dry-run of full deployment
 	@echo "$(BLUE)Checking full deployment (dry-run)...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-all.yml $(VAULT_FLAG) --check --diff
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --check --diff
 
 deploy-prerequisites: ## Deploy prerequisites (Docker, networks, volumes)
 	@echo "$(BLUE)Deploying prerequisites...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-prerequisites.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/prerequisites.yml $(VAULT_FLAG)
 
 ##@ Deployment - Infrastructure
 
 deploy-infra: ## Deploy all infrastructure (core + gateway)
 	@echo "$(BLUE)Deploying infrastructure stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-all.yml $(VAULT_FLAG) --tags infra
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags infra
 
 deploy-infra-core: ## Deploy infrastructure core (Komodo, MongoDB)
 	@echo "$(BLUE)Deploying infrastructure core...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-infra_core.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_core.yml $(VAULT_FLAG)
 
 deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-infra_gateway.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
 
 ##@ Deployment - Media
 
 deploy-media: ## Deploy all media services (acquisition + consumption)
 	@echo "$(BLUE)Deploying media stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-all.yml $(VAULT_FLAG) --tags media
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags media
 
 deploy-media-acquisition: ## Deploy media acquisition (Sonarr, Radarr, etc.)
 	@echo "$(BLUE)Deploying media acquisition...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-media_acquisition.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG)
 
 deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
 	@echo "$(BLUE)Deploying media consumption...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-media_consumption.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG)
 
 ##@ Deployment - Future Stacks
 
 deploy-content: ## Deploy content management stack
 	@echo "$(BLUE)Deploying content management...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-content_management.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/content_management.yml $(VAULT_FLAG)
 
 deploy-dev: ## Deploy development stack
 	@echo "$(BLUE)Deploying development stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-development.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/development.yml $(VAULT_FLAG)
 
 deploy-productivity: ## Deploy productivity stack
 	@echo "$(BLUE)Deploying productivity stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-productivity.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/productivity.yml $(VAULT_FLAG)
 
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-social.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
 ##@ Deployment - Specific Services
 
 deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-infra_gateway.yml $(VAULT_FLAG) --tags traefik
+	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
 
 deploy-plex: ## Deploy only Plex
 	@echo "$(BLUE)Deploying Plex...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-media_consumption.yml $(VAULT_FLAG) --tags plex
+	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG) --tags plex
 
 deploy-sonarr: ## Deploy only Sonarr
 	@echo "$(BLUE)Deploying Sonarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-media_acquisition.yml $(VAULT_FLAG) --tags sonarr
+	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags sonarr
 
 deploy-radarr: ## Deploy only Radarr
 	@echo "$(BLUE)Deploying Radarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-media_acquisition.yml $(VAULT_FLAG) --tags radarr
+	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags radarr
 
 ##@ Testing & Validation
 
@@ -129,7 +129,7 @@ check: syntax lint ## Run all checks (syntax + lint)
 
 syntax: ## Check playbook syntax
 	@echo "$(BLUE)Checking syntax...$(NC)"
-	@for playbook in deploy-*.yml; do \
+	@for playbook in deploy/*.yml; do \
 		echo "Checking $$playbook..."; \
 		ansible-playbook $$playbook --syntax-check $(VAULT_FLAG) || exit 1; \
 	done
@@ -138,14 +138,14 @@ syntax: ## Check playbook syntax
 lint: ## Lint playbooks with ansible-lint
 	@echo "$(BLUE)Linting playbooks...$(NC)"
 	@if command -v ansible-lint >/dev/null 2>&1; then \
-		ansible-lint deploy-*.yml || true; \
+		ansible-lint deploy/*.yml || true; \
 	else \
 		echo "$(YELLOW)ansible-lint not installed. Install with: pip install ansible-lint$(NC)"; \
 	fi
 
 dry-run: ## Dry-run full deployment (check mode)
 	@echo "$(BLUE)Running dry-run of full deployment...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy-all.yml $(VAULT_FLAG) --check --diff
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --check --diff
 
 test-connection: ## Test SSH connection to all hosts
 	@echo "$(BLUE)Testing connection to all hosts...$(NC)"
@@ -203,13 +203,13 @@ list-groups: ## List all groups in inventory
 	@echo "$(BLUE)Listing all groups...$(NC)"
 	@ansible localhost -i $(INVENTORY) -m debug -a "var=groups.keys()"
 
-list-tags: ## List all available tags (usage: make list-tags PLAYBOOK=deploy-all.yml)
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+list-tags: ## List all available tags (usage: make list-tags PLAYBOOK=deploy/all.yml)
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Listing tags in $$PLAYBOOK...$(NC)"; \
 	ansible-playbook $$PLAYBOOK --list-tags $(VAULT_FLAG)
 
-list-tasks: ## List all tasks in a playbook (usage: make list-tasks PLAYBOOK=deploy-all.yml)
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+list-tasks: ## List all tasks in a playbook (usage: make list-tasks PLAYBOOK=deploy/all.yml)
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Listing tasks in $$PLAYBOOK...$(NC)"; \
 	ansible-playbook $$PLAYBOOK --list-tasks $(VAULT_FLAG)
 
@@ -223,40 +223,40 @@ show-vars: ## Show variables for a host (usage: make show-vars HOST=mini)
 
 ##@ Advanced Deployment
 
-deploy-limit: ## Deploy to specific host (usage: make deploy-limit HOST=mini PLAYBOOK=deploy-all.yml)
+deploy-limit: ## Deploy to specific host (usage: make deploy-limit HOST=mini PLAYBOOK=deploy/all.yml)
 	@if [ -z "$(HOST)" ]; then \
 		echo "$(RED)Error: HOST parameter required. Usage: make deploy-limit HOST=hostname$(NC)"; \
 		exit 1; \
 	fi
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Deploying $$PLAYBOOK to $(HOST)...$(NC)"; \
 	$(ANSIBLE) -i $(INVENTORY) $$PLAYBOOK $(VAULT_FLAG) --limit $(HOST)
 
-deploy-tags: ## Deploy specific tags (usage: make deploy-tags TAGS=traefik,plex PLAYBOOK=deploy-all.yml)
+deploy-tags: ## Deploy specific tags (usage: make deploy-tags TAGS=traefik,plex PLAYBOOK=deploy/all.yml)
 	@if [ -z "$(TAGS)" ]; then \
 		echo "$(RED)Error: TAGS parameter required. Usage: make deploy-tags TAGS=tag1,tag2$(NC)"; \
 		exit 1; \
 	fi
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Deploying tags: $(TAGS) from $$PLAYBOOK...$(NC)"; \
 	$(ANSIBLE) -i $(INVENTORY) $$PLAYBOOK $(VAULT_FLAG) --tags $(TAGS)
 
-deploy-skip-tags: ## Skip specific tags (usage: make deploy-skip-tags TAGS=traefik,plex PLAYBOOK=deploy-all.yml)
+deploy-skip-tags: ## Skip specific tags (usage: make deploy-skip-tags TAGS=traefik,plex PLAYBOOK=deploy/all.yml)
 	@if [ -z "$(TAGS)" ]; then \
 		echo "$(RED)Error: TAGS parameter required. Usage: make deploy-skip-tags TAGS=tag1,tag2$(NC)"; \
 		exit 1; \
 	fi
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Deploying $$PLAYBOOK, skipping tags: $(TAGS)...$(NC)"; \
 	$(ANSIBLE) -i $(INVENTORY) $$PLAYBOOK $(VAULT_FLAG) --skip-tags $(TAGS)
 
-deploy-verbose: ## Deploy with verbose output (usage: make deploy-verbose PLAYBOOK=deploy-all.yml)
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+deploy-verbose: ## Deploy with verbose output (usage: make deploy-verbose PLAYBOOK=deploy/all.yml)
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Deploying $$PLAYBOOK with verbose output...$(NC)"; \
 	$(ANSIBLE) -i $(INVENTORY) $$PLAYBOOK $(VAULT_FLAG) -vvv
 
-deploy-step: ## Deploy with step-by-step confirmation (usage: make deploy-step PLAYBOOK=deploy-all.yml)
-	@PLAYBOOK=$${PLAYBOOK:-deploy-all.yml}; \
+deploy-step: ## Deploy with step-by-step confirmation (usage: make deploy-step PLAYBOOK=deploy/all.yml)
+	@PLAYBOOK=$${PLAYBOOK:-deploy/all.yml}; \
 	echo "$(BLUE)Deploying $$PLAYBOOK with step-by-step confirmation...$(NC)"; \
 	$(ANSIBLE) -i $(INVENTORY) $$PLAYBOOK $(VAULT_FLAG) --step
 

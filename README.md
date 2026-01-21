@@ -6,7 +6,13 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 
 ```
 .
-├── deploy-*.yml          # Stack deployment playbooks
+├── deploy/               # Stack deployment playbooks
+│   ├── all.yml
+│   ├── prerequisites.yml
+│   ├── infra_core.yml
+│   ├── infra_gateway.yml
+│   ├── media_acquisition.yml
+│   └── media_consumption.yml
 ├── group_vars/           # Host group variables and vault files
 ├── inventory/            # Host inventory
 ├── roles/                # Ansible roles
