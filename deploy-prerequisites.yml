@@ -1,0 +1,9 @@
+---
+- name: Deploy homelab prerequisites
+  hosts: compute_servers
+  become: true
+  roles:
+    - firewall
+    - docker
+    - networks
+    - docker-volumes

@@ -1,0 +1,7 @@
+---
+- name: Deploy media consumption stack
+  hosts: media_consumption
+  become: yes
+  
+  roles:
+    - media_consumption

@@ -1,0 +1,10 @@
+---
+# TODO: Implement this stack
+- name: Deploy placeholder
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Placeholder task
+      debug:
+        msg: "This stack is not yet implemented"
+      when: false

@@ -1,0 +1,7 @@
+---
+- name: Deploy media acquisition stack
+  hosts: media_acquisition
+  become: yes
+
+  roles:
+    - media_acquisition
