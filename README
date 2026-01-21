@@ -1,0 +1,45 @@
+# Initial setup
+make setup
+
+# Deploy everything
+make deploy-all
+make all  # shortcut
+
+# Deploy specific stacks
+make deploy-infra
+make deploy-media
+make infra  # shortcut
+
+# Deploy specific services
+make deploy-traefik
+make deploy-plex
+
+# Testing
+make check
+make syntax
+make dry-run
+make test-connection
+
+# Vault management
+make edit-vault FILE=group_vars/infra_core/vault.yml
+make view-vault FILE=group_vars/media_acquisition/vault.yml
+
+# Information
+make list-hosts
+make list-tags
+make list-tasks PLAYBOOK=deploy-media_acquisition.yml
+make show-vars HOST=mini
+
+# Advanced
+make deploy-tags TAGS=traefik,plex
+make deploy-limit HOST=mini PLAYBOOK=deploy-infra_gateway.yml
+make deploy-verbose PLAYBOOK=deploy-all.yml
+
+# Docker management
+make docker-ps
+make docker-logs HOST=mini CONTAINER=traefik
+make docker-prune
+
+# Development
+make create-role ROLE=content_management
+make create-playbook STACK=productivity
