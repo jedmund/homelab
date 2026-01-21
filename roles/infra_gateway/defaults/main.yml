@@ -1,0 +1,119 @@
+---
+# Common settings
+timezone: America/Los_Angeles
+puid: "977"
+pgid: "988"
+# Container restart policy
+restart_policy: unless-stopped
+# Logging config
+logging_driver: json-file
+logging_max_size: "10m"
+logging_max_file: "3"
+# Stack name
+stack_name: infra-gateway
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Network names
+proxy_network: proxy-network
+backend_network: backend-internal
+shared_network: shared-network
+
+# Health check defaults
+healthcheck_interval: 30s
+healthcheck_timeout: 10s
+healthcheck_retries: 3
+
+# DDClient settings
+ddclient_daemon_interval: "300"
+ddclient_ssl: "yes"
+ddclient_use: "web"
+ddclient_protocol: "cloudflare"
+ddclient_atelier_zone: "atelier.house"
+ddclient_atelier_subdomains:
+  - atelier.house
+  - ai.atelier.house
+  - auth.atelier.house
+  - bl.atelier.house
+  - chat.atelier.house
+  - docs.atelier.house
+  - flood.atelier.house
+  - git.atelier.house
+  - ha.atelier.house
+  - hu.atelier.house
+  - id.atelier.house
+  - keep.atelier.house
+  - ko.atelier.house
+  - kv.atelier.house
+  - li.atelier.house
+  - matrix.atelier.house
+  - mc.atelier.house
+  - n8n.atelier.house
+  - notes.atelier.house
+  - ov.atelier.house
+  - photos.atelier.house
+  - pi.atelier.house
+  - ra.atelier.house
+  - read.atelier.house
+  - rom.atelier.house
+  - rss.atelier.house
+  - so.atelier.house
+  - speed.atelier.house
+  - start.atelier.house
+  - strudel.atelier.house
+  - tr.atelier.house
+  - tv.atelier.house
+  - watch.atelier.house
+  - www.atelier.house
+  - z.atelier.house
+ddclient_fireplace_zone: "fireplace.cafe"
+ddclient_fireplace_subdomains:
+  - fireplace.cafe
+
+# Traefik settings
+traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
+traefik_image: traefik:v3.6
+traefik_dashboard_enabled: "true"
+traefik_log_level: INFO
+traefik_domain: atelier.house
+traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
+# Use staging for testing: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+# PocketID settings
+pocketid_port: 1411
+pocketid_app_url: "https://id.{{ traefik_domain }}"
+pocketid_trust_proxy: "true"
+pocketid_email_login_notification_enabled: "true"
+
+# TinyAuth settings
+tinyauth_port: 3000
+tinyauth_app_url: "https://auth.{{ traefik_domain }}"
+tinyauth_log_level: debug
+tinyauth_cookie_secure: "true"
+tinyauth_cookie_domain: ".{{ traefik_domain }}"
+tinyauth_session_duration: 168h
+tinyauth_oauth_auto_redirect: pocketid
+tinyauth_pocketid_name: "Pocket ID"
+tinyauth_pocketid_auth_url: "{{ pocketid_app_url }}/authorize"
+tinyauth_pocketid_token_url: "{{ pocketid_app_url }}/api/oidc/token"
+tinyauth_pocketid_user_info_url: "{{ pocketid_app_url }}/api/oidc/userinfo"
+tinyauth_pocketid_redirect_url: "{{ tinyauth_app_url }}/api/oauth/callback/pocketid"
+tinyauth_pocketid_scopes: "openid email profile groups"
+# TinyAuth access control
+tinyauth_allowed_user: "justin@jedmund.com"
+
+# OpenSpeedTest settings
+openspeedtest_port: 3000
+
+# Glance settings
+glance_port: 8080
+
+# AdGuard settings
+adguard_port_http: 80
+adguard_port_setup: 3000
+adguard_port_dns_tcp: 53
+adguard_port_dns_udp: 53
+
+# Server IPs for Traefik dynamic configs
+mini_server_ip: 192.168.1.69
+max_server_ip: 192.168.1.245
+ha_server_ip: 192.168.1.8

@@ -1,0 +1,22 @@
+---
+- name: Deploy ddclient configuration from template
+  template:
+    src: ddclient/config.conf.j2
+    dest: "{{ config_base }}/ddclient/config.conf"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+
+- name: Deploy DDClient dynamic DNS
+  community.docker.docker_container:
+    name: ddclient
+    image: linuxserver/ddclient
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    volumes:
+      - "{{ config_base }}/ddclient/config.conf:/etc/ddclient/ddclient.conf"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

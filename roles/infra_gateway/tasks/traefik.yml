@@ -1,0 +1,61 @@
+---
+- name: Deploy Traefik main configuration
+  template:
+    src: traefik/traefik.yml.j2
+    dest: "{{ config_base }}/traefik/traefik.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy Traefik dynamic configurations
+  template:
+    src: "traefik/dynamic/{{ item }}.j2"
+    dest: "{{ config_base }}/traefik/dynamic/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - services-mini.yml
+    - services-max.yml
+    - services-other.yml
+
+- name: Copy Traefik static dynamic configs
+  copy:
+    src: "traefik/dynamic/{{ item }}"
+    dest: "{{ config_base }}/traefik/dynamic/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - middlewares.yml
+    - tls.yml
+
+- name: Deploy Traefik reverse proxy
+  community.docker.docker_container:
+    name: traefik
+    image: "{{ traefik_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+      - name: "{{ backend_network }}"
+    published_ports:
+      - "80:80"
+      - "443:443"
+    env:
+      TZ: "{{ timezone }}"
+      CF_DNS_API_TOKEN: "{{ traefik_cf_dns_api_token }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "{{ config_base }}/traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "{{ config_base }}/traefik/dynamic:/config/dynamic:ro"
+      - "{{ config_base }}/traefik/acme:/config/acme"
+      - traefik-logs:/var/log/traefik
+    labels:
+      traefik.enable: "true"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: "{{ healthcheck_interval }}"
+      timeout: "{{ healthcheck_timeout }}"
+      retries: "{{ healthcheck_retries }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

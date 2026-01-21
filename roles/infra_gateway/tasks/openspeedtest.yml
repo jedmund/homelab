@@ -1,0 +1,19 @@
+---
+- name: Deploy OpenSpeedTest
+  community.docker.docker_container:
+    name: openspeedtest
+    image: openspeedtest/latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.speedtest.rule: "Host(`speed.{{ traefik_domain }}`)"
+      traefik.http.routers.speedtest.entrypoints: "websecure"
+      traefik.http.routers.speedtest.tls.certresolver: "letsencrypt"
+      traefik.http.services.speedtest.loadbalancer.server.port: "{{ openspeedtest_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

@@ -1,0 +1,78 @@
+---
+- name: Create infra-gateway config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/pocketid/data"
+    - "{{ config_base }}/ddclient"
+    - "{{ config_base }}/glance"
+    - "{{ config_base }}/adguard/work"
+    - "{{ config_base }}/adguard/conf"
+
+- name: Create Traefik config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}/traefik"
+    - "{{ config_base }}/traefik/dynamic"
+    - "{{ config_base }}/traefik/acme"
+  when: traefik_enabled | bool
+
+- name: Set permissions on Traefik ACME directory
+  file:
+    path: "{{ config_base }}/traefik/acme"
+    mode: '0600'
+  when: traefik_enabled | bool
+
+- name: Create Traefik acme.json file
+  file:
+    path: "{{ config_base }}/traefik/acme/acme.json"
+    state: touch
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    modification_time: preserve
+    access_time: preserve
+  when: traefik_enabled | bool
+
+- name: Create Traefik log volume
+  community.docker.docker_volume:
+    name: traefik-logs
+    state: present
+  when: traefik_enabled | bool
+
+# Deploy services in dependency order
+- name: Deploy Traefik
+  import_tasks: traefik.yml
+  tags: traefik
+  when: traefik_enabled | bool
+
+- name: Deploy PocketID
+  import_tasks: pocketid.yml
+  tags: pocketid
+
+- name: Deploy TinyAuth
+  import_tasks: tinyauth.yml
+  tags: tinyauth
+
+- name: Deploy DDClient
+  import_tasks: ddclient.yml
+  tags: ddclient
+
+- name: Deploy OpenSpeedTest
+  import_tasks: openspeedtest.yml
+  tags: openspeedtest
+
+- name: Deploy Glance
+  import_tasks: glance.yml
+  tags: glance
+
+- name: Deploy AdGuard
+  import_tasks: adguard.yml
+  tags: adguard

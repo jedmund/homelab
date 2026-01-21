@@ -1,0 +1,317 @@
+# External Services on {{ mini_server_ip }} (Mini server)
+http:
+  routers:
+    # ========== Traefik Dashboard ==========
+
+    # Traefik Dashboard - tr.{{ traefik_domain }}
+    traefik-dashboard:
+      rule: "Host(`tr.{{ traefik_domain }}`)"
+      service: api@internal
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # ========== Media Management (Servarr Stack) ==========
+
+    # Sonarr - so.{{ traefik_domain }}
+    sonarr:
+      rule: "Host(`so.{{ traefik_domain }}`)"
+      service: sonarr
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+        - sonarr-basicauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Radarr - ra.{{ traefik_domain }}
+    radarr:
+      rule: "Host(`ra.{{ traefik_domain }}`)"
+      service: radarr
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Lidarr - li.{{ traefik_domain }}
+    lidarr:
+      rule: "Host(`li.{{ traefik_domain }}`)"
+      service: lidarr
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Huntarr - hu.{{ traefik_domain }}
+    huntarr:
+      rule: "Host(`hu.{{ traefik_domain }}`)"
+      service: huntarr
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # ========== Media & Entertainment ==========
+
+    # Stash - z.{{ traefik_domain }}
+    stash:
+      rule: "Host(`z.{{ traefik_domain }}`)"
+      service: stash
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Plex - watch.{{ traefik_domain }}
+    plex:
+      rule: "Host(`watch.{{ traefik_domain }}`)"
+      service: plex
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Overseerr - ov.{{ traefik_domain }}
+    overseerr:
+      rule: "Host(`ov.{{ traefik_domain }}`)"
+      service: overseerr
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Komodo - ko.{{ traefik_domain }}
+    komodo-ko:
+      rule: "Host(`ko.{{ traefik_domain }}`)"
+      service: komodo
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # ========== Downloads ==========
+
+    # Flood - flood.{{ traefik_domain }}
+    flood:
+      rule: "Host(`flood.{{ traefik_domain }}`)"
+      service: flood
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # ========== Productivity ==========
+
+    # Silverbullet - notes.{{ traefik_domain }}
+    silverbullet:
+      rule: "Host(`notes.{{ traefik_domain }}`)"
+      service: silverbullet
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Karakeep - keep.{{ traefik_domain }}
+    karakeep:
+      rule: "Host(`keep.{{ traefik_domain }}`)"
+      service: karakeep
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Kavita - kv.{{ traefik_domain }}
+    kavita:
+      rule: "Host(`kv.{{ traefik_domain }}`)"
+      service: kavita
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Miniflux - rss.{{ traefik_domain }}
+    miniflux:
+      rule: "Host(`rss.{{ traefik_domain }}`)"
+      service: miniflux
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Reactflux - read.{{ traefik_domain }}
+    reactflux:
+      rule: "Host(`read.{{ traefik_domain }}`)"
+      service: reactflux
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Papra - docs.{{ traefik_domain }}
+    papra:
+      rule: "Host(`docs.{{ traefik_domain }}`)"
+      service: papra
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # RomM - rom.{{ traefik_domain }}
+    romm:
+      rule: "Host(`rom.{{ traefik_domain }}`)"
+      service: romm
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # ========== Photos ==========
+
+    # Immich - photos.{{ traefik_domain }}
+    immich:
+      rule: "Host(`photos.{{ traefik_domain }}`)"
+      service: immich
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Tunarr - tv.{{ traefik_domain }}
+    tunarr:
+      rule: "Host(`tv.{{ traefik_domain }}`)"
+      service: tunarr
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Pinchflat - pi.{{ traefik_domain }}
+    pinchflat:
+      rule: "Host(`pi.{{ traefik_domain }}`)"
+      service: pinchflat
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    # Servarr Stack
+    sonarr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8989"
+
+    radarr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:7878"
+
+    lidarr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8686"
+
+    huntarr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:9705"
+
+    # Media & Entertainment
+    stash:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:9999"
+
+    plex:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:32400"
+
+    overseerr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:5055"
+
+    # Downloads
+    flood:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3001"
+
+    # Productivity
+    silverbullet:
+      loadBalancer:
+        servers:
+          - url: "http://silverbullet:3000"
+
+    karakeep:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3232"
+
+    kavita:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:5353"
+
+    miniflux:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8280"
+
+    reactflux:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:2000"
+
+    papra:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8787"
+
+    romm:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8888"
+
+    # Photos
+    immich:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:2283"
+
+    # Infrastructure
+    komodo:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:9120"
+
+    # IPTV
+    tunarr:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8000"
+
+    # YouTube Downloader
+    pinchflat:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8945"

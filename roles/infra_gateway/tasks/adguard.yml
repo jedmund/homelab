@@ -1,0 +1,51 @@
+---
+- name: Disable systemd-resolved DNS stub listener
+  lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: '^#?DNSStubListener='
+    line: 'DNSStubListener=no'
+    state: present
+
+- name: Check if systemd-resolved is still using port 53
+  shell: ss -tlnp | grep ':53 ' | grep -c systemd-resolve || true
+  register: port_53_in_use
+  changed_when: false
+
+- name: Restart systemd-resolved if using port 53
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  when: port_53_in_use.stdout != "0"
+
+- name: Wait for port 53 to be released
+  wait_for:
+    port: 53
+    state: stopped
+    timeout: 10
+  when: port_53_in_use.stdout != "0"
+
+- name: Deploy AdGuard Home DNS server
+  community.docker.docker_container:
+    name: adguard
+    image: adguard/adguardhome:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    published_ports:
+      - "{{ adguard_port_dns_tcp }}:53/tcp"
+      - "{{ adguard_port_dns_udp }}:53/udp"
+      - "{{ adguard_port_setup }}:3000/tcp"
+    volumes:
+      - "{{ config_base }}/adguard/work:/opt/adguardhome/work"
+      - "{{ config_base }}/adguard/conf:/opt/adguardhome/conf"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.adguard.rule: "Host(`dns.{{ traefik_domain }}`)"
+      traefik.http.routers.adguard.entrypoints: "websecure"
+      traefik.http.routers.adguard.tls.certresolver: "letsencrypt"
+      traefik.http.services.adguard.loadbalancer.server.port: "{{ adguard_port_http }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

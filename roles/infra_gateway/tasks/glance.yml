@@ -1,0 +1,39 @@
+---
+- name: Copy Glance configuration
+  copy:
+    src: glance/glance.yml
+    dest: "{{ config_base }}/glance/glance.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Create Glance assets directory
+  file:
+    path: "{{ config_base }}/glance/assets"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Deploy Glance dashboard
+  community.docker.docker_container:
+    name: glance
+    image: glanceapp/glance
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+      - name: "{{ shared_network }}"
+    env:
+      TZ: "{{ timezone }}"
+    volumes:
+      - "{{ config_base }}/glance:/app/config"
+      - "{{ config_base }}/glance/assets:/app/assets"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.glance.rule: "Host(`{{ traefik_domain }}`) || Host(`start.{{ traefik_domain }}`)"
+      traefik.http.routers.glance.entrypoints: "websecure"
+      traefik.http.routers.glance.tls.certresolver: "letsencrypt"
+      traefik.http.services.glance.loadbalancer.server.port: "{{ glance_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"
