@@ -1,0 +1,17 @@
+---
+- name: Deploy Reactflux
+  community.docker.docker_container:
+    name: reactflux
+    image: electh/reactflux:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ shared_network }}"
+    ports:
+      - "{{ reactflux_port }}:2000"
+    env:
+      TZ: "{{ timezone }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"

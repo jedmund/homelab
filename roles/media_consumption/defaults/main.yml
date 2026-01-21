@@ -1,0 +1,141 @@
+---
+# Common settings
+timezone: America/Los_Angeles
+puid: "977"
+pgid: "988"
+# Container restart policy
+restart_policy: unless-stopped
+# Logging config
+logging_driver: json-file
+logging_max_size: "10m"
+logging_max_file: "3"
+# Stack name
+stack_name: media-consumption
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+# Network names
+shared_network: shared-network
+backend_network: backend-internal
+# Health check defaults
+healthcheck_interval: 30s
+healthcheck_timeout: 10s
+healthcheck_retries: 3
+healthcheck_start_period: 30s
+
+# Miniflux settings
+miniflux_port: 8280
+miniflux_admin_username: admin
+miniflux_base_url: "https://rss.atelier.house"
+miniflux_db_user: miniflux
+miniflux_db_name: miniflux
+miniflux_database_url: "postgres://{{ miniflux_db_user }}:{{ miniflux_db_password }}@miniflux-db/{{ miniflux_db_name }}?sslmode=disable"
+miniflux_oauth2_provider: oidc
+miniflux_oauth2_oidc_provider_name: PocketID
+miniflux_oauth2_redirect_url: "{{ miniflux_base_url }}/oauth2/oidc/callback"
+miniflux_oauth2_oidc_discovery_endpoint: "https://id.atelier.house"
+miniflux_oauth2_user_creation: "1"
+miniflux_disable_local_auth: "false"
+miniflux_polling_frequency: "60"
+miniflux_batch_size: "100"
+miniflux_polling_parsing_error_limit: "3"
+miniflux_worker_pool_size: "5"
+miniflux_metrics_collector: "1"
+miniflux_metrics_allowed_networks: "127.0.0.1/8,::1/128,192.168.0.0/16"
+miniflux_backup_retention_days: 7
+
+# Reactflux settings
+reactflux_port: 2000
+
+# Karakeep settings
+karakeep_port: 3232
+karakeep_base_url: "https://keep.atelier.house"
+karakeep_data_dir: "/data"
+karakeep_max_asset_size_mb: "50"
+karakeep_db_wal_mode: "true"
+karakeep_disable_new_release_check: "false"
+karakeep_rate_limiting_enabled: "false"
+karakeep_search_num_workers: "1"
+karakeep_webhook_num_workers: "1"
+karakeep_asset_preprocessing_num_workers: "1"
+karakeep_rule_engine_num_workers: "1"
+karakeep_crawler_num_workers: "1"
+karakeep_inference_num_workers: "1"
+karakeep_meili_addr: "http://karakeep-meilisearch:7700"
+karakeep_disable_signups: "false"
+karakeep_disable_password_auth: "true"
+karakeep_email_verification_required: "false"
+karakeep_oauth_wellknown_url: "https://id.atelier.house/.well-known/openid-configuration"
+karakeep_oauth_scope: "openid email profile"
+karakeep_oauth_provider_name: "PocketID"
+karakeep_oauth_allow_dangerous_email_account_linking: "true"
+karakeep_oauth_timeout: "3500"
+karakeep_inference_text_model: "gpt-4o-mini"
+karakeep_inference_image_model: "gpt-4o-mini"
+karakeep_embedding_text_model: "text-embedding-3-small"
+karakeep_inference_context_length: "2048"
+karakeep_inference_max_output_tokens: "2048"
+karakeep_inference_lang: "english"
+karakeep_inference_job_timeout_sec: "30"
+karakeep_inference_enable_auto_tagging: "true"
+karakeep_inference_enable_auto_summarization: "false"
+karakeep_inference_output_schema: "structured"
+karakeep_browser_web_url: "http://karakeep-chrome:9222"
+karakeep_browser_connect_ondemand: "false"
+karakeep_crawler_download_banner_image: "true"
+karakeep_crawler_store_screenshot: "true"
+karakeep_crawler_full_page_screenshot: "false"
+karakeep_crawler_full_page_archive: "false"
+karakeep_crawler_enable_adblocker: "true"
+karakeep_crawler_job_timeout_sec: "60"
+karakeep_crawler_navigate_timeout_sec: "30"
+karakeep_crawler_screenshot_timeout_sec: "5"
+karakeep_crawler_video_download: "false"
+karakeep_crawler_video_download_max_size: "50"
+karakeep_crawler_video_download_timeout_sec: "600"
+karakeep_ocr_langs: "eng"
+karakeep_ocr_confidence_threshold: "50"
+karakeep_webhook_timeout_sec: "5"
+karakeep_webhook_retry_times: "3"
+
+# Kavita settings
+kavita_port: 5353
+
+# Romm settings
+romm_port: 8888
+romm_base_url: "https://rom.atelier.house"
+romm_db_host: romm-db
+romm_db_port: "3306"
+romm_db_name: romm
+romm_db_user: romm-atelier
+romm_db_driver: mariadb
+romm_disable_userpass_login: "false"
+romm_disable_csrf_protection: "false"
+romm_kiosk_mode: "false"
+romm_upload_timeout: "600"
+romm_scan_timeout: "14400"
+romm_disable_emulator_js: "false"
+romm_disable_ruffle_rs: "false"
+romm_web_concurrency: "2"
+romm_loglevel: "INFO"
+romm_hasheous_api_enabled: "true"
+romm_hltb_api_enabled: "true"
+romm_screenscraper_user: "jedmund"
+romm_oidc_enabled: "true"
+romm_oidc_provider: "pocketid"
+romm_oidc_redirect_uri: "{{ romm_base_url }}/api/oauth/openid"
+romm_oidc_server_application_url: "https://id.atelier.house"
+romm_enable_rescan_on_filesystem_change: "false"
+romm_rescan_on_filesystem_change_delay: "5"
+romm_enable_scheduled_rescan: "false"
+romm_scheduled_rescan_cron: "0 3 * * *"
+romm_enable_scheduled_update_switch_titledb: "false"
+romm_scheduled_update_switch_titledb_cron: "0 4 * * *"
+
+# Plex settings
+plex_port: 32400
+plex_transcode_path: "{{ config_base }}/plex/transcode"
+plex_advertise_ip: "http://{{ ansible_host }}:{{ plex_port }}/"
+plex_libva_driver_name: "iHD"
+
+# Tunarr settings
+tunarr_port: 8000
+tunarr_database_url: "file:/config/tunarr.db"

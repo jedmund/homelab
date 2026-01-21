@@ -1,0 +1,59 @@
+---
+- name: Create media-consumption config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/miniflux/data"
+    - "{{ config_base }}/miniflux/backups"
+    - "{{ config_base }}/karakeep"
+    - "{{ config_base }}/kavita"
+    - "{{ config_base }}/romm"
+    - "{{ config_base }}/plex/config"
+    - "{{ config_base }}/plex/transcode"
+    - "{{ config_base }}/tunarr"
+
+# Deploy reading stack
+
+- name: Deploy Miniflux Database
+  import_tasks: miniflux-db.yml
+  tags: [miniflux, miniflux-db]
+
+- name: Deploy Miniflux
+  import_tasks: miniflux.yml
+  tags: miniflux
+
+- name: Deploy Miniflux Backup
+  import_tasks: miniflux-backup.yml
+  tags: [miniflux, miniflux-backup]
+
+- name: Deploy Reactflux
+  import_tasks: reactflux.yml
+  tags: reactflux
+
+- name: Deploy Karakeep
+  import_tasks: karakeep.yml
+  tags: karakeep
+
+- name: Deploy Kavita
+  import_tasks: kavita.yml
+  tags: kavita
+
+# Deploy gaming stack
+
+- name: Deploy Romm
+  import_tasks: romm.yml
+  tags: romm
+
+# Deploy media stack
+
+- name: Deploy Plex
+  import_tasks: plex.yml
+  tags: plex
+
+- name: Deploy Tunarr
+  import_tasks: tunarr.yml
+  tags: tunarr

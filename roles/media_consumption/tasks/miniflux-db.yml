@@ -1,0 +1,25 @@
+---
+- name: Deploy Miniflux PostgreSQL database
+  community.docker.docker_container:
+    name: miniflux-db
+    image: postgres:17-alpine
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    env:
+      POSTGRES_USER: "{{ miniflux_db_user }}"
+      POSTGRES_PASSWORD: "{{ miniflux_db_password }}"
+      POSTGRES_DB: "{{ miniflux_db_name }}"
+    volumes:
+      - "{{ config_base }}/miniflux/data:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ miniflux_db_user }}"]
+      interval: 10s
+      start_period: "{{ healthcheck_start_period }}"
+      timeout: 5s
+      retries: 5
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"

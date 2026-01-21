@@ -1,0 +1,140 @@
+---
+- name: Create local Docker volumes for Karakeep
+  community.docker.docker_volume:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - karakeep-data
+    - karakeep-meilisearch
+
+- name: Deploy Karakeep Meilisearch
+  community.docker.docker_container:
+    name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    env:
+      MEILI_MASTER_KEY: "{{ karakeep_meili_master_key }}"
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      interval: "{{ healthcheck_interval }}"
+      timeout: "{{ healthcheck_timeout }}"
+      retries: "{{ healthcheck_retries }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"
+
+- name: Deploy Karakeep Chrome
+  community.docker.docker_container:
+    name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"
+
+- name: Deploy Karakeep Web
+  community.docker.docker_container:
+    name: karakeep_web
+    image: "ghcr.io/karakeep-app/karakeep:release"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ shared_network }}"
+      - name: "{{ backend_network }}"
+    ports:
+      - "{{ karakeep_port }}:3000"
+    env:
+      TZ: "{{ timezone }}"
+      # Core settings
+      DATA_DIR: "{{ karakeep_data_dir }}"
+      MAX_ASSET_SIZE_MB: "{{ karakeep_max_asset_size_mb }}"
+      DB_WAL_MODE: "{{ karakeep_db_wal_mode }}"
+      DISABLE_NEW_RELEASE_CHECK: "{{ karakeep_disable_new_release_check }}"
+      RATE_LIMITING_ENABLED: "{{ karakeep_rate_limiting_enabled }}"
+      # NextAuth
+      NEXTAUTH_URL: "{{ karakeep_base_url }}"
+      NEXTAUTH_SECRET: "{{ karakeep_nextauth_secret }}"
+      # Workers
+      SEARCH_NUM_WORKERS: "{{ karakeep_search_num_workers }}"
+      WEBHOOK_NUM_WORKERS: "{{ karakeep_webhook_num_workers }}"
+      ASSET_PREPROCESSING_NUM_WORKERS: "{{ karakeep_asset_preprocessing_num_workers }}"
+      RULE_ENGINE_NUM_WORKERS: "{{ karakeep_rule_engine_num_workers }}"
+      CRAWLER_NUM_WORKERS: "{{ karakeep_crawler_num_workers }}"
+      INFERENCE_NUM_WORKERS: "{{ karakeep_inference_num_workers }}"
+      # Meilisearch
+      MEILI_ADDR: "{{ karakeep_meili_addr }}"
+      MEILI_MASTER_KEY: "{{ karakeep_meili_master_key }}"
+      # Authentication
+      DISABLE_SIGNUPS: "{{ karakeep_disable_signups }}"
+      DISABLE_PASSWORD_AUTH: "{{ karakeep_disable_password_auth }}"
+      EMAIL_VERIFICATION_REQUIRED: "{{ karakeep_email_verification_required }}"
+      # OAuth
+      OAUTH_WELLKNOWN_URL: "{{ karakeep_oauth_wellknown_url }}"
+      OAUTH_CLIENT_ID: "{{ karakeep_oauth_client_id }}"
+      OAUTH_CLIENT_SECRET: "{{ karakeep_oauth_client_secret }}"
+      OAUTH_SCOPE: "{{ karakeep_oauth_scope }}"
+      OAUTH_PROVIDER_NAME: "{{ karakeep_oauth_provider_name }}"
+      OAUTH_ALLOW_DANGEROUS_EMAIL_ACCOUNT_LINKING: "{{ karakeep_oauth_allow_dangerous_email_account_linking }}"
+      OAUTH_TIMEOUT: "{{ karakeep_oauth_timeout }}"
+      # AI Inference
+      OPENAI_API_KEY: "{{ karakeep_openai_api_key }}"
+      INFERENCE_TEXT_MODEL: "{{ karakeep_inference_text_model }}"
+      INFERENCE_IMAGE_MODEL: "{{ karakeep_inference_image_model }}"
+      EMBEDDING_TEXT_MODEL: "{{ karakeep_embedding_text_model }}"
+      INFERENCE_CONTEXT_LENGTH: "{{ karakeep_inference_context_length }}"
+      INFERENCE_MAX_OUTPUT_TOKENS: "{{ karakeep_inference_max_output_tokens }}"
+      INFERENCE_LANG: "{{ karakeep_inference_lang }}"
+      INFERENCE_JOB_TIMEOUT_SEC: "{{ karakeep_inference_job_timeout_sec }}"
+      INFERENCE_ENABLE_AUTO_TAGGING: "{{ karakeep_inference_enable_auto_tagging }}"
+      INFERENCE_ENABLE_AUTO_SUMMARIZATION: "{{ karakeep_inference_enable_auto_summarization }}"
+      INFERENCE_OUTPUT_SCHEMA: "{{ karakeep_inference_output_schema }}"
+      # Browser/Crawler
+      BROWSER_WEB_URL: "{{ karakeep_browser_web_url }}"
+      BROWSER_CONNECT_ONDEMAND: "{{ karakeep_browser_connect_ondemand }}"
+      CRAWLER_DOWNLOAD_BANNER_IMAGE: "{{ karakeep_crawler_download_banner_image }}"
+      CRAWLER_STORE_SCREENSHOT: "{{ karakeep_crawler_store_screenshot }}"
+      CRAWLER_FULL_PAGE_SCREENSHOT: "{{ karakeep_crawler_full_page_screenshot }}"
+      CRAWLER_FULL_PAGE_ARCHIVE: "{{ karakeep_crawler_full_page_archive }}"
+      CRAWLER_ENABLE_ADBLOCKER: "{{ karakeep_crawler_enable_adblocker }}"
+      CRAWLER_JOB_TIMEOUT_SEC: "{{ karakeep_crawler_job_timeout_sec }}"
+      CRAWLER_NAVIGATE_TIMEOUT_SEC: "{{ karakeep_crawler_navigate_timeout_sec }}"
+      CRAWLER_SCREENSHOT_TIMEOUT_SEC: "{{ karakeep_crawler_screenshot_timeout_sec }}"
+      CRAWLER_VIDEO_DOWNLOAD: "{{ karakeep_crawler_video_download }}"
+      CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE: "{{ karakeep_crawler_video_download_max_size }}"
+      CRAWLER_VIDEO_DOWNLOAD_TIMEOUT_SEC: "{{ karakeep_crawler_video_download_timeout_sec }}"
+      # OCR
+      OCR_LANGS: "{{ karakeep_ocr_langs }}"
+      OCR_CONFIDENCE_THRESHOLD: "{{ karakeep_ocr_confidence_threshold }}"
+      # Webhook
+      WEBHOOK_TIMEOUT_SEC: "{{ karakeep_webhook_timeout_sec }}"
+      WEBHOOK_RETRY_TIMES: "{{ karakeep_webhook_retry_times }}"
+    volumes:
+      - karakeep-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: "{{ healthcheck_interval }}"
+      timeout: "{{ healthcheck_timeout }}"
+      retries: "{{ healthcheck_retries }}"
+      start_period: "{{ healthcheck_start_period }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

@@ -1,0 +1,30 @@
+---
+- name: Deploy Miniflux database backup
+  community.docker.docker_container:
+    name: miniflux-db-backup
+    image: postgres:17-alpine
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    env:
+      POSTGRES_USER: "{{ miniflux_db_user }}"
+      POSTGRES_PASSWORD: "{{ miniflux_db_password }}"
+      POSTGRES_DB: "{{ miniflux_db_name }}"
+    volumes:
+      - "{{ config_base }}/miniflux/backups:/backup"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          echo "Backing up Miniflux database..."
+          pg_dump -h miniflux-db -U {{ miniflux_db_user }} {{ miniflux_db_name }} > /backup/miniflux_backup_$(date +%Y%m%d_%H%M%S).sql
+          ls -t /backup/miniflux_backup_*.sql | tail -n +{{ miniflux_backup_retention_days + 1 }} | xargs -r rm
+          echo "Backup complete. Sleeping for 24 hours..."
+          sleep 86400
+        done
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"
