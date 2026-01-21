@@ -1,0 +1,12 @@
+---
+# Common settings used across all containers
+timezone: America/Los_Angeles
+puid: "977"
+pgid: "988"
+
+# Logging defaults
+default_logging_max_size: "10m"
+default_logging_max_file: "3"
+
+# Restart policy
+default_restart_policy: unless-stopped

@@ -1,0 +1,111 @@
+---
+# NAS connection info
+nas_server: 192.168.1.3
+nfs_version: "3"  # Changed from 4.2 to 3
+nfs_base_opts: "addr={{ nas_server }},rw,nfsvers={{ nfs_version }},hard,intr"
+
+# All NFS volumes with correct NFS export paths
+nfs_volumes:
+  # Base media paths
+  - name: videos
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Videos"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: television
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Videos/Television"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: anime
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Videos/Anime"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: movies
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Videos/Movies"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: music
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Music"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: downloads
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Ingest"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: private
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Private"
+      o: "{{ nfs_base_opts }}"
+  
+  # Content management
+  - name: photos
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Photos/immich"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: comics
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Literature/Manga"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: games
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Gaming/RomM/library"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: games_assets
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Gaming/RomM/assets"
+      o: "{{ nfs_base_opts }}"
+  
+  # Development/Files
+  - name: forgejo-data
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Files/Forgejo"
+      o: "{{ nfs_base_opts }},uid=977,gid=988"
+  
+  - name: papra-documents
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Files/Papra/documents"
+      o: "{{ nfs_base_opts }}"
+  
+  - name: mastodon-system
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Files/Mastodon"
+      o: "{{ nfs_base_opts }},uid=991,gid=991"
+
+# Local paths for container configs
+docker_base_path: /opt/docker
