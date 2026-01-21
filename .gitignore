@@ -1,0 +1,45 @@
+# Ansible vault password file
+.vault_pass
+*.vault_pass
+
+# Ansible retry files (created when playbooks fail)
+*.retry
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Environment-specific overrides
+local_*.yml
+override_*.yml
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.vim/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# Logs
+*.log
+
+# Ansible gathered facts
