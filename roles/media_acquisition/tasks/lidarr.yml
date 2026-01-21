@@ -1,0 +1,28 @@
+---
+- name: Deploy Lidarr
+  community.docker.docker_container:
+    name: lidarr
+    image: linuxserver/lidarr:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: shared-network
+    ports:
+      - "8686:8686"
+    env:
+      TZ: "{{ timezone }}"
+      PUID: "{{ puid }}"
+      PGID: "{{ pgid }}"
+    volumes:
+      - "{{ config_base }}/lidarr:/config"
+      - music:/music
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8686/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

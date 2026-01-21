@@ -1,0 +1,39 @@
+---
+- name: Deploy Gluetun VPN
+  community.docker.docker_container:
+    name: gluetun
+    image: qmcgaw/gluetun:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    capabilities:
+      - NET_ADMIN
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    networks:
+      - name: vpn-network
+    ports:
+      - "6881:6881/tcp"
+      - "6881:6881/udp"
+    env:
+      VPN_SERVICE_PROVIDER: "{{ gluetun_service_provider }}"
+      OPENVPN_USER: "{{ gluetun_openvpn_user }}"
+      OPENVPN_PASSWORD: "{{ gluetun_openvpn_password }}"
+      SERVER_COUNTRIES: "{{ gluetun_server_countries }}"
+      TZ: "{{ timezone }}"
+      PUID: "{{ puid }}"
+      PGID: "{{ pgid }}"
+      BLOCK_WITHOUT_VPN: "{{ gluetun_block_without_vpn }}"
+      DOT: "{{ gluetun_dot }}"
+      UPDATER_PERIOD: "{{ gluetun_updater_period }}"
+    volumes:
+      - "{{ config_base }}/gluetun:/gluetun"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/v1/openvpn/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

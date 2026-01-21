@@ -1,0 +1,17 @@
+---
+# Common settings
+timezone: America/Los_Angeles
+puid: "977"
+pgid: "988"
+
+# Container restart policy
+restart_policy: unless-stopped
+
+# Logging config
+logging_driver: json-file
+logging_max_size: "10m"
+logging_max_file: "3"
+
+# Stack name
+stack_name: media_acquisition
+config_base: "{{ docker_base_path }}/{{ stack_name }}"

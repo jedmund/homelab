@@ -1,0 +1,25 @@
+---
+- name: Deploy Pinchflat
+  community.docker.docker_container:
+    name: pinchflat
+    image: ghcr.io/kieraneglin/pinchflat:dev
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: shared-network
+    ports:
+      - "8945:8945"
+    env:
+      TZ: "{{ timezone }}"
+    volumes:
+      - "{{ config_base }}/pinchflat:/config"
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8945"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

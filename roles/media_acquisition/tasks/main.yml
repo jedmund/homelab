@@ -1,0 +1,65 @@
+---
+- name: Create media-acquisition config directories
+  file: 
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/gluetun"
+    - "{{ config_base }}/huntarr"
+    - "{{ config_base }}/prowlarr"
+    - "{{ config_base }}/rtorrent"
+    - "{{ config_base }}/sonarr"
+    - "{{ config_base }}/radarr"
+    - "{{ config_base }}/lidarr"
+    - "{{ config_base }}/jellyseerr"
+    - "{{ config_base }}/unpackerr"
+    - "{{ config_base }}/stash"
+    - "{{ config_base }}/pinchflat"
+
+# Deploy infrastructure first
+ 
+- name: Deploy Gluetun VPN
+  import_tasks: gluetun.yml
+  tags: gluetun
+
+- name: Deploy Prowlarr
+  import_tasks: prowlarr.yml
+  tags: prowlarr
+
+# Deploy download client
+
+- name: Deploy Flood
+  import_tasks: flood.yml
+  tags: flood
+
+# Deploy Servarr apps
+
+- name: Deploy Sonarr
+  import_tasks: sonarr.yml
+  tags: sonarr
+
+- name: Deploy Radarr
+  import_tasks: radarr.yml
+  tags: radarr
+
+- name: Deploy Lidarr
+  import_tasks: lidarr.yml
+  tags: lidarr
+
+# Deploy supporting services
+
+- name: Deploy Jellyseerr
+  import_tasks: jellyseerr.yml
+  tags: jellyseerr
+
+- name: Deploy Unpackerr
+  import_tasks: unpackerr.yml
+  tags: unpackerr
+
+- name: Deploy Pinchflat
+  import_tasks: pinchflat.yml
+  tags: pinchflat
+

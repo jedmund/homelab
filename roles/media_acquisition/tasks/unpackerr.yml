@@ -1,0 +1,25 @@
+---
+- name: Deploy Unpackerr
+  community.docker.docker_container:
+    name: unpackerr
+    image: golift/unpackerr:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: shared-network
+    env:
+      TZ: "{{ timezone }}"
+      UN_SONARR_0_URL: "{{ unpackerr_sonarr_url }}"
+      UN_SONARR_0_API_KEY: "{{ unpackerr_sonarr_api_key }}"
+      UN_RADARR_0_URL: "{{ unpackerr_radarr_url }}"
+      UN_RADARR_0_API_KEY: "{{ unpackerr_radarr_api_key }}"
+      UN_FOLDER_0_PATH: "{{ unpackerr_folder_path }}"
+      UN_LOG_FILE: "{{ unpackerr_log_file }}"
+    volumes:
+      - "{{ config_base }}/unpackerr:/config"
+      - downloads:/downloads
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"
+

@@ -1,0 +1,30 @@
+---
+- name: Deploy Flood
+  community.docker.docker_container: 
+    name: flood
+    image: jesec/rtorrent-flood:latest
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    capabilities:
+      - NET_BIND_SERVICE
+      - NET_RAW
+    networks:
+      - name: shared-network
+    ports:
+      - "3001:3001"
+    env:
+      HOME: "/config"
+      TZ: "{{ timezone }}"
+    volumes:
+      - "{{ config_base }}/rtorrent:/config"
+      - downloads:/downloads
+    command: "--port 3001 --allowedpath /downloads --noauth --rtsocket /config/.local/share/rtorrent/rtorrent.sock"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"
