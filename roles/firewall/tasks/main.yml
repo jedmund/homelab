@@ -1,0 +1,97 @@
+---
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+  when: firewall_enabled | bool
+
+- name: Set UFW default policy (deny incoming, allow outgoing)
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+  when: firewall_enabled | bool
+
+- name: Allow base ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_base }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_base | bool
+
+- name: Allow DNS ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_dns }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_dns | bool
+
+- name: Allow media server ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_media_servers }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_media_servers | bool
+
+- name: Allow media acquisition ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_media_acquisition }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_media_acquisition | bool
+
+- name: Allow media consumption ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_media_consumption }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_media_consumption | bool
+
+- name: Allow infrastructure ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_infrastructure }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_infrastructure | bool
+
+- name: Allow download ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_downloads }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_downloads | bool
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  when: firewall_enabled | bool
