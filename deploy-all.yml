@@ -1,0 +1,52 @@
+---
+- name: Deploy complete homelab infrastructure
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display deployment plan
+      debug:
+        msg: |
+          Deploying homelab infrastructure in the following order:
+          1. Infrastructure Core
+          2. Infrastructure Gateway
+          3. Media Acquisition
+          4. Media Consumption 
+          5. Content Management (TBD)
+          6. Development (TBD)
+          7. Productivity (TBD)
+          8. Social (TBD)
+
+# Prerequisites - Run once at the beginning
+- import_playbook: deploy-prerequisites.yml
+  tags: [always, prerequisites]
+
+# Infrastructure layer 
+- import_playbook: deploy-infra_core.yml
+  tags: [infra, infra_core]
+
+- import_playbook: deploy-infra_gateway.yml
+  tags: [infra, infra_gateway]
+
+# Media stack
+- import_playbook: deploy-media_acquisition.yml
+  tags: [media, media_acquisition]
+
+- import_playbook: deploy-media_consumption.yml
+  tags: [media, media_consumption]
+
+# Additional stacks (to be created)
+- import_playbook: deploy-content_management.yml
+  tags: [content, content_management]
+  when: false  # Enable when ready
+
+- import_playbook: deploy-development.yml
+  tags: [dev, development]
+  when: false  # Enable when ready
+
+- import_playbook: deploy-productivity.yml
+  tags: [productivity]
+  when: false  # Enable when ready
+
+- import_playbook: deploy-social.yml
+  tags: [social]
+  when: false  # Enable when ready
