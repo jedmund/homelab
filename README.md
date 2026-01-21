@@ -40,11 +40,54 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
    ```
    make setup
    ```
-3. Configure vault files (see Vault Variables below)
-4. Test connectivity:
+3. Update the inventory file (see Inventory Configuration below)
+4. Configure vault files (see Vault Variables below)
+5. Test connectivity:
    ```
    make test-connection
    ```
+
+## Inventory Configuration
+
+Edit `inventory/hosts.yml` to define your hosts and assign them to stack groups.
+
+### Host Configuration
+
+Each host requires the following variables:
+
+| Variable | Description |
+|----------|-------------|
+| `ansible_host` | IP address or hostname of the target machine |
+| `ansible_port` | SSH port (omit if using default port 22) |
+| `ansible_user` | SSH username |
+| `ansible_connection` | Set to `local` if running against the local machine |
+
+Example host entry:
+
+```yaml
+compute_servers:
+  hosts:
+    my-server:
+      ansible_host: 192.168.1.100
+      ansible_port: 22
+      ansible_user: myuser
+```
+
+### Stack Group Assignment
+
+Assign hosts to stack groups to control which services get deployed to each machine. Add your host under the appropriate group:
+
+```yaml
+infra_gateway:
+  hosts:
+    my-server:
+
+media_consumption:
+  hosts:
+    my-server:
+```
+
+A single host can belong to multiple groups.
 
 ## Vault Variables
 
