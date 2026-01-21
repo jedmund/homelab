@@ -1,0 +1,17 @@
+---
+- name: Create Docker networks
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    driver: "{{ item.driver | default('bridge') }}"
+    internal: "{{ item.internal | default(false) }}"
+    state: present
+  loop:
+    - name: proxy-network
+      driver: bridge
+    - name: backend-internal
+      driver: bridge
+      internal: true
+    - name: shared-network
+      driver: bridge
+    - name: vpn-network
+      driver: bridge
