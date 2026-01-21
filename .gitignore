@@ -2,6 +2,9 @@
 .vault_pass
 *.vault_pass
 
+# Ansible vault files
+**/vault.yml
+
 # Ansible retry files (created when playbooks fail)
 *.retry
 
