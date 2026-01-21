@@ -4,10 +4,10 @@ use={{ ddclient_use }}
 protocol={{ ddclient_protocol }}
 zone={{ ddclient_atelier_zone }}
 login={{ ddclient_cloudflare_email }}
-password={{ ddclient_cloudflare_password_atelier }}
+password={{ ddclient_cloudflare_api_token }}
 {{ ddclient_atelier_subdomains | join(',') }}
 protocol={{ ddclient_protocol }}
 zone={{ ddclient_fireplace_zone }}
 login={{ ddclient_cloudflare_email }}
-password={{ ddclient_cloudflare_password_fireplace }}
+password={{ ddclient_cloudflare_api_token }}
 {{ ddclient_fireplace_subdomains | join(',') }}

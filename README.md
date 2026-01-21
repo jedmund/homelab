@@ -122,8 +122,7 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | Variable | Description |
 |----------|-------------|
 | `ddclient_cloudflare_email` | Cloudflare account email |
-| `ddclient_cloudflare_password_atelier` | Cloudflare API token for atelier domain |
-| `ddclient_cloudflare_password_fireplace` | Cloudflare API token for fireplace domain |
+| `ddclient_cloudflare_api_token` | Cloudflare API token for dynamic DNS updates |
 
 #### PocketID
 
