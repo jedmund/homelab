@@ -1,0 +1,57 @@
+---
+# Common settings
+timezone: America/Los_Angeles
+puid: "977"
+pgid: "988"
+
+# Container restart policy
+restart_policy: unless-stopped
+
+# Logging config
+logging_driver: json-file
+logging_max_size: "10m"
+logging_max_file: "3"
+
+# Stack name
+stack_name: infra_core
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Komodo settings
+komodo_image_tag: latest
+periphery_root_directory: /etc/komodo
+
+# Komodo Core configuration
+komodo_host: "https://ko.atelier.house"
+komodo_title: "Komodo"
+komodo_first_server: "https://komodo-periphery:8120"
+komodo_first_server_name: "Atelier"
+komodo_disable_confirm_dialog: "true"
+komodo_monitoring_interval: "15-sec"
+komodo_resource_poll_interval: "1-hr"
+komodo_jwt_ttl: "1-day"
+
+# Authentication settings
+komodo_local_auth: "true"
+komodo_disable_user_registration: "true"
+komodo_enable_new_users: "false"
+komodo_disable_non_admin_create: "false"
+komodo_transparent_mode: "false"
+
+# Logging preferences
+komodo_logging_pretty: "false"
+komodo_pretty_startup_config: "false"
+
+# OIDC settings
+komodo_oidc_enabled: "true"
+komodo_oidc_provider: "https://id.atelier.house"
+
+# OAuth (disabled)
+komodo_github_oauth_enabled: "false"
+komodo_google_oauth_enabled: "false"
+
+# Periphery settings
+periphery_disable_terminals: "false"
+periphery_ssl_enabled: "true"
+periphery_include_disk_mounts: "/etc/hostname"
+periphery_logging_pretty: "false"
+periphery_pretty_startup_config: "false"

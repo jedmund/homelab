@@ -1,0 +1,30 @@
+---
+- name: Create infra-core config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ periphery_root_directory }}"
+
+- name: Create Komodo backup directory
+  file:
+    path: /home/{{ ansible_user }}/komodo-backups
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+# Deploy infrastructure in order
+- name: Deploy MongoDB
+  import_tasks: mongo.yml
+  tags: mongo
+
+- name: Deploy Komodo Core
+  import_tasks: komodo-core.yml
+  tags: komodo-core
+
+- name: Deploy Komodo Periphery
+  import_tasks: komodo-periphery.yml
+  tags: komodo-periphery

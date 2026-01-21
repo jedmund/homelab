@@ -1,0 +1,58 @@
+---
+- name: Deploy Komodo Core
+  community.docker.docker_container:
+    name: komodo-core
+    image: "ghcr.io/moghtech/komodo-core:{{ komodo_image_tag }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: backend-internal
+      - name: shared-network
+    ports:
+      - "9120:9120"
+    env:
+      TZ: "{{ timezone }}"
+      # Database
+      KOMODO_DATABASE_ADDRESS: "mongo:27017"
+      KOMODO_DB_USERNAME: "{{ komodo_db_username }}"
+      KOMODO_DB_PASSWORD: "{{ komodo_db_password }}"
+      # Core settings
+      KOMODO_HOST: "{{ komodo_host }}"
+      KOMODO_TITLE: "{{ komodo_title }}"
+      KOMODO_FIRST_SERVER: "{{ komodo_first_server }}"
+      KOMODO_FIRST_SERVER_NAME: "{{ komodo_first_server_name }}"
+      KOMODO_DISABLE_CONFIRM_DIALOG: "{{ komodo_disable_confirm_dialog }}"
+      KOMODO_MONITORING_INTERVAL: "{{ komodo_monitoring_interval }}"
+      KOMODO_RESOURCE_POLL_INTERVAL: "{{ komodo_resource_poll_interval }}"
+      # Secrets
+      KOMODO_PASSKEY: "{{ komodo_passkey }}"
+      KOMODO_WEBHOOK_SECRET: "{{ komodo_webhook_secret }}"
+      KOMODO_JWT_SECRET: "{{ komodo_jwt_secret }}"
+      KOMODO_JWT_TTL: "{{ komodo_jwt_ttl }}"
+      # Authentication
+      KOMODO_LOCAL_AUTH: "{{ komodo_local_auth }}"
+      KOMODO_INIT_ADMIN_USERNAME: "{{ komodo_init_admin_username }}"
+      KOMODO_INIT_ADMIN_PASSWORD: "{{ komodo_init_admin_password }}"
+      KOMODO_DISABLE_USER_REGISTRATION: "{{ komodo_disable_user_registration }}"
+      KOMODO_ENABLE_NEW_USERS: "{{ komodo_enable_new_users }}"
+      KOMODO_DISABLE_NON_ADMIN_CREATE: "{{ komodo_disable_non_admin_create }}"
+      KOMODO_TRANSPARENT_MODE: "{{ komodo_transparent_mode }}"
+      # Logging
+      KOMODO_LOGGING_PRETTY: "{{ komodo_logging_pretty }}"
+      KOMODO_PRETTY_STARTUP_CONFIG: "{{ komodo_pretty_startup_config }}"
+      # OIDC
+      KOMODO_OIDC_ENABLED: "{{ komodo_oidc_enabled }}"
+      KOMODO_OIDC_PROVIDER: "{{ komodo_oidc_provider }}"
+      KOMODO_OIDC_CLIENT_ID: "{{ komodo_oidc_client_id }}"
+      KOMODO_OIDC_CLIENT_SECRET: "{{ komodo_oidc_client_secret }}"
+      # OAuth
+      KOMODO_GITHUB_OAUTH_ENABLED: "{{ komodo_github_oauth_enabled }}"
+      KOMODO_GOOGLE_OAUTH_ENABLED: "{{ komodo_google_oauth_enabled }}"
+    volumes:
+      - /home/{{ ansible_user }}/komodo-backups:/backups
+    labels:
+      komodo.skip: ""
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"
