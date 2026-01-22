@@ -7,8 +7,8 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 immich_version: release
 immich_server_image: "ghcr.io/immich-app/immich-server:{{ immich_version }}"
 immich_ml_image: "ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}"
-immich_db_image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
-immich_redis_image: docker.io/valkey/valkey:8-bookworm
+immich_db_image: "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23"
+immich_redis_image: "docker.io/valkey/valkey:9@sha256:fb8d272e529ea567b9bf1302245796f21a2672b8368ca3fcb938ac334e613c8f"
 immich_port: 2283
 immich_server_url: "https://photos.atelier.house"
 
