@@ -15,7 +15,8 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── media_consumption.yml
 │   ├── content_management.yml
 │   ├── development.yml
-│   └── productivity.yml
+│   ├── productivity.yml
+│   └── group_vars -> ../group_vars  # Symlink for variable resolution
 ├── group_vars/           # Host group variables and vault files
 ├── inventory/            # Host inventory
 ├── roles/                # Ansible roles
@@ -32,6 +33,8 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   └── productivity/     # Strudel, Silverbullet, Blinko
 └── Makefile              # Deployment commands
 ```
+
+> **Note:** The `deploy/group_vars` symlink exists because Ansible resolves `group_vars/` relative to the playbook location. Without it, playbooks in `deploy/` wouldn't find variables defined in the root `group_vars/`.
 
 ## Prerequisites
 
