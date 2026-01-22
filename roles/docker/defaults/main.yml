@@ -1,3 +1,8 @@
 ---
 docker_users:
   - "{{ ansible_user }}"
+
+# DNS servers for Docker daemon (bypasses systemd-resolved issues)
+docker_dns_servers:
+  - "1.1.1.1"
+  - "8.8.8.8"

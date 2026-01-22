@@ -59,6 +59,18 @@
     groups: docker
     append: yes
 
+- name: Configure Docker daemon
+  copy:
+    content: |
+      {
+        "dns": {{ docker_dns_servers | to_json }}
+      }
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart docker
+
 - name: Enable Docker is running
   service:
     name: docker
