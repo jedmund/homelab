@@ -68,7 +68,7 @@
       LOGLEVEL: "{{ romm_loglevel }}"
       # Database
       DB_HOST: "{{ romm_db_host }}"
-      DB_PORT: "{{ romm_db_port }}"
+      DB_PORT: "{{ romm_db_port | string }}"
       DB_NAME: "{{ romm_db_name }}"
       DB_USER: "{{ romm_db_user }}"
       DB_PASSWD: "{{ romm_db_password }}"

@@ -42,13 +42,13 @@
       - "{{ forgejo_host_port }}:{{ forgejo_web_port }}"
     env:
       TZ: "{{ timezone }}"
-      USER_UID: "{{ forgejo_user_uid }}"
-      USER_GID: "{{ forgejo_user_gid }}"
+      USER_UID: "{{ forgejo_user_uid | string }}"
+      USER_GID: "{{ forgejo_user_gid | string }}"
       FORGEJO__server__ROOT_URL: "{{ forgejo_root_url }}"
       FORGEJO__server__DOMAIN: "{{ forgejo_domain }}"
       FORGEJO__server__SSH_DOMAIN: "{{ forgejo_domain }}"
-      FORGEJO__server__SSH_PORT: "{{ forgejo_ssh_port }}"
-      FORGEJO__server__SSH_LISTEN_PORT: "{{ forgejo_ssh_listen_port }}"
+      FORGEJO__server__SSH_PORT: "{{ forgejo_ssh_port | string }}"
+      FORGEJO__server__SSH_LISTEN_PORT: "{{ forgejo_ssh_listen_port | string }}"
       FORGEJO__database__DB_TYPE: postgres
       FORGEJO__database__HOST: "{{ forgejo_db_host }}:{{ forgejo_db_port }}"
       FORGEJO__database__NAME: "{{ forgejo_db_name }}"
