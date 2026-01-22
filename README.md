@@ -12,7 +12,10 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── infra_core.yml
 │   ├── infra_gateway.yml
 │   ├── media_acquisition.yml
-│   └── media_consumption.yml
+│   ├── media_consumption.yml
+│   ├── content_management.yml
+│   ├── development.yml
+│   └── productivity.yml
 ├── group_vars/           # Host group variables and vault files
 ├── inventory/            # Host inventory
 ├── roles/                # Ansible roles
@@ -23,7 +26,10 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── infra_core/       # Komodo deployment platform
 │   ├── infra_gateway/    # Traefik, AdGuard, Glance, PocketID
 │   ├── media_acquisition/# Sonarr, Radarr, Prowlarr, Flood, Gluetun
-│   └── media_consumption/# Plex, Miniflux, Kavita, Romm
+│   ├── media_consumption/# Plex, Miniflux, Kavita, Romm
+│   ├── content_management/ # Immich, Papra, SongKong
+│   ├── development/      # Forgejo, n8n, Open WebUI
+│   └── productivity/     # Strudel, Silverbullet, Blinko
 └── Makefile              # Deployment commands
 ```
 
@@ -282,3 +288,78 @@ make docker-logs HOST=mini CONTAINER=traefik
 # Prune unused resources
 make docker-prune
 ```
+
+## Database Backups
+
+Services using PostgreSQL store metadata in Docker volumes. To migrate to a new machine or create backups, use `pg_dump`.
+
+### PostgreSQL Services
+
+| Service | Container | Database | User |
+|---------|-----------|----------|------|
+| Miniflux | `miniflux-db` | `miniflux` | `miniflux` |
+| Immich | `immich-database` | `immich` | `postgres` |
+| Forgejo | `forgejo-db` | `forgejo` | `forgejo` |
+| n8n | `n8n-db` | `n8n` | `n8n` |
+| Blinko | `blinko-db` | `blinko` | `blinko` |
+
+### Backup (pg_dump)
+
+```bash
+# Generic format
+docker exec <container> pg_dump -U <user> <database> > backup.sql
+
+# Examples
+docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
+docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
+docker exec forgejo-db pg_dump -U forgejo forgejo > forgejo_backup.sql
+docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
+docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
+```
+
+### Restore (pg_restore)
+
+```bash
+# Stop the application container first
+docker stop <app-container>
+
+# Restore the backup
+docker exec -i <container> psql -U <user> <database> < backup.sql
+
+# Restart the application
+docker start <app-container>
+```
+
+### MariaDB Services
+
+| Service | Container | Database | User |
+|---------|-----------|----------|------|
+| Romm | `romm-db` | `romm` | `romm-atelier` |
+
+```bash
+# Backup
+docker exec romm-db mariadb-dump -u romm-atelier -p<password> romm > romm_backup.sql
+
+# Restore
+docker exec -i romm-db mariadb -u romm-atelier -p<password> romm < romm_backup.sql
+```
+
+### Migration to New Machine
+
+1. **Backup on old machine:**
+   ```bash
+   docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
+   scp immich_backup.sql newmachine:/tmp/
+   ```
+
+2. **Deploy stack on new machine** (creates fresh volumes):
+   ```bash
+   ansible-playbook deploy/content_management.yml
+   ```
+
+3. **Restore on new machine:**
+   ```bash
+   docker stop immich-server
+   docker exec -i immich-database psql -U postgres immich < /tmp/immich_backup.sql
+   docker start immich-server
+   ```
