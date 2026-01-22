@@ -4,20 +4,20 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install git for cloning the repository
-RUN apk add --no-cache git
+# Install git and enable corepack for pnpm
+RUN apk add --no-cache git && corepack enable
 
-# Clone the Strudel repository
-RUN git clone --depth 1 https://github.com/tidalcycles/strudel.git .
+# Clone the Strudel repository (moved from GitHub to Codeberg)
+RUN git clone --depth 1 https://codeberg.org/uzu/strudel.git .
 
-# Install dependencies and build
-RUN npm ci && npm run build
+# Install dependencies and build using pnpm (project uses workspace:* protocol)
+RUN pnpm install && pnpm run build
 
 # Production stage
 FROM nginx:alpine
 
 # Copy built assets to nginx
-COPY --from=builder /app/packages/website/dist /usr/share/nginx/html
+COPY --from=builder /app/website/dist /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80
