@@ -4,9 +4,21 @@ timezone: America/Los_Angeles
 puid: "977"
 pgid: "988"
 
-# Logging defaults
-default_logging_max_size: "10m"
-default_logging_max_file: "3"
+# Container restart policy
+restart_policy: unless-stopped
 
-# Restart policy
-default_restart_policy: unless-stopped
+# Logging defaults
+logging_driver: json-file
+logging_max_size: "10m"
+logging_max_file: "3"
+
+# Health check defaults
+healthcheck_interval: 30s
+healthcheck_timeout: 10s
+healthcheck_retries: 3
+healthcheck_start_period: 30s
+
+# Network names
+proxy_network: proxy-network
+backend_network: backend-internal
+shared_network: shared-network
