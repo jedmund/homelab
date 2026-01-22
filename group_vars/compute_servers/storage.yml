@@ -107,5 +107,12 @@ nfs_volumes:
       device: "{{ nas_server }}:/var/nfs/shared/Files/Mastodon"
       o: "{{ nfs_base_opts }},uid=991,gid=991"
 
+  - name: open-webui-data
+    driver: local
+    driver_opts:
+      type: nfs
+      device: "{{ nas_server }}:/var/nfs/shared/Files/OpenWebUI"
+      o: "{{ nfs_base_opts }}"
+
 # Local paths for container configs
 docker_base_path: /opt/docker
