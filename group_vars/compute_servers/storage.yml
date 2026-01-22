@@ -91,7 +91,7 @@ nfs_volumes:
     driver_opts:
       type: nfs
       device: "{{ nas_server }}:/var/nfs/shared/Files/Forgejo"
-      o: "{{ nfs_base_opts }},uid=977,gid=988"
+      o: "{{ nfs_base_opts }}"
   
   - name: papra-documents
     driver: local
@@ -100,19 +100,5 @@ nfs_volumes:
       device: "{{ nas_server }}:/var/nfs/shared/Files/Papra/documents"
       o: "{{ nfs_base_opts }}"
   
-  - name: mastodon-system
-    driver: local
-    driver_opts:
-      type: nfs
-      device: "{{ nas_server }}:/var/nfs/shared/Files/Mastodon"
-      o: "{{ nfs_base_opts }},uid=991,gid=991"
-
-  - name: open-webui-data
-    driver: local
-    driver_opts:
-      type: nfs
-      device: "{{ nas_server }}:/var/nfs/shared/Files/OpenWebUI"
-      o: "{{ nfs_base_opts }}"
-
 # Local paths for container configs
 docker_base_path: /opt/docker

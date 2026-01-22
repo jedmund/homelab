@@ -1,4 +1,8 @@
 ---
+- name: Create Open WebUI volume
+  community.docker.docker_volume:
+    name: open-webui-data
+
 - name: Deploy Open WebUI
   community.docker.docker_container:
     name: open-webui
