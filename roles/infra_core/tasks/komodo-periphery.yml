@@ -6,7 +6,7 @@
     state: started
     restart_policy: "{{ restart_policy }}"
     networks:
-      - name: backend-internal
+      - name: "{{ backend_network }}"
     env:
       TZ: "{{ timezone }}"
       PERIPHERY_ROOT_DIRECTORY: "{{ periphery_root_directory }}"

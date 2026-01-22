@@ -6,8 +6,8 @@
     state: started
     restart_policy: "{{ restart_policy }}"
     networks:
-      - name: backend-internal
-      - name: shared-network
+      - name: "{{ backend_network }}"
+      - name: "{{ shared_network }}"
     ports:
       - "9120:9120"
     env:

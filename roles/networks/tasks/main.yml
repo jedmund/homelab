@@ -6,12 +6,12 @@
     internal: "{{ item.internal | default(false) }}"
     state: present
   loop:
-    - name: proxy-network
+    - name: "{{ proxy_network }}"
       driver: bridge
-    - name: backend-internal
+    - name: "{{ backend_network }}"
       driver: bridge
       internal: true
-    - name: shared-network
+    - name: "{{ shared_network }}"
       driver: bridge
     - name: vpn-network
       driver: bridge

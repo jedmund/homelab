@@ -6,7 +6,7 @@
     state: started
     restart_policy: "{{ restart_policy }}"
     networks:
-      - name: shared-network
+      - name: "{{ shared_network }}"
     ports: 
       - "9696:9696"
     env:

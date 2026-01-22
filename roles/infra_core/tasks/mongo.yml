@@ -7,7 +7,7 @@
     restart_policy: "{{ restart_policy }}"
     command: "--quiet --wiredTigerCacheSizeGB 0.25"
     networks:
-      - name: backend-internal
+      - name: "{{ backend_network }}"
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
