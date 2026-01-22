@@ -21,7 +21,7 @@
       - silverbullet_space:/space
     labels:
       traefik.enable: "true"
-      traefik.http.routers.silverbullet.rule: "Host(`notes.{{ traefik_domain }}`)"
+      traefik.http.routers.silverbullet.rule: "Host(`{{ silverbullet_domain }}`)"
       traefik.http.routers.silverbullet.entrypoints: "websecure"
       traefik.http.routers.silverbullet.tls.certresolver: "letsencrypt"
       traefik.http.routers.silverbullet.middlewares: "tinyauth@file"

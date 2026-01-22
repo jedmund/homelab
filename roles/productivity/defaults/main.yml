@@ -14,6 +14,7 @@ strudel_domain: strudel.atelier.house
 silverbullet_image: zefhemel/silverbullet:latest
 silverbullet_port: 3000
 silverbullet_host_port: 3001
+silverbullet_domain: notes.atelier.house
 
 # Blinko settings
 blinko_image: blinkospace/blinko:latest
