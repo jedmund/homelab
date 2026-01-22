@@ -69,6 +69,28 @@
     - firewall_enabled | bool
     - firewall_group_media_consumption | bool
 
+- name: Allow content management ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_content_management }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_content_management | bool
+
+- name: Allow development ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_development }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_development | bool
+
 - name: Allow infrastructure ports
   community.general.ufw:
     rule: allow
@@ -90,6 +112,28 @@
   when:
     - firewall_enabled | bool
     - firewall_group_downloads | bool
+
+- name: Allow productivity ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_productivity }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_productivity | bool
+
+- name: Allow social ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_social }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_social | bool
 
 - name: Enable UFW
   community.general.ufw:

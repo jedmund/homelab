@@ -21,6 +21,8 @@
     image: "{{ strudel_image_name }}:{{ strudel_image_tag }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ strudel_host_port }}:{{ strudel_port }}"
     networks:
       - name: "{{ proxy_network }}"
     labels:

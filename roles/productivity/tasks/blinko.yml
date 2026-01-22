@@ -37,6 +37,8 @@
     image: "{{ blinko_image }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ blinko_host_port }}:{{ blinko_port }}"
     networks:
       - name: "{{ proxy_network }}"
       - name: "{{ backend_network }}"

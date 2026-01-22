@@ -9,6 +9,8 @@
     image: "{{ silverbullet_image }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ silverbullet_host_port }}:{{ silverbullet_port }}"
     networks:
       - name: "{{ proxy_network }}"
     env:

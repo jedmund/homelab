@@ -5,6 +5,8 @@
     image: "{{ open_webui_image }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ open_webui_host_port }}:{{ open_webui_port }}"
     networks:
       - name: "{{ proxy_network }}"
     env:

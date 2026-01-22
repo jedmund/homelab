@@ -37,6 +37,8 @@
     image: "{{ n8n_image }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ n8n_host_port }}:{{ n8n_port }}"
     networks:
       - name: "{{ proxy_network }}"
       - name: "{{ backend_network }}"

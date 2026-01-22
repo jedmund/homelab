@@ -39,6 +39,7 @@
       - name: "{{ backend_network }}"
     ports:
       - "{{ forgejo_ssh_port }}:22"
+      - "{{ forgejo_host_port }}:{{ forgejo_web_port }}"
     env:
       TZ: "{{ timezone }}"
       USER_UID: "{{ forgejo_user_uid }}"

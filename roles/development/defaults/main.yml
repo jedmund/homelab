@@ -8,6 +8,7 @@ forgejo_image: codeberg.org/forgejo/forgejo:9
 forgejo_domain: git.atelier.house
 forgejo_ssh_port: 2222
 forgejo_web_port: 3000
+forgejo_host_port: 3030
 forgejo_user_uid: "1000"
 forgejo_user_gid: "1000"
 forgejo_root_url: "https://{{ forgejo_domain }}"
@@ -31,6 +32,7 @@ forgejo_db_user: forgejo
 n8n_image: n8nio/n8n:latest
 n8n_domain: n8n.atelier.house
 n8n_port: 5678
+n8n_host_port: 5678
 n8n_protocol: https
 n8n_webhook_url: "https://{{ n8n_domain }}/"
 n8n_user_management_disabled: "false"
@@ -49,6 +51,7 @@ n8n_db_user: n8n
 open_webui_image: ghcr.io/open-webui/open-webui:main
 open_webui_domain: ai.atelier.house
 open_webui_port: 8080
+open_webui_host_port: 8080
 open_webui_ollama_base_url: "http://192.168.1.245:11434"
 open_webui_openai_api_base_url: "http://192.168.1.245:11434/v1"
 open_webui_auth: "true"

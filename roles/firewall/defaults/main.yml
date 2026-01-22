@@ -8,8 +8,12 @@ firewall_group_dns: true
 firewall_group_media_servers: true
 firewall_group_media_acquisition: true
 firewall_group_media_consumption: true
+firewall_group_content_management: true
+firewall_group_development: true
 firewall_group_infrastructure: true
 firewall_group_downloads: true
+firewall_group_productivity: true
+firewall_group_social: true
 
 # Base ports (SSH, HTTP, HTTPS)
 firewall_ports_base:
@@ -44,6 +48,30 @@ firewall_ports_media_consumption:
   - { port: 3232, proto: tcp, comment: "Karakeep" }
   - { port: 8280, proto: tcp, comment: "Miniflux" }
   - { port: 2000, proto: tcp, comment: "Reactflux" }
+
+# Content management
+firewall_ports_content_management:
+  - { port: 2283, proto: tcp, comment: "Immich" }
+  - { port: 8787, proto: tcp, comment: "Papra" }
+  - { port: 4567, proto: tcp, comment: "SongKong" }
+
+# Development
+firewall_ports_development:
+  - { port: 2222, proto: tcp, comment: "Forgejo SSH" }
+  - { port: 3030, proto: tcp, comment: "Forgejo" }
+  - { port: 5678, proto: tcp, comment: "n8n" }
+  - { port: 8080, proto: tcp, comment: "Open WebUI" }
+
+# Productivity
+firewall_ports_productivity:
+  - { port: 1111, proto: tcp, comment: "Blinko" }
+  - { port: 3001, proto: tcp, comment: "Silverbullet" }
+  - { port: 8800, proto: tcp, comment: "Strudel" }
+
+# Social
+firewall_ports_social:
+  - { port: 3002, proto: tcp, comment: "Mastodon" }
+  - { port: 4000, proto: tcp, comment: "Mastodon Streaming" }
 
 # Infrastructure
 firewall_ports_infrastructure:

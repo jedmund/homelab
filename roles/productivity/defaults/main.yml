@@ -7,15 +7,18 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 strudel_image_name: strudel
 strudel_image_tag: latest
 strudel_port: 80
+strudel_host_port: 8800
 strudel_domain: strudel.atelier.house
 
 # Silverbullet settings
 silverbullet_image: zefhemel/silverbullet:latest
 silverbullet_port: 3000
+silverbullet_host_port: 3001
 
 # Blinko settings
 blinko_image: blinkospace/blinko:latest
 blinko_port: 1111
+blinko_host_port: 1111
 blinko_domain: bl.atelier.house
 blinko_base_url: "https://{{ blinko_domain }}"
 blinko_node_env: production

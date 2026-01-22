@@ -8,7 +8,9 @@ mastodon_image: ghcr.io/glitch-soc/mastodon:latest
 mastodon_streaming_image: ghcr.io/glitch-soc/mastodon-streaming:latest
 mastodon_domain: fireplace.cafe
 mastodon_web_port: 3000
+mastodon_web_host_port: 3002
 mastodon_streaming_port: 4000
+mastodon_streaming_host_port: 4000
 
 # Mastodon database
 mastodon_db_image: postgres:17-alpine

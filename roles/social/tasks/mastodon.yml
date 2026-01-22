@@ -57,6 +57,8 @@
     state: started
     restart_policy: "{{ restart_policy }}"
     command: bundle exec puma -C config/puma.rb
+    ports:
+      - "{{ mastodon_web_host_port }}:{{ mastodon_web_port }}"
     networks:
       - name: "{{ proxy_network }}"
       - name: "{{ backend_network }}"
@@ -114,6 +116,8 @@
     image: "{{ mastodon_streaming_image }}"
     state: started
     restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ mastodon_streaming_host_port }}:{{ mastodon_streaming_port }}"
     networks:
       - name: "{{ proxy_network }}"
       - name: "{{ backend_network }}"
