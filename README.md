@@ -198,6 +198,50 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `romm_screenscraper_password` | ScreenScraper password |
 | `romm_retroachievements_api_key` | RetroAchievements API key |
 
+### group_vars/productivity/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `blinko_db_password` | Blinko PostgreSQL password |
+
+### group_vars/development/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `forgejo_db_password` | Forgejo PostgreSQL password |
+| `n8n_db_password` | n8n PostgreSQL password |
+| `n8n_encryption_key` | n8n encryption key |
+| `n8n_oidc_client_id` | n8n OIDC client ID |
+| `n8n_oidc_client_secret` | n8n OIDC client secret |
+| `open_webui_secret_key` | Open WebUI session secret |
+| `open_webui_oauth_client_id` | Open WebUI OAuth client ID |
+| `open_webui_oauth_client_secret` | Open WebUI OAuth client secret |
+
+### group_vars/content_management/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `immich_db_password` | Immich PostgreSQL password |
+| `papra_auth_secret` | Papra authentication secret |
+| `papra_oidc_client_id` | Papra OIDC client ID |
+| `papra_oidc_client_secret` | Papra OIDC client secret |
+
+### group_vars/social/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `mastodon_db_password` | Mastodon PostgreSQL password |
+| `mastodon_secret_key_base` | Rails secret key base |
+| `mastodon_otp_secret` | OTP secret for 2FA |
+| `mastodon_vapid_private_key` | VAPID private key for push notifications |
+| `mastodon_vapid_public_key` | VAPID public key for push notifications |
+| `mastodon_aws_access_key_id` | AWS access key for S3 |
+| `mastodon_aws_secret_access_key` | AWS secret key for S3 |
+| `mastodon_smtp_password` | SMTP password |
+| `mastodon_active_record_encryption_deterministic_key` | Active Record encryption key |
+| `mastodon_active_record_encryption_key_derivation_salt` | Active Record key derivation salt |
+| `mastodon_active_record_encryption_primary_key` | Active Record primary key |
+
 ## Usage
 
 Run `make help` to see all available commands. Common operations:
@@ -302,6 +346,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Forgejo | `forgejo-db` | `forgejo` | `forgejo` |
 | n8n | `n8n-db` | `n8n` | `n8n` |
 | Blinko | `blinko-db` | `blinko` | `blinko` |
+| Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
 
 ### Backup (pg_dump)
 
@@ -315,6 +360,7 @@ docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec forgejo-db pg_dump -U forgejo forgejo > forgejo_backup.sql
 docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
 docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
+docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
 ```
 
 ### Restore (pg_restore)
