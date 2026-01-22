@@ -1,0 +1,42 @@
+---
+- name: Create Papra volume
+  community.docker.docker_volume:
+    name: papra-data
+
+- name: Deploy Papra
+  community.docker.docker_container:
+    name: papra
+    image: "{{ papra_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    ports:
+      - "{{ papra_external_port }}:{{ papra_port }}"
+    env:
+      TZ: "{{ timezone }}"
+      APP_BASE_URL: "{{ papra_base_url }}"
+      PORT: "{{ papra_port }}"
+      SERVER_HOSTNAME: "0.0.0.0"
+      PROCESS_MODE: "{{ papra_process_mode }}"
+      DATABASE_URL: "{{ papra_database_url }}"
+      DOCUMENT_STORAGE_DRIVER: "{{ papra_storage_driver }}"
+      DOCUMENT_STORAGE_FILESYSTEM_ROOT: "{{ papra_storage_root }}"
+      AUTH_SECRET: "{{ papra_auth_secret }}"
+      AUTH_IS_REGISTRATION_ENABLED: "{{ papra_registration_enabled }}"
+      AUTH_FIRST_USER_AS_ADMIN: "{{ papra_first_user_admin }}"
+      AUTH_PROVIDERS_CUSTOMS: '[{"providerId":"{{ papra_oidc_provider_id }}","providerName":"{{ papra_oidc_provider_name }}","type":"oidc","discoveryUrl":"{{ papra_oidc_discovery_url }}","clientId":"{{ papra_oidc_client_id }}","clientSecret":"{{ papra_oidc_client_secret }}","scopes":["openid","profile","email"]}]'
+      DOCUMENTS_OCR_LANGUAGES: "{{ papra_ocr_languages }}"
+    volumes:
+      - papra-data:/app/data
+      - papra-documents:/app/documents
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.papra.rule: "Host(`docs.atelier.house`)"
+      traefik.http.routers.papra.entrypoints: "websecure"
+      traefik.http.routers.papra.tls.certresolver: "letsencrypt"
+      traefik.http.services.papra.loadbalancer.server.port: "{{ papra_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

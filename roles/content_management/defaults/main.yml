@@ -1,0 +1,42 @@
+---
+# Stack identity
+stack_name: content-management
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Immich settings
+immich_version: release
+immich_server_image: "ghcr.io/immich-app/immich-server:{{ immich_version }}"
+immich_ml_image: "ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}"
+immich_db_image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+immich_redis_image: docker.io/valkey/valkey:8-bookworm
+immich_port: 2283
+immich_server_url: "https://photos.atelier.house"
+
+# Immich database
+immich_db_hostname: immich-database
+immich_db_username: postgres
+immich_db_name: immich
+immich_redis_hostname: immich-redis
+
+# Papra settings
+papra_image: ghcr.io/papra-hq/papra:latest
+papra_port: 1221
+papra_external_port: 8787
+papra_base_url: "https://docs.atelier.house"
+papra_process_mode: all
+papra_database_url: "file:/app/data/db.sqlite"
+papra_storage_driver: filesystem
+papra_storage_root: /app/documents
+papra_registration_enabled: "false"
+papra_first_user_admin: "true"
+papra_ocr_languages: eng
+
+# Papra OIDC
+papra_oidc_provider_id: pocketid
+papra_oidc_provider_name: PocketID
+papra_oidc_discovery_url: "https://id.atelier.house/.well-known/openid-configuration"
+papra_oidc_scopes: "openid,profile,email"
+
+# SongKong settings
+songkong_image: songkong/songkong:latest
+songkong_port: 4567
