@@ -1,0 +1,37 @@
+---
+# Stack identity
+stack_name: social
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Mastodon settings
+mastodon_image: ghcr.io/glitch-soc/mastodon:latest
+mastodon_streaming_image: ghcr.io/glitch-soc/mastodon-streaming:latest
+mastodon_domain: fireplace.cafe
+mastodon_web_port: 3000
+mastodon_streaming_port: 4000
+
+# Mastodon database
+mastodon_db_image: postgres:17-alpine
+mastodon_db_host: mastodon-db
+mastodon_db_port: "5432"
+mastodon_db_name: mastodon_production
+mastodon_db_user: mastodon
+
+# Mastodon Redis
+mastodon_redis_image: redis:7-alpine
+mastodon_redis_host: mastodon-redis
+mastodon_redis_port: "6379"
+
+# S3 storage
+mastodon_s3_enabled: "true"
+mastodon_s3_protocol: https
+mastodon_s3_bucket: fireplace-cafe-media
+mastodon_s3_region: us-west-2
+mastodon_s3_hostname: s3.us-west-2.amazonaws.com
+mastodon_s3_permission: ""
+
+# SMTP
+mastodon_smtp_server: smtp.sendgrid.net
+mastodon_smtp_port: "587"
+mastodon_smtp_login: apikey
+mastodon_smtp_from_address: noreply@fireplace.cafe

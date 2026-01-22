@@ -1,0 +1,13 @@
+---
+- name: Create social config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+
+- name: Deploy Mastodon
+  import_tasks: mastodon.yml
+  tags: mastodon
