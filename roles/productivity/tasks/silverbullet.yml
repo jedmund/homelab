@@ -1,0 +1,30 @@
+---
+- name: Create Silverbullet volume
+  community.docker.docker_volume:
+    name: silverbullet_space
+
+- name: Deploy Silverbullet container
+  community.docker.docker_container:
+    name: silverbullet
+    image: "{{ silverbullet_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    env:
+      TZ: "{{ timezone }}"
+      PUID: "{{ puid }}"
+      PGID: "{{ pgid }}"
+    volumes:
+      - silverbullet_space:/space
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.silverbullet.rule: "Host(`notes.{{ traefik_domain }}`)"
+      traefik.http.routers.silverbullet.entrypoints: "websecure"
+      traefik.http.routers.silverbullet.tls.certresolver: "letsencrypt"
+      traefik.http.routers.silverbullet.middlewares: "tinyauth@file"
+      traefik.http.services.silverbullet.loadbalancer.server.port: "{{ silverbullet_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

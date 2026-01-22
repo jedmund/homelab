@@ -1,0 +1,35 @@
+---
+- name: Copy Strudel Dockerfile
+  copy:
+    src: strudel/Dockerfile
+    dest: "{{ config_base }}/strudel/Dockerfile"
+    mode: '0644'
+  register: strudel_dockerfile
+
+- name: Build Strudel image
+  community.docker.docker_image:
+    name: "{{ strudel_image_name }}"
+    tag: "{{ strudel_image_tag }}"
+    source: build
+    build:
+      path: "{{ config_base }}/strudel"
+    force_source: "{{ strudel_dockerfile.changed }}"
+
+- name: Deploy Strudel container
+  community.docker.docker_container:
+    name: strudel
+    image: "{{ strudel_image_name }}:{{ strudel_image_tag }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.strudel.rule: "Host(`{{ strudel_domain }}`)"
+      traefik.http.routers.strudel.entrypoints: "websecure"
+      traefik.http.routers.strudel.tls.certresolver: "letsencrypt"
+      traefik.http.services.strudel.loadbalancer.server.port: "{{ strudel_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

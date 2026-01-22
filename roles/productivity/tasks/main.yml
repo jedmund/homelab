@@ -1,0 +1,27 @@
+---
+- name: Create productivity config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/strudel"
+    - "{{ config_base }}/blinko/data"
+    - "{{ config_base }}/blinko/postgres"
+
+# Music/coding tools
+- name: Deploy Strudel
+  import_tasks: strudel.yml
+  tags: strudel
+
+# Knowledge management
+- name: Deploy Silverbullet
+  import_tasks: silverbullet.yml
+  tags: silverbullet
+
+# Note-taking (requires database first)
+- name: Deploy Blinko
+  import_tasks: blinko.yml
+  tags: blinko
