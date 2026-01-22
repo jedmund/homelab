@@ -1,25 +1,7 @@
 ---
-# Common settings
-timezone: America/Los_Angeles
-puid: "977"
-pgid: "988"
-# Container restart policy
-restart_policy: unless-stopped
-# Logging config
-logging_driver: json-file
-logging_max_size: "10m"
-logging_max_file: "3"
-# Stack name
+# Stack identity
 stack_name: media-consumption
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
-# Network names
-shared_network: shared-network
-backend_network: backend-internal
-# Health check defaults
-healthcheck_interval: 30s
-healthcheck_timeout: 10s
-healthcheck_retries: 3
-healthcheck_start_period: 30s
 
 # Miniflux settings
 miniflux_port: 8280

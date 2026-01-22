@@ -1,27 +1,7 @@
 ---
-# Common settings
-timezone: America/Los_Angeles
-puid: "977"
-pgid: "988"
-# Container restart policy
-restart_policy: unless-stopped
-# Logging config
-logging_driver: json-file
-logging_max_size: "10m"
-logging_max_file: "3"
-# Stack name
+# Stack identity
 stack_name: infra-gateway
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
-
-# Network names
-proxy_network: proxy-network
-backend_network: backend-internal
-shared_network: shared-network
-
-# Health check defaults
-healthcheck_interval: 30s
-healthcheck_timeout: 10s
-healthcheck_retries: 3
 
 # DDClient settings
 ddclient_daemon_interval: "300"
