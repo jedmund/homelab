@@ -1,0 +1,75 @@
+---
+- name: Create Forgejo volumes
+  community.docker.docker_volume:
+    name: forgejo-pgdata
+
+- name: Deploy Forgejo PostgreSQL database
+  community.docker.docker_container:
+    name: forgejo-db
+    image: "{{ forgejo_db_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    env:
+      POSTGRES_USER: "{{ forgejo_db_user }}"
+      POSTGRES_PASSWORD: "{{ forgejo_db_password }}"
+      POSTGRES_DB: "{{ forgejo_db_name }}"
+    volumes:
+      - forgejo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ forgejo_db_user }}"]
+      interval: 10s
+      start_period: "{{ healthcheck_start_period }}"
+      timeout: 5s
+      retries: 5
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"
+
+- name: Deploy Forgejo
+  community.docker.docker_container:
+    name: forgejo
+    image: "{{ forgejo_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+      - name: "{{ backend_network }}"
+    ports:
+      - "{{ forgejo_ssh_port }}:22"
+    env:
+      TZ: "{{ timezone }}"
+      USER_UID: "{{ forgejo_user_uid }}"
+      USER_GID: "{{ forgejo_user_gid }}"
+      FORGEJO__server__ROOT_URL: "{{ forgejo_root_url }}"
+      FORGEJO__server__DOMAIN: "{{ forgejo_domain }}"
+      FORGEJO__server__SSH_DOMAIN: "{{ forgejo_domain }}"
+      FORGEJO__server__SSH_PORT: "{{ forgejo_ssh_port }}"
+      FORGEJO__server__SSH_LISTEN_PORT: "{{ forgejo_ssh_listen_port }}"
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: "{{ forgejo_db_host }}:{{ forgejo_db_port }}"
+      FORGEJO__database__NAME: "{{ forgejo_db_name }}"
+      FORGEJO__database__USER: "{{ forgejo_db_user }}"
+      FORGEJO__database__PASSWD: "{{ forgejo_db_password }}"
+      FORGEJO__openid__ENABLE_OPENID_SIGNIN: "{{ forgejo_openid_signin_enabled }}"
+      FORGEJO__openid__ENABLE_OPENID_SIGNUP: "{{ forgejo_openid_signup_enabled }}"
+      FORGEJO__oauth2_client__ENABLE_AUTO_REGISTRATION: "{{ forgejo_oauth2_auto_registration }}"
+      FORGEJO__oauth2_client__ACCOUNT_LINKING: "{{ forgejo_oauth2_account_linking }}"
+      FORGEJO__oauth2_client__USERNAME: "{{ forgejo_oauth2_username }}"
+      FORGEJO__service__DISABLE_REGISTRATION: "{{ forgejo_disable_registration }}"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "{{ forgejo_require_signin_view }}"
+    volumes:
+      - forgejo-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.forgejo.rule: "Host(`{{ forgejo_domain }}`)"
+      traefik.http.routers.forgejo.entrypoints: "websecure"
+      traefik.http.routers.forgejo.tls.certresolver: "letsencrypt"
+      traefik.http.services.forgejo.loadbalancer.server.port: "{{ forgejo_web_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

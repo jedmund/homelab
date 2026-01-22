@@ -1,0 +1,39 @@
+---
+- name: Create Open WebUI volume
+  community.docker.docker_volume:
+    name: open-webui-data
+
+- name: Deploy Open WebUI
+  community.docker.docker_container:
+    name: open-webui
+    image: "{{ open_webui_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+    env:
+      TZ: "{{ timezone }}"
+      OLLAMA_BASE_URL: "{{ open_webui_ollama_base_url }}"
+      OPENAI_API_BASE_URL: "{{ open_webui_openai_api_base_url }}"
+      WEBUI_AUTH: "{{ open_webui_auth }}"
+      WEBUI_URL: "{{ open_webui_url }}"
+      WEBUI_SECRET_KEY: "{{ open_webui_secret_key }}"
+      ENABLE_OAUTH_SIGNUP: "{{ open_webui_oauth_signup }}"
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "{{ open_webui_oauth_merge_accounts }}"
+      OAUTH_PROVIDER_NAME: "{{ open_webui_oauth_provider_name }}"
+      OPENID_PROVIDER_URL: "{{ open_webui_oidc_provider_url }}"
+      OAUTH_CLIENT_ID: "{{ open_webui_oauth_client_id }}"
+      OAUTH_CLIENT_SECRET: "{{ open_webui_oauth_client_secret }}"
+      OAUTH_SCOPES: "{{ open_webui_oauth_scopes }}"
+    volumes:
+      - open-webui-data:/app/backend/data
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.open-webui.rule: "Host(`{{ open_webui_domain }}`)"
+      traefik.http.routers.open-webui.entrypoints: "websecure"
+      traefik.http.routers.open-webui.tls.certresolver: "letsencrypt"
+      traefik.http.services.open-webui.loadbalancer.server.port: "{{ open_webui_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

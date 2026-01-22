@@ -1,0 +1,73 @@
+---
+- name: Create n8n volumes
+  community.docker.docker_volume:
+    name: "{{ item }}"
+  loop:
+    - n8n-data
+    - n8n-pgdata
+
+- name: Deploy n8n PostgreSQL database
+  community.docker.docker_container:
+    name: n8n-db
+    image: "{{ n8n_db_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ backend_network }}"
+    env:
+      POSTGRES_USER: "{{ n8n_db_user }}"
+      POSTGRES_PASSWORD: "{{ n8n_db_password }}"
+      POSTGRES_DB: "{{ n8n_db_name }}"
+    volumes:
+      - n8n-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ n8n_db_user }}"]
+      interval: 10s
+      start_period: "{{ healthcheck_start_period }}"
+      timeout: 5s
+      retries: 5
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "5m"
+      max-file: "{{ logging_max_file }}"
+
+- name: Deploy n8n
+  community.docker.docker_container:
+    name: n8n
+    image: "{{ n8n_image }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    networks:
+      - name: "{{ proxy_network }}"
+      - name: "{{ backend_network }}"
+    env:
+      TZ: "{{ timezone }}"
+      GENERIC_TIMEZONE: "{{ timezone }}"
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: "{{ n8n_db_host }}"
+      DB_POSTGRESDB_PORT: "{{ n8n_db_port }}"
+      DB_POSTGRESDB_DATABASE: "{{ n8n_db_name }}"
+      DB_POSTGRESDB_USER: "{{ n8n_db_user }}"
+      DB_POSTGRESDB_PASSWORD: "{{ n8n_db_password }}"
+      N8N_ENCRYPTION_KEY: "{{ n8n_encryption_key }}"
+      N8N_HOST: "{{ n8n_domain }}"
+      N8N_PROTOCOL: "{{ n8n_protocol }}"
+      WEBHOOK_URL: "{{ n8n_webhook_url }}"
+      N8N_USER_MANAGEMENT_DISABLED: "{{ n8n_user_management_disabled }}"
+      N8N_OIDC_ENABLED: "{{ n8n_oidc_enabled }}"
+      N8N_OIDC_CLIENT_ID: "{{ n8n_oidc_client_id }}"
+      N8N_OIDC_CLIENT_SECRET: "{{ n8n_oidc_client_secret }}"
+      N8N_OIDC_ISSUER_URL: "{{ n8n_oidc_issuer_url }}"
+      N8N_OIDC_REDIRECT_URI: "{{ n8n_oidc_redirect_uri }}"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.n8n.rule: "Host(`{{ n8n_domain }}`)"
+      traefik.http.routers.n8n.entrypoints: "websecure"
+      traefik.http.routers.n8n.tls.certresolver: "letsencrypt"
+      traefik.http.services.n8n.loadbalancer.server.port: "{{ n8n_port }}"
+    log_driver: "{{ logging_driver }}"
+    log_options:
+      max-size: "{{ logging_max_size }}"
+      max-file: "{{ logging_max_file }}"

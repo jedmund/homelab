@@ -1,0 +1,60 @@
+---
+# Stack identity
+stack_name: development
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Forgejo settings
+forgejo_image: codeberg.org/forgejo/forgejo:9
+forgejo_domain: git.atelier.house
+forgejo_ssh_port: 2222
+forgejo_web_port: 3000
+forgejo_user_uid: "1000"
+forgejo_user_gid: "1000"
+forgejo_root_url: "https://{{ forgejo_domain }}"
+forgejo_ssh_listen_port: "22"
+forgejo_openid_signin_enabled: "false"
+forgejo_openid_signup_enabled: "false"
+forgejo_oauth2_auto_registration: "true"
+forgejo_oauth2_account_linking: auto
+forgejo_oauth2_username: email
+forgejo_disable_registration: "false"
+forgejo_require_signin_view: "false"
+
+# Forgejo database
+forgejo_db_image: postgres:16-alpine
+forgejo_db_host: forgejo-db
+forgejo_db_port: "5432"
+forgejo_db_name: forgejo
+forgejo_db_user: forgejo
+
+# n8n settings
+n8n_image: n8nio/n8n:latest
+n8n_domain: n8n.atelier.house
+n8n_port: 5678
+n8n_protocol: https
+n8n_webhook_url: "https://{{ n8n_domain }}/"
+n8n_user_management_disabled: "false"
+n8n_oidc_enabled: "true"
+n8n_oidc_issuer_url: "https://id.atelier.house"
+n8n_oidc_redirect_uri: "https://{{ n8n_domain }}/rest/oauth2-credential/callback"
+
+# n8n database
+n8n_db_image: postgres:16-alpine
+n8n_db_host: n8n-db
+n8n_db_port: "5432"
+n8n_db_name: n8n
+n8n_db_user: n8n
+
+# Open WebUI settings
+open_webui_image: ghcr.io/open-webui/open-webui:main
+open_webui_domain: ai.atelier.house
+open_webui_port: 8080
+open_webui_ollama_base_url: "http://192.168.1.245:11434"
+open_webui_openai_api_base_url: "http://192.168.1.245:11434/v1"
+open_webui_auth: "true"
+open_webui_url: "https://{{ open_webui_domain }}"
+open_webui_oauth_signup: "true"
+open_webui_oauth_merge_accounts: "true"
+open_webui_oauth_provider_name: PocketID
+open_webui_oidc_provider_url: "https://id.atelier.house/.well-known/openid-configuration"
+open_webui_oauth_scopes: "openid email profile"

@@ -1,0 +1,21 @@
+---
+- name: Create development config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+
+- name: Deploy Forgejo
+  import_tasks: forgejo.yml
+  tags: forgejo
+
+- name: Deploy n8n
+  import_tasks: n8n.yml
+  tags: n8n
+
+- name: Deploy Open WebUI
+  import_tasks: open-webui.yml
+  tags: open-webui
