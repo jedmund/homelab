@@ -3,6 +3,9 @@
 stack_name: development
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# Server IPs
+max_server_ip: 192.168.1.245
+
 # Forgejo settings
 forgejo_image: codeberg.org/forgejo/forgejo:9
 forgejo_domain: git.atelier.house
