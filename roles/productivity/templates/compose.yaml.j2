@@ -1,0 +1,99 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  strudel:
+    container_name: strudel
+    build:
+      context: ./config/strudel
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.strudel.rule: "Host(`{{ strudel_domain }}`)"
+      traefik.http.routers.strudel.entrypoints: "websecure"
+      traefik.http.routers.strudel.tls.certresolver: "letsencrypt"
+      traefik.http.services.strudel.loadbalancer.server.port: "{{ strudel_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  silverbullet:
+    container_name: silverbullet
+    image: {{ silverbullet_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - silverbullet-space:/space
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  blinko:
+    container_name: blinko
+    image: {{ blinko_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - blinko-data:/app/.blinko
+    env_file:
+      - ./env/blinko.env
+    depends_on:
+      blinko-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.blinko.rule: "Host(`{{ blinko_domain }}`)"
+      traefik.http.routers.blinko.entrypoints: "websecure"
+      traefik.http.routers.blinko.tls.certresolver: "letsencrypt"
+      traefik.http.services.blinko.loadbalancer.server.port: "{{ blinko_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  blinko-db:
+    container_name: blinko_postgres
+    image: {{ blinko_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - blinko-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB={{ blinko_db_name }}
+      - POSTGRES_USER={{ blinko_db_user }}
+      - POSTGRES_PASSWORD={{ blinko_db_password }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ blinko_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  silverbullet-space:
+  blinko-data:
+  blinko-pgdata:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

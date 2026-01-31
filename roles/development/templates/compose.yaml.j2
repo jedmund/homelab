@@ -1,0 +1,154 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  forgejo:
+    container_name: forgejo
+    image: {{ forgejo_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    ports:
+      - "{{ forgejo_ssh_port }}:22"
+    volumes:
+      - forgejo-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./env/forgejo.env
+    environment:
+      - USER_UID={{ forgejo_user_uid }}
+      - USER_GID={{ forgejo_user_gid }}
+    depends_on:
+      forgejo-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.forgejo.rule: "Host(`{{ forgejo_domain }}`)"
+      traefik.http.routers.forgejo.entrypoints: "websecure"
+      traefik.http.routers.forgejo.tls.certresolver: "letsencrypt"
+      traefik.http.services.forgejo.loadbalancer.server.port: "{{ forgejo_web_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  forgejo-db:
+    container_name: forgejo_postgres
+    image: {{ forgejo_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - forgejo-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER={{ forgejo_db_user }}
+      - POSTGRES_PASSWORD={{ forgejo_db_password }}
+      - POSTGRES_DB={{ forgejo_db_name }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ forgejo_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  n8n:
+    container_name: n8n
+    image: {{ n8n_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - n8n-data:/home/node/.n8n
+    env_file:
+      - ./env/n8n.env
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.n8n.rule: "Host(`{{ n8n_domain }}`)"
+      traefik.http.routers.n8n.entrypoints: "websecure"
+      traefik.http.routers.n8n.tls.certresolver: "letsencrypt"
+      traefik.http.services.n8n.loadbalancer.server.port: "{{ n8n_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  n8n-db:
+    container_name: n8n_postgres
+    image: {{ n8n_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - n8n-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/n8n-db.env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ n8n_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  open-webui:
+    container_name: open_webui
+    image: {{ open_webui_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL={{ open_webui_ollama_base_url }}
+      - OPENAI_API_BASE_URL={{ open_webui_openai_api_base_url }}
+      - WEBUI_AUTH={{ open_webui_auth }}
+      - WEBUI_URL={{ open_webui_url }}
+      - WEBUI_SECRET_KEY={{ open_webui_secret_key }}
+      - ENABLE_OAUTH_SIGNUP={{ open_webui_oauth_signup }}
+      - OAUTH_MERGE_ACCOUNTS_BY_EMAIL={{ open_webui_oauth_merge_accounts }}
+      - OAUTH_PROVIDER_NAME={{ open_webui_oauth_provider_name }}
+      - OPENID_PROVIDER_URL={{ open_webui_oidc_provider_url }}
+      - OAUTH_CLIENT_ID={{ open_webui_oauth_client_id }}
+      - OAUTH_CLIENT_SECRET={{ open_webui_oauth_client_secret }}
+      - OAUTH_SCOPES={{ open_webui_oauth_scopes }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.open-webui.rule: "Host(`{{ open_webui_domain }}`)"
+      traefik.http.routers.open-webui.entrypoints: "websecure"
+      traefik.http.routers.open-webui.tls.certresolver: "letsencrypt"
+      traefik.http.services.open-webui.loadbalancer.server.port: "{{ open_webui_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  forgejo-data:
+    external: true
+  forgejo-pgdata:
+  n8n-data:
+  n8n-pgdata:
+  open-webui-data:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

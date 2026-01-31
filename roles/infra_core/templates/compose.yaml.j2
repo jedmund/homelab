@@ -1,0 +1,85 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  mongo:
+    image: mongo
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
+    command: --quiet --wiredTigerCacheSizeGB 0.25
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 40s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  komodo-core:
+    image: ghcr.io/moghtech/komodo-core:{{ komodo_image_tag }}
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
+    restart: {{ restart_policy }}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - backend
+      - shared
+    ports:
+      - 9120:9120
+    env_file: ./env/komodo.env
+    environment:
+      KOMODO_DATABASE_ADDRESS: mongo:27017
+    volumes:
+      - {{ config_base }}/backups:/backups
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  komodo-periphery:
+    image: ghcr.io/moghtech/komodo-periphery:{{ komodo_image_tag }}
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file: ./env/komodo.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - {{ periphery_root_directory }}:{{ periphery_root_directory }}
+      - /home/{{ ansible_user }}/Docker:/home/{{ ansible_user }}/Docker
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  mongo-data:
+    name: komodo-mongo-data
+    external: true
+  mongo-config:
+    name: komodo-mongo-config
+    external: true
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    internal: true
+  shared:
+    name: {{ shared_network }}
+    external: true
