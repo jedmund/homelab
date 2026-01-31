@@ -1,4 +1,18 @@
 ---
+- name: Create infra-gateway base directory
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Deploy compose file
+  copy:
+    src: compose.yaml
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
 - name: Create infra-gateway config directories
   file:
     path: "{{ item }}"

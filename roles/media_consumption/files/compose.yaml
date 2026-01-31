@@ -1,0 +1,274 @@
+services:
+  # Miniflux RSS Reader
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: unless-stopped
+    networks:
+      - shared
+      - backend
+    ports:
+      - 8280:8080  # Using 8280 to avoid conflicts
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: unless-stopped
+    networks:
+      - backend
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./data/miniflux-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "miniflux"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: PostgreSQL backup container
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: unless-stopped
+    networks:
+      - backend
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./backups/miniflux:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U miniflux miniflux > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        # Keep only last 7 backups
+        ls -t /backup/miniflux_backup_*.sql | tail -n +8 | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: unless-stopped
+    networks:
+      - shared
+    ports:
+      - 2000:2000
+    depends_on:
+      miniflux:
+        condition: service_healthy
+    environment:
+      - TZ=America/Los_Angeles
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Karakeep
+  karakeep:
+    container_name: karakeep_web
+    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    restart: unless-stopped
+    networks:
+      - shared
+      - backend
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - 3232:3000
+    env_file:
+      - ./env/karakeep.env
+    depends_on:
+      - karakeep-chrome
+      - karakeep-meilisearch
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  karakeep-chrome:
+    container_name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    restart: unless-stopped
+    networks:
+      - backend
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  karakeep-meilisearch:
+    container_name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    restart: unless-stopped
+    networks:
+      - backend
+    env_file:
+      - ./env/karakeep.env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Kavita
+  kavita:
+    image: jvmilazz0/kavita:nightly
+    container_name: kavita
+    networks:
+      - shared
+    environment:
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./config/kavita:/kavita/config
+      - comics:/manga
+    ports:
+      - 5353:5000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Romm
+  romm:
+    image: rommapp/romm:latest
+    container_name: romm
+    restart: unless-stopped
+    networks:
+      - shared
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
+      - romm_redis_data:/redis-data # Cached data for background tasks
+      - games:/romm/library # Your game library. Check https://github.com/rommapp/romm?tab=readme-ov-file#folder-structure for more details.
+      - games_assets:/romm/assets # Uploaded saves, states, etc.
+      - ./config/romm:/romm/config # Path where config.yml is stored
+    ports:
+      - 8888:8080
+    depends_on:
+      romm-db:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  romm-db:
+    image: mariadb:latest
+    container_name: romm-db
+    restart: unless-stopped
+    networks:
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Local volumes
+  model-cache:
+  karakeep-data:
+  karakeep-meilisearch:
+  mysql_data:
+  romm_resources:
+  romm_redis_data:
+
+  # NFS external volumes
+  comics:
+    external: true
+  games:
+    external: true
+  games_assets:
+    external: true
+
+networks:
+  backend:
+    name: backend-internal
+    external: true  # Created by infra-core stack
+  shared:
+    name: shared-network
+    external: true

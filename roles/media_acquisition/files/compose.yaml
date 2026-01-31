@@ -1,0 +1,326 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    env_file:
+      - ./env/gluetun.env
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    networks:
+      - vpn
+    ports:
+      # Port for Flood (routed through VPN)
+      # COMMENTED OUT - Flood port moved to flood container directly
+      # - 3001:3001
+      # Torrent ports
+      - 6881:6881/tcp
+      - 6881:6881/udp
+    volumes:
+      - ./config/gluetun:/gluetun
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/v1/openvpn/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  huntarr:
+    image: ghcr.io/plexguide/huntarr:latest
+    container_name: huntarr
+    restart: always
+    networks:
+      - shared
+    ports:
+      - "9705:9705"
+    volumes:
+      - /config/huntarr:/config
+    environment:
+      - TZ=America/Los_Angeles
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  prowlarr:
+    restart: unless-stopped
+    image: linuxserver/prowlarr
+    networks:
+      - shared
+    ports:
+      - 9696:9696
+    volumes:
+      - ./config/prowlarr:/config
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9696/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  flood:
+    image: jesec/rtorrent-flood
+    container_name: flood
+    # VPN ROUTING: Uncomment next line to route through VPN
+    # network_mode: "service:gluetun"
+    
+    # When NOT using VPN routing, use these networks and ports:
+    networks:
+#      - vpn
+      - shared
+    ports:
+      - 3001:3001
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    cap_add:
+      - NET_BIND_SERVICE
+      - NET_RAW
+    restart: unless-stopped
+    command: --port 3001 --allowedpath /downloads --noauth --rtsocket /config/.local/share/rtorrent/rtorrent.sock
+    volumes:
+      - ./config/rtorrent:/config
+      - downloads:/downloads
+    environment:
+      - HOME=/config
+      - TZ=America/Los_Angeles
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  sonarr:
+    restart: unless-stopped
+    image: linuxserver/sonarr
+    networks:
+      - shared
+    ports:
+      - 8989:8989
+    volumes:
+      - ./config/sonarr:/config
+      - television:/television
+      - anime:/anime
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    depends_on:
+      prowlarr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8989/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  radarr:
+    restart: unless-stopped
+    image: linuxserver/radarr
+    networks:
+     - shared
+    ports:
+      - 7878:7878
+    volumes:
+      - ./config/radarr:/config
+      - movies:/movies
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    depends_on:
+      prowlarr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7878/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  
+  lidarr:
+    restart: unless-stopped
+    image: linuxserver/lidarr
+    networks:
+      - shared
+    ports:
+      - 8686:8686
+    volumes:
+      - ./config/lidarr:/config
+      - music:/music
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+      - PUID=1000
+      - PGID=1000
+    depends_on:
+      prowlarr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8686/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  jellyseer:
+    image: fallenbagel/jellyseerr:latest
+    restart: unless-stopped
+    networks:
+      - shared
+    ports:
+      - 5055:5055
+    volumes:
+      - ./config/jellyseerr:/app/config
+    environment:
+      - TZ=America/Los_Angeles
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/status"]
+      start_period: 20s
+      timeout: 3s
+      interval: 15s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  unpackerr:
+    image: golift/unpackerr
+    restart: unless-stopped
+    networks:
+      - shared
+    volumes:
+      - ./config/unpackerr:/config
+      - downloads:/downloads
+    env_file:
+      - ./env/unpackerr.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  stash:
+    image: stashapp/stash:latest
+    restart: unless-stopped
+    networks:
+      - shared
+    ports: 
+      - 9999:9999
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "2m"
+    env_file:
+      - ./env/stash.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      
+      ## Adjust below paths (the left part) to your liking.
+      ## E.g. you can change ./config:/root/.stash to ./stash:/root/.stash
+      
+      ## Keep configs, scrapers, and plugins here.
+      - ./config:/root/.stash
+      ## Point this at your collection.
+      - private:/data
+      ## This is where your stash's metadata lives
+      - ./metadata:/metadata
+      ## Any other cache content.
+      - ./cache:/cache
+      ## Where to store binary blob data (scene covers, images)
+      - ./blobs:/blobs
+      ## Where to store generated content (screenshots,previews,transcodes,sprites)
+      - ./generated:/generated 
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9999/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Pinchflat - YouTube Downloader
+  pinchflat:
+    image: ghcr.io/kieraneglin/pinchflat:dev
+    container_name: pinchflat
+    restart: unless-stopped
+    networks:
+      - shared
+    ports:
+      - 8945:8945
+    volumes:
+      - ./config/pinchflat:/config
+      - downloads:/downloads
+    environment:
+      - TZ=America/Los_Angeles
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8945"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  videos:
+    external: true
+  television:
+    external: true
+  anime:
+    external: true
+  movies:
+    external: true
+  music:
+    external: true
+  downloads:
+    external: true
+  private:
+    external: true
+
+networks:
+  vpn:
+    name: vpn-network 
+    internal: false 
+  shared:
+    name: shared-network
+    external: true

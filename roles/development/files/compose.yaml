@@ -1,0 +1,176 @@
+name: development
+
+services:
+  # =============================================================================
+  # Forgejo - Self-hosted Git Forge
+  # =============================================================================
+  forgejo:
+    container_name: forgejo
+    image: codeberg.org/forgejo/forgejo:9
+    restart: unless-stopped
+    networks:
+      - proxy
+      - backend
+    ports:
+      - "2222:22"
+    volumes:
+      - forgejo-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./env/forgejo.env
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    depends_on:
+      forgejo-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.forgejo.rule: "Host(`git.atelier.house`)"
+      traefik.http.routers.forgejo.entrypoints: "websecure"
+      traefik.http.routers.forgejo.tls.certresolver: "letsencrypt"
+      traefik.http.services.forgejo.loadbalancer.server.port: "3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # Forgejo PostgreSQL Database
+  # =============================================================================
+  forgejo-db:
+    container_name: forgejo_postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - forgejo-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=forgejo
+      - POSTGRES_PASSWORD=12d42a096942088072b0e6f976fbb2a43d04154e839af510
+      - POSTGRES_DB=forgejo
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "forgejo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # =============================================================================
+  # n8n - Workflow Automation
+  # =============================================================================
+  n8n:
+    container_name: n8n
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - n8n-data:/home/node/.n8n
+    env_file:
+      - ./env/n8n.env
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.n8n.rule: "Host(`n8n.atelier.house`)"
+      traefik.http.routers.n8n.entrypoints: "websecure"
+      traefik.http.routers.n8n.tls.certresolver: "letsencrypt"
+      traefik.http.services.n8n.loadbalancer.server.port: "5678"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # n8n PostgreSQL Database
+  # =============================================================================
+  n8n-db:
+    container_name: n8n_postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - n8n-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/n8n-db.env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # =============================================================================
+  # Open WebUI - AI Chat Interface
+  # =============================================================================
+  open-webui:
+    container_name: open_webui
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://192.168.1.245:11434
+      - OPENAI_API_BASE_URL=http://192.168.1.245:11434/v1
+      - WEBUI_AUTH=true
+      - WEBUI_URL=https://ai.atelier.house
+      - WEBUI_SECRET_KEY=8818cbac786092dd1d6c423913ed234d0850ca71e3f92d096fee7904173b477d
+      # OIDC Authentication
+      - ENABLE_OAUTH_SIGNUP=true
+      - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true
+      - OAUTH_PROVIDER_NAME=PocketID
+      - OPENID_PROVIDER_URL=https://id.atelier.house/.well-known/openid-configuration
+      - OAUTH_CLIENT_ID=d539e392-d73b-4381-b228-6d4175140ecf
+      - OAUTH_CLIENT_SECRET=QUMjpVuxqc1zA60NBVrh4GSqtqivvQUM
+      - OAUTH_SCOPES=openid email profile
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.open-webui.rule: "Host(`ai.atelier.house`)"
+      traefik.http.routers.open-webui.entrypoints: "websecure"
+      traefik.http.routers.open-webui.tls.certresolver: "letsencrypt"
+      traefik.http.services.open-webui.loadbalancer.server.port: "8080"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Forgejo data (git repos, attachments) on NFS
+  forgejo-data:
+    external: true
+
+  # PostgreSQL data stays local for performance
+  forgejo-pgdata:
+
+  # n8n data
+  n8n-data:
+  n8n-pgdata:
+
+  # Open WebUI data
+  open-webui-data:
+
+networks:
+  proxy:
+    name: proxy-network
+    external: true
+  backend:
+    name: backend-internal
+    external: true
