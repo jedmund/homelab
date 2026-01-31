@@ -116,6 +116,16 @@ http:
 
     # ========== Productivity ==========
 
+    # Silverbullet service worker bypass (no auth)
+    silverbullet-sw:
+      rule: "Host(`notes.{{ traefik_domain }}`) && Path(`/service_worker.js`)"
+      service: silverbullet
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
     # Silverbullet - notes.{{ traefik_domain }}
     silverbullet:
       rule: "Host(`notes.{{ traefik_domain }}`)"
@@ -167,6 +177,15 @@ http:
     papra:
       rule: "Host(`docs.{{ traefik_domain }}`)"
       service: papra
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # HomeBox - box.{{ traefik_domain }}
+    homebox:
+      rule: "Host(`box.{{ traefik_domain }}`)"
+      service: homebox
       entryPoints:
         - websecure
       tls:
@@ -286,6 +305,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:8787"
+
+    homebox:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3100"
 
     romm:
       loadBalancer:
