@@ -75,17 +75,37 @@ pages:
                     url: https://watch.atelier.house
                     icon: sh:plex
                     description: Watch anything, anywhere
-                  - title: Kavita
-                    url: https://kv.atelier.house
-                    icon: sh:kavita
-                    description: Read comics and manga
                   - title: Overseerr
                     url: https://ov.atelier.house
                     icon: sh:overseerr
                     description: Request movies and TV shows
+                  - title: RomM
+                    url: https://rom.atelier.house
+                    icon: sh:romm
+                    description: ROM library management
 
-              - title: Productivity
+              - title: Reading
                 color: 96 44 68
+                links:
+                  - title: Reactflux
+                    url: https://read.atelier.house
+                    icon: sh:reactflux
+                    description: Modern RSS reader built on Miniflux
+                  - title: Miniflux
+                    url: https://rss.atelier.house
+                    icon: auto-invert sh:miniflux
+                    description: Hyper-minimalist RSS reader
+                  - title: Karakeep
+                    url: https://keep.atelier.house
+                    icon: auto-invert sh:karakeep
+                    description: Bookmark management
+                  - title: Kavita
+                    url: https://kv.atelier.house
+                    icon: sh:kavita
+                    description: Read comics and manga
+
+              - title: Knowledge
+                color: 200 50 50
                 links:
                   - title: OpenWebUI
                     url: https://ai.atelier.house
@@ -99,49 +119,29 @@ pages:
                     url: https://bl.atelier.house
                     icon: sh:blinko
                     description: AI-powered card notes
+
+              - title: Infrastructure
+                color: 359 68 71
+                links:
+                  - title: Flood
+                    url: https://flood.atelier.house
+                    icon: sh:flood
+                    description: File acquisition software
+                  - title: Tunarr
+                    url: https://tv.atelier.house
+                    icon: sh:tunarr
+                    description: IPTV channel management
+                  - title: Traefik
+                    url: https://tr.atelier.house
+                    icon: sh:traefik
+                    description: Reverse proxy dashboard
                   - title: n8n
                     url: https://n8n.atelier.house
                     icon: sh:n8n
                     description: Workflow automation
-                  - title: Karakeep
-                    url: https://keep.atelier.house
-                    icon: auto-invert sh:karakeep
-                    description: Bookmark management
-                  - title: Reactflux
-                    url: https://read.atelier.house
-                    icon: sh:reactflux
-                    description: Modern RSS reader built on Miniflux
-                  - title: Miniflux
-                    url: https://rss.atelier.house
-                    icon: auto-invert sh:miniflux
-                    description: Hyper-minimalist RSS reader
-                  - title: Strudel
-                    url: https://strudel.atelier.house
-                    icon: sh:strudel
-                    description: Live coding music environment
 
-              - title: Personal
-                color: 200 50 50
-                links:
-                  - title: Papra
-                    url: https://docs.atelier.house
-                    icon: sh:papra
-                    description: Document management
-                  - title: Immich
-                    url: https://photos.atelier.house
-                    icon: sh:immich
-                    description: Self-hosted photo and video backup
-
-              - title: Home
-                color: 61 66 44
-                links:
-                  - title: Home Assistant
-                    url: https://ha.atelier.house
-                    icon: sh:home-assistant
-                    description: Home automation platform
-              
               - title: Servarr
-                color: 43 59 81
+                color: 61 66 44
                 links:
                   - title: Sonarr
                     url: https://so.atelier.house
@@ -156,18 +156,6 @@ pages:
                     icon: sh:lidarr
                     description: Music management and automation
 
-              - title: Infrastructure
-                color: 359 68 71
-                links:
-                  - title: Flood
-                    url: https://flood.atelier.house
-                    icon: sh:flood
-                    description: File acquisition software
-                  - title: Traefik
-                    url: https://tr.atelier.house
-                    icon: sh:traefik
-                    description: Reverse proxy dashboard
-
               - title: Development
                 color: 280 50 60
                 links:
@@ -175,5 +163,25 @@ pages:
                     url: https://git.atelier.house
                     icon: sh:forgejo
                     description: Self-hosted Git forge
+                  - title: Strudel
+                    url: https://strudel.atelier.house
+                    icon: sh:strudel
+                    description: Live coding music environment
+
+              - title: Personal
+                color: 43 59 81
+                links:
+                  - title: Immich
+                    url: https://photos.atelier.house
+                    icon: sh:immich
+                    description: Self-hosted photo and video backup
+                  - title: HomeBox
+                    url: https://box.atelier.house
+                    icon: sh:homebox
+                    description: Home inventory management
+                  - title: Papra
+                    url: https://docs.atelier.house
+                    icon: sh:papra
+                    description: Document management
 
 
