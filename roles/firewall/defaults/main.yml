@@ -16,10 +16,8 @@ firewall_group_productivity: true
 firewall_group_social: true
 
 # Base ports (SSH, HTTP, HTTPS)
-# Opens both standard SSH (22) and custom ssh_port for safe transitions
 firewall_ports_base:
-  - { port: 22, proto: tcp, comment: "SSH (standard)" }
-  - { port: "{{ ssh_port | default(22) }}", proto: tcp, comment: "SSH (custom)" }
+  - { port: "{{ ansible_port | default(22) }}", proto: tcp, comment: "SSH" }
   - { port: 80, proto: tcp, comment: "HTTP" }
   - { port: 443, proto: tcp, comment: "HTTPS" }
 

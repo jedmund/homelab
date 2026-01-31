@@ -9,7 +9,7 @@
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^#?Port "
-    line: "Port {{ ssh_port | default(22) }}"
+    line: "Port {{ ansible_port | default(22) }}"
   notify: Restart SSH
 
 - name: Disable SSH password authentication
