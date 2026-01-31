@@ -52,8 +52,8 @@ open_webui_image: ghcr.io/open-webui/open-webui:main
 open_webui_domain: ai.atelier.house
 open_webui_port: 8080
 open_webui_host_port: 8080
-open_webui_ollama_base_url: "http://192.168.1.245:11434"
-open_webui_openai_api_base_url: "http://192.168.1.245:11434/v1"
+open_webui_ollama_base_url: "http://{{ max_server_ip }}:11434"
+open_webui_openai_api_base_url: "http://{{ max_server_ip }}:11434/v1"
 open_webui_auth: "true"
 open_webui_url: "https://{{ open_webui_domain }}"
 open_webui_oauth_signup: "true"

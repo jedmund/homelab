@@ -107,5 +107,4 @@ nfs_volumes:
       device: "{{ nas_server }}:/var/nfs/shared/Files/Mastodon"
       o: "{{ nfs_base_opts }}"
 
-# Local paths for container configs
-docker_base_path: /opt/docker
+# Note: docker_base_path is defined in docker.yml to avoid duplication
