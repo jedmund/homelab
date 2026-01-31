@@ -83,3 +83,19 @@ firewall_ports_infrastructure:
 firewall_ports_downloads:
   - { port: 6881, proto: tcp, comment: "BitTorrent" }
   - { port: 6881, proto: udp, comment: "BitTorrent UDP" }
+
+# Consolidated port list - dynamically built from enabled groups
+firewall_ports_all: >-
+  {{
+    (firewall_ports_base if firewall_group_base else []) +
+    (firewall_ports_dns if firewall_group_dns else []) +
+    (firewall_ports_media_servers if firewall_group_media_servers else []) +
+    (firewall_ports_media_acquisition if firewall_group_media_acquisition else []) +
+    (firewall_ports_media_consumption if firewall_group_media_consumption else []) +
+    (firewall_ports_content_management if firewall_group_content_management else []) +
+    (firewall_ports_development if firewall_group_development else []) +
+    (firewall_ports_infrastructure if firewall_group_infrastructure else []) +
+    (firewall_ports_downloads if firewall_group_downloads else []) +
+    (firewall_ports_productivity if firewall_group_productivity else []) +
+    (firewall_ports_social if firewall_group_social else [])
+  }}
