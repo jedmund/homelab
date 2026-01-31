@@ -280,7 +280,7 @@ services:
         max-file: {{ logging_max_file }}
 
   tunarr:
-    image: chrisbenber/tunarr:latest
+    image: chrisbenincasa/tunarr:latest
     container_name: tunarr
     restart: {{ restart_policy }}
     networks:
@@ -288,8 +288,15 @@ services:
     ports:
       - {{ tunarr_port }}:8000
     volumes:
-      - ./config/tunarr:/config
+      - ./config/tunarr:/config/tunarr
+      - videos:/data/videos:ro
+      - television:/data/television:ro
+      - anime:/data/anime:ro
+      - movies:/data/movies:ro
+    devices:
+      - /dev/dri:/dev/dri
     environment:
+      - TZ={{ timezone }}
       - DATABASE_URL={{ tunarr_database_url }}
     logging:
       driver: {{ logging_driver }}
