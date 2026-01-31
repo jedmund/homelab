@@ -232,34 +232,6 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
-  stash:
-    image: stashapp/stash:latest
-    restart: {{ restart_policy }}
-    networks:
-      - shared
-    ports:
-      - 9999:9999
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-file: "10"
-        max-size: "2m"
-    env_file:
-      - ./env/stash.env
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - ./config:/root/.stash
-      - private:/data
-      - ./metadata:/metadata
-      - ./cache:/cache
-      - ./blobs:/blobs
-      - ./generated:/generated
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9999/healthz"]
-      interval: {{ healthcheck_interval }}
-      timeout: {{ healthcheck_timeout }}
-      retries: {{ healthcheck_retries }}
-
   pinchflat:
     image: ghcr.io/kieraneglin/pinchflat:dev
     container_name: pinchflat
@@ -296,8 +268,6 @@ volumes:
   music:
     external: true
   downloads:
-    external: true
-  private:
     external: true
 
 networks:

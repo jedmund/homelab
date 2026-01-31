@@ -18,6 +18,11 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex"
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex/transcode"
     - "{{ docker_base_path }}/{{ stack_name }}/config/tunarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/stash"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/stash/metadata"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/stash/cache"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/stash/blobs"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/stash/generated"
 
 - name: Deploy compose file
   template:
@@ -37,6 +42,7 @@
     - miniflux
     - karakeep
     - romm
+    - stash
   no_log: true
   notify: Restart {{ stack_name }} stack
 
