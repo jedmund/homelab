@@ -1,4 +1,4 @@
 ---
 # Stack identity
-stack_name: media_acquisition
+stack_name: media-acquisition
 config_base: "{{ docker_base_path }}/{{ stack_name }}"

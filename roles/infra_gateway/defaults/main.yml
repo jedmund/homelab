@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: infra_gateway
+stack_name: infra-gateway
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # DDClient settings

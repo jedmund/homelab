@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: infra_core
+stack_name: infra-core
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Komodo settings
