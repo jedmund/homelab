@@ -1,0 +1,27 @@
+---
+- name: Ensure SSH key is authorized before disabling password auth
+  authorized_key:
+    user: "{{ ansible_user }}"
+    key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+    state: present
+
+- name: Configure SSH port
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?Port "
+    line: "Port {{ ssh_port | default(22) }}"
+  notify: Restart SSH
+
+- name: Disable SSH password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PasswordAuthentication "
+    line: "PasswordAuthentication no"
+  notify: Restart SSH
+
+- name: Disable SSH root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin "
+    line: "PermitRootLogin no"
+  notify: Restart SSH

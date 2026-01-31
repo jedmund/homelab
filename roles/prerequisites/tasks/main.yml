@@ -1,0 +1,28 @@
+---
+- name: Configure passwordless sudo for ansible user
+  copy:
+    content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL"
+    dest: "/etc/sudoers.d/{{ ansible_user }}"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+# Ensure host has working DNS (fixes systemd-resolved issues with AdGuard)
+# This runs early to ensure Docker can pull images
+- name: Check if DNS resolution is working
+  shell: getent hosts registry-1.docker.io
+  register: dns_check
+  failed_when: false
+  changed_when: false
+  timeout: 5
+
+- name: Configure external DNS if resolution is broken
+  copy:
+    content: |
+      # Managed by Ansible - external DNS fallback
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: dns_check.rc != 0

@@ -3,7 +3,9 @@
   hosts: compute_servers
   become: true
   roles:
+    - prerequisites
     - firewall
     - docker
     - networks
     - docker-volumes
+    - security
