@@ -50,11 +50,11 @@ services:
     container_name: papra
     image: {{ papra_image }}
     restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
     ports:
       - "{{ papra_external_port }}:{{ papra_port }}"
     volumes:
-      - papra-data:/app/data
-      - papra-documents:/app/documents
+      - ./config/papra:/app/app-data
     env_file:
       - ./env/papra.env
     logging:
@@ -75,17 +75,30 @@ services:
     environment:
       - TZ={{ timezone }}
 
+  homebox:
+    container_name: homebox
+    image: {{ homebox_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "{{ homebox_external_port }}:7745"
+    volumes:
+      - ./config/homebox:/data
+    env_file:
+      - ./env/homebox.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   immich-pgdata:
     external: true
     name: immich-pgdata
   model-cache:
   songkong-config:
-  papra-data:
 
   photos:
-    external: true
-  papra-documents:
     external: true
   music:
     external: true

@@ -11,6 +11,10 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/papra"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/papra/db"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/papra/documents"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/homebox"
 
 - name: Deploy compose file
   template:
@@ -29,6 +33,7 @@
   loop:
     - immich
     - papra
+    - homebox
   no_log: true
   notify: Restart {{ stack_name }} stack
 
