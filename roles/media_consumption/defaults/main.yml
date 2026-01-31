@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: media-consumption
+stack_name: media_consumption
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Miniflux settings

@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: content-management
+stack_name: content_management
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Immich settings
