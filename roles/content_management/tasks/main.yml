@@ -19,3 +19,7 @@
 - name: Deploy SongKong
   import_tasks: songkong.yml
   tags: songkong
+
+- name: Deploy Homebox
+  import_tasks: homebox.yml
+  tags: homebox

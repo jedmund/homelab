@@ -37,6 +37,16 @@ papra_oidc_provider_name: PocketID
 papra_oidc_discovery_url: "https://id.atelier.house/.well-known/openid-configuration"
 papra_oidc_scopes: "openid,profile,email"
 
+# Homebox settings
+homebox_image: ghcr.io/sysadminsmedia/homebox:latest
+homebox_port: "7745"
+homebox_external_port: 3100
+homebox_domain: "box.atelier.house"
+homebox_log_level: "info"
+homebox_log_format: "text"
+homebox_max_upload_size: "10"
+homebox_allow_analytics: "false"
+
 # SongKong settings
 songkong_image: songkong/songkong:latest
 songkong_port: 4567

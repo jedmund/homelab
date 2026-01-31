@@ -14,6 +14,7 @@ ddclient_atelier_subdomains:
   - ai.atelier.house
   - auth.atelier.house
   - bl.atelier.house
+  - box.atelier.house
   - chat.atelier.house
   - docs.atelier.house
   - flood.atelier.house
