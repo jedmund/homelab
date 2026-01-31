@@ -1,4 +1,25 @@
 ---
+# Pull image BEFORE disabling systemd-resolved (so DNS still works)
+- name: Pull AdGuard Home image
+  community.docker.docker_image:
+    name: adguard/adguardhome:latest
+    source: pull
+
+# Configure host DNS to use external servers before disabling systemd-resolved
+# This ensures the host can still resolve DNS for Docker image pulls
+- name: Configure resolv.conf to use external DNS
+  copy:
+    content: |
+      # Managed by Ansible - external DNS for host resolution
+      # AdGuard Home will handle DNS for the network once running
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+# Now safe to disable systemd-resolved
 - name: Disable systemd-resolved DNS stub listener
   lineinfile:
     path: /etc/systemd/resolved.conf
@@ -24,6 +45,7 @@
     timeout: 10
   when: port_53_in_use.stdout != "0"
 
+# Now start the container (image already pulled)
 - name: Deploy AdGuard Home DNS server
   community.docker.docker_container:
     name: adguard
