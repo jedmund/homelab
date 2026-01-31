@@ -1,73 +1,48 @@
 ---
-- name: Create media-consumption base directory
-  file:
-    path: "{{ docker_base_path }}/{{ stack_name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
+# Media Consumption Stack - Miniflux, Karakeep, Kavita, RomM, Plex, Tunarr
+# Uses docker_compose_v2 for container orchestration
 
-- name: Deploy compose file
-  copy:
-    src: compose.yaml
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-
-- name: Create media-consumption config directories
+- name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ config_base }}"
-    - "{{ config_base }}/miniflux/data"
-    - "{{ config_base }}/miniflux/backups"
-    - "{{ config_base }}/karakeep"
-    - "{{ config_base }}/kavita"
-    - "{{ config_base }}/romm"
-    - "{{ config_base }}/plex/config"
-    - "{{ config_base }}/plex/transcode"
-    - "{{ config_base }}/tunarr"
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/data/miniflux-db"
+    - "{{ docker_base_path }}/{{ stack_name }}/backups/miniflux"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/kavita"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/romm"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/plex"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/plex/transcode"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/tunarr"
 
-# Deploy reading stack
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
 
-- name: Deploy Miniflux Database
-  import_tasks: miniflux-db.yml
-  tags: [miniflux, miniflux-db]
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - miniflux
+    - karakeep
+    - romm
+  no_log: true
+  notify: Restart {{ stack_name }} stack
 
-- name: Deploy Miniflux
-  import_tasks: miniflux.yml
-  tags: miniflux
-
-- name: Deploy Miniflux Backup
-  import_tasks: miniflux-backup.yml
-  tags: [miniflux, miniflux-backup]
-
-- name: Deploy Reactflux
-  import_tasks: reactflux.yml
-  tags: reactflux
-
-- name: Deploy Karakeep
-  import_tasks: karakeep.yml
-  tags: karakeep
-
-- name: Deploy Kavita
-  import_tasks: kavita.yml
-  tags: kavita
-
-# Deploy gaming stack
-
-- name: Deploy Romm
-  import_tasks: romm.yml
-  tags: romm
-
-# Deploy media stack
-
-- name: Deploy Plex
-  import_tasks: plex.yml
-  tags: plex
-
-- name: Deploy Tunarr
-  import_tasks: tunarr.yml
-  tags: tunarr
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

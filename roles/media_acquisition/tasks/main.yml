@@ -1,79 +1,55 @@
 ---
-- name: Create media-acquisition base directory
-  file:
-    path: "{{ docker_base_path }}/{{ stack_name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
+# Media Acquisition Stack - Gluetun, Prowlarr, Flood, Sonarr, Radarr, Lidarr, etc.
+# Uses docker_compose_v2 for container orchestration
 
-- name: Deploy compose file
-  copy:
-    src: compose.yaml
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-
-- name: Create media-acquisition config directories
+- name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ config_base }}"
-    - "{{ config_base }}/gluetun"
-    - "{{ config_base }}/huntarr"
-    - "{{ config_base }}/prowlarr"
-    - "{{ config_base }}/rtorrent"
-    - "{{ config_base }}/sonarr"
-    - "{{ config_base }}/radarr"
-    - "{{ config_base }}/lidarr"
-    - "{{ config_base }}/jellyseerr"
-    - "{{ config_base }}/unpackerr"
-    - "{{ config_base }}/stash"
-    - "{{ config_base }}/pinchflat"
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/gluetun"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/prowlarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/rtorrent"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/sonarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/radarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/lidarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/jellyseerr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/unpackerr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/pinchflat"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/metadata"
+    - "{{ docker_base_path }}/{{ stack_name }}/cache"
+    - "{{ docker_base_path }}/{{ stack_name }}/blobs"
+    - "{{ docker_base_path }}/{{ stack_name }}/generated"
 
-# Deploy infrastructure first
- 
-- name: Deploy Gluetun VPN
-  import_tasks: gluetun.yml
-  tags: gluetun
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
 
-- name: Deploy Prowlarr
-  import_tasks: prowlarr.yml
-  tags: prowlarr
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - gluetun
+    - unpackerr
+    - stash
+  no_log: true
+  notify: Restart {{ stack_name }} stack
 
-# Deploy download client
-
-- name: Deploy Flood
-  import_tasks: flood.yml
-  tags: flood
-
-# Deploy Servarr apps
-
-- name: Deploy Sonarr
-  import_tasks: sonarr.yml
-  tags: sonarr
-
-- name: Deploy Radarr
-  import_tasks: radarr.yml
-  tags: radarr
-
-- name: Deploy Lidarr
-  import_tasks: lidarr.yml
-  tags: lidarr
-
-# Deploy supporting services
-
-- name: Deploy Jellyseerr
-  import_tasks: jellyseerr.yml
-  tags: jellyseerr
-
-- name: Deploy Unpackerr
-  import_tasks: unpackerr.yml
-  tags: unpackerr
-
-- name: Deploy Pinchflat
-  import_tasks: pinchflat.yml
-  tags: pinchflat
-
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

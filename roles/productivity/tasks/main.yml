@@ -1,41 +1,40 @@
 ---
-- name: Create productivity base directory
-  file:
-    path: "{{ docker_base_path }}/{{ stack_name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
+# Productivity Stack - Strudel, Silverbullet, Blinko
+# Uses docker_compose_v2 for container orchestration
 
-- name: Deploy compose file
-  copy:
-    src: compose.yaml
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-
-- name: Create productivity config directories
+- name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ config_base }}"
-    - "{{ config_base }}/strudel"
-    - "{{ config_base }}/blinko/data"
-    - "{{ config_base }}/blinko/postgres"
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/strudel"
 
-# Music/coding tools
-- name: Deploy Strudel
-  import_tasks: strudel.yml
-  tags: strudel
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
 
-# Knowledge management
-- name: Deploy Silverbullet
-  import_tasks: silverbullet.yml
-  tags: silverbullet
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - blinko
+  no_log: true
+  notify: Restart {{ stack_name }} stack
 
-# Note-taking (requires database first)
-- name: Deploy Blinko
-  import_tasks: blinko.yml
-  tags: blinko
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

@@ -1,44 +1,41 @@
 ---
-- name: Create infra-core base directory
-  file:
-    path: "{{ docker_base_path }}/{{ stack_name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
+# Infra Core Stack - MongoDB + Komodo
+# Uses docker_compose_v2 for container orchestration
 
-- name: Deploy compose file
-  copy:
-    src: compose.yaml
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-
-- name: Create infra-core config directories
+- name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ config_base }}"
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/backups"
     - "{{ periphery_root_directory }}"
 
-- name: Create Komodo backup directory
-  file:
-    path: /home/{{ ansible_user }}/komodo-backups
-    state: directory
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
-    mode: '0755'
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
 
-# Deploy infrastructure in order
-- name: Deploy MongoDB
-  import_tasks: mongo.yml
-  tags: mongo
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - komodo
+  no_log: true
+  notify: Restart {{ stack_name }} stack
 
-- name: Deploy Komodo Core
-  import_tasks: komodo-core.yml
-  tags: komodo-core
-
-- name: Deploy Komodo Periphery
-  import_tasks: komodo-periphery.yml
-  tags: komodo-periphery
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result
