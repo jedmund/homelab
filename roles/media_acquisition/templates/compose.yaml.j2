@@ -16,6 +16,9 @@ services:
     ports:
       - 6881:6881/tcp
       - 6881:6881/udp
+      - 8080:8080
+      - 6882:6882/tcp
+      - 6882:6882/udp
     volumes:
       - ./config/gluetun:/gluetun
     restart: {{ restart_policy }}
@@ -96,6 +99,34 @@ services:
       - TZ={{ timezone }}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    restart: {{ restart_policy }}
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6882
+    volumes:
+      - ./config/qbittorrent:/config
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
@@ -254,6 +285,27 @@ services:
       driver: {{ logging_driver }}
       options:
         max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  qui:
+    image: ghcr.io/autobrr/qui:latest
+    container_name: qui
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "7476:7476"
+    volumes:
+      - ./config/qui:/config
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7476"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
         max-file: {{ logging_max_file }}
 
 volumes:

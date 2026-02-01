@@ -20,6 +20,8 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/jellyseerr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/unpackerr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/pinchflat"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/qbittorrent"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/qui"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
     - "{{ docker_base_path }}/{{ stack_name }}/metadata"
     - "{{ docker_base_path }}/{{ stack_name }}/cache"
