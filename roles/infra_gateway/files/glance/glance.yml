@@ -37,9 +37,9 @@ pages:
               - title: Immich
                 url: https://photos.atelier.house
                 icon: sh:immich
-              - title: Reactflux
-                url: https://read.atelier.house
-                icon: sh:reactflux
+              - title: Miniflux
+                url: https://rss.atelier.house
+                icon: auto-invert sh:miniflux
               - title: Kavita
                 url: https://kv.atelier.house
                 icon: sh:kavita
