@@ -1,6 +1,5 @@
 ---
-# Development Stack - Forgejo, Open WebUI
-# Uses docker_compose_v2 for container orchestration
+# Utilities Stack - n8n, ChangeDetection.io
 
 - name: Create {{ stack_name }} directories
   file:
@@ -11,6 +10,7 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/changedetection"
 
 - name: Deploy compose file
   template:
@@ -27,7 +27,8 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
-    - forgejo
+    - n8n
+    - n8n-db
   no_log: true
   notify: Restart {{ stack_name }} stack
 

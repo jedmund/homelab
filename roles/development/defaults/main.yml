@@ -31,25 +31,6 @@ forgejo_db_port: "5432"
 forgejo_db_name: forgejo
 forgejo_db_user: forgejo
 
-# n8n settings
-n8n_image: n8nio/n8n:latest
-n8n_domain: n8n.atelier.house
-n8n_port: 5678
-n8n_host_port: 5678
-n8n_protocol: https
-n8n_webhook_url: "https://{{ n8n_domain }}/"
-n8n_user_management_disabled: "false"
-n8n_oidc_enabled: "true"
-n8n_oidc_issuer_url: "https://id.atelier.house"
-n8n_oidc_redirect_uri: "https://{{ n8n_domain }}/rest/oauth2-credential/callback"
-
-# n8n database
-n8n_db_image: postgres:16-alpine
-n8n_db_host: n8n-db
-n8n_db_port: "5432"
-n8n_db_name: n8n
-n8n_db_user: n8n
-
 # Open WebUI settings
 open_webui_image: ghcr.io/open-webui/open-webui:main
 open_webui_domain: ai.atelier.house

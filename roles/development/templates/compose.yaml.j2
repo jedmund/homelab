@@ -57,53 +57,6 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
-  n8n:
-    container_name: n8n
-    image: {{ n8n_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-      - backend
-    volumes:
-      - n8n-data:/home/node/.n8n
-    env_file:
-      - ./env/n8n.env
-    depends_on:
-      n8n-db:
-        condition: service_healthy
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.n8n.rule: "Host(`{{ n8n_domain }}`)"
-      traefik.http.routers.n8n.entrypoints: "websecure"
-      traefik.http.routers.n8n.tls.certresolver: "letsencrypt"
-      traefik.http.services.n8n.loadbalancer.server.port: "{{ n8n_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
-  n8n-db:
-    container_name: n8n_postgres
-    image: {{ n8n_db_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - backend
-    volumes:
-      - n8n-pgdata:/var/lib/postgresql/data
-    env_file:
-      - ./env/n8n-db.env
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ n8n_db_user }}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: "5m"
-        max-file: {{ logging_max_file }}
-
   open-webui:
     container_name: open_webui
     image: {{ open_webui_image }}
@@ -141,10 +94,6 @@ volumes:
   forgejo-data:
     external: true
   forgejo-pgdata:
-  n8n-data:
-    external: true
-  n8n-pgdata:
-    external: true
   open-webui-data:
     external: true
 

@@ -14,8 +14,9 @@
           5. Media Consumption
           6. Content Management
           7. Development
-          8. Productivity
-          9. Social
+          8. Utilities
+          9. Productivity
+          10. Social
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -42,6 +43,10 @@
 # Development stack
 - import_playbook: development.yml
   tags: [dev, development]
+
+# Utilities stack
+- import_playbook: utilities.yml
+  tags: [utilities]
 
 # Productivity stack
 - import_playbook: productivity.yml
