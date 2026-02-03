@@ -1,5 +1,5 @@
 ---
-# Utilities Stack - n8n, ChangeDetection.io
+# Utilities Stack - n8n, ChangeDetection.io, Copyparty
 
 - name: Create {{ stack_name }} directories
   file:
@@ -11,6 +11,8 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config/changedetection"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/hist"
 
 - name: Deploy compose file
   template:
@@ -30,6 +32,23 @@
     - n8n
     - n8n-db
   no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Set copyparty directory ownership
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    recurse: yes
+
+- name: Deploy copyparty config
+  template:
+    src: config/copyparty.conf.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/copyparty.conf"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0644'
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack

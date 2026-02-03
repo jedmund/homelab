@@ -26,3 +26,8 @@ n8n_db_user: n8n
 changedetection_image: ghcr.io/dgtlmoon/changedetection.io:latest
 changedetection_domain: track.atelier.house
 changedetection_port: 5000
+
+# Copyparty settings
+copyparty_image: copyparty/ac
+copyparty_domain: files.atelier.house
+copyparty_port: 3923

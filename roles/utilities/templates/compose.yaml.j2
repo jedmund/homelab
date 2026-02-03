@@ -71,10 +71,52 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  copyparty:
+    container_name: copyparty
+    image: {{ copyparty_image }}
+    restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
+    networks:
+      - proxy
+    volumes:
+      - ./config/copyparty:/cfg
+      - videos:/w/Videos
+      - music:/w/Music
+      - downloads:/w/Downloads
+      - photos:/w/Photos
+      - comics:/w/Comics
+      - games:/w/Games
+    environment:
+      - TZ={{ timezone }}
+      - HOME=/cfg
+      - XDG_CONFIG_HOME=/cfg
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:{{ copyparty_port }}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   n8n-data:
     external: true
   n8n-pgdata:
+    external: true
+  videos:
+    external: true
+  music:
+    external: true
+  downloads:
+    external: true
+  photos:
+    external: true
+  comics:
+    external: true
+  games:
     external: true
 
 networks:
