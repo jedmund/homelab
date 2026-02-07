@@ -292,11 +292,17 @@ services:
     container_name: qui
     restart: {{ restart_policy }}
     networks:
-      - shared
-    ports:
-      - "7476:7476"
+      - proxy
     volumes:
       - ./config/qui:/config
+    env_file:
+      - ./env/qui.env
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.qui.rule: "Host(`{{ qui_domain }}`)"
+      traefik.http.routers.qui.entrypoints: "websecure"
+      traefik.http.routers.qui.tls.certresolver: "letsencrypt"
+      traefik.http.services.qui.loadbalancer.server.port: "{{ qui_port }}"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:7476"]
       interval: {{ healthcheck_interval }}
@@ -328,4 +334,7 @@ networks:
     internal: false
   shared:
     name: {{ shared_network }}
+    external: true
+  proxy:
+    name: {{ proxy_network }}
     external: true

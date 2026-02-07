@@ -43,9 +43,9 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
-    - gluetun
-    - unpackerr
     - stash
+    - unpackerr
+    - qui
   no_log: true
   notify: Restart {{ stack_name }} stack
 
