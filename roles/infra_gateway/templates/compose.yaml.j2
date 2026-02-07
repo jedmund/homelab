@@ -77,6 +77,10 @@ services:
       tinyauth.apps.silverbullet.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.pinchflat.config.domain: "pi.{{ traefik_domain }}"
       tinyauth.apps.pinchflat.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.changedetection.config.domain: "track.{{ traefik_domain }}"
+      tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.copyparty.config.domain: "files.{{ traefik_domain }}"
+      tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:

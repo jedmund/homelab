@@ -231,6 +231,31 @@ http:
       tls:
         certResolver: letsencrypt
 
+
+    # ========== Utilities ==========
+
+    # ChangeDetection - track.{{ traefik_domain }}
+    changedetection:
+      rule: "Host(`track.{{ traefik_domain }}`)"
+      service: changedetection
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Copyparty - files.{{ traefik_domain }}
+    copyparty:
+      rule: "Host(`files.{{ traefik_domain }}`)"
+      service: copyparty
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
   services:
     # Servarr Stack
     sonarr:
@@ -339,3 +364,14 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:8945"
+
+    # Utilities
+    changedetection:
+      loadBalancer:
+        servers:
+          - url: "http://changedetection:5000"
+
+    copyparty:
+      loadBalancer:
+        servers:
+          - url: "http://copyparty:3923"

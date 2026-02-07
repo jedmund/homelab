@@ -17,6 +17,7 @@ ddclient_atelier_subdomains:
   - box.atelier.house
   - chat.atelier.house
   - docs.atelier.house
+  - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
   - ha.atelier.house
@@ -41,6 +42,7 @@ ddclient_atelier_subdomains:
   - speed.atelier.house
   - start.atelier.house
   - strudel.atelier.house
+  - track.atelier.house
   - tr.atelier.house
   - tv.atelier.house
   - watch.atelier.house
