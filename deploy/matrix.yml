@@ -1,0 +1,6 @@
+---
+- name: Deploy matrix stack
+  hosts: matrix
+  become: yes
+  roles:
+    - matrix

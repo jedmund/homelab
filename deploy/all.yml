@@ -55,3 +55,7 @@
 # Social stack
 - import_playbook: social.yml
   tags: [social]
+
+# Matrix stack
+- import_playbook: matrix.yml
+  tags: [matrix]

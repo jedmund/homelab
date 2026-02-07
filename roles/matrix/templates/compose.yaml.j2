@@ -1,0 +1,133 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  synapse:
+    container_name: synapse
+    build:
+      context: .
+      dockerfile: Dockerfile.synapse
+    image: synapse-custom:latest
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - synapse-data:/data
+      - ./config/homeserver.yaml:/data/homeserver.yaml
+    environment:
+      - TZ={{ timezone }}
+      - UID={{ puid }}
+      - GID={{ pgid }}
+    env_file:
+      - ./env/synapse.env
+    depends_on:
+      synapse-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.matrix.rule: "Host(`{{ synapse_domain }}`)"
+      traefik.http.routers.matrix.entrypoints: "websecure"
+      traefik.http.routers.matrix.tls.certresolver: "letsencrypt"
+      traefik.http.services.matrix.loadbalancer.server.port: "{{ synapse_port_http }}"
+    healthcheck:
+      test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  synapse-db:
+    container_name: synapse_postgres
+    image: {{ synapse_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - synapse-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/postgres.env
+    environment:
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ synapse_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  element-web:
+    container_name: element_web
+    image: {{ element_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./config/element-config.json:/app/config.json:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.element.rule: "Host(`{{ element_domain }}`)"
+      traefik.http.routers.element.entrypoints: "websecure"
+      traefik.http.routers.element.tls.certresolver: "letsencrypt"
+      traefik.http.services.element.loadbalancer.server.port: "{{ element_port }}"
+      traefik.http.middlewares.element-headers.headers.customResponseHeaders.X-Frame-Options: "SAMEORIGIN"
+      traefik.http.middlewares.element-headers.headers.customResponseHeaders.Cache-Control: "no-cache"
+      traefik.http.routers.element.middlewares: "element-headers"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  synapse-admin:
+    container_name: synapse_admin
+    image: {{ synapse_admin_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.synapse-admin.rule: "Host(`{{ synapse_admin_domain }}`)"
+      traefik.http.routers.synapse-admin.entrypoints: "websecure"
+      traefik.http.routers.synapse-admin.tls.certresolver: "letsencrypt"
+      traefik.http.services.synapse-admin.loadbalancer.server.port: "{{ synapse_admin_port }}"
+      traefik.http.routers.synapse-admin.middlewares: "tinyauth@file"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  coturn:
+    container_name: coturn
+    image: {{ coturn_image }}
+    restart: {{ restart_policy }}
+    network_mode: host
+    volumes:
+      - ./config/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  synapse-data:
+  synapse-pgdata:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

@@ -81,6 +81,8 @@ services:
       tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.copyparty.config.domain: "files.{{ traefik_domain }}"
       tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ traefik_domain }}"
+      tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:

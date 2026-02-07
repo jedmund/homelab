@@ -1,0 +1,22 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://{{ synapse_domain }}",
+      "server_name": "{{ synapse_server_name }}"
+    }
+  },
+  "brand": "Element",
+  "bug_report_endpoint_url": null,
+  "showLabsSettings": true,
+  "default_theme": "dark",
+  "room_directory": {
+    "servers": ["{{ synapse_server_name }}", "matrix.org"]
+  },
+  "disable_guests": true,
+  "disable_login_language_selector": false,
+  "disable_3pid_login": false,
+  "default_country_code": "US",
+  "setting_defaults": {
+    "breadcrumbs": true
+  }
+}

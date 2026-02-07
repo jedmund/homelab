@@ -1,0 +1,83 @@
+# {{ ansible_managed }}
+# Matrix Synapse homeserver configuration
+
+server_name: "{{ synapse_server_name }}"
+public_baseurl: "https://{{ synapse_domain }}/"
+serve_server_wellknown: true
+pid_file: /data/homeserver.pid
+signing_key_path: "/data/{{ synapse_server_name }}.signing.key"
+
+listeners:
+  - port: {{ synapse_port_http }}
+    type: http
+    tls: false
+    bind_addresses: ['0.0.0.0']
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: "{{ synapse_db_user }}"
+    password: "{{ synapse_db_password }}"
+    database: "{{ synapse_db_name }}"
+    host: "{{ synapse_db_host }}"
+    port: {{ synapse_db_port }}
+    cp_min: 5
+    cp_max: 10
+
+
+{% if synapse_s3_enabled %}
+media_storage_providers:
+  - module: s3_storage_provider.S3StorageProviderBackend
+    store_local: true
+    store_remote: true
+    store_synchronous: true
+    config:
+      bucket: "{{ synapse_s3_bucket }}"
+      region_name: "{{ synapse_s3_region }}"
+      endpoint_url: "{{ synapse_s3_endpoint }}"
+      access_key_id: "{{ synapse_s3_access_key_id }}"
+      secret_access_key: "{{ synapse_s3_secret_access_key }}"
+{% endif %}
+
+media_store_path: "/data/media_store"
+max_upload_size: "{{ synapse_max_upload_size }}"
+
+enable_registration: {{ synapse_enable_registration | lower }}
+enable_registration_without_verification: false
+registration_shared_secret: "{{ synapse_registration_shared_secret }}"
+
+{% if synapse_oidc_enabled %}
+oidc_providers:
+  - idp_id: pocketid
+    idp_name: "{{ synapse_oidc_display_name }}"
+    discover: {{ synapse_oidc_discover | lower }}
+    issuer: "{{ synapse_oidc_issuer }}"
+    client_id: "{{ synapse_oidc_client_id }}"
+    client_secret: "{{ synapse_oidc_client_secret }}"
+    scopes: {{ synapse_oidc_scopes | to_json }}
+    user_mapping_provider:
+      config:
+        subject_claim: "{{ synapse_oidc_user_mapping_subject_claim }}"
+        localpart_template: "{% raw %}{{ user.preferred_username }}{% endraw %}"
+        display_name_template: "{% raw %}{{ user.name }}{% endraw %}"
+{% endif %}
+
+turn_uris:
+  - "turn:{{ coturn_realm }}:{{ coturn_port_listening }}?transport=udp"
+  - "turn:{{ coturn_realm }}:{{ coturn_port_listening }}?transport=tcp"
+  - "turns:{{ coturn_realm }}:{{ coturn_port_tls }}?transport=udp"
+  - "turns:{{ coturn_realm }}:{{ coturn_port_tls }}?transport=tcp"
+turn_shared_secret: "{{ coturn_shared_secret }}"
+turn_user_lifetime: 86400000
+turn_allow_guests: false
+
+enable_metrics: false
+report_stats: {{ synapse_report_stats | lower }}
+suppress_key_server_warning: true
+
+trusted_key_servers:
+  - server_name: "matrix.org"

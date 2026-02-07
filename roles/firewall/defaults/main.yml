@@ -14,6 +14,7 @@ firewall_group_infrastructure: true
 firewall_group_downloads: true
 firewall_group_productivity: true
 firewall_group_social: true
+firewall_group_matrix: true
 
 # Base ports (SSH, HTTP, HTTPS)
 firewall_ports_base:
@@ -73,6 +74,14 @@ firewall_ports_social:
   - { port: 3002, proto: tcp, comment: "Mastodon" }
   - { port: 4000, proto: tcp, comment: "Mastodon Streaming" }
 
+# Matrix (coturn TURN/STUN)
+firewall_ports_matrix:
+  - { port: 3478, proto: tcp, comment: "TURN" }
+  - { port: 3478, proto: udp, comment: "TURN UDP" }
+  - { port: 5349, proto: tcp, comment: "TURNS (TLS)" }
+  - { port: 5349, proto: udp, comment: "TURNS (TLS) UDP" }
+  - { port: "49152:65535", proto: udp, comment: "TURN relay" }
+
 # Infrastructure
 firewall_ports_infrastructure:
   - { port: 9120, proto: tcp, comment: "Komodo" }
@@ -97,5 +106,6 @@ firewall_ports_all: >-
     (firewall_ports_infrastructure if firewall_group_infrastructure else []) +
     (firewall_ports_downloads if firewall_group_downloads else []) +
     (firewall_ports_productivity if firewall_group_productivity else []) +
-    (firewall_ports_social if firewall_group_social else [])
+    (firewall_ports_social if firewall_group_social else []) +
+    (firewall_ports_matrix if firewall_group_matrix else [])
   }}

@@ -1,0 +1,60 @@
+---
+# Stack identity (dedicated stack, NOT shared with social/Mastodon)
+stack_name: matrix
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Synapse configuration
+synapse_image: matrixdotorg/synapse:latest
+synapse_server_name: matrix.atelier.house
+synapse_domain: matrix.atelier.house
+synapse_port_http: 8008
+synapse_enable_registration: false
+synapse_report_stats: false
+synapse_max_upload_size: 50M
+# synapse_signing_key - auto-generated on first run, stored in synapse-data volume
+
+# PostgreSQL configuration
+synapse_db_image: postgres:17-alpine
+synapse_db_name: synapse
+synapse_db_user: synapse
+synapse_db_host: synapse-db
+synapse_db_port: 5432
+# synapse_db_password - defined in vault
+# synapse_registration_shared_secret - defined in vault
+
+# Element Web configuration
+element_image: vectorim/element-web:latest
+element_domain: chat.atelier.house
+element_port: 80
+
+# synapse-admin configuration
+synapse_admin_image: etkecc/synapse-admin:latest
+synapse_admin_domain: matrix-admin.atelier.house
+synapse_admin_port: 8080
+
+# coturn configuration
+coturn_image: coturn/coturn:latest
+coturn_realm: matrix.atelier.house
+coturn_port_listening: 3478
+coturn_port_tls: 5349
+coturn_port_relay_min: 49152
+coturn_port_relay_max: 65535
+# coturn_shared_secret - defined in vault
+
+# S3 media storage (following Mastodon pattern)
+synapse_s3_enabled: true
+synapse_s3_bucket: matrix-atelier-media
+synapse_s3_region: us-west-2
+synapse_s3_endpoint: "https://s3.us-west-2.amazonaws.com"
+# synapse_s3_access_key_id - defined in vault
+# synapse_s3_secret_access_key - defined in vault
+
+# PocketID OIDC configuration
+synapse_oidc_enabled: true
+synapse_oidc_issuer: "https://id.atelier.house"
+synapse_oidc_display_name: "PocketID"
+synapse_oidc_discover: true
+synapse_oidc_scopes: ["openid", "profile", "email"]
+synapse_oidc_user_mapping_subject_claim: "sub"
+# synapse_oidc_client_id - defined in vault
+# synapse_oidc_client_secret - defined in vault
