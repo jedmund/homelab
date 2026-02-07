@@ -1,5 +1,5 @@
 ---
-# Productivity Stack - Strudel, Silverbullet, Blinko
+# Productivity Stack - Strudel, Silverbullet, Obsidian, Blinko
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories

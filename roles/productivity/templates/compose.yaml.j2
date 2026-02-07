@@ -30,6 +30,36 @@ services:
       - proxy
     volumes:
       - silverbullet-space:/space
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.silverbullet.rule: "Host(`{{ silverbullet_domain }}`)"
+      traefik.http.routers.silverbullet.entrypoints: "websecure"
+      traefik.http.routers.silverbullet.tls.certresolver: "letsencrypt"
+      traefik.http.services.silverbullet.loadbalancer.server.port: "{{ silverbullet_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  obsidian:
+    container_name: obsidian
+    image: {{ obsidian_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - obsidian-config:/config
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - TZ={{ timezone }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.obsidian.rule: "Host(`{{ obsidian_domain }}`)"
+      traefik.http.routers.obsidian.entrypoints: "websecure"
+      traefik.http.routers.obsidian.tls.certresolver: "letsencrypt"
+      traefik.http.services.obsidian.loadbalancer.server.port: "{{ obsidian_port }}"
     logging:
       driver: {{ logging_driver }}
       options:
@@ -87,6 +117,7 @@ services:
 
 volumes:
   silverbullet-space:
+  obsidian-config:
   blinko-data:
   blinko-pgdata:
 

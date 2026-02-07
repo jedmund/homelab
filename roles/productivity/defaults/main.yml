@@ -14,7 +14,7 @@ strudel_domain: strudel.atelier.house
 silverbullet_image: zefhemel/silverbullet:latest
 silverbullet_port: 3000
 silverbullet_host_port: 3001
-silverbullet_domain: notes.atelier.house
+silverbullet_domain: sb.atelier.house
 
 # Blinko settings
 blinko_image: blinkospace/blinko:latest
@@ -31,3 +31,9 @@ blinko_db_port: "5432"
 blinko_db_name: blinko
 blinko_db_user: blinko
 blinko_database_url: "postgresql://{{ blinko_db_user }}:{{ blinko_db_password }}@{{ blinko_db_host }}:{{ blinko_db_port }}/{{ blinko_db_name }}"
+
+# Obsidian settings
+obsidian_image: lscr.io/linuxserver/obsidian:latest
+obsidian_port: 3000
+obsidian_host_port: 3000
+obsidian_domain: notes.atelier.house
