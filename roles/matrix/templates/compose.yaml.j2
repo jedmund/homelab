@@ -15,10 +15,9 @@ services:
     volumes:
       - synapse-data:/data
       - ./config/homeserver.yaml:/data/homeserver.yaml
+      - ./config/synapse-signing.key:/config/signing.key:ro
     environment:
       - TZ={{ timezone }}
-      - UID={{ puid }}
-      - GID={{ pgid }}
     env_file:
       - ./env/synapse.env
     depends_on:
@@ -29,6 +28,7 @@ services:
       traefik.http.routers.matrix.rule: "Host(`{{ synapse_domain }}`)"
       traefik.http.routers.matrix.entrypoints: "websecure"
       traefik.http.routers.matrix.tls.certresolver: "letsencrypt"
+      traefik.http.routers.matrix.priority: "1"
       traefik.http.services.matrix.loadbalancer.server.port: "{{ synapse_port_http }}"
     healthcheck:
       test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
@@ -56,6 +56,62 @@ services:
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "{{ synapse_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  mas:
+    container_name: mas
+    image: {{ mas_image }}
+    restart: {{ restart_policy }}
+    command: server --config /data/config.yaml
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - ./config/mas-config.yaml:/data/config.yaml:ro
+      - ./config/mas-signing.key:/keys/signing.key:ro
+    depends_on:
+      mas-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      # MAS own domain (UI, OAuth, discovery)
+      traefik.http.routers.mas.rule: "Host(`{{ mas_domain }}`)"
+      traefik.http.routers.mas.entrypoints: "websecure"
+      traefik.http.routers.mas.tls.certresolver: "letsencrypt"
+      traefik.http.services.mas.loadbalancer.server.port: "{{ mas_port }}"
+      # Compat routes: login/logout/refresh on Synapse domain go to MAS
+      traefik.http.routers.mas-compat.rule: "Host(`{{ synapse_domain }}`) && PathRegexp(`^/_matrix/client/(r0|v3|unstable)/(login|logout|refresh)`)"
+      traefik.http.routers.mas-compat.entrypoints: "websecure"
+      traefik.http.routers.mas-compat.tls.certresolver: "letsencrypt"
+      traefik.http.routers.mas-compat.priority: "100"
+      traefik.http.routers.mas-compat.service: "mas"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  mas-db:
+    container_name: mas_postgres
+    image: {{ mas_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - mas-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/mas-db.env
+    environment:
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ mas_db_user }}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -107,13 +163,50 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  coturn:
-    container_name: coturn
-    image: {{ coturn_image }}
+  livekit:
+    container_name: livekit
+    image: {{ livekit_image }}
     restart: {{ restart_policy }}
-    network_mode: host
+    command: --config /etc/livekit.yaml
+    networks:
+      - proxy
+    ports:
+      - "{{ livekit_rtc_tcp_port }}:7881"
+      - "{{ livekit_rtc_port_start }}-{{ livekit_rtc_port_end }}:{{ livekit_rtc_port_start }}-{{ livekit_rtc_port_end }}/udp"
     volumes:
-      - ./config/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./config/livekit.yaml:/etc/livekit.yaml:ro
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.livekit.rule: "Host(`{{ livekit_domain }}`)"
+      traefik.http.routers.livekit.entrypoints: "websecure"
+      traefik.http.routers.livekit.tls.certresolver: "letsencrypt"
+      traefik.http.services.livekit.loadbalancer.server.port: "7880"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  lk-jwt-service:
+    container_name: lk_jwt_service
+    image: {{ lk_jwt_service_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    environment:
+      - LIVEKIT_URL=wss://{{ livekit_domain }}
+      - LIVEKIT_KEY={{ livekit_api_key }}
+      - LIVEKIT_SECRET={{ livekit_api_secret }}
+      - LIVEKIT_JWT_BIND=:8080
+      - LIVEKIT_FULL_ACCESS_HOMESERVERS={{ synapse_server_name }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lk-jwt.rule: "Host(`{{ livekit_domain }}`) && PathPrefix(`/jwt`)"
+      traefik.http.routers.lk-jwt.entrypoints: "websecure"
+      traefik.http.routers.lk-jwt.tls.certresolver: "letsencrypt"
+      traefik.http.services.lk-jwt.loadbalancer.server.port: "8080"
+      traefik.http.middlewares.lk-jwt-strip.stripprefix.prefixes: "/jwt"
+      traefik.http.routers.lk-jwt.middlewares: "lk-jwt-strip"
     logging:
       driver: {{ logging_driver }}
       options:
@@ -123,6 +216,7 @@ services:
 volumes:
   synapse-data:
   synapse-pgdata:
+  mas-pgdata:
 
 networks:
   proxy:

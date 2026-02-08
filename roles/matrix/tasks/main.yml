@@ -1,5 +1,5 @@
 ---
-# Matrix Stack - Synapse, Element Web, synapse-admin, coturn
+# Matrix Stack - Synapse, MAS, Element Web, synapse-admin, LiveKit
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -13,10 +13,35 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
 
+- name: Generate Synapse signing key
+  shell: |
+    docker run --rm --entrypoint python {{ synapse_image }} -c \
+      "from signedjson.key import generate_signing_key, write_signing_keys; import sys; key = generate_signing_key('a_kHbL'); write_signing_keys(sys.stdout, [key])" \
+      > {{ docker_base_path }}/{{ stack_name }}/config/synapse-signing.key
+  args:
+    creates: "{{ docker_base_path }}/{{ stack_name }}/config/synapse-signing.key"
+
+- name: Generate MAS signing key
+  community.crypto.openssl_privatekey:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/mas-signing.key"
+    type: RSA
+    size: 4096
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+    force: false
+
 - name: Generate Synapse homeserver config
   template:
     src: homeserver.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/homeserver.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Generate MAS config
+  template:
+    src: mas-config.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/mas-config.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
   notify: Restart {{ stack_name }} stack
@@ -29,10 +54,10 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
-- name: Generate coturn config
+- name: Generate LiveKit config
   template:
-    src: turnserver.conf.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/config/turnserver.conf"
+    src: livekit.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/livekit.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
   notify: Restart {{ stack_name }} stack
@@ -62,6 +87,7 @@
   loop:
     - synapse
     - postgres
+    - mas-db
   no_log: true
   notify: Restart {{ stack_name }} stack
 

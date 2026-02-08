@@ -11,7 +11,6 @@ synapse_port_http: 8008
 synapse_enable_registration: false
 synapse_report_stats: false
 synapse_max_upload_size: 50M
-# synapse_signing_key - auto-generated on first run, stored in synapse-data volume
 
 # PostgreSQL configuration
 synapse_db_image: postgres:17-alpine
@@ -32,14 +31,17 @@ synapse_admin_image: etkecc/synapse-admin:latest
 synapse_admin_domain: matrix-admin.atelier.house
 synapse_admin_port: 8080
 
-# coturn configuration
-coturn_image: coturn/coturn:latest
-coturn_realm: matrix.atelier.house
-coturn_port_listening: 3478
-coturn_port_tls: 5349
-coturn_port_relay_min: 49152
-coturn_port_relay_max: 65535
-# coturn_shared_secret - defined in vault
+# LiveKit / Element Call
+livekit_image: livekit/livekit-server:latest
+livekit_domain: matrix-rtc.atelier.house
+livekit_rtc_tcp_port: 7881
+livekit_rtc_port_start: 50100
+livekit_rtc_port_end: 50200
+# livekit_api_key - defined in vault
+# livekit_api_secret - defined in vault
+
+# lk-jwt-service
+lk_jwt_service_image: ghcr.io/element-hq/lk-jwt-service:latest
 
 # S3 media storage (following Mastodon pattern)
 synapse_s3_enabled: true
@@ -49,12 +51,23 @@ synapse_s3_endpoint: "https://s3.us-west-2.amazonaws.com"
 # synapse_s3_access_key_id - defined in vault
 # synapse_s3_secret_access_key - defined in vault
 
-# PocketID OIDC configuration
-synapse_oidc_enabled: true
-synapse_oidc_issuer: "https://id.atelier.house"
-synapse_oidc_display_name: "PocketID"
-synapse_oidc_discover: true
-synapse_oidc_scopes: ["openid", "profile", "email"]
-synapse_oidc_user_mapping_subject_claim: "sub"
-# synapse_oidc_client_id - defined in vault
-# synapse_oidc_client_secret - defined in vault
+# MAS (Matrix Authentication Service)
+mas_image: ghcr.io/element-hq/matrix-authentication-service:latest
+mas_domain: matrix-auth.atelier.house
+mas_port: 8080
+mas_db_image: postgres:17-alpine
+mas_db_name: mas
+mas_db_user: mas
+mas_db_host: mas-db
+mas_db_port: 5432
+# mas_db_password - defined in vault
+# mas_synapse_shared_secret - defined in vault
+# mas_encryption_key - defined in vault (64 hex chars)
+
+# MAS upstream PocketID OIDC
+mas_oidc_provider_id: "01JKPC00000000000000000000"
+mas_oidc_issuer: "https://id.atelier.house"
+mas_oidc_display_name: "PocketID"
+mas_oidc_scopes: "openid profile email"
+# mas_oidc_client_id - defined in vault
+# mas_oidc_client_secret - defined in vault

@@ -5,7 +5,7 @@ server_name: "{{ synapse_server_name }}"
 public_baseurl: "https://{{ synapse_domain }}/"
 serve_server_wellknown: true
 pid_file: /data/homeserver.pid
-signing_key_path: "/data/{{ synapse_server_name }}.signing.key"
+signing_key_path: "/config/signing.key"
 
 listeners:
   - port: {{ synapse_port_http }}
@@ -28,7 +28,6 @@ database:
     cp_min: 5
     cp_max: 10
 
-
 {% if synapse_s3_enabled %}
 media_storage_providers:
   - module: s3_storage_provider.S3StorageProviderBackend
@@ -50,30 +49,28 @@ enable_registration: {{ synapse_enable_registration | lower }}
 enable_registration_without_verification: false
 registration_shared_secret: "{{ synapse_registration_shared_secret }}"
 
-{% if synapse_oidc_enabled %}
-oidc_providers:
-  - idp_id: pocketid
-    idp_name: "{{ synapse_oidc_display_name }}"
-    discover: {{ synapse_oidc_discover | lower }}
-    issuer: "{{ synapse_oidc_issuer }}"
-    client_id: "{{ synapse_oidc_client_id }}"
-    client_secret: "{{ synapse_oidc_client_secret }}"
-    scopes: {{ synapse_oidc_scopes | to_json }}
-    user_mapping_provider:
-      config:
-        subject_claim: "{{ synapse_oidc_user_mapping_subject_claim }}"
-        localpart_template: "{% raw %}{{ user.preferred_username }}{% endraw %}"
-        display_name_template: "{% raw %}{{ user.name }}{% endraw %}"
-{% endif %}
+# Authentication delegated to MAS
+matrix_authentication_service:
+  enabled: true
+  endpoint: "http://mas:{{ mas_port }}/"
+  secret: "{{ mas_synapse_shared_secret }}"
+  account_management_url: "https://{{ mas_domain }}/account"
 
-turn_uris:
-  - "turn:{{ coturn_realm }}:{{ coturn_port_listening }}?transport=udp"
-  - "turn:{{ coturn_realm }}:{{ coturn_port_listening }}?transport=tcp"
-  - "turns:{{ coturn_realm }}:{{ coturn_port_tls }}?transport=udp"
-  - "turns:{{ coturn_realm }}:{{ coturn_port_tls }}?transport=tcp"
-turn_shared_secret: "{{ coturn_shared_secret }}"
-turn_user_lifetime: 86400000
-turn_allow_guests: false
+experimental_features:
+  msc4108_enabled: true
+  msc3266_enabled: true
+  msc4222_enabled: true
+
+max_event_delay_duration: 24h
+
+rc_message:
+  per_second: 0.5
+  burst_count: 30
+
+extra_well_known_client_content:
+  org.matrix.msc4143.rtc_foci:
+    - type: "livekit"
+      livekit_service_url: "https://{{ livekit_domain }}/jwt"
 
 enable_metrics: false
 report_stats: {{ synapse_report_stats | lower }}
