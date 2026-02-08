@@ -74,13 +74,10 @@ firewall_ports_social:
   - { port: 3002, proto: tcp, comment: "Mastodon" }
   - { port: 4000, proto: tcp, comment: "Mastodon Streaming" }
 
-# Matrix (coturn TURN/STUN)
+# Matrix (LiveKit)
 firewall_ports_matrix:
-  - { port: 3478, proto: tcp, comment: "TURN" }
-  - { port: 3478, proto: udp, comment: "TURN UDP" }
-  - { port: 5349, proto: tcp, comment: "TURNS (TLS)" }
-  - { port: 5349, proto: udp, comment: "TURNS (TLS) UDP" }
-  - { port: "49152:65535", proto: udp, comment: "TURN relay" }
+  - { port: 7881, proto: tcp, comment: "LiveKit RTC TCP" }
+  - { port: "50100:50200", proto: udp, comment: "LiveKit media relay" }
 
 # Infrastructure
 firewall_ports_infrastructure:
