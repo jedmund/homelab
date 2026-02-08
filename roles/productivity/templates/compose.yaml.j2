@@ -42,30 +42,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  obsidian:
-    container_name: obsidian
-    image: {{ obsidian_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    volumes:
-      - obsidian-config:/config
-    environment:
-      - PUID={{ puid }}
-      - PGID={{ pgid }}
-      - TZ={{ timezone }}
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.obsidian.rule: "Host(`{{ obsidian_domain }}`)"
-      traefik.http.routers.obsidian.entrypoints: "websecure"
-      traefik.http.routers.obsidian.tls.certresolver: "letsencrypt"
-      traefik.http.services.obsidian.loadbalancer.server.port: "{{ obsidian_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
   blinko:
     container_name: blinko
     image: {{ blinko_image }}
@@ -115,11 +91,65 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
+  couchdb:
+    container_name: obsidian_couchdb
+    image: {{ couchdb_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+    environment:
+      - COUCHDB_USER={{ couchdb_user }}
+      - COUCHDB_PASSWORD={{ couchdb_password }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.livesync.rule: "Host(`{{ livesync_domain }}`)"
+      traefik.http.routers.livesync.entrypoints: "websecure"
+      traefik.http.routers.livesync.tls.certresolver: "letsencrypt"
+      traefik.http.services.livesync.loadbalancer.server.port: "{{ couchdb_port }}"
+    healthcheck:
+      test: ["CMD", "curl", "-fSs", "http://localhost:{{ couchdb_port }}/_up"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  quartz:
+    container_name: obsidian_quartz
+    build:
+      context: ./config/quartz
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    environment:
+      - GIT_REPO={{ quartz_git_repo }}
+      - GIT_BRANCH={{ quartz_git_branch }}
+      - BUILD_UPDATE_DELAY={{ quartz_rebuild_delay }}
+      - AUTO_REBUILD=true
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.quartz.rule: "Host(`{{ quartz_domain }}`)"
+      traefik.http.routers.quartz.entrypoints: "websecure"
+      traefik.http.routers.quartz.tls.certresolver: "letsencrypt"
+      traefik.http.services.quartz.loadbalancer.server.port: "80"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   silverbullet-space:
-  obsidian-config:
   blinko-data:
   blinko-pgdata:
+  couchdb-data:
 
 networks:
   proxy:

@@ -24,14 +24,19 @@ ddclient_atelier_subdomains:
   - ha.atelier.house
   - hu.atelier.house
   - id.atelier.house
+  - kb.atelier.house
   - keep.atelier.house
   - ko.atelier.house
   - kv.atelier.house
   - li.atelier.house
   - matrix.atelier.house
+  - matrix-admin.atelier.house
+  - matrix-auth.atelier.house
+  - matrix-rtc.atelier.house
   - mc.atelier.house
   - n8n.atelier.house
   - notes.atelier.house
+  - obsidian-sync.atelier.house
   - ov.atelier.house
   - photos.atelier.house
   - pi.atelier.house
