@@ -10,7 +10,7 @@ services:
       - proxy
       - backend
     ports:
-      - "{{ forgejo_ssh_port }}:22"
+      - "{{ forgejo_ssh_port }}:{{ forgejo_ssh_listen_port }}"
     volumes:
       - forgejo-data:/data
       - /etc/localtime:/etc/localtime:ro
