@@ -44,3 +44,32 @@ quartz_domain: kb.atelier.house
 quartz_git_repo: ""  # Set in host_vars or vault
 quartz_git_branch: main
 quartz_rebuild_delay: 300
+
+# Draftboard settings
+draftboard_repo: git@github.com:jedmund/Draftboard.git
+draftboard_repo_branch: docker
+draftboard_domain: design.atelier.house
+draftboard_port: 3000
+draftboard_auth_url: "https://{{ draftboard_domain }}"
+
+# Draftboard database
+draftboard_db_image: postgres:16-alpine
+draftboard_db_host: draftboard-db
+draftboard_db_port: "5432"
+draftboard_db_name: draftboard
+draftboard_db_user: draftboard
+# draftboard_db_password - defined in vault
+draftboard_database_url: "postgresql://{{ draftboard_db_user }}:{{ draftboard_db_password }}@{{ draftboard_db_host }}:{{ draftboard_db_port }}/{{ draftboard_db_name }}"
+
+# Draftboard auth
+# draftboard_auth_secret - defined in vault
+
+# Draftboard S3 storage (MinIO)
+draftboard_minio_image: minio/minio:latest
+draftboard_minio_api_port: 9000
+draftboard_minio_console_port: 9001
+draftboard_minio_domain: s3.atelier.house
+draftboard_s3_endpoint: "https://{{ draftboard_minio_domain }}"
+draftboard_s3_bucket_name: draftboard
+# draftboard_minio_root_user - defined in vault
+# draftboard_minio_root_password - defined in vault

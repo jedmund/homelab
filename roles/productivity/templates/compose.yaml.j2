@@ -145,11 +145,108 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  draftboard:
+    container_name: draftboard
+    build:
+      context: ./config/draftboard
+      dockerfile: dist/Dockerfile
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    env_file:
+      - ./env/draftboard.env
+    depends_on:
+      draftboard-db:
+        condition: service_healthy
+      draftboard-minio-init:
+        condition: service_completed_successfully
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.draftboard.rule: "Host(`{{ draftboard_domain }}`)"
+      traefik.http.routers.draftboard.entrypoints: "websecure"
+      traefik.http.routers.draftboard.tls.certresolver: "letsencrypt"
+      traefik.http.services.draftboard.loadbalancer.server.port: "{{ draftboard_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  draftboard-minio:
+    container_name: draftboard_minio
+    image: {{ draftboard_minio_image }}
+    command: server /data --console-address ":{{ draftboard_minio_console_port }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - draftboard-minio:/data
+    environment:
+      - MINIO_ROOT_USER={{ draftboard_minio_root_user }}
+      - MINIO_ROOT_PASSWORD={{ draftboard_minio_root_password }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.draftboard-minio.rule: "Host(`{{ draftboard_minio_domain }}`)"
+      traefik.http.routers.draftboard-minio.entrypoints: "websecure"
+      traefik.http.routers.draftboard-minio.tls.certresolver: "letsencrypt"
+      traefik.http.services.draftboard-minio.loadbalancer.server.port: "{{ draftboard_minio_api_port }}"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  draftboard-minio-init:
+    container_name: draftboard_minio_init
+    image: minio/mc:latest
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://draftboard-minio:{{ draftboard_minio_api_port }} {{ draftboard_minio_root_user }} {{ draftboard_minio_root_password }} &&
+      mc mb --ignore-existing local/{{ draftboard_s3_bucket_name }}
+      "
+    networks:
+      - backend
+    depends_on:
+      draftboard-minio:
+        condition: service_healthy
+
+  draftboard-db:
+    container_name: draftboard_postgres
+    image: {{ draftboard_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - draftboard-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB={{ draftboard_db_name }}
+      - POSTGRES_USER={{ draftboard_db_user }}
+      - POSTGRES_PASSWORD={{ draftboard_db_password }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ draftboard_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
 volumes:
   silverbullet-space:
   blinko-data:
   blinko-pgdata:
   couchdb-data:
+  draftboard-minio:
+  draftboard-pgdata:
 
 networks:
   proxy:
