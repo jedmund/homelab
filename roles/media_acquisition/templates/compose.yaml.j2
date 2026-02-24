@@ -34,24 +34,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  huntarr:
-    image: ghcr.io/plexguide/huntarr:latest
-    container_name: huntarr
-    restart: always
-    networks:
-      - shared
-    ports:
-      - "9705:9705"
-    volumes:
-      - /config/huntarr:/config
-    environment:
-      - TZ={{ timezone }}
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: "5m"
-        max-file: {{ logging_max_file }}
-
   prowlarr:
     restart: {{ restart_policy }}
     image: linuxserver/prowlarr
