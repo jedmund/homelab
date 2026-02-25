@@ -114,6 +114,17 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # JDownloader - jdl.{{ traefik_domain }}
+    jdownloader:
+      rule: "Host(`jdl.{{ traefik_domain }}`)"
+      service: jdownloader
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # ========== Productivity ==========
 
     # Silverbullet service worker bypass (no auth)
@@ -299,6 +310,12 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:3001"
+
+    # Downloads
+    jdownloader:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:5800"
 
     # Productivity
     silverbullet:
