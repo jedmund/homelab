@@ -92,14 +92,14 @@ services:
         max-file: {{ logging_max_file }}
 
   couchdb:
-    container_name: obsidian_couchdb
+    container_name: obsidian_livesync
     image: {{ couchdb_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
     volumes:
       - couchdb-data:/opt/couchdb/data
-      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini
     environment:
       - COUCHDB_USER={{ couchdb_user }}
       - COUCHDB_PASSWORD={{ couchdb_password }}
