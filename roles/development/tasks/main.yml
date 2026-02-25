@@ -1,0 +1,39 @@
+---
+# Development Stack - Forgejo, Open WebUI
+# Uses docker_compose_v2 for container orchestration
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - forgejo
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

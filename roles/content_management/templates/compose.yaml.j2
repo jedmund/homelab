@@ -1,0 +1,109 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: {{ immich_server_image }}
+    volumes:
+      - photos:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./env/immich.env
+    ports:
+      - '{{ immich_port }}:2283'
+    depends_on:
+      - immich-redis
+      - immich-database
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: {{ immich_ml_image }}
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - ./env/immich.env
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-redis:
+    container_name: immich_redis
+    image: {{ immich_redis_image }}
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+
+  immich-database:
+    container_name: immich_postgres
+    image: {{ immich_db_image }}
+    env_file:
+      - ./env/immich.env
+    volumes:
+      - immich-pgdata:/var/lib/postgresql/data
+    restart: always
+
+  papra:
+    container_name: papra
+    image: {{ papra_image }}
+    restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
+    ports:
+      - "{{ papra_external_port }}:{{ papra_port }}"
+    volumes:
+      - ./config/papra:/app/app-data
+    env_file:
+      - ./env/papra.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  songkong:
+    container_name: songkong
+    image: {{ songkong_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "{{ songkong_port }}:4567"
+    volumes:
+      - songkong-config:/songkong
+      - music:/music
+    environment:
+      - TZ={{ timezone }}
+
+  homebox:
+    container_name: homebox
+    image: {{ homebox_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "{{ homebox_external_port }}:7745"
+    volumes:
+      - ./config/homebox:/data
+    env_file:
+      - ./env/homebox.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  immich-pgdata:
+    external: true
+    name: immich-pgdata
+  model-cache:
+  songkong-config:
+
+  photos:
+    external: true
+  music:
+    external: true
+
+networks:
+  default:
+    name: {{ shared_network }}
+    external: true

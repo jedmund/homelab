@@ -1,0 +1,160 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  strudel:
+    container_name: strudel
+    build:
+      context: ./config/strudel
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.strudel.rule: "Host(`{{ strudel_domain }}`)"
+      traefik.http.routers.strudel.entrypoints: "websecure"
+      traefik.http.routers.strudel.tls.certresolver: "letsencrypt"
+      traefik.http.services.strudel.loadbalancer.server.port: "{{ strudel_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  silverbullet:
+    container_name: silverbullet
+    image: {{ silverbullet_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - silverbullet-space:/space
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.silverbullet.rule: "Host(`{{ silverbullet_domain }}`)"
+      traefik.http.routers.silverbullet.entrypoints: "websecure"
+      traefik.http.routers.silverbullet.tls.certresolver: "letsencrypt"
+      traefik.http.services.silverbullet.loadbalancer.server.port: "{{ silverbullet_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  blinko:
+    container_name: blinko
+    image: {{ blinko_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - blinko-data:/app/.blinko
+    env_file:
+      - ./env/blinko.env
+    depends_on:
+      blinko-db:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.blinko.rule: "Host(`{{ blinko_domain }}`)"
+      traefik.http.routers.blinko.entrypoints: "websecure"
+      traefik.http.routers.blinko.tls.certresolver: "letsencrypt"
+      traefik.http.services.blinko.loadbalancer.server.port: "{{ blinko_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  blinko-db:
+    container_name: blinko_postgres
+    image: {{ blinko_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - blinko-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB={{ blinko_db_name }}
+      - POSTGRES_USER={{ blinko_db_user }}
+      - POSTGRES_PASSWORD={{ blinko_db_password }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ blinko_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  couchdb:
+    container_name: obsidian_couchdb
+    image: {{ couchdb_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+    environment:
+      - COUCHDB_USER={{ couchdb_user }}
+      - COUCHDB_PASSWORD={{ couchdb_password }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.livesync.rule: "Host(`{{ livesync_domain }}`)"
+      traefik.http.routers.livesync.entrypoints: "websecure"
+      traefik.http.routers.livesync.tls.certresolver: "letsencrypt"
+      traefik.http.services.livesync.loadbalancer.server.port: "{{ couchdb_port }}"
+    healthcheck:
+      test: ["CMD", "curl", "-fSs", "http://localhost:{{ couchdb_port }}/_up"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  quartz:
+    container_name: obsidian_quartz
+    build:
+      context: ./config/quartz
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    environment:
+      - GIT_REPO={{ quartz_git_repo }}
+      - GIT_BRANCH={{ quartz_git_branch }}
+      - BUILD_UPDATE_DELAY={{ quartz_rebuild_delay }}
+      - AUTO_REBUILD=true
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.quartz.rule: "Host(`{{ quartz_domain }}`)"
+      traefik.http.routers.quartz.entrypoints: "websecure"
+      traefik.http.routers.quartz.tls.certresolver: "letsencrypt"
+      traefik.http.services.quartz.loadbalancer.server.port: "80"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  silverbullet-space:
+  blinko-data:
+  blinko-pgdata:
+  couchdb-data:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

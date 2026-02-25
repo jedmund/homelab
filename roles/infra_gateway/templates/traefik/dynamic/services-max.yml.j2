@@ -1,0 +1,16 @@
+# External Services on {{ max_server_ip }} (Max server)
+http:
+  routers:
+    # Minecraft Panel - mc.{{ traefik_domain }}
+    minecraft:
+      rule: "Host(`mc.{{ traefik_domain }}`)"
+      service: minecraft
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    minecraft:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:8100"

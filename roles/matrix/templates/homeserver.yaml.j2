@@ -1,0 +1,80 @@
+# {{ ansible_managed }}
+# Matrix Synapse homeserver configuration
+
+server_name: "{{ synapse_server_name }}"
+public_baseurl: "https://{{ synapse_domain }}/"
+serve_server_wellknown: true
+pid_file: /data/homeserver.pid
+signing_key_path: "/config/signing.key"
+
+listeners:
+  - port: {{ synapse_port_http }}
+    type: http
+    tls: false
+    bind_addresses: ['0.0.0.0']
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: "{{ synapse_db_user }}"
+    password: "{{ synapse_db_password }}"
+    database: "{{ synapse_db_name }}"
+    host: "{{ synapse_db_host }}"
+    port: {{ synapse_db_port }}
+    cp_min: 5
+    cp_max: 10
+
+{% if synapse_s3_enabled %}
+media_storage_providers:
+  - module: s3_storage_provider.S3StorageProviderBackend
+    store_local: true
+    store_remote: true
+    store_synchronous: true
+    config:
+      bucket: "{{ synapse_s3_bucket }}"
+      region_name: "{{ synapse_s3_region }}"
+      endpoint_url: "{{ synapse_s3_endpoint }}"
+      access_key_id: "{{ synapse_s3_access_key_id }}"
+      secret_access_key: "{{ synapse_s3_secret_access_key }}"
+{% endif %}
+
+media_store_path: "/data/media_store"
+max_upload_size: "{{ synapse_max_upload_size }}"
+
+enable_registration: {{ synapse_enable_registration | lower }}
+enable_registration_without_verification: false
+registration_shared_secret: "{{ synapse_registration_shared_secret }}"
+
+# Authentication delegated to MAS
+matrix_authentication_service:
+  enabled: true
+  endpoint: "http://mas:{{ mas_port }}/"
+  secret: "{{ mas_synapse_shared_secret }}"
+  account_management_url: "https://{{ mas_domain }}/account"
+
+experimental_features:
+  msc4108_enabled: true
+  msc3266_enabled: true
+  msc4222_enabled: true
+
+max_event_delay_duration: 24h
+
+rc_message:
+  per_second: 0.5
+  burst_count: 30
+
+extra_well_known_client_content:
+  org.matrix.msc4143.rtc_foci:
+    - type: "livekit"
+      livekit_service_url: "https://{{ livekit_domain }}/jwt"
+
+enable_metrics: false
+report_stats: {{ synapse_report_stats | lower }}
+suppress_key_server_warning: true
+
+trusted_key_servers:
+  - server_name: "matrix.org"

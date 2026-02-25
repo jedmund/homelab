@@ -1,0 +1,46 @@
+---
+# Stack identity
+stack_name: productivity
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Strudel settings
+strudel_image_name: strudel
+strudel_image_tag: latest
+strudel_port: 80
+strudel_host_port: 8800
+strudel_domain: strudel.atelier.house
+
+# Silverbullet settings
+silverbullet_image: zefhemel/silverbullet:latest
+silverbullet_port: 3000
+silverbullet_host_port: 3001
+silverbullet_domain: notes.atelier.house
+
+# Blinko settings
+blinko_image: blinkospace/blinko:latest
+blinko_port: 1111
+blinko_host_port: 1111
+blinko_domain: bl.atelier.house
+blinko_base_url: "https://{{ blinko_domain }}"
+blinko_node_env: production
+
+# Blinko database settings
+blinko_db_image: postgres:14-alpine
+blinko_db_host: blinko-db
+blinko_db_port: "5432"
+blinko_db_name: blinko
+blinko_db_user: blinko
+blinko_database_url: "postgresql://{{ blinko_db_user }}:{{ blinko_db_password }}@{{ blinko_db_host }}:{{ blinko_db_port }}/{{ blinko_db_name }}"
+
+# CouchDB (Obsidian LiveSync backend)
+couchdb_image: couchdb:3
+couchdb_port: 5984
+livesync_domain: obsidian-sync.atelier.house
+# couchdb_user - defined in vault
+# couchdb_password - defined in vault
+
+# Quartz (Obsidian Publish alternative)
+quartz_domain: kb.atelier.house
+quartz_git_repo: ""  # Set in host_vars or vault
+quartz_git_branch: main
+quartz_rebuild_delay: 300

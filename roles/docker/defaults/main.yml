@@ -1,0 +1,9 @@
+---
+docker_users:
+  - "{{ ansible_user }}"
+
+# DNS servers for Docker daemon (bypasses systemd-resolved issues)
+# Using Cloudflare primary + secondary for privacy
+docker_dns_servers:
+  - "1.1.1.1"
+  - "1.0.0.1"

@@ -1,0 +1,62 @@
+---
+# Productivity Stack - Strudel, Silverbullet, Blinko, CouchDB (LiveSync), Quartz
+# Uses docker_compose_v2 for container orchestration
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/strudel"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/quartz"
+
+- name: Deploy Quartz build files
+  copy:
+    src: "config/quartz/{{ item }}"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/quartz/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - Dockerfile
+    - entrypoint.sh
+    - nginx.conf
+  notify: Restart {{ stack_name }} stack
+
+- name: Generate CouchDB config
+  template:
+    src: couchdb.ini.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/couchdb.ini"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - blinko
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

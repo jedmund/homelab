@@ -1,0 +1,369 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    ports:
+      - {{ miniflux_port }}:8080
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./data/miniflux-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ miniflux_db_user }}"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./backups/miniflux:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U {{ miniflux_db_user }} {{ miniflux_db_name }} > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        ls -t /backup/miniflux_backup_*.sql | tail -n +{{ miniflux_backup_retention_days + 1 }} | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ reactflux_port }}:2000
+    depends_on:
+      miniflux:
+        condition: service_healthy
+    environment:
+      - TZ={{ timezone }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  karakeep:
+    container_name: karakeep_web
+    image: ghcr.io/karakeep-app/karakeep:release
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - {{ karakeep_port }}:3000
+    env_file:
+      - ./env/karakeep.env
+    depends_on:
+      - karakeep-chrome
+      - karakeep-meilisearch
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  karakeep-chrome:
+    container_name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  karakeep-meilisearch:
+    container_name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/karakeep.env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kavita:
+    image: jvmilazz0/kavita:nightly
+    container_name: kavita
+    networks:
+      - shared
+    environment:
+      - TZ={{ timezone }}
+    volumes:
+      - ./config/kavita:/kavita/config
+      - comics:/manga
+    ports:
+      - {{ kavita_port }}:5000
+    restart: {{ restart_policy }}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  romm:
+    image: rommapp/romm:latest
+    container_name: romm
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - romm_resources:/romm/resources
+      - romm_redis_data:/redis-data
+      - games:/romm/library
+      - games_assets:/romm/assets
+      - ./config/romm:/romm/config
+    ports:
+      - {{ romm_port }}:8080
+    depends_on:
+      romm-db:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  romm-db:
+    image: mariadb:latest
+    container_name: romm-db
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - TZ={{ timezone }}
+      - VERSION=docker
+{% if plex_claim is defined %}
+      - PLEX_CLAIM={{ plex_claim }}
+{% endif %}
+      - ADVERTISE_IP={{ plex_advertise_ip }}
+      - LIBVA_DRIVER_NAME={{ plex_libva_driver_name }}
+    volumes:
+      - ./config/plex:/config
+      - {{ plex_transcode_path }}:/transcode
+      - videos:/data/videos
+      - television:/data/television
+      - anime:/data/anime
+      - movies:/data/movies
+      - music:/data/music
+    ports:
+      - {{ plex_port }}:32400
+    devices:
+      - /dev/dri:/dev/dri
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  tunarr:
+    image: chrisbenincasa/tunarr:latest
+    container_name: tunarr
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ tunarr_port }}:8000
+    volumes:
+      - ./config/tunarr:/config/tunarr
+      - videos:/data/videos:ro
+      - television:/data/television:ro
+      - anime:/data/anime:ro
+      - movies:/data/movies:ro
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - TZ={{ timezone }}
+      - DATABASE_URL={{ tunarr_database_url }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  stash:
+    image: stashapp/stash:latest
+    container_name: stash
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ stash_port }}:9999
+    env_file:
+      - ./env/stash.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config/stash:/root/.stash
+      - private:/data
+      - ./config/stash/metadata:/metadata
+      - ./config/stash/cache:/cache
+      - ./config/stash/blobs:/blobs
+      - ./config/stash/generated:/generated
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9999/healthz"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  model-cache:
+  karakeep-data:
+  karakeep-meilisearch:
+  mysql_data:
+  romm_resources:
+  romm_redis_data:
+
+  private:
+    external: true
+  comics:
+    external: true
+  games:
+    external: true
+  games_assets:
+    external: true
+  videos:
+    external: true
+  television:
+    external: true
+  anime:
+    external: true
+  movies:
+    external: true
+  music:
+    external: true
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

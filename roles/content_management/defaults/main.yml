@@ -1,0 +1,66 @@
+---
+# Stack identity
+stack_name: content-management
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Immich settings
+immich_version: release
+immich_server_image: "ghcr.io/immich-app/immich-server:{{ immich_version }}"
+immich_ml_image: "ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}"
+immich_db_image: "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23"
+immich_redis_image: "docker.io/valkey/valkey:9@sha256:fb8d272e529ea567b9bf1302245796f21a2672b8368ca3fcb938ac334e613c8f"
+immich_port: 2283
+immich_server_url: "https://photos.atelier.house"
+
+# Immich database
+immich_db_hostname: immich-database
+immich_db_username: postgres
+immich_db_name: immich
+immich_redis_hostname: immich-redis
+
+# Papra settings
+papra_image: ghcr.io/papra-hq/papra:latest
+papra_port: 1221
+papra_external_port: 8787
+papra_base_url: "https://docs.atelier.house"
+papra_process_mode: all
+papra_database_url: "file:/app/app-data/db/db.sqlite"
+papra_storage_driver: filesystem
+papra_storage_root: /app/app-data/documents
+papra_registration_enabled: "false"
+papra_first_user_admin: "true"
+papra_ocr_languages: eng
+
+# Papra OIDC
+papra_oidc_provider_id: pocketid
+papra_oidc_provider_name: PocketID
+papra_oidc_discovery_url: "https://id.atelier.house/.well-known/openid-configuration"
+papra_oidc_scopes:
+  - openid
+  - profile
+  - email
+
+# Homebox settings
+homebox_image: ghcr.io/sysadminsmedia/homebox:latest
+homebox_port: "7745"
+homebox_external_port: 3100
+homebox_domain: "box.atelier.house"
+homebox_log_level: "info"
+homebox_log_format: "text"
+homebox_max_upload_size: "10"
+homebox_allow_analytics: "false"
+homebox_allow_registration: "true"
+homebox_trust_proxy: "true"
+homebox_allow_local_login: "false"
+
+# Homebox OIDC
+homebox_oidc_enabled: "true"
+homebox_oidc_issuer_url: "https://id.atelier.house"
+homebox_oidc_scope: "openid profile email"
+homebox_oidc_button_text: "Sign in with PocketID"
+homebox_oidc_auto_redirect: "false"
+homebox_oidc_verify_email: "false"
+
+# SongKong settings
+songkong_image: songkong/songkong:latest
+songkong_port: 4567

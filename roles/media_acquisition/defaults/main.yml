@@ -1,0 +1,12 @@
+---
+# Stack identity
+stack_name: media-acquisition
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Qui settings
+qui_domain: dl.atelier.house
+qui_port: 7476
+qui_oidc_enabled: "true"
+qui_oidc_issuer: "https://id.atelier.house"
+qui_oidc_redirect_url: "https://{{ qui_domain }}/api/auth/oidc/callback"
+qui_oidc_disable_built_in_login: "true"

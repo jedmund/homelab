@@ -1,0 +1,77 @@
+---
+# Ensure host has working DNS (fixes systemd-resolved issues with AdGuard)
+# This runs first to ensure we can download packages and keys
+- name: Check if DNS resolution is working
+  shell: getent hosts registry-1.docker.io
+  register: dns_check
+  failed_when: false
+  changed_when: false
+  timeout: 5
+
+- name: Configure external DNS if resolution is broken
+  copy:
+    content: |
+      # Managed by Ansible - external DNS fallback
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: dns_check.rc != 0
+
+- name: Configure passwordless sudo for ansible user
+  copy:
+    content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL"
+    dest: "/etc/sudoers.d/{{ ansible_user }}"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+# Shell environment setup
+- name: Install zsh
+  apt:
+    name: zsh
+    state: present
+    update_cache: yes
+
+- name: Ensure keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add eza GPG key
+  apt_key:
+    url: https://raw.githubusercontent.com/eza-community/eza/main/deb.asc
+    keyring: /etc/apt/keyrings/gierens.gpg
+    state: present
+
+- name: Add eza repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main"
+    state: present
+    filename: gierens
+
+- name: Install eza
+  apt:
+    name: eza
+    state: present
+    update_cache: yes
+
+- name: Check if oh-my-zsh is installed
+  stat:
+    path: "/home/{{ ansible_user }}/.oh-my-zsh"
+  register: ohmyzsh_installed
+
+- name: Install oh-my-zsh
+  become_user: "{{ ansible_user }}"
+  shell: |
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  args:
+    creates: "/home/{{ ansible_user }}/.oh-my-zsh"
+  when: not ohmyzsh_installed.stat.exists
+
+- name: Set zsh as default shell
+  user:
+    name: "{{ ansible_user }}"
+    shell: /bin/zsh

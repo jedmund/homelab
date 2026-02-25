@@ -1,0 +1,151 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  mastodon-web:
+    image: {{ mastodon_image }}
+    container_name: mastodon_web
+    restart: {{ restart_policy }}
+    command: bundle exec puma -C config/puma.rb
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      mastodon-db:
+        condition: service_healthy
+      mastodon-redis:
+        condition: service_healthy
+    env_file:
+      - ./env/mastodon.env
+    volumes:
+      - mastodon-system:/opt/mastodon/public/system
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.mastodon.rule: "Host(`{{ mastodon_domain }}`)"
+      traefik.http.routers.mastodon.entrypoints: "websecure"
+      traefik.http.routers.mastodon.tls.certresolver: "letsencrypt"
+      traefik.http.services.mastodon.loadbalancer.server.port: "{{ mastodon_web_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  mastodon-streaming:
+    image: {{ mastodon_streaming_image }}
+    container_name: mastodon_streaming
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      mastodon-db:
+        condition: service_healthy
+      mastodon-redis:
+        condition: service_healthy
+    env_file:
+      - ./env/mastodon.env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4000/api/v1/streaming/health || exit 1"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.mastodon-streaming.rule: "Host(`{{ mastodon_domain }}`) && PathPrefix(`/api/v1/streaming`)"
+      traefik.http.routers.mastodon-streaming.entrypoints: "websecure"
+      traefik.http.routers.mastodon-streaming.tls.certresolver: "letsencrypt"
+      traefik.http.services.mastodon-streaming.loadbalancer.server.port: "{{ mastodon_streaming_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  mastodon-sidekiq:
+    image: {{ mastodon_image }}
+    container_name: mastodon_sidekiq
+    restart: {{ restart_policy }}
+    command: bundle exec sidekiq
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      mastodon-db:
+        condition: service_healthy
+      mastodon-redis:
+        condition: service_healthy
+    env_file:
+      - ./env/mastodon.env
+    volumes:
+      - mastodon-system:/opt/mastodon/public/system
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[s]idekiq' || exit 1"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  mastodon-db:
+    image: {{ mastodon_db_image }}
+    container_name: mastodon_postgres
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - mastodon-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/mastodon-db.env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ mastodon_db_user }}", "-d", "{{ mastodon_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  mastodon-redis:
+    image: {{ mastodon_redis_image }}
+    container_name: mastodon_redis
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - mastodon-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  mastodon-pgdata:
+  mastodon-redis:
+  mastodon-system:
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

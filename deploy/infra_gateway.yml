@@ -1,0 +1,7 @@
+---
+- name: Deploy infrastructure gateway stack
+  hosts: infra_gateway
+  become: yes
+  
+  roles:
+    - infra_gateway

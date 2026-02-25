@@ -1,0 +1,116 @@
+# {{ ansible_managed }}
+# Matrix Authentication Service configuration
+
+http:
+  public_base: "https://{{ mas_domain }}/"
+  issuer: "https://{{ mas_domain }}/"
+  trusted_proxies:
+    - "192.168.0.0/16"
+    - "172.16.0.0/12"
+    - "10.0.0.0/8"
+    - "127.0.0.1/8"
+    - "fd00::/8"
+    - "::1/128"
+  listeners:
+    - name: web
+      resources:
+        - name: discovery
+        - name: human
+        - name: oauth
+        - name: compat
+        - name: graphql
+        - name: assets
+      binds:
+        - address: "[::]:{{ mas_port }}"
+      proxy_protocol: false
+    - name: internal
+      resources:
+        - name: health
+      binds:
+        - host: localhost
+          port: 8081
+      proxy_protocol: false
+
+database:
+  uri: "postgresql://{{ mas_db_user }}:{{ mas_db_password }}@{{ mas_db_host }}:{{ mas_db_port }}/{{ mas_db_name }}"
+  min_connections: 0
+  max_connections: 10
+  connect_timeout: 30
+  idle_timeout: 600
+  max_lifetime: 1800
+
+secrets:
+  encryption: "{{ mas_encryption_key }}"
+  keys:
+    - kid: "key-1"
+      key_file: "/keys/signing.key"
+
+matrix:
+  kind: synapse
+  homeserver: "{{ synapse_server_name }}"
+  endpoint: "http://synapse:{{ synapse_port_http }}"
+  secret: "{{ mas_synapse_shared_secret }}"
+
+clients:
+  - client_id: "0000000000000000000SYNAPSE"
+    client_auth_method: none
+    redirect_uris:
+      - "https://{{ synapse_admin_domain }}/"
+
+passwords:
+  enabled: true
+  minimum_complexity: 3
+  schemes:
+    - version: 1
+      algorithm: bcrypt
+    - version: 2
+      algorithm: argon2id
+
+upstream_oauth2:
+  providers:
+    - id: "{{ mas_oidc_provider_id }}"
+      issuer: "{{ mas_oidc_issuer }}"
+      human_name: "{{ mas_oidc_display_name }}"
+      client_id: "{{ mas_oidc_client_id }}"
+      client_secret: "{{ mas_oidc_client_secret }}"
+      token_endpoint_auth_method: client_secret_basic
+      scope: "{{ mas_oidc_scopes }}"
+      claims_imports:
+        localpart:
+          action: require
+          template: "{% raw %}{{ user.preferred_username }}{% endraw %}"
+        displayname:
+          action: suggest
+          template: "{% raw %}{{ user.name }}{% endraw %}"
+        email:
+          action: force
+          template: "{% raw %}{{ user.email }}{% endraw %}"
+
+account:
+  email_change_allowed: true
+  displayname_change_allowed: true
+  password_change_allowed: true
+  password_registration_enabled: false
+  login_with_email_allowed: true
+
+policy:
+  wasm_module: /usr/local/share/mas-cli/policy.wasm
+  client_registration_entrypoint: client_registration/violation
+  register_entrypoint: register/violation
+  authorization_grant_entrypoint: authorization_grant/violation
+  password_entrypoint: password/violation
+  email_entrypoint: email/violation
+  data:
+    admin_users:
+      - "admin"
+    client_registration:
+      allow_missing_client_uri: true
+      allow_missing_contacts: true
+
+branding:
+  service_name: "Matrix @ Atelier"
+
+templates:
+  path: /usr/local/share/mas-cli/templates/
+  assets_manifest: /usr/local/share/mas-cli/manifest.json
+  translations_path: /usr/local/share/mas-cli/translations/

@@ -1,0 +1,126 @@
+---
+# Infra Gateway Stack - Traefik, PocketID, TinyAuth, DDClient, Glance, AdGuard
+# Uses docker_compose_v2 for container orchestration
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/assets"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/ddclient"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/glance"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
+
+- name: Create Traefik config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}/config/traefik"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/traefik/dynamic"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/traefik/acme"
+  when: traefik_enabled | bool
+
+- name: Set permissions on Traefik ACME directory
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/acme"
+    mode: '0600'
+  when: traefik_enabled | bool
+
+- name: Create Traefik acme.json file
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/acme/acme.json"
+    state: touch
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    modification_time: preserve
+    access_time: preserve
+  when: traefik_enabled | bool
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - traefik
+    - pocketid
+    - tinyauth
+    - glance
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik static config
+  template:
+    src: traefik/traefik.yml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/traefik.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik dynamic configs
+  template:
+    src: "traefik/dynamic/{{ item }}"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/dynamic/{{ item | regex_replace('.j2$', '') }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - services-mini.yml.j2
+    - services-max.yml.j2
+    - services-other.yml.j2
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik static files
+  copy:
+    src: "traefik/dynamic/{{ item }}"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/dynamic/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - middlewares.yml
+    - tls.yml
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy DDClient config
+  template:
+    src: ddclient/config.conf.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/ddclient/config.conf"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Glance config
+  copy:
+    src: glance/glance.yml
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/glance/glance.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

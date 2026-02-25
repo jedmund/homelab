@@ -1,0 +1,6 @@
+---
+- name: Deploy development stack
+  hosts: development
+  become: yes
+  roles:
+    - development

@@ -1,0 +1,33 @@
+---
+# Stack identity
+stack_name: utilities
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# n8n settings (moved from development)
+n8n_image: n8nio/n8n:latest
+n8n_domain: n8n.atelier.house
+n8n_port: 5678
+n8n_host_port: 5678
+n8n_protocol: https
+n8n_webhook_url: "https://{{ n8n_domain }}/"
+n8n_user_management_disabled: "false"
+n8n_oidc_enabled: "true"
+n8n_oidc_issuer_url: "https://id.atelier.house"
+n8n_oidc_redirect_uri: "https://{{ n8n_domain }}/rest/oauth2-credential/callback"
+
+# n8n database
+n8n_db_image: postgres:16-alpine
+n8n_db_host: n8n-db
+n8n_db_port: "5432"
+n8n_db_name: n8n
+n8n_db_user: n8n
+
+# ChangeDetection.io settings
+changedetection_image: ghcr.io/dgtlmoon/changedetection.io:latest
+changedetection_domain: track.atelier.house
+changedetection_port: 5000
+
+# Copyparty settings
+copyparty_image: copyparty/ac
+copyparty_domain: files.atelier.house
+copyparty_port: 3923

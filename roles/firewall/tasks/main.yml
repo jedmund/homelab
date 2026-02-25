@@ -1,0 +1,32 @@
+---
+# Consolidated Firewall (UFW) configuration
+# Uses dynamic port list built from enabled groups
+
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+  when: firewall_enabled | bool
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+  when: firewall_enabled | bool
+
+- name: Allow firewall ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ firewall_ports_all }}"
+  when: firewall_enabled | bool
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  when: firewall_enabled | bool

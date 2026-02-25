@@ -1,0 +1,62 @@
+# Shared Middleware Definitions
+http:
+  middlewares:
+    # Security Headers (can be applied globally or per-route)
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+
+    # TinyAuth Forward Authentication
+    tinyauth:
+      forwardAuth:
+        address: "http://tinyauth:3000/api/auth/traefik"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "X-Forwarded-User"
+        authRequestHeaders:
+          - "Cookie"
+          - "Authorization"
+          - "Accept"
+          - "User-Agent"
+          - "X-Forwarded-For"
+          - "X-Forwarded-Host"
+          - "X-Forwarded-Proto"
+          - "X-Forwarded-Uri"
+
+    # Rate Limiting (general)
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+
+    # Rate Limiting (strict - for sensitive endpoints)
+    rate-limit-strict:
+      rateLimit:
+        average: 10
+        burst: 5
+        period: 1m
+
+    # Compress responses
+    compress:
+      compress: {}
+
+    # Retry on failure
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+
+    # Basic Auth injection for Sonarr (still supports HTTP Basic Auth)
+    sonarr-basicauth:
+      headers:
+        customRequestHeaders:
+          Authorization: "Basic YXRlbGllcjppRDY5aFYzOGpmS2U2UXEzd3pNM2tucFlv"

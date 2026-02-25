@@ -1,0 +1,108 @@
+---
+# Firewall (UFW) settings
+firewall_enabled: true
+
+# Port groups - enable/disable based on what's deployed on this host
+firewall_group_base: true
+firewall_group_dns: true
+firewall_group_media_servers: true
+firewall_group_media_acquisition: true
+firewall_group_media_consumption: true
+firewall_group_content_management: true
+firewall_group_development: true
+firewall_group_infrastructure: true
+firewall_group_downloads: true
+firewall_group_productivity: true
+firewall_group_social: true
+firewall_group_matrix: true
+
+# Base ports (SSH, HTTP, HTTPS)
+firewall_ports_base:
+  - { port: "{{ ansible_port | default(22) }}", proto: tcp, comment: "SSH" }
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }
+
+# DNS (AdGuard)
+firewall_ports_dns:
+  - { port: 53, proto: tcp, comment: "DNS TCP" }
+  - { port: 53, proto: udp, comment: "DNS UDP" }
+
+# Media servers
+firewall_ports_media_servers:
+  - { port: 32400, proto: tcp, comment: "Plex" }
+  - { port: 8000, proto: tcp, comment: "Tunarr" }
+
+# Media acquisition (Servarr stack)
+firewall_ports_media_acquisition:
+  - { port: 8989, proto: tcp, comment: "Sonarr" }
+  - { port: 7878, proto: tcp, comment: "Radarr" }
+  - { port: 8686, proto: tcp, comment: "Lidarr" }
+  - { port: 9696, proto: tcp, comment: "Prowlarr" }
+  - { port: 5055, proto: tcp, comment: "Jellyseerr" }
+  - { port: 8945, proto: tcp, comment: "Pinchflat" }
+  - { port: 9705, proto: tcp, comment: "Huntarr" }
+
+# Media consumption
+firewall_ports_media_consumption:
+  - { port: 8888, proto: tcp, comment: "RomM" }
+  - { port: 5353, proto: tcp, comment: "Kavita" }
+  - { port: 3232, proto: tcp, comment: "Karakeep" }
+  - { port: 8280, proto: tcp, comment: "Miniflux" }
+  - { port: 2000, proto: tcp, comment: "Reactflux" }
+
+# Content management
+firewall_ports_content_management:
+  - { port: 2283, proto: tcp, comment: "Immich" }
+  - { port: 8787, proto: tcp, comment: "Papra" }
+  - { port: 4567, proto: tcp, comment: "SongKong" }
+
+# Development
+firewall_ports_development:
+  - { port: 2222, proto: tcp, comment: "Forgejo SSH" }
+  - { port: 3030, proto: tcp, comment: "Forgejo" }
+  - { port: 5678, proto: tcp, comment: "n8n" }
+  - { port: 8080, proto: tcp, comment: "Open WebUI" }
+
+# Productivity
+firewall_ports_productivity:
+  - { port: 1111, proto: tcp, comment: "Blinko" }
+  - { port: 3001, proto: tcp, comment: "Silverbullet" }
+  - { port: 8800, proto: tcp, comment: "Strudel" }
+
+# Social
+firewall_ports_social:
+  - { port: 3002, proto: tcp, comment: "Mastodon" }
+  - { port: 4000, proto: tcp, comment: "Mastodon Streaming" }
+
+# Matrix (LiveKit)
+firewall_ports_matrix:
+  - { port: 7881, proto: tcp, comment: "LiveKit RTC TCP" }
+  - { port: "50100:50200", proto: udp, comment: "LiveKit media relay" }
+
+# Infrastructure
+firewall_ports_infrastructure:
+  - { port: 9120, proto: tcp, comment: "Komodo" }
+  - { port: 3000, proto: tcp, comment: "AdGuard setup / TinyAuth" }
+  - { port: 1411, proto: tcp, comment: "PocketID" }
+
+# Downloads (BitTorrent)
+firewall_ports_downloads:
+  - { port: 6881, proto: tcp, comment: "BitTorrent" }
+  - { port: 6881, proto: udp, comment: "BitTorrent UDP" }
+
+# Consolidated port list - dynamically built from enabled groups
+firewall_ports_all: >-
+  {{
+    (firewall_ports_base if firewall_group_base else []) +
+    (firewall_ports_dns if firewall_group_dns else []) +
+    (firewall_ports_media_servers if firewall_group_media_servers else []) +
+    (firewall_ports_media_acquisition if firewall_group_media_acquisition else []) +
+    (firewall_ports_media_consumption if firewall_group_media_consumption else []) +
+    (firewall_ports_content_management if firewall_group_content_management else []) +
+    (firewall_ports_development if firewall_group_development else []) +
+    (firewall_ports_infrastructure if firewall_group_infrastructure else []) +
+    (firewall_ports_downloads if firewall_group_downloads else []) +
+    (firewall_ports_productivity if firewall_group_productivity else []) +
+    (firewall_ports_social if firewall_group_social else []) +
+    (firewall_ports_matrix if firewall_group_matrix else [])
+  }}

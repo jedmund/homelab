@@ -1,0 +1,16 @@
+---
+- name: Install NFS client utilities
+  apt:
+    name: 
+      - nfs-common
+    state: present
+
+- name: Create Docker NFS volumes
+  community.docker.docker_volume: 
+    name: "{{ item.name }}"
+    driver: "{{ item.driver }}"
+    driver_options: "{{ item.driver_opts }}"
+    state: present
+  loop: "{{ nfs_volumes }}"
+
+

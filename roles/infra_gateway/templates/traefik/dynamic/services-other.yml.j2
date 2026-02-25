@@ -1,0 +1,16 @@
+# Other External Services (Home Assistant, etc.)
+http:
+  routers:
+    # Home Assistant - ha.{{ traefik_domain }}
+    homeassistant:
+      rule: "Host(`ha.{{ traefik_domain }}`)"
+      service: homeassistant
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    homeassistant:
+      loadBalancer:
+        servers:
+          - url: "http://{{ ha_server_ip }}:8123"

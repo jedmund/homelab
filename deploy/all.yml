@@ -1,0 +1,61 @@
+---
+- name: Deploy complete homelab infrastructure
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display deployment plan
+      debug:
+        msg: |
+          Deploying homelab infrastructure in the following order:
+          1. Prerequisites (networks, volumes)
+          2. Infrastructure Gateway (Traefik, PocketID)
+          3. Infrastructure Core (Komodo)
+          4. Media Acquisition
+          5. Media Consumption
+          6. Content Management
+          7. Development
+          8. Utilities
+          9. Productivity
+          10. Social
+
+# Prerequisites - Run once at the beginning
+- import_playbook: prerequisites.yml
+  tags: [always, prerequisites]
+
+# Infrastructure layer
+- import_playbook: infra_gateway.yml
+  tags: [infra, infra_gateway]
+
+- import_playbook: infra_core.yml
+  tags: [infra, infra_core]
+
+# Media stack
+- import_playbook: media_acquisition.yml
+  tags: [media, media_acquisition]
+
+- import_playbook: media_consumption.yml
+  tags: [media, media_consumption]
+
+# Content stack
+- import_playbook: content_management.yml
+  tags: [content, content_management]
+
+# Development stack
+- import_playbook: development.yml
+  tags: [dev, development]
+
+# Utilities stack
+- import_playbook: utilities.yml
+  tags: [utilities]
+
+# Productivity stack
+- import_playbook: productivity.yml
+  tags: [productivity]
+
+# Social stack
+- import_playbook: social.yml
+  tags: [social]
+
+# Matrix stack
+- import_playbook: matrix.yml
+  tags: [matrix]
