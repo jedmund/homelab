@@ -99,7 +99,7 @@ services:
       - proxy
     volumes:
       - couchdb-data:/opt/couchdb/data
-      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini
     environment:
       - COUCHDB_USER={{ couchdb_user }}
       - COUCHDB_PASSWORD={{ couchdb_password }}
