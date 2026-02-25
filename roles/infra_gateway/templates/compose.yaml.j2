@@ -83,6 +83,8 @@ services:
       tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ traefik_domain }}"
       tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.jdownloader.config.domain: "jdl.{{ traefik_domain }}"
+      tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:

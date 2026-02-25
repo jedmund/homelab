@@ -19,6 +19,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/lidarr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/jellyseerr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/unpackerr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/jdownloader"
     - "{{ docker_base_path }}/{{ stack_name }}/config/pinchflat"
     - "{{ docker_base_path }}/{{ stack_name }}/config/qbittorrent"
     - "{{ docker_base_path }}/{{ stack_name }}/config/qui"

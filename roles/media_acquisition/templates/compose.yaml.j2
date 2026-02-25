@@ -251,6 +251,32 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
+  jdownloader:
+    image: jlesage/jdownloader-2
+    container_name: jdownloader
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ jdownloader_port }}:5800"
+    volumes:
+      - ./config/jdownloader:/config
+      - downloads:/output
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5800"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   pinchflat:
     image: ghcr.io/kieraneglin/pinchflat:dev
     container_name: pinchflat

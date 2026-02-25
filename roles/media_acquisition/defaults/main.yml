@@ -10,3 +10,7 @@ qui_oidc_enabled: "true"
 qui_oidc_issuer: "https://id.atelier.house"
 qui_oidc_redirect_url: "https://{{ qui_domain }}/api/auth/oidc/callback"
 qui_oidc_disable_built_in_login: "true"
+
+# JDownloader settings
+jdownloader_domain: jdl.atelier.house
+jdownloader_port: 5800
