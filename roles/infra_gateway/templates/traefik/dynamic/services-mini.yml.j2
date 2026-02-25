@@ -103,17 +103,6 @@ http:
 
     # ========== Downloads ==========
 
-    # Flood - flood.{{ traefik_domain }}
-    flood:
-      rule: "Host(`flood.{{ traefik_domain }}`)"
-      service: flood
-      entryPoints:
-        - websecure
-      middlewares:
-        - tinyauth@file
-      tls:
-        certResolver: letsencrypt
-
     # JDownloader - jdl.{{ traefik_domain }}
     jdownloader:
       rule: "Host(`jdl.{{ traefik_domain }}`)"
@@ -304,12 +293,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:5055"
-
-    # Downloads
-    flood:
-      loadBalancer:
-        servers:
-          - url: "http://{{ mini_server_ip }}:3001"
 
     # Downloads
     jdownloader:

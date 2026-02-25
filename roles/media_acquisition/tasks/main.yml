@@ -13,7 +13,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config/gluetun"
     - "{{ docker_base_path }}/{{ stack_name }}/config/prowlarr"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/rtorrent"
     - "{{ docker_base_path }}/{{ stack_name }}/config/sonarr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/radarr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/lidarr"

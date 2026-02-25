@@ -71,8 +71,6 @@ services:
       traefik.http.services.tinyauth.loadbalancer.server.port: "{{ tinyauth_port }}"
       tinyauth.apps.stash.config.domain: "z.{{ traefik_domain }}"
       tinyauth.apps.stash.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.flood.config.domain: "flood.{{ traefik_domain }}"
-      tinyauth.apps.flood.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.silverbullet.config.domain: "notes.{{ traefik_domain }}"
       tinyauth.apps.silverbullet.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.pinchflat.config.domain: "pi.{{ traefik_domain }}"
