@@ -11,6 +11,9 @@ services:
     restart: {{ restart_policy }}
     networks:
       - backend
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: {{ komodo_db_username }}
+      MONGO_INITDB_ROOT_PASSWORD: {{ komodo_db_password }}
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
@@ -42,7 +45,9 @@ services:
       - 9120:9120
     env_file: ./env/komodo.env
     environment:
-      KOMODO_DATABASE_ADDRESS: mongo:27017
+      KOMODO_DATABASE_ADDRESS: komodo_mongo:27017
+      KOMODO_DATABASE_USERNAME: {{ komodo_db_username }}
+      KOMODO_DATABASE_PASSWORD: {{ komodo_db_password }}
     volumes:
       - {{ config_base }}/backups:/backups
     logging:
@@ -64,6 +69,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - {{ periphery_root_directory }}:{{ periphery_root_directory }}
+      - {{ docker_base_path }}:{{ docker_base_path }}:ro
       - /home/{{ ansible_user }}/Docker:/home/{{ ansible_user }}/Docker
     logging:
       driver: {{ logging_driver }}

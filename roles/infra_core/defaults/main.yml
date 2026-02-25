@@ -31,6 +31,7 @@ komodo_pretty_startup_config: "false"
 # OIDC settings
 komodo_oidc_enabled: "true"
 komodo_oidc_provider: "https://id.atelier.house"
+komodo_oidc_redirect_host: "https://id.atelier.house"
 
 # OAuth (disabled)
 komodo_github_oauth_enabled: "false"
