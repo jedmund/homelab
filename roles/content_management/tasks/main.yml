@@ -11,10 +11,19 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/homebox"
+
+- name: Create Papra data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+  loop:
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra"
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra/db"
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra/documents"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/homebox"
 
 - name: Deploy compose file
   template:
