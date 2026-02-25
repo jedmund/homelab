@@ -92,7 +92,7 @@ services:
         max-file: {{ logging_max_file }}
 
   couchdb:
-    container_name: obsidian_couchdb
+    container_name: obsidian_livesync
     image: {{ couchdb_image }}
     restart: {{ restart_policy }}
     networks:
