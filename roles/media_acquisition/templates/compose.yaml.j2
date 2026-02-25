@@ -35,8 +35,9 @@ services:
         max-file: {{ logging_max_file }}
 
   prowlarr:
-    restart: {{ restart_policy }}
     image: linuxserver/prowlarr
+    container_name: prowlarr
+    restart: {{ restart_policy }}
     networks:
       - shared
     ports:
@@ -119,8 +120,9 @@ services:
         max-file: {{ logging_max_file }}
 
   sonarr:
-    restart: {{ restart_policy }}
     image: linuxserver/sonarr
+    container_name: sonarr
+    restart: {{ restart_policy }}
     networks:
       - shared
     ports:
@@ -149,8 +151,9 @@ services:
         max-file: {{ logging_max_file }}
 
   radarr:
-    restart: {{ restart_policy }}
     image: linuxserver/radarr
+    container_name: radarr
+    restart: {{ restart_policy }}
     networks:
       - shared
     ports:
@@ -178,8 +181,9 @@ services:
         max-file: {{ logging_max_file }}
 
   lidarr:
-    restart: {{ restart_policy }}
     image: linuxserver/lidarr
+    container_name: lidarr
+    restart: {{ restart_policy }}
     networks:
       - shared
     ports:
@@ -208,6 +212,7 @@ services:
 
   jellyseer:
     image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
     restart: {{ restart_policy }}
     networks:
       - shared
@@ -231,6 +236,7 @@ services:
 
   unpackerr:
     image: golift/unpackerr
+    container_name: unpackerr
     restart: {{ restart_policy }}
     networks:
       - shared
