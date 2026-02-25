@@ -14,8 +14,6 @@ services:
     networks:
       - vpn
     ports:
-      - 6881:6881/tcp
-      - 6881:6881/udp
       - 8080:8080
       - 6882:6882/tcp
       - 6882:6882/udp
@@ -50,38 +48,6 @@ services:
       - PGID={{ pgid }}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9696/ping"]
-      interval: {{ healthcheck_interval }}
-      timeout: {{ healthcheck_timeout }}
-      retries: {{ healthcheck_retries }}
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
-  flood:
-    image: jesec/rtorrent-flood
-    container_name: flood
-    networks:
-      - shared
-    ports:
-      - 3001:3001
-    depends_on:
-      gluetun:
-        condition: service_healthy
-    cap_add:
-      - NET_BIND_SERVICE
-      - NET_RAW
-    restart: {{ restart_policy }}
-    command: --port 3001 --allowedpath /downloads --noauth --rtsocket /config/.local/share/rtorrent/rtorrent.sock
-    volumes:
-      - ./config/rtorrent:/config
-      - downloads:/downloads
-    environment:
-      - HOME=/config
-      - TZ={{ timezone }}
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
