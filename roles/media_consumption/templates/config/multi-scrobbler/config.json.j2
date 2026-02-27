@@ -6,6 +6,16 @@
       "data": {
         "token": "{{ multi_scrobbler_plex_token }}",
         "url": "http://plex:32400"
+      },
+      "options": {
+        "playTransform": {
+          "preCompare": [
+            {
+              "type": "musicbrainz",
+              "name": "mb"
+            }
+          ]
+        }
       }
     }
   ],
@@ -17,6 +27,26 @@
         "apiKey": "{{ multi_scrobbler_lastfm_api_key }}",
         "secret": "{{ multi_scrobbler_lastfm_api_secret }}",
         "redirectUri": "{{ multi_scrobbler_base_url }}/lastfm/callback"
+      }
+    }
+  ],
+  "transformers": [
+    {
+      "type": "musicbrainz",
+      "name": "mb",
+      "data": {
+        "apis": [
+          {
+            "contact": "{{ multi_scrobbler_mb_contact }}"
+          }
+        ]
+      },
+      "defaults": {
+        "releaseStatusPriority": ["official"],
+        "releaseGroupPrimaryTypePriority": ["album", "single", "ep"],
+        "releaseCountryPriority": ["JP", "XW"],
+        "searchArtistMethod": "native",
+        "searchOrder": ["isrc", "basic", "artist"]
       }
     }
   ]
