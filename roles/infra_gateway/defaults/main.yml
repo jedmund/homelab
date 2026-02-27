@@ -44,6 +44,7 @@ ddclient_atelier_subdomains:
   - read.atelier.house
   - rom.atelier.house
   - rss.atelier.house
+  - scrobble.atelier.house
   - so.atelier.house
   - speed.atelier.house
   - start.atelier.house
