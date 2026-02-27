@@ -1,0 +1,23 @@
+{
+  "sources": [
+    {
+      "type": "plex",
+      "name": "plex",
+      "data": {
+        "token": "{{ multi_scrobbler_plex_token }}",
+        "url": "http://plex:32400"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "type": "lastfm",
+      "name": "lastfm",
+      "data": {
+        "apiKey": "{{ multi_scrobbler_lastfm_api_key }}",
+        "secret": "{{ multi_scrobbler_lastfm_api_secret }}",
+        "redirectUri": "{{ multi_scrobbler_base_url }}/lastfm/callback"
+      }
+    }
+  ]
+}

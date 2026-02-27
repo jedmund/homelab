@@ -18,6 +18,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex"
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex/transcode"
     - "{{ docker_base_path }}/{{ stack_name }}/config/tunarr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/multi-scrobbler"
     - "{{ docker_base_path }}/{{ stack_name }}/config/stash"
     - "{{ docker_base_path }}/{{ stack_name }}/config/stash/metadata"
     - "{{ docker_base_path }}/{{ stack_name }}/config/stash/cache"
@@ -43,6 +44,15 @@
     - karakeep
     - romm
     - stash
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy multi-scrobbler config
+  template:
+    src: "config/multi-scrobbler/config.json.j2"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/multi-scrobbler/config.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
   no_log: true
   notify: Restart {{ stack_name }} stack
 
