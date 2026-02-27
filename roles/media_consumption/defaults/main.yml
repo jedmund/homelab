@@ -122,5 +122,9 @@ plex_libva_driver_name: "iHD"
 tunarr_port: 8000
 tunarr_database_url: "file:/config/tunarr.db"
 
+# Multi-scrobbler settings
+multi_scrobbler_port: 9078
+multi_scrobbler_base_url: "https://scrobble.atelier.house"
+
 # Stash settings
 stash_port: 9999

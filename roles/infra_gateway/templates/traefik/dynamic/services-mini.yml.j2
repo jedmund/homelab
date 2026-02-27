@@ -83,6 +83,17 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Multi-scrobbler - scrobble.{{ traefik_domain }}
+    multi-scrobbler:
+      rule: "Host(`scrobble.{{ traefik_domain }}`)"
+      service: multi-scrobbler
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # Overseerr - ov.{{ traefik_domain }}
     overseerr:
       rule: "Host(`ov.{{ traefik_domain }}`)"
@@ -288,6 +299,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:32400"
+
+    multi-scrobbler:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:9078"
 
     overseerr:
       loadBalancer:
