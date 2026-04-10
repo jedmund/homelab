@@ -180,7 +180,7 @@ services:
       - {{ kavita_port }}:5000
     restart: {{ restart_policy }}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000"]
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5000"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}

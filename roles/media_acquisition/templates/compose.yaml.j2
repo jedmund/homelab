@@ -257,7 +257,7 @@ services:
     environment:
       - TZ={{ timezone }}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8945"]
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8945"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
