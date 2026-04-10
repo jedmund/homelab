@@ -1,0 +1,21 @@
+---
+# Stack identity
+stack_name: album-sort
+
+# Album Sort settings
+album_sort_source_path: /home/justin/album-sort
+album_sort_port: 5180
+album_sort_container_port: 3000
+album_sort_domain: sorter.atelier.house
+album_sort_origin: "https://{{ album_sort_domain }}"
+album_sort_unsorted_path: /music/Sort
+album_sort_sorted_path: /music/Sorted
+album_sort_data_path: /data
+album_sort_watch_interval: "30000"
+
+# Secrets - defined in vault
+# album_sort_apple_music_team_id
+# album_sort_apple_music_key_id
+# album_sort_apple_music_private_key
+# album_sort_discogs_token
+# album_sort_kagi_api_key

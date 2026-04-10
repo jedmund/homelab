@@ -245,6 +245,18 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `mastodon_active_record_encryption_key_derivation_salt` | Active Record key derivation salt |
 | `mastodon_active_record_encryption_primary_key` | Active Record primary key |
 
+### group_vars/album_sort/vault.yml
+
+#### Album Sort
+
+| Variable | Description |
+|----------|-------------|
+| `album_sort_apple_music_team_id` | Apple Music API team ID |
+| `album_sort_apple_music_key_id` | Apple Music API key ID |
+| `album_sort_apple_music_private_key` | Apple Music API private key |
+| `album_sort_discogs_token` | Discogs API token |
+| `album_sort_kagi_api_key` | Kagi API key |
+
 ## Usage
 
 Run `make help` to see all available commands. Common operations:

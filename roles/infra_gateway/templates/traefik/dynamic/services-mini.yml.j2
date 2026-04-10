@@ -94,6 +94,17 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Album Sort - sorter.{{ traefik_domain }}
+    album-sort:
+      rule: "Host(`sorter.{{ traefik_domain }}`)"
+      service: album-sort
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # Overseerr - ov.{{ traefik_domain }}
     overseerr:
       rule: "Host(`ov.{{ traefik_domain }}`)"
@@ -304,6 +315,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:9078"
+
+    album-sort:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:5180"
 
     overseerr:
       loadBalancer:

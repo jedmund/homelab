@@ -105,6 +105,10 @@ deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
+deploy-album-sort: ## Deploy album-sort stack
+	@echo "$(BLUE)Deploying album-sort stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+
 ##@ Deployment - Specific Services
 
 deploy-traefik: ## Deploy only Traefik
