@@ -298,7 +298,7 @@ services:
     volumes:
       - ./config/multi-scrobbler:/config
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9078"]
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:9078"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
