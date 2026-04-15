@@ -12,6 +12,14 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/data"
 
+- name: Pull latest {{ stack_name }} source
+  git:
+    repo: "{{ album_sort_repo }}"
+    dest: "{{ album_sort_source_path }}"
+    version: "{{ album_sort_version | default('main') }}"
+    force: true
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
