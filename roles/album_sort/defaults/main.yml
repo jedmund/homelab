@@ -19,3 +19,5 @@ album_sort_watch_interval: "30000"
 # album_sort_apple_music_private_key
 # album_sort_discogs_token
 # album_sort_kagi_api_key
+# album_sort_lastfm_api_key
+# album_sort_lastfm_api_secret
