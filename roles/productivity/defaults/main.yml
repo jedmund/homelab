@@ -39,12 +39,6 @@ livesync_domain: obsidian-sync.atelier.house
 # couchdb_user - defined in vault
 # couchdb_password - defined in vault
 
-# Quartz (Obsidian Publish alternative)
-quartz_domain: kb.atelier.house
-quartz_git_repo: ""  # Set in host_vars or vault
-quartz_git_branch: main
-quartz_rebuild_delay: 300
-
 # Draftboard settings
 draftboard_repo: git@github.com:jedmund/Draftboard.git
 draftboard_repo_branch: docker

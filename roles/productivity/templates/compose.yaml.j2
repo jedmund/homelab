@@ -120,31 +120,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  quartz:
-    container_name: obsidian_quartz
-    build:
-      context: ./config/quartz
-      dockerfile: Dockerfile
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    environment:
-      - GIT_REPO={{ quartz_git_repo }}
-      - GIT_BRANCH={{ quartz_git_branch }}
-      - BUILD_UPDATE_DELAY={{ quartz_rebuild_delay }}
-      - AUTO_REBUILD=true
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.quartz.rule: "Host(`{{ quartz_domain }}`)"
-      traefik.http.routers.quartz.entrypoints: "websecure"
-      traefik.http.routers.quartz.tls.certresolver: "letsencrypt"
-      traefik.http.services.quartz.loadbalancer.server.port: "80"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
   draftboard:
     container_name: draftboard
     build:

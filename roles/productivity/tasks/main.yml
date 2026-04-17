@@ -13,7 +13,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
     - "{{ docker_base_path }}/{{ stack_name }}/config/strudel"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/quartz"
 
 - name: Clone/update Draftboard repository
   ansible.builtin.git:
@@ -23,18 +22,6 @@
     force: true
     accept_hostkey: true
   become: false
-  notify: Restart {{ stack_name }} stack
-
-- name: Deploy Quartz build files
-  copy:
-    src: "config/quartz/{{ item }}"
-    dest: "{{ docker_base_path }}/{{ stack_name }}/config/quartz/{{ item }}"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-  loop:
-    - Dockerfile
-    - entrypoint.sh
-    - nginx.conf
   notify: Restart {{ stack_name }} stack
 
 - name: Generate CouchDB config
