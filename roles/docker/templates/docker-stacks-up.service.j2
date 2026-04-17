@@ -1,0 +1,14 @@
+[Unit]
+Description=Ensure all docker compose stacks are up after boot
+After=docker.service nas-reachable.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 10
+ExecStart=/bin/bash -c 'for p in {{ docker_base_path }}/*/compose.yaml; do echo "up: $p"; docker compose -f "$p" up -d 2>&1 || true; done'
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
