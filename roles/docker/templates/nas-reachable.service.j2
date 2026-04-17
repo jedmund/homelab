@@ -1,0 +1,16 @@
+[Unit]
+Description=Wait for NAS ({{ nas_server }}:2049) to be reachable
+DefaultDependencies=no
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'for i in $(seq 1 120); do (echo > /dev/tcp/{{ nas_server }}/2049) 2>/dev/null && echo "NAS reachable after $${i}s" && exit 0; sleep 1; done; echo "NAS unreachable after 120s, continuing anyway" >&2; exit 0'
+
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target
