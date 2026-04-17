@@ -107,6 +107,21 @@
     enabled: yes
     daemon_reload: yes
 
+- name: Install docker-stacks-up.service
+  template:
+    src: docker-stacks-up.service.j2
+    dest: /etc/systemd/system/docker-stacks-up.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+
+- name: Enable docker-stacks-up.service
+  systemd:
+    name: docker-stacks-up
+    enabled: yes
+    daemon_reload: yes
+
 - name: Enable Docker is running
   service:
     name: docker
