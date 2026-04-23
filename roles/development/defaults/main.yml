@@ -7,7 +7,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 max_server_ip: 192.168.1.245
 
 # Forgejo settings
-forgejo_image: codeberg.org/forgejo/forgejo:9
+forgejo_image: codeberg.org/forgejo/forgejo:15.0.0
 forgejo_domain: git.atelier.house
 forgejo_ssh_port: 2222
 forgejo_web_port: 3000
