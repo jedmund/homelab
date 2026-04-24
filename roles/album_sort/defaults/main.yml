@@ -3,7 +3,7 @@
 stack_name: album-sort
 
 # Album Sort settings
-album_sort_repo: https://git.atelier.house/jedmund/album-sort.git
+album_sort_repo: ssh://git@git.atelier.house:2222/jedmund/album-sort.git
 album_sort_version: main
 album_sort_source_path: /home/justin/album-sort
 album_sort_port: 5180

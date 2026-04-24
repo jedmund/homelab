@@ -11,13 +11,16 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/data"
+    - "{{ docker_base_path }}/{{ stack_name }}/beets-data"
 
 - name: Pull latest {{ stack_name }} source
-  git:
+  ansible.builtin.git:
     repo: "{{ album_sort_repo }}"
     dest: "{{ album_sort_source_path }}"
     version: "{{ album_sort_version | default('main') }}"
     force: true
+    accept_hostkey: true
+  become: false
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
