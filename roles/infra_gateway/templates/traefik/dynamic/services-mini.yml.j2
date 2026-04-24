@@ -254,6 +254,30 @@ http:
         certResolver: letsencrypt
 
 
+    # ========== Commerce ==========
+
+    # Yard Sale Images (RustFS) - yardsale.{{ traefik_domain }}/images/*
+    yardsale-images:
+      rule: "Host(`yardsale.{{ traefik_domain }}`) && PathPrefix(`/images`)"
+      service: yardsale-images
+      entryPoints:
+        - websecure
+      priority: 100
+      middlewares:
+        - yardsale-strip-images
+        - yardsale-add-bucket
+      tls:
+        certResolver: letsencrypt
+
+    # Yard Sale - yardsale.{{ traefik_domain }}
+    yardsale:
+      rule: "Host(`yardsale.{{ traefik_domain }}`)"
+      service: yardsale
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
     # ========== Utilities ==========
 
     # ChangeDetection - track.{{ traefik_domain }}
@@ -397,6 +421,17 @@ http:
         servers:
           - url: "http://{{ mini_server_ip }}:8945"
 
+    # Commerce
+    yardsale:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3131"
+
+    yardsale-images:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:9000"
+
     # Utilities
     changedetection:
       loadBalancer:
@@ -407,3 +442,13 @@ http:
       loadBalancer:
         servers:
           - url: "http://copyparty:3923"
+
+  middlewares:
+    yardsale-strip-images:
+      stripPrefix:
+        prefixes:
+          - "/images"
+
+    yardsale-add-bucket:
+      addPrefix:
+        prefix: "/yardsale"
