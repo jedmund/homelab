@@ -88,7 +88,6 @@
   loop:
     - services-mini.yml.j2
     - services-max.yml.j2
-    - services-other.yml.j2
   when: traefik_enabled | bool
   notify: Restart {{ stack_name }} stack
 
