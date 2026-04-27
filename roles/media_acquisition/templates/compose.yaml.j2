@@ -13,10 +13,6 @@ services:
       - /dev/net/tun:/dev/net/tun
     networks:
       - vpn
-    ports:
-      - 8080:8080
-      - 6882:6882/tcp
-      - 6882:6882/udp
     volumes:
       - ./config/gluetun:/gluetun
     restart: {{ restart_policy }}
@@ -60,11 +56,13 @@ services:
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
-    network_mode: "service:gluetun"
     restart: {{ restart_policy }}
-    depends_on:
-      gluetun:
-        condition: service_healthy
+    networks:
+      - shared
+    ports:
+      - 8080:8080
+      - 6882:6882/tcp
+      - 6882:6882/udp
     environment:
       - TZ={{ timezone }}
       - PUID={{ puid }}
