@@ -21,7 +21,6 @@ ddclient_atelier_subdomains:
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
-  - ha.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - kb.atelier.house
@@ -119,4 +118,3 @@ adguard_port_dns_udp: 53
 # Server IPs for Traefik dynamic configs
 mini_server_ip: 192.168.1.6
 max_server_ip: 192.168.1.245
-ha_server_ip: 192.168.1.8
