@@ -25,7 +25,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── firewall/         # UFW firewall rules
 │   ├── networks/         # Docker network configuration
 │   ├── infra_core/       # Komodo deployment platform
-│   ├── infra_gateway/    # Traefik, AdGuard, Glance, PocketID
+│   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line, PocketID
 │   ├── media_acquisition/# Sonarr, Radarr, Prowlarr, Flood, Gluetun
 │   ├── media_consumption/# Plex, Miniflux, Kavita, Romm
 │   ├── content_management/ # Immich, Papra, SongKong
@@ -148,6 +148,17 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `tinyauth_pocketid_client_secret` | PocketID OAuth client secret |
 | `tinyauth_pocketid_token_url` | PocketID token endpoint URL |
 | `tinyauth_pocketid_user_info_url` | PocketID user info endpoint URL |
+
+#### Line
+
+| Variable | Description |
+|----------|-------------|
+| `line_oidc_client_id` | OIDC client ID from PocketID |
+| `line_oidc_client_secret` | OIDC client secret from PocketID |
+
+Register the OIDC client manually in PocketID with redirect URI `https://line.atelier.house/auth/callback`, then drop the values into the vault.
+
+The line image is built on the server from a clone of `https://github.com/jedmund/line.git` (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
 
 ### group_vars/media_acquisition/vault.yml
 

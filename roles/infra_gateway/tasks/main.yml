@@ -15,6 +15,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/ddclient"
     - "{{ docker_base_path }}/{{ stack_name }}/config/glance"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/line/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
 
@@ -65,6 +66,7 @@
     - pocketid
     - tinyauth
     - glance
+    - line
   no_log: true
   notify: Restart {{ stack_name }} stack
 
@@ -118,9 +120,18 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
+- name: Pull latest line source
+  ansible.builtin.git:
+    repo: "{{ line_repo }}"
+    dest: "{{ line_source_path }}"
+    version: "{{ line_version }}"
+    force: yes
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    build: always
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
