@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Minimal config; upstream slskd defaults handle the rest.
+
+transfers:
+  groups:
+    default:
+      upload:
+        priority: 1
+        slots: 5
+        strategy: FirstInFirstOut
+    leechers:
+      thresholds:
+        files: 1
+        directories: 1
+      upload:
+        priority: 999
+        slots: 1
+        strategy: FirstInFirstOut
+      limits:
+        queued:
+          files: 0
+          megabytes: 0

@@ -14,3 +14,8 @@ qui_oidc_disable_built_in_login: "true"
 # JDownloader settings
 jdownloader_domain: jdl.atelier.house
 jdownloader_port: 5800
+
+# slskdN (Soulseek) settings
+slskd_domain: sl.atelier.house
+slskd_web_port: 5030
+slskd_listen_port: 50300

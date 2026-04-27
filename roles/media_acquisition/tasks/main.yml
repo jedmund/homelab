@@ -16,12 +16,13 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/sonarr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/radarr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/lidarr"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/jellyseerr"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/seerr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/unpackerr"
     - "{{ docker_base_path }}/{{ stack_name }}/config/jdownloader"
     - "{{ docker_base_path }}/{{ stack_name }}/config/pinchflat"
     - "{{ docker_base_path }}/{{ stack_name }}/config/qbittorrent"
     - "{{ docker_base_path }}/{{ stack_name }}/config/qui"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/slskd"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
     - "{{ docker_base_path }}/{{ stack_name }}/metadata"
     - "{{ docker_base_path }}/{{ stack_name }}/cache"
@@ -36,6 +37,14 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
+- name: Deploy slskd config
+  template:
+    src: slskd.yml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/slskd/slskd.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy environment files
   template:
     src: "env/{{ item }}.env.j2"
@@ -43,9 +52,11 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
+    - gluetun
     - stash
     - unpackerr
     - qui
+    - slskd
   no_log: true
   notify: Restart {{ stack_name }} stack
 
