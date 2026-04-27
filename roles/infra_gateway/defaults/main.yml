@@ -102,7 +102,7 @@ glance_port: 8080
 
 # Line settings
 line_port: 5180
-line_repo: "https://github.com/jedmund/line.git"
+line_repo: "git@github.com:jedmund/line.git"
 line_version: "main"
 line_source_path: "{{ docker_base_path }}/{{ stack_name }}/source/line"
 line_subdomain: "line"
