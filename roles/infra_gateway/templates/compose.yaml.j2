@@ -144,6 +144,27 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  line:
+    container_name: line
+    image: {{ line_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./config/line/data:/data
+    env_file: ./env/line.env
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.line.rule: "Host(`{{ line_subdomain }}.{{ traefik_domain }}`)"
+      traefik.http.routers.line.entrypoints: "websecure"
+      traefik.http.routers.line.tls.certresolver: "letsencrypt"
+      traefik.http.services.line.loadbalancer.server.port: "{{ line_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   adguard:
     container_name: adguard
     image: adguard/adguardhome:latest
