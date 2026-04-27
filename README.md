@@ -156,7 +156,7 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `line_oidc_client_id` | OIDC client ID from PocketID |
 | `line_oidc_client_secret` | OIDC client secret from PocketID |
 
-Register the OIDC client manually in PocketID with redirect URI `https://li.atelier.house/auth/callback`, then drop the values into the vault.
+Register the OIDC client manually in PocketID with redirect URI `https://line.atelier.house/auth/callback`, then drop the values into the vault.
 
 The line image is built on the server from a clone of `https://github.com/jedmund/line.git` (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
 
