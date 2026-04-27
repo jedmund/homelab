@@ -174,16 +174,16 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  jellyseer:
-    image: fallenbagel/jellyseerr:latest
-    container_name: jellyseerr
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
     restart: {{ restart_policy }}
     networks:
       - shared
     ports:
       - 5055:5055
     volumes:
-      - ./config/jellyseerr:/app/config
+      - ./config/seerr:/app/config
     environment:
       - TZ={{ timezone }}
     healthcheck:
