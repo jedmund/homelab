@@ -267,6 +267,38 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ slskd_web_port }}:5030"
+      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/tcp"
+      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/udp"
+    env_file:
+      - ./env/slskd.env
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - SLSKD_SLSK_LISTEN_PORT={{ slskd_listen_port }}
+    volumes:
+      - ./config/slskd:/app
+      - music:/music:ro
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5030/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   qui:
     image: ghcr.io/autobrr/qui:latest
     container_name: qui

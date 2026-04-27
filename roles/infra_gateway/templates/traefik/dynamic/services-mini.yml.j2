@@ -136,6 +136,17 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # slskdN (Soulseek) - sl.{{ traefik_domain }}
+    slskd:
+      rule: "Host(`sl.{{ traefik_domain }}`)"
+      service: slskd
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # ========== Productivity ==========
 
     # Silverbullet service worker bypass (no auth)
@@ -355,6 +366,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:5800"
+
+    slskd:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:5030"
 
     # Productivity
     silverbullet:
