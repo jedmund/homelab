@@ -101,7 +101,9 @@ glance_port: 8080
 
 # Line settings
 line_port: 5180
-line_image: "ghcr.io/jedmund/line:latest"
+line_repo: "https://github.com/jedmund/line.git"
+line_version: "main"
+line_source_path: "{{ docker_base_path }}/{{ stack_name }}/source/line"
 line_subdomain: "li"
 line_app_url: "https://{{ line_subdomain }}.{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"

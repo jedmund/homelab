@@ -146,7 +146,9 @@ services:
 
   line:
     container_name: line
-    image: {{ line_image }}
+    build:
+      context: {{ line_source_path }}
+      dockerfile: Dockerfile
     restart: {{ restart_policy }}
     networks:
       - proxy
