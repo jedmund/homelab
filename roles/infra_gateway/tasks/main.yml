@@ -18,6 +18,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/line/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
+    - "{{ docker_base_path }}/{{ stack_name }}/source"
 
 - name: Create Traefik config directories
   file:
