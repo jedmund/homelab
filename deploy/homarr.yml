@@ -1,0 +1,6 @@
+---
+- name: Deploy homarr stack
+  hosts: homarr
+  become: yes
+  roles:
+    - homarr

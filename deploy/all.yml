@@ -17,6 +17,7 @@
           8. Utilities
           9. Productivity
           10. Social
+          11. Homarr
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -63,3 +64,7 @@
 # Album-sort (in-house app)
 - import_playbook: album_sort.yml
   tags: [album_sort]
+
+# Homarr dashboard
+- import_playbook: homarr.yml
+  tags: [homarr]

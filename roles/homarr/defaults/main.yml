@@ -1,0 +1,16 @@
+---
+# Stack identity
+stack_name: homarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Homarr settings
+homarr_image: ghcr.io/homarr-labs/homarr:latest
+homarr_domain: dash.atelier.house
+homarr_port: 7575
+
+# OIDC settings
+homarr_oidc_issuer: "https://id.atelier.house"
+homarr_oidc_client_name: PocketID
+homarr_oidc_admin_group: admins
+homarr_oidc_owner_group: owners
+homarr_oidc_auto_login: "false"
