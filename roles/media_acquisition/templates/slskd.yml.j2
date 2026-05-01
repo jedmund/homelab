@@ -1,22 +1,59 @@
 # {{ ansible_managed }}
-# Minimal config; upstream slskd defaults handle the rest.
+
+directories:
+  downloads: /downloads
+  incomplete: /downloads/.incomplete
+
+shares:
+  filters:
+    - \.lnk$
+    - \.ini$
+    - \.db$
+    - Thumbs\.db$
+    - desktop\.ini$
+    - \.DS_Store$
+
+retention:
+  transfers:
+    succeeded:
+      hours: 168
+    failed:
+      hours: 720
 
 transfers:
+  limits:
+    daily:
+      megabytes: 12288
+    weekly:
+      megabytes: 28672
   groups:
     default:
       upload:
         priority: 1
         slots: 5
+        speed_limit: 6144
         strategy: FirstInFirstOut
+      limits:
+        queued:
+          files: 10
+          megabytes: 4000
+    generous:
+      thresholds:
+        files: 500
+      upload:
+        priority: 0
+        slots: 5
+        speed_limit: 6144
+        strategy: FirstInFirstOut
+      limits:
+        queued:
+          files: 20
+          megabytes: 10000
     leechers:
       thresholds:
         files: 1
         directories: 1
       upload:
         priority: 999
-        slots: 1
+        slots: 0
         strategy: FirstInFirstOut
-      limits:
-        queued:
-          files: 0
-          megabytes: 0
