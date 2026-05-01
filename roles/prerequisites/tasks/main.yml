@@ -28,9 +28,11 @@
     validate: "visudo -cf %s"
 
 # Shell environment setup
-- name: Install zsh
+- name: Install apt packages
   apt:
-    name: zsh
+    name:
+      - zsh
+      - sqlite3
     state: present
     update_cache: yes
 
