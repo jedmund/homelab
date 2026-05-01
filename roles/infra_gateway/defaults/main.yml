@@ -105,6 +105,7 @@ line_port: 5180
 line_repo: "git@github.com:jedmund/line.git"
 line_version: "main"
 line_source_path: "{{ docker_base_path }}/{{ stack_name }}/source/line"
+line_backup_dir: /data/backups
 line_subdomain: "line"
 line_app_url: "https://{{ line_subdomain }}.{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"

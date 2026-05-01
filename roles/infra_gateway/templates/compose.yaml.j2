@@ -150,7 +150,7 @@ services:
     container_name: line
     build:
       context: {{ line_source_path }}
-      dockerfile: Dockerfile
+      dockerfile: deploy/Dockerfile
     restart: {{ restart_policy }}
     networks:
       - proxy
