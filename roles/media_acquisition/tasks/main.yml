@@ -29,6 +29,10 @@
     - "{{ docker_base_path }}/{{ stack_name }}/blobs"
     - "{{ docker_base_path }}/{{ stack_name }}/generated"
 
+- name: Create slskd download directories in downloads volume
+  command: docker run --rm -v downloads:/downloads alpine mkdir -p /downloads/music /downloads/music/.incomplete
+  changed_when: false
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2

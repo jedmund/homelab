@@ -1,8 +1,8 @@
 # {{ ansible_managed }}
 
 directories:
-  downloads: /downloads
-  incomplete: /downloads/.incomplete
+  downloads: /downloads/music
+  incomplete: /downloads/music/.incomplete
 
 shares:
   filters:
@@ -55,5 +55,6 @@ transfers:
         directories: 1
       upload:
         priority: 999
-        slots: 0
+        slots: 1
+        speed_limit: 1
         strategy: FirstInFirstOut
