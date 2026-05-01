@@ -175,7 +175,7 @@ services:
         max-file: {{ logging_max_file }}
 
   seerr:
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/v3djg6gl/seerr:feat-oidc-jellyfin-quickconnect
     container_name: seerr
     restart: {{ restart_policy }}
     networks:
