@@ -16,6 +16,16 @@ http:
 
     # ========== Media Management (Servarr Stack) ==========
 
+    # Sonarr API bypass (no auth)
+    sonarr-api:
+      rule: "Host(`so.{{ traefik_domain }}`) && PathPrefix(`/api`)"
+      service: sonarr
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
     # Sonarr - so.{{ traefik_domain }}
     sonarr:
       rule: "Host(`so.{{ traefik_domain }}`)"
@@ -25,6 +35,16 @@ http:
       middlewares:
         - tinyauth@file
         - sonarr-basicauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Radarr API bypass (no auth)
+    radarr-api:
+      rule: "Host(`ra.{{ traefik_domain }}`) && PathPrefix(`/api`)"
+      service: radarr
+      entryPoints:
+        - websecure
+      priority: 100
       tls:
         certResolver: letsencrypt
 
