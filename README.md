@@ -102,6 +102,14 @@ A single host can belong to multiple groups.
 
 Each stack requires secrets stored in encrypted vault files. Create these files and encrypt them with `ansible-vault`.
 
+### group_vars/compute_servers/vault.yml
+
+Shared secrets used by multiple stacks.
+
+| Variable | Description |
+|----------|-------------|
+| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Ideon) |
+
 ### group_vars/infra_core/vault.yml
 
 #### Komodo
@@ -219,9 +227,8 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | `blinko_db_password` | Blinko PostgreSQL password |
 | `ideon_secret_key` | Ideon app secret (32+ char random, e.g. `openssl rand -hex 32`) |
 | `ideon_db_password` | Ideon PostgreSQL password |
-| `ideon_smtp_password` | Ideon SMTP password (SendGrid API key) |
 
-OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
+Ideon's SMTP password reuses the shared `sendgrid_api_key` (see `group_vars/compute_servers/vault.yml`). OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ### group_vars/development/vault.yml
 
@@ -256,7 +263,6 @@ OIDC against PocketID is configured **after first boot** via the Ideon admin pan
 | `mastodon_vapid_public_key` | VAPID public key for push notifications |
 | `mastodon_aws_access_key_id` | AWS access key for S3 |
 | `mastodon_aws_secret_access_key` | AWS secret key for S3 |
-| `mastodon_smtp_password` | SMTP password |
 | `mastodon_active_record_encryption_deterministic_key` | Active Record encryption key |
 | `mastodon_active_record_encryption_key_derivation_salt` | Active Record key derivation salt |
 | `mastodon_active_record_encryption_primary_key` | Active Record primary key |

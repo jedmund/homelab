@@ -85,11 +85,10 @@ ideon_db_name: ideon
 ideon_db_user: ideon
 # ideon_db_password - defined in vault
 
-# Ideon SMTP (SendGrid, mirrors Mastodon pattern)
+# Ideon SMTP (SendGrid; sendgrid_api_key sourced from compute_servers vault)
 ideon_smtp_host: smtp.sendgrid.net
 ideon_smtp_port: "587"
 ideon_smtp_user: apikey
 ideon_smtp_from_email: noreply@atelier.house
 ideon_smtp_from_name: Ideon
 ideon_smtp_use_tls: "true"
-# ideon_smtp_password - defined in vault (SendGrid API key)
