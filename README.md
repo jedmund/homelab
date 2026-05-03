@@ -268,6 +268,18 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | `album_sort_discogs_token` | Discogs API token |
 | `album_sort_kagi_api_key` | Kagi API key |
 
+### group_vars/ideon/vault.yml
+
+#### Ideon
+
+| Variable | Description |
+|----------|-------------|
+| `ideon_secret_key` | App secret (32+ char random, e.g. `openssl rand -hex 32`) |
+| `ideon_db_password` | Ideon PostgreSQL password |
+| `ideon_smtp_password` | SendGrid API key (SMTP password) |
+
+OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
+
 ## Usage
 
 Run `make help` to see all available commands. Common operations:
