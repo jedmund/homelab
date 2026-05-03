@@ -217,6 +217,11 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | Variable | Description |
 |----------|-------------|
 | `blinko_db_password` | Blinko PostgreSQL password |
+| `ideon_secret_key` | Ideon app secret (32+ char random, e.g. `openssl rand -hex 32`) |
+| `ideon_db_password` | Ideon PostgreSQL password |
+| `ideon_smtp_password` | Ideon SMTP password (SendGrid API key) |
+
+OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ### group_vars/development/vault.yml
 
@@ -267,18 +272,6 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | `album_sort_apple_music_private_key` | Apple Music API private key |
 | `album_sort_discogs_token` | Discogs API token |
 | `album_sort_kagi_api_key` | Kagi API key |
-
-### group_vars/ideon/vault.yml
-
-#### Ideon
-
-| Variable | Description |
-|----------|-------------|
-| `ideon_secret_key` | App secret (32+ char random, e.g. `openssl rand -hex 32`) |
-| `ideon_db_password` | Ideon PostgreSQL password |
-| `ideon_smtp_password` | SendGrid API key (SMTP password) |
-
-OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ## Usage
 
