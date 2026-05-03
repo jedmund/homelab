@@ -59,7 +59,3 @@
 # Matrix stack
 - import_playbook: matrix.yml
   tags: [matrix]
-
-# Album-sort (in-house app)
-- import_playbook: album_sort.yml
-  tags: [album_sort]
