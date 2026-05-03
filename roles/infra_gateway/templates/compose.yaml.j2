@@ -136,7 +136,7 @@ services:
     env_file: ./env/glance.env
     labels:
       traefik.enable: "true"
-      traefik.http.routers.glance.rule: "Host(`{{ traefik_domain }}`) || Host(`start.{{ traefik_domain }}`)"
+      traefik.http.routers.glance.rule: "Host(`glance.{{ traefik_domain }}`)"
       traefik.http.routers.glance.entrypoints: "websecure"
       traefik.http.routers.glance.tls.certresolver: "letsencrypt"
       traefik.http.services.glance.loadbalancer.server.port: "{{ glance_port }}"
@@ -159,7 +159,7 @@ services:
     env_file: ./env/line.env
     labels:
       traefik.enable: "true"
-      traefik.http.routers.line.rule: "Host(`{{ line_subdomain }}.{{ traefik_domain }}`)"
+      traefik.http.routers.line.rule: "Host(`{{ traefik_domain }}`)"
       traefik.http.routers.line.entrypoints: "websecure"
       traefik.http.routers.line.tls.certresolver: "letsencrypt"
       traefik.http.services.line.loadbalancer.server.port: "{{ line_port }}"
