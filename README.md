@@ -25,12 +25,15 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── firewall/         # UFW firewall rules
 │   ├── networks/         # Docker network configuration
 │   ├── infra_core/       # Komodo deployment platform
-│   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line, PocketID
-│   ├── media_acquisition/# Sonarr, Radarr, Prowlarr, Flood, Gluetun
-│   ├── media_consumption/# Plex, Miniflux, Kavita, Romm
-│   ├── content_management/ # Immich, Papra, SongKong
-│   ├── development/      # Forgejo, n8n, Open WebUI
-│   └── productivity/     # Strudel, Silverbullet, Blinko
+│   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line (in-house), PocketID, TinyAuth
+│   ├── media_acquisition/# Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Gluetun, slskd, Album Sort (in-house)
+│   ├── media_consumption/# Plex, Miniflux, Kavita, Romm, Karakeep, Stash, Tunarr
+│   ├── content_management/ # Immich, Papra, Homebox, SongKong
+│   ├── development/      # Forgejo, Open WebUI
+│   ├── utilities/        # n8n, ChangeDetection, Copyparty
+│   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard, Ideon
+│   ├── social/           # Mastodon
+│   └── matrix/           # Synapse, MAS, Element, LiveKit
 └── Makefile              # Deployment commands
 ```
 
@@ -102,6 +105,14 @@ A single host can belong to multiple groups.
 
 Each stack requires secrets stored in encrypted vault files. Create these files and encrypt them with `ansible-vault`.
 
+### group_vars/compute_servers/vault.yml
+
+Shared secrets used by multiple stacks.
+
+| Variable | Description |
+|----------|-------------|
+| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Ideon) |
+
 ### group_vars/infra_core/vault.yml
 
 #### Komodo
@@ -149,7 +160,9 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `tinyauth_pocketid_token_url` | PocketID token endpoint URL |
 | `tinyauth_pocketid_user_info_url` | PocketID user info endpoint URL |
 
-#### Line
+#### Line (in-house)
+
+[line](https://github.com/jedmund/line) is one of our own projects, built on the server from a clone of the repo (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
 
 | Variable | Description |
 |----------|-------------|
@@ -157,8 +170,6 @@ Each stack requires secrets stored in encrypted vault files. Create these files 
 | `line_oidc_client_secret` | OIDC client secret from PocketID |
 
 Register the OIDC client manually in PocketID with redirect URI `https://line.atelier.house/auth/callback`, then drop the values into the vault.
-
-The line image is built on the server from a clone of `https://github.com/jedmund/line.git` (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
 
 ### group_vars/media_acquisition/vault.yml
 
@@ -175,6 +186,20 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 |----------|-------------|
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
+
+#### Album Sort (in-house)
+
+[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a Forgejo clone (`album_sort_repo` in `roles/media_acquisition/defaults/main.yml`).
+
+| Variable | Description |
+|----------|-------------|
+| `album_sort_apple_music_team_id` | Apple Music API team ID |
+| `album_sort_apple_music_key_id` | Apple Music API key ID |
+| `album_sort_apple_music_private_key` | Apple Music API private key |
+| `album_sort_discogs_token` | Discogs API token |
+| `album_sort_kagi_api_key` | Kagi API key |
+| `album_sort_lastfm_api_key` | Last.fm API key |
+| `album_sort_lastfm_api_secret` | Last.fm API secret |
 
 ### group_vars/media_consumption/vault.yml
 
@@ -217,6 +242,10 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | Variable | Description |
 |----------|-------------|
 | `blinko_db_password` | Blinko PostgreSQL password |
+| `ideon_secret_key` | Ideon app secret (32+ char random, e.g. `openssl rand -hex 32`) |
+| `ideon_db_password` | Ideon PostgreSQL password |
+
+Ideon's SMTP password reuses the shared `sendgrid_api_key` (see `group_vars/compute_servers/vault.yml`). OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ### group_vars/development/vault.yml
 
@@ -251,34 +280,9 @@ The line image is built on the server from a clone of `https://github.com/jedmun
 | `mastodon_vapid_public_key` | VAPID public key for push notifications |
 | `mastodon_aws_access_key_id` | AWS access key for S3 |
 | `mastodon_aws_secret_access_key` | AWS secret key for S3 |
-| `mastodon_smtp_password` | SMTP password |
 | `mastodon_active_record_encryption_deterministic_key` | Active Record encryption key |
 | `mastodon_active_record_encryption_key_derivation_salt` | Active Record key derivation salt |
 | `mastodon_active_record_encryption_primary_key` | Active Record primary key |
-
-### group_vars/album_sort/vault.yml
-
-#### Album Sort
-
-| Variable | Description |
-|----------|-------------|
-| `album_sort_apple_music_team_id` | Apple Music API team ID |
-| `album_sort_apple_music_key_id` | Apple Music API key ID |
-| `album_sort_apple_music_private_key` | Apple Music API private key |
-| `album_sort_discogs_token` | Discogs API token |
-| `album_sort_kagi_api_key` | Kagi API key |
-
-### group_vars/ideon/vault.yml
-
-#### Ideon
-
-| Variable | Description |
-|----------|-------------|
-| `ideon_secret_key` | App secret (32+ char random, e.g. `openssl rand -hex 32`) |
-| `ideon_db_password` | Ideon PostgreSQL password |
-| `ideon_smtp_password` | SendGrid API key (SMTP password) |
-
-OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ## Usage
 

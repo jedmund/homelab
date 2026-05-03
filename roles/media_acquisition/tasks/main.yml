@@ -28,6 +28,18 @@
     - "{{ docker_base_path }}/{{ stack_name }}/cache"
     - "{{ docker_base_path }}/{{ stack_name }}/blobs"
     - "{{ docker_base_path }}/{{ stack_name }}/generated"
+    - "{{ docker_base_path }}/{{ stack_name }}/album-sort-data"
+    - "{{ docker_base_path }}/{{ stack_name }}/album-sort-beets-data"
+
+- name: Pull latest album-sort source
+  ansible.builtin.git:
+    repo: "{{ album_sort_repo }}"
+    dest: "{{ album_sort_source_path }}"
+    version: "{{ album_sort_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
 
 - name: Create slskd download directories in downloads volume
   command: docker run --rm -v downloads:/downloads alpine mkdir -p /downloads/music /downloads/music/.incomplete
@@ -61,6 +73,7 @@
     - unpackerr
     - qui
     - slskd
+    - album-sort
   no_log: true
   notify: Restart {{ stack_name }} stack
 
@@ -68,5 +81,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    build: always
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

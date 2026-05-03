@@ -215,6 +215,61 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
+  ideon:
+    container_name: ideon
+    image: {{ ideon_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - ideon-app-data:/app/storage
+    env_file:
+      - ./env/ideon.env
+    depends_on:
+      ideon-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:{{ ideon_port }}/api/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ideon.rule: "Host(`{{ ideon_domain }}`)"
+      traefik.http.routers.ideon.entrypoints: "websecure"
+      traefik.http.routers.ideon.tls.certresolver: "letsencrypt"
+      traefik.http.services.ideon.loadbalancer.server.port: "{{ ideon_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  ideon-db:
+    container_name: ideon_postgres
+    image: {{ ideon_db_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - ideon-pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER={{ ideon_db_user }}
+      - POSTGRES_PASSWORD={{ ideon_db_password }}
+      - POSTGRES_DB={{ ideon_db_name }}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ ideon_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
 volumes:
   silverbullet-space:
   blinko-data:
@@ -222,6 +277,8 @@ volumes:
   couchdb-data:
   draftboard-minio:
   draftboard-pgdata:
+  ideon-app-data:
+  ideon-pgdata:
 
 networks:
   proxy:

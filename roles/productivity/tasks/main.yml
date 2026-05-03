@@ -1,5 +1,5 @@
 ---
-# Productivity Stack - Strudel, Silverbullet, Blinko, CouchDB (LiveSync), Quartz, Draftboard
+# Productivity Stack - Strudel, Silverbullet, Blinko, CouchDB (LiveSync), Quartz, Draftboard, Ideon
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -49,6 +49,7 @@
   loop:
     - blinko
     - draftboard
+    - ideon
   no_log: true
   notify: Restart {{ stack_name }} stack
 

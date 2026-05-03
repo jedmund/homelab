@@ -67,3 +67,28 @@ draftboard_s3_endpoint: "https://{{ draftboard_minio_domain }}"
 draftboard_s3_bucket_name: draftboard
 # draftboard_minio_root_user - defined in vault
 # draftboard_minio_root_password - defined in vault
+
+# Ideon settings
+ideon_image: ghcr.io/3xpyth0n/ideon:latest
+ideon_domain: idea.atelier.house
+ideon_app_url: "https://{{ ideon_domain }}"
+ideon_port: 3000
+ideon_log_level_server: info
+ideon_log_level_client: warn
+# ideon_secret_key - defined in vault (32+ char random, openssl rand -hex 32)
+
+# Ideon database
+ideon_db_image: postgres:18-alpine
+ideon_db_host: ideon-db
+ideon_db_port: "5432"
+ideon_db_name: ideon
+ideon_db_user: ideon
+# ideon_db_password - defined in vault
+
+# Ideon SMTP (SendGrid; sendgrid_api_key sourced from compute_servers vault)
+ideon_smtp_host: smtp.sendgrid.net
+ideon_smtp_port: "587"
+ideon_smtp_user: apikey
+ideon_smtp_from_email: noreply@atelier.house
+ideon_smtp_from_name: Ideon
+ideon_smtp_use_tls: "true"

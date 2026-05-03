@@ -1,6 +1,0 @@
----
-- name: Deploy album-sort stack
-  hosts: album_sort
-  become: yes
-  roles:
-    - album_sort

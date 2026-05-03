@@ -1,6 +1,0 @@
----
-- name: Deploy ideon stack
-  hosts: ideon
-  become: yes
-  roles:
-    - ideon
