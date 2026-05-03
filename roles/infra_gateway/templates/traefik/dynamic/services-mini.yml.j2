@@ -16,6 +16,26 @@ http:
 
     # ========== Media Management (Servarr Stack) ==========
 
+    # Sonarr API bypass (no auth)
+    sonarr-api:
+      rule: "Host(`so.{{ traefik_domain }}`) && PathPrefix(`/api`)"
+      service: sonarr
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
+    # Sonarr healthcheck bypass (no auth)
+    sonarr-ping:
+      rule: "Host(`so.{{ traefik_domain }}`) && Path(`/ping`)"
+      service: sonarr
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
     # Sonarr - so.{{ traefik_domain }}
     sonarr:
       rule: "Host(`so.{{ traefik_domain }}`)"
@@ -28,6 +48,26 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Radarr API bypass (no auth)
+    radarr-api:
+      rule: "Host(`ra.{{ traefik_domain }}`) && PathPrefix(`/api`)"
+      service: radarr
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
+    # Radarr healthcheck bypass (no auth)
+    radarr-ping:
+      rule: "Host(`ra.{{ traefik_domain }}`) && Path(`/ping`)"
+      service: radarr
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
     # Radarr - ra.{{ traefik_domain }}
     radarr:
       rule: "Host(`ra.{{ traefik_domain }}`)"
@@ -36,6 +76,16 @@ http:
         - websecure
       middlewares:
         - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # Lidarr healthcheck bypass (no auth)
+    lidarr-ping:
+      rule: "Host(`li.{{ traefik_domain }}`) && Path(`/ping`)"
+      service: lidarr
+      entryPoints:
+        - websecure
+      priority: 100
       tls:
         certResolver: letsencrypt
 
@@ -62,6 +112,16 @@ http:
         certResolver: letsencrypt
 
     # ========== Media & Entertainment ==========
+
+    # Stash healthcheck bypass (no auth)
+    stash-healthz:
+      rule: "Host(`z.{{ traefik_domain }}`) && Path(`/healthz`)"
+      service: stash
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
 
     # Stash - z.{{ traefik_domain }}
     stash:
@@ -133,6 +193,16 @@ http:
         - websecure
       middlewares:
         - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # slskd healthcheck bypass (no auth)
+    slskd-health:
+      rule: "Host(`sl.{{ traefik_domain }}`) && Path(`/health`)"
+      service: slskd
+      entryPoints:
+        - websecure
+      priority: 100
       tls:
         certResolver: letsencrypt
 
