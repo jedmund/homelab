@@ -6,11 +6,12 @@
     state: present
 
 - name: Create Docker NFS volumes
-  community.docker.docker_volume: 
+  community.docker.docker_volume:
     name: "{{ item.name }}"
     driver: "{{ item.driver }}"
     driver_options: "{{ item.driver_opts }}"
     state: present
+    recreate: options-changed
   loop: "{{ nfs_volumes }}"
 
 

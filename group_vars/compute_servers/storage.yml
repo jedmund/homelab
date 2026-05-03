@@ -1,12 +1,15 @@
 ---
 # NAS connection info
 nas_server: 192.168.1.3
+nas_server_games: 192.168.1.4
 nfs_version: "3"  # Changed from 4.2 to 3
 nfs_base_opts: "addr={{ nas_server }},rw,nfsvers={{ nfs_version }},hard,intr"
+nfs_base_opts_games: "addr={{ nas_server_games }},rw,nfsvers={{ nfs_version }},hard,intr"
 
 # UniFi Drive moved exports under this prefix; each share lives at
 # {{ nfs_base_path }}/<Share>/.data
 nfs_base_path: "/volume/3184c922-dd97-43b0-b873-8bcb99ac2668/.srv/.unifi-drive"
+nfs_base_path_games: "/volume/f0d7215d-4972-486b-a8f7-9aca03a95951/.srv/.unifi-drive"
 
 # All NFS volumes with correct NFS export paths
 nfs_volumes:
@@ -79,15 +82,15 @@ nfs_volumes:
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Gaming/.data/RomM/library"
-      o: "{{ nfs_base_opts }}"
+      device: "{{ nas_server_games }}:{{ nfs_base_path_games }}/Gaming/.data/RomM/library"
+      o: "{{ nfs_base_opts_games }}"
 
   - name: games_assets
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Gaming/.data/RomM/assets"
-      o: "{{ nfs_base_opts }}"
+      device: "{{ nas_server_games }}:{{ nfs_base_path_games }}/Gaming/.data/RomM/assets"
+      o: "{{ nfs_base_opts_games }}"
 
   # Development/Files
   - name: forgejo-data

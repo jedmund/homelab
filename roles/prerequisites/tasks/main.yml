@@ -1,4 +1,8 @@
 ---
+- name: Skip deprecated hosts
+  meta: end_host
+  when: deprecated | default(false)
+
 # Ensure host has working DNS (fixes systemd-resolved issues with AdGuard)
 # This runs first to ensure we can download packages and keys
 - name: Check if DNS resolution is working
