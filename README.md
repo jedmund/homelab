@@ -169,7 +169,7 @@ Shared secrets used by multiple stacks.
 | `line_oidc_client_id` | OIDC client ID from PocketID |
 | `line_oidc_client_secret` | OIDC client secret from PocketID |
 
-Register the OIDC client manually in PocketID with redirect URI `https://line.atelier.house/auth/callback`, then drop the values into the vault.
+Register the OIDC client manually in PocketID with redirect URI `https://atelier.house/auth/callback`, then drop the values into the vault.
 
 ### group_vars/media_acquisition/vault.yml
 

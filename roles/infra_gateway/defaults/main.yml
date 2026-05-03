@@ -21,6 +21,7 @@ ddclient_atelier_subdomains:
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
+  - glance.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - idea.atelier.house
@@ -29,7 +30,6 @@ ddclient_atelier_subdomains:
   - ko.atelier.house
   - kv.atelier.house
   - li.atelier.house
-  - line.atelier.house
   - matrix.atelier.house
   - matrix-admin.atelier.house
   - matrix-auth.atelier.house
@@ -50,7 +50,6 @@ ddclient_atelier_subdomains:
   - so.atelier.house
   - sorter.atelier.house
   - speed.atelier.house
-  - start.atelier.house
   - strudel.atelier.house
   - track.atelier.house
   - tr.atelier.house
@@ -107,8 +106,7 @@ line_repo: "git@github.com:jedmund/line.git"
 line_version: "main"
 line_source_path: "{{ docker_base_path }}/{{ stack_name }}/source/line"
 line_backup_dir: /data/backups
-line_subdomain: "line"
-line_app_url: "https://{{ line_subdomain }}.{{ traefik_domain }}"
+line_app_url: "https://{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
 
