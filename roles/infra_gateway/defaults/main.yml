@@ -109,6 +109,7 @@ line_backup_dir: /data/backups
 line_app_url: "https://{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
+line_admin_emails: "justin@jedmund.com"
 line_forgejo_key: atelier
 line_forgejo_base_url: "https://git.{{ traefik_domain }}"
 line_forgejo_label: "Atelier"
