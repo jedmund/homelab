@@ -106,9 +106,10 @@
 
 - name: Deploy DDClient config
   template:
-    src: ddclient/config.conf.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/config/ddclient/config.conf"
-    owner: "{{ ansible_user }}"
+    src: ddclient/ddclient.conf.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/ddclient/ddclient.conf"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
     mode: '0600'
   notify: Restart {{ stack_name }} stack
 
