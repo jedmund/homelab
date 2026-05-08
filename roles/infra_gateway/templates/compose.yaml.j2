@@ -99,8 +99,11 @@ services:
     image: linuxserver/ddclient
     networks:
       - proxy
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
     volumes:
-      - ./config/ddclient/config.conf:/etc/ddclient/ddclient.conf
+      - ./config/ddclient/ddclient.conf:/config/ddclient.conf
     logging:
       driver: {{ logging_driver }}
       options:
