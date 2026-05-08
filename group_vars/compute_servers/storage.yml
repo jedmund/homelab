@@ -18,49 +18,49 @@ nfs_volumes:
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Videos/.data"
+      device: ":{{ nfs_base_path }}/Videos/.data"
       o: "{{ nfs_base_opts }}"
 
   - name: television
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Videos/.data/Television"
+      device: ":{{ nfs_base_path }}/Videos/.data/Television"
       o: "{{ nfs_base_opts }}"
 
   - name: anime
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Videos/.data/Anime"
+      device: ":{{ nfs_base_path }}/Videos/.data/Anime"
       o: "{{ nfs_base_opts }}"
 
   - name: movies
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Videos/.data/Movies"
+      device: ":{{ nfs_base_path }}/Videos/.data/Movies"
       o: "{{ nfs_base_opts }}"
 
   - name: music
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Music/.data"
+      device: ":{{ nfs_base_path }}/Music/.data"
       o: "{{ nfs_base_opts }}"
 
   - name: downloads
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Ingest/.data"
+      device: ":{{ nfs_base_path }}/Ingest/.data"
       o: "{{ nfs_base_opts }}"
 
   - name: private
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Private/.data"
+      device: ":{{ nfs_base_path }}/Private/.data"
       o: "{{ nfs_base_opts }}"
 
   # Content management
@@ -68,28 +68,28 @@ nfs_volumes:
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Photos/.data/immich"
+      device: ":{{ nfs_base_path }}/Photos/.data/immich"
       o: "{{ nfs_base_opts }}"
 
   - name: comics
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Literature/.data/Manga"
+      device: ":{{ nfs_base_path }}/Literature/.data/Manga"
       o: "{{ nfs_base_opts }}"
 
   - name: games
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server_games }}:{{ nfs_base_path_games }}/Gaming/.data/RomM/library"
+      device: ":{{ nfs_base_path_games }}/Gaming/.data/RomM/library"
       o: "{{ nfs_base_opts_games }}"
 
   - name: games_assets
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server_games }}:{{ nfs_base_path_games }}/Gaming/.data/RomM/assets"
+      device: ":{{ nfs_base_path_games }}/Gaming/.data/RomM/assets"
       o: "{{ nfs_base_opts_games }}"
 
   # Development/Files
@@ -97,14 +97,14 @@ nfs_volumes:
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Files/.data/Forgejo"
+      device: ":{{ nfs_base_path }}/Files/.data/Forgejo"
       o: "{{ nfs_base_opts }}"
 
   - name: papra-documents
     driver: local
     driver_opts:
       type: nfs
-      device: "{{ nas_server }}:{{ nfs_base_path }}/Files/.data/Papra/documents"
+      device: ":{{ nfs_base_path }}/Files/.data/Papra/documents"
       o: "{{ nfs_base_opts }}"
 
 # Note: docker_base_path is defined in docker.yml to avoid duplication
