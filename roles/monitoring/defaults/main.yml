@@ -1,0 +1,22 @@
+---
+# Streaming topology
+# - parent: receives streamed metrics from children, longer retention, primary dashboard
+# - child: streams metrics to parent, keeps short local retention for buffering
+netdata_role: child
+netdata_parent_host: "{{ hostvars['nuc-mini'].ansible_host }}"
+netdata_parent_port: 19999
+
+# Parent retention (~30 days at minute resolution via tier 1)
+netdata_tier0_retention: "1d"
+netdata_tier1_retention: "30d"
+netdata_tier2_retention: "1y"
+netdata_tier0_size: "1GiB"
+netdata_tier1_size: "5GiB"
+netdata_tier2_size: "10GiB"
+
+# Per-OS config dirs
+netdata_config_dir_linux: /etc/netdata
+netdata_config_dir_darwin: /opt/homebrew/etc/netdata
+
+# Streaming API key (defined in compute_servers vault as vault_netdata_stream_api_key)
+netdata_stream_api_key: "{{ vault_netdata_stream_api_key }}"

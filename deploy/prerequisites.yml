@@ -2,6 +2,13 @@
 - name: Deploy homelab prerequisites
   hosts: compute_servers
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Skip deprecated hosts
+      meta: end_host
+      when: deprecated | default(false)
+    - name: Gather facts
+      setup:
   roles:
     - prerequisites
     - firewall
@@ -9,3 +16,8 @@
     - networks
     - docker-volumes
     - security
+
+- name: Install monitoring agent on all devices
+  hosts: compute_servers
+  roles:
+    - monitoring

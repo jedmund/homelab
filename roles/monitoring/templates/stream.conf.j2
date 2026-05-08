@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+{% if netdata_role == 'parent' %}
+[{{ netdata_stream_api_key }}]
+    type = api
+    enabled = yes
+    allow from = *
+    retention = 3600
+    db = dbengine
+    health enabled = auto
+{% else %}
+[stream]
+    enabled = yes
+    destination = {{ netdata_parent_host }}:{{ netdata_parent_port }}
+    api key = {{ netdata_stream_api_key }}
+    timeout = 5m
+    default port = 19999
+    send charts matching = *
+    buffer size = 10MiB
+    reconnect delay = 15s
+    initial clock resync iterations = 60
+{% endif %}

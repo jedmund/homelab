@@ -1,0 +1,99 @@
+---
+- name: Install Netdata (Debian/Ubuntu)
+  when: ansible_facts['os_family'] == 'Debian'
+  become: true
+  block:
+    - name: Check if Netdata is already installed
+      stat:
+        path: /usr/sbin/netdata
+      register: netdata_binary
+
+    - name: Download Netdata kickstart script
+      get_url:
+        url: https://get.netdata.cloud/kickstart.sh
+        dest: /tmp/netdata-kickstart.sh
+        mode: "0755"
+      when: not netdata_binary.stat.exists
+
+    - name: Run Netdata kickstart installer
+      command: >
+        /tmp/netdata-kickstart.sh
+        --non-interactive
+        --stable-channel
+        --disable-telemetry
+      when: not netdata_binary.stat.exists
+
+    - name: Ensure Netdata service is enabled and running
+      systemd:
+        name: netdata
+        enabled: true
+        state: started
+
+    - name: Create Netdata systemd drop-in directory
+      file:
+        path: /etc/systemd/system/netdata.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Extend Netdata systemd start/stop timeouts
+      copy:
+        content: |
+          [Service]
+          TimeoutStartSec=600
+          TimeoutStopSec=120
+        dest: /etc/systemd/system/netdata.service.d/timeout.conf
+        mode: "0644"
+      register: netdata_timeout_override
+      notify: restart netdata
+
+    - name: Reload systemd after drop-in change
+      systemd:
+        daemon_reload: true
+      when: netdata_timeout_override.changed
+
+- name: Install Netdata (macOS)
+  when: ansible_facts['os_family'] == 'Darwin'
+  become: false
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] | default('/usr/bin:/bin:/usr/sbin:/sbin') }}"
+  block:
+    - name: Check if Netdata is installed via Homebrew
+      command: brew list netdata
+      register: brew_netdata_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Netdata via Homebrew
+      command: brew install netdata
+      when: brew_netdata_check.rc != 0
+
+    - name: Check Netdata brew service status
+      shell: brew services list | awk '$1 == "netdata" {print $2}'
+      register: netdata_brew_status
+      changed_when: false
+
+    - name: Start Netdata via brew services
+      command: brew services start netdata
+      when: netdata_brew_status.stdout != "started"
+
+- name: Set Netdata config directory
+  set_fact:
+    netdata_config_dir: "{{ netdata_config_dir_linux if ansible_facts['os_family'] == 'Debian' else netdata_config_dir_darwin }}"
+
+- name: Configure Netdata streaming
+  template:
+    src: stream.conf.j2
+    dest: "{{ netdata_config_dir }}/stream.conf"
+    mode: "0644"
+  become: "{{ ansible_facts['os_family'] == 'Debian' }}"
+  no_log: true
+  notify: restart netdata
+
+- name: Configure Netdata retention (parent only)
+  template:
+    src: netdata.conf.j2
+    dest: "{{ netdata_config_dir }}/netdata.conf"
+    mode: "0644"
+  become: "{{ ansible_facts['os_family'] == 'Debian' }}"
+  when: netdata_role == 'parent'
+  notify: restart netdata
