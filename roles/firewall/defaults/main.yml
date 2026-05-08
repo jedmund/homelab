@@ -21,6 +21,7 @@ firewall_ports_base:
   - { port: "{{ ansible_port | default(22) }}", proto: tcp, comment: "SSH" }
   - { port: 80, proto: tcp, comment: "HTTP" }
   - { port: 443, proto: tcp, comment: "HTTPS" }
+  - { port: 19999, proto: tcp, comment: "Netdata dashboard" }
 
 # DNS (AdGuard)
 firewall_ports_dns:

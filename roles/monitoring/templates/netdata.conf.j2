@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[db]
+    mode = dbengine
+    storage tiers = 3
+    dbengine tier 0 retention time = {{ netdata_tier0_retention }}
+    dbengine tier 1 retention time = {{ netdata_tier1_retention }}
+    dbengine tier 2 retention time = {{ netdata_tier2_retention }}
+    dbengine tier 0 retention size = {{ netdata_tier0_size }}
+    dbengine tier 1 retention size = {{ netdata_tier1_size }}
+    dbengine tier 2 retention size = {{ netdata_tier2_size }}
+
+[web]
+    bind to = *

@@ -383,6 +383,29 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # ========== Monitoring ==========
+
+    # Netdata API bypass for Line widgets (no auth)
+    netdata-api:
+      rule: "Host(`netdata.{{ traefik_domain }}`) && PathPrefix(`/api`)"
+      service: netdata
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
+    # Netdata - netdata.{{ traefik_domain }}
+    netdata:
+      rule: "Host(`netdata.{{ traefik_domain }}`)"
+      service: netdata
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
   services:
     # Servarr Stack
     sonarr:
@@ -528,6 +551,12 @@ http:
       loadBalancer:
         servers:
           - url: "http://copyparty:3923"
+
+    # Monitoring (host-level Netdata service)
+    netdata:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:19999"
 
   middlewares:
     yardsale-strip-images:

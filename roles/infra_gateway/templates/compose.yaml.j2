@@ -85,6 +85,8 @@ services:
       tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.slskd.config.domain: "sl.{{ traefik_domain }}"
       tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.netdata.config.domain: "netdata.{{ traefik_domain }}"
+      tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:
@@ -97,8 +99,11 @@ services:
     image: linuxserver/ddclient
     networks:
       - proxy
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
     volumes:
-      - ./config/ddclient/config.conf:/etc/ddclient/ddclient.conf
+      - ./config/ddclient/ddclient.conf:/config/ddclient.conf
     logging:
       driver: {{ logging_driver }}
       options:

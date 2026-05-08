@@ -1,0 +1,23 @@
+---
+- name: Restart Netdata (Linux)
+  command: systemctl restart netdata --no-block
+  become: true
+  listen: restart netdata
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Wait for Netdata to come back up (Linux)
+  wait_for:
+    port: 19999
+    host: 127.0.0.1
+    delay: 5
+    timeout: 600
+  listen: restart netdata
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Restart Netdata (macOS)
+  command: brew services restart netdata
+  become: false
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] | default('/usr/bin:/bin:/usr/sbin:/sbin') }}"
+  listen: restart netdata
+  when: ansible_facts['os_family'] == 'Darwin'
