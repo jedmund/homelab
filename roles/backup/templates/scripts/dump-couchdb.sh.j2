@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Dump every CouchDB database from obsidian_livesync to JSON. Borgmatic's
+# before_backup hook runs this; the resulting files land in
+# {{ borg_dumps_container_path }}/couchdb/ which is part of the borg source
+# path, so the next snapshot picks them up.
+
+set -euo pipefail
+
+DUMP_DIR="{{ borg_dumps_container_path }}/couchdb"
+HOST="obsidian_livesync"
+PORT="{{ couchdb_port | default(5984) }}"
+
+mkdir -p "$DUMP_DIR"
+
+# Clean previous dumps so we don't carry stale state across runs.
+rm -f "$DUMP_DIR"/*.json
+
+DBS=$(curl -fsS -u "${COUCHDB_USER}:${COUCHDB_PASSWORD}" \
+    "http://${HOST}:${PORT}/_all_dbs" | jq -r '.[]')
+
+if [ -z "${DBS}" ]; then
+    echo "dump-couchdb: no databases found on ${HOST}:${PORT}" >&2
+    exit 0
+fi
+
+for db in ${DBS}; do
+    # Skip internal CouchDB system databases (_users, _replicator, _global_changes)
+    case "${db}" in _*) continue ;; esac
+
+    echo "dump-couchdb: dumping ${db}"
+    curl -fsS -u "${COUCHDB_USER}:${COUCHDB_PASSWORD}" \
+        "http://${HOST}:${PORT}/${db}/_all_docs?include_docs=true&attachments=true" \
+        > "${DUMP_DIR}/${db}.json"
+done

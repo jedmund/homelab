@@ -10,10 +10,15 @@ services:
     restart: {{ restart_policy }}
     env_file:
       - ./env/borgmatic.env
+    networks:
+{% for net in borg_networks %}
+      - {{ net }}
+{% endfor %}
     volumes:
       - ./config/borgmatic:/etc/borgmatic.d:ro
       - ./scripts:/scripts:ro
       - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
+      - {{ borg_dumps_host_path }}:{{ borg_dumps_container_path }}
       - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}
 {% for path in borg_source_paths %}
       - {{ path }}:{{ path }}:ro
@@ -23,3 +28,10 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+networks:
+{% for net in borg_networks %}
+  {{ net }}:
+    name: {{ net }}
+    external: true
+{% endfor %}

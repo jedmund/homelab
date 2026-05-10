@@ -33,6 +33,14 @@
     mode: '0700'
   become: true
 
+- name: Create DB dumps directory
+  ansible.builtin.file:
+    path: "{{ borg_dumps_host_path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0700'
+  become: true
+
 - name: Create NAS mount point
   ansible.builtin.file:
     path: "{{ nas_mount_host_path }}"
@@ -100,6 +108,22 @@
   ansible.builtin.template:
     src: scripts/post-backup-rsync.sh.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/post-backup-rsync.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy CouchDB dump script
+  ansible.builtin.template:
+    src: scripts/dump-couchdb.sh.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/dump-couchdb.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy SQLite dump script
+  ansible.builtin.template:
+    src: scripts/dump-sqlite.sh.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/dump-sqlite.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
   notify: Restart {{ stack_name }} stack

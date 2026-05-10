@@ -40,6 +40,36 @@ borg_exclude_patterns:
 borg_check_repository_frequency: 1 week
 borg_check_archives_frequency: 1 month
 
+# Custom DB dumps (CouchDB + SQLite). Native Postgres/MariaDB/MongoDB dumps
+# are streamed by borgmatic directly; these are written to disk first by
+# scripts in before_backup hooks, then backed up by borgmatic as part of
+# the source path below.
+borg_dumps_host_path: /var/backup/dumps
+borg_dumps_container_path: /dumps
+
+# Networks the borgmatic container needs to join so it can reach every DB
+# by container hostname. All declared external because they're created by
+# other stacks.
+borg_networks:
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, forgejo, blinko, draftboard, miniflux, romm
+  - shared-network     # immich postgres
+  - proxy-network      # couchdb (obsidian_livesync)
+
+# DB credentials are consumed from each stack's existing vault values
+# (loaded because nuc-mini is a member of every relevant host group):
+#   immich_db_username, immich_db_password, immich_db_name
+#   mastodon_db_user, mastodon_db_password, mastodon_db_name
+#   synapse_db_user, synapse_db_password, synapse_db_name
+#   mas_db_user, mas_db_password, mas_db_name
+#   n8n_db_user, n8n_db_password, n8n_db_name
+#   miniflux_db_user, miniflux_db_password, miniflux_db_name
+#   forgejo_db_user, forgejo_db_password, forgejo_db_name
+#   blinko_db_user, blinko_db_password, blinko_db_name
+#   draftboard_db_user, draftboard_db_password, draftboard_db_name
+#   komodo_db_username, komodo_db_password
+#   romm_db_user, romm_db_password, romm_db_name, romm_db_root_password
+#   couchdb_user, couchdb_password
+
 # NAS mount (rsync target)
 nas_mount_host_path: /mnt/nas/backup
 nas_mount_container_path: /nas

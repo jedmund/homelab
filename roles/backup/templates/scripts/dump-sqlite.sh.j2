@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Use sqlite3's .backup command to produce a consistent snapshot of each
+# tracked SQLite database. Plain `cp` of a live SQLite file can capture
+# inconsistent WAL state; .backup uses the SQLite backup API which is
+# safe with concurrent writers.
+#
+# Output lands in {{ borg_dumps_container_path }}/sqlite/, which is part
+# of the borg source path; the next snapshot picks them up.
+
+set -euo pipefail
+
+DUMP_DIR="{{ borg_dumps_container_path }}/sqlite"
+mkdir -p "$DUMP_DIR"
+
+# Clean previous dumps so we don't carry stale state across runs.
+rm -f "$DUMP_DIR"/*.db "$DUMP_DIR"/*.sqlite "$DUMP_DIR"/*.sqlite3
+
+# Path inside the borgmatic container (read-only mount of /opt/docker).
+# Update the list as stacks add or move SQLite-backed services.
+SQLITE_FILES=(
+    "/opt/docker/infra-gateway/config/pocketid/data/pocket-id.db"
+    "/opt/docker/content-management/config/papra/db/db.sqlite"
+    "/opt/docker/content-management/config/homebox/homebox.db"
+    "/opt/docker/content-management/album-sort-data/album-sort.db"
+    "/opt/docker/media-acquisition/config/sonarr/sonarr.db"
+    "/opt/docker/media-acquisition/config/radarr/radarr.db"
+    "/opt/docker/media-acquisition/config/lidarr/lidarr.db"
+    "/opt/docker/media-acquisition/config/prowlarr/prowlarr.db"
+    "/opt/docker/media-acquisition/config/qui/qui.db"
+    "/opt/docker/media-acquisition/config/pinchflat/db/pinchflat.db"
+    "/opt/docker/media-consumption/config/kavita/kavita.db"
+    "/opt/docker/media-consumption/config/stash/stash-go.sqlite"
+    "/opt/docker/media-consumption/config/tunarr/db.db"
+)
+
+for src in "${SQLITE_FILES[@]}"; do
+    if [ ! -f "$src" ]; then
+        echo "dump-sqlite: skipping missing ${src}" >&2
+        continue
+    fi
+    # Flatten the path into a single filename: /opt/docker/foo/bar.db -> foo_bar.db
+    rel="${src#/opt/docker/}"
+    dest="${DUMP_DIR}/${rel//\//_}"
+    echo "dump-sqlite: ${src} -> ${dest}"
+    sqlite3 "$src" ".backup '${dest}'"
+done
