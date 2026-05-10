@@ -55,7 +55,16 @@ for src in "${SQLITE_FILES[@]}"; do
     rel="${src#/opt/docker/}"
     dest="${DUMP_DIR}/${rel//\//_}"
     echo "dump-sqlite: ${src} -> ${dest}"
-    if sqlite3 "$src" ".backup '${dest}'"; then
+    # /opt/docker is mounted :ro into this container, so SQLite can't create
+    # the -wal/-shm auxiliary files alongside live WAL-mode DBs (Kavita,
+    # Plex). The ?immutable=1 URI flag tells SQLite to skip locking and
+    # journal handling entirely. Trade-off: if the source DB is being
+    # written during this read, the resulting snapshot may be torn or
+    # produce SQLITE_CORRUPT at restore time. Tolerable for nightly
+    # backups - we have 30 days of retention to fall back on.
+    # URL-encode spaces (Plex's path) for the URI parser.
+    encoded="${src// /%20}"
+    if sqlite3 "file:${encoded}?immutable=1" ".backup '${dest}'"; then
         SUCCEEDED=$((SUCCEEDED + 1))
     else
         echo "dump-sqlite: FAILED on ${src}" >&2
