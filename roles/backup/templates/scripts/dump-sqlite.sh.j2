@@ -13,11 +13,16 @@ set -euo pipefail
 DUMP_DIR="{{ borg_dumps_container_path }}/sqlite"
 mkdir -p "$DUMP_DIR"
 
-# Clean previous dumps so we don't carry stale state across runs.
+# Clean previous dumps so we don't carry stale state across runs. Use null
+# globbing so the pattern expands to nothing instead of itself if a class
+# of file doesn't exist yet.
+shopt -s nullglob
 rm -f "$DUMP_DIR"/*.db "$DUMP_DIR"/*.sqlite "$DUMP_DIR"/*.sqlite3
+shopt -u nullglob
 
 # Path inside the borgmatic container (read-only mount of /opt/docker).
-# Update the list as stacks add or move SQLite-backed services.
+# Update the list as stacks add or move SQLite-backed services. Paths with
+# spaces are fine since each array entry is a separately-quoted string.
 SQLITE_FILES=(
     "/opt/docker/infra-gateway/config/pocketid/data/pocket-id.db"
     "/opt/docker/content-management/config/papra/db/db.sqlite"
@@ -32,6 +37,8 @@ SQLITE_FILES=(
     "/opt/docker/media-consumption/config/kavita/kavita.db"
     "/opt/docker/media-consumption/config/stash/stash-go.sqlite"
     "/opt/docker/media-consumption/config/tunarr/db.db"
+    "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
+    "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.blobs.db"
 )
 
 for src in "${SQLITE_FILES[@]}"; do
