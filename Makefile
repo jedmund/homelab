@@ -75,13 +75,17 @@ deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 
 ##@ Deployment - Media
 
-deploy-media: ## Deploy all media services (acquisition + consumption)
+deploy-media: ## Deploy all media services (acquisition + musicbrainz + consumption)
 	@echo "$(BLUE)Deploying media stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags media
 
 deploy-media-acquisition: ## Deploy media acquisition (Sonarr, Radarr, etc.)
 	@echo "$(BLUE)Deploying media acquisition...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG)
+
+deploy-musicbrainz: ## Deploy MusicBrainz mirror
+	@echo "$(BLUE)Deploying MusicBrainz mirror...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/musicbrainz.yml $(VAULT_FLAG)
 
 deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
 	@echo "$(BLUE)Deploying media consumption...$(NC)"

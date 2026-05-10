@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Atelier overlay: add proxy + shared networks and Traefik labels to the
+# upstream `musicbrainz` service so it's reachable at {{ musicbrainz_domain }}
+# behind TinyAuth, and reachable from multi-scrobbler over `shared` at
+# http://musicbrainz:{{ musicbrainz_web_port }}.
+
+services:
+  musicbrainz:
+    networks:
+      - default
+      - proxy
+      - shared
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.musicbrainz.rule: "Host(`{{ musicbrainz_domain }}`)"
+      traefik.http.routers.musicbrainz.entrypoints: "websecure"
+      traefik.http.routers.musicbrainz.tls.certresolver: "letsencrypt"
+      traefik.http.services.musicbrainz.loadbalancer.server.port: "{{ musicbrainz_web_port }}"
+      traefik.http.routers.musicbrainz.middlewares: "tinyauth@file"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

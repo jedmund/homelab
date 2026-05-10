@@ -87,6 +87,8 @@ services:
       tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.netdata.config.domain: "netdata.{{ traefik_domain }}"
       tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ traefik_domain }}"
+      tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:
