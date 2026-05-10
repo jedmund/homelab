@@ -45,4 +45,13 @@ __pycache__/
 # Logs
 *.log
 
+# Agent/tooling working dirs
+.claude/
+.conductor/
+.playwright-mcp/
+
+# Stray root-level scratch files
+/curl
+/hot.rss
+
 # Ansible gathered facts
