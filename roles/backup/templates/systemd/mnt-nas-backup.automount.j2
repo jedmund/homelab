@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Automount for UniFi Drive backup share
+Requires=network-online.target
+After=network-online.target
+
+[Automount]
+Where={{ nas_mount_host_path }}
+TimeoutIdleSec=10min
+
+[Install]
+WantedBy=multi-user.target

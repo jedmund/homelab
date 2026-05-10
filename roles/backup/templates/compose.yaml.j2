@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  borgmatic:
+    container_name: borgmatic
+    build:
+      context: ./build
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/borgmatic.env
+    volumes:
+      - ./config/borgmatic:/etc/borgmatic.d:ro
+      - ./scripts:/scripts:ro
+      - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
+      - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}
+{% for path in borg_source_paths %}
+      - {{ path }}:{{ path }}:ro
+{% endfor %}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}

@@ -1,0 +1,6 @@
+---
+- name: Deploy backup stack
+  hosts: backup
+  become: yes
+  roles:
+    - backup

@@ -1,0 +1,53 @@
+---
+# Stack identity
+stack_name: backup
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Borgmatic image (extended via Dockerfile to add rsync + nfs-common)
+borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:latest
+
+# Borg repo (host-local on nuc-mini, mounted into container at /repo)
+borg_repo_host_path: /var/backup/borg
+borg_repo_container_path: /repo
+borg_repo_label: nuc-mini
+
+# Retention
+borg_keep_daily: 30
+
+# Schedule (container internal cron, container TZ matches host)
+borg_backup_cron: "0 2 * * *"
+borg_run_on_startup: "false"
+
+# Encryption
+borg_encryption_mode: repokey-blake2
+# borg_passphrase - defined in vault
+
+# Compression
+borg_compression: zstd,3
+
+# Source paths to back up (read-only mounted into container at same path)
+borg_source_paths:
+  - /opt/docker
+
+# Patterns to exclude (relative to source paths)
+# musicbrainz: reproducible from upstream MetaBrainz dumps per its README
+# backup itself: avoid recursive snapshot of the borgmatic config dir
+borg_exclude_patterns:
+  - /opt/docker/musicbrainz
+  - /opt/docker/backup
+
+# Integrity checks
+borg_check_repository_frequency: 1 week
+borg_check_archives_frequency: 1 month
+
+# NAS mount (rsync target)
+nas_mount_host_path: /mnt/nas/backup
+nas_mount_container_path: /nas
+# Systemd unit basename derived from path: /mnt/nas/backup -> mnt-nas-backup
+nas_systemd_unit_basename: mnt-nas-backup
+nas_share_subpath: borg-nuc-mini   # subdirectory inside the share for this host's repo
+nas_nfs_server: 192.168.1.3        # UniFi NAS
+# UniFi Drive exports each Shared Drive at /volume/<storage-uuid>/.srv/.unifi-drive/<name>/.data.
+# UUID is per-NAS-instance; rediscover with `showmount -e 192.168.1.3` if the NAS is ever rebuilt.
+nas_nfs_export: /volume/3184c922-dd97-43b0-b873-8bcb99ac2668/.srv/.unifi-drive/Homelab/.data
+nas_nfs_options: "rw,soft,timeo=30,retrans=2,noatime,_netdev,nofail"
