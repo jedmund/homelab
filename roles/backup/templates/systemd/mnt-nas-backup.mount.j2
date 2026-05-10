@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+[Unit]
+Description=NFS mount for UniFi Drive backup share
+Requires=network-online.target
+After=network-online.target
+
+[Mount]
+What={{ nas_nfs_server }}:{{ nas_nfs_export }}
+Where={{ nas_mount_host_path }}
+Type=nfs
+Options={{ nas_nfs_options }}
+
+[Install]
+WantedBy=multi-user.target

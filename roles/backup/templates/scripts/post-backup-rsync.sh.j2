@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Run after every successful borgmatic backup. Mirrors the local Borg repo
+# onto the NFS-mounted UniFi Drive share for the NAS's existing Backblaze
+# sync to pick up.
+
+set -euo pipefail
+
+REPO_SRC="{{ borg_repo_container_path }}/"
+NAS_DEST="{{ nas_mount_container_path }}/{{ nas_share_subpath }}/"
+
+if [ ! -d "${NAS_DEST}" ]; then
+    mkdir -p "${NAS_DEST}"
+fi
+
+# --delete keeps NAS in sync with local after Borg's compact rewrites.
+# Borg segment files are immutable once written so a partial rsync isn't
+# corrupting; the next run picks up where this one left off.
+exec rsync \
+    --archive \
+    --delete \
+    --human-readable \
+    --info=stats2 \
+    "${REPO_SRC}" "${NAS_DEST}"

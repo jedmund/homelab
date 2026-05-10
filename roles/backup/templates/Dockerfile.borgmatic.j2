@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Extends upstream borgmatic-collective image with rsync + nfs-common so
+# borgmatic's after_actions hook can rsync the local repo to the NFS-mounted
+# UniFi Drive share inside the same container.
+
+FROM {{ borgmatic_upstream_image }}
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        rsync \
+        nfs-common && \
+    rm -rf /var/lib/apt/lists/*

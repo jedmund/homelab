@@ -1,0 +1,122 @@
+---
+# Backup Stack - Borgmatic running locally on nuc-mini.
+# Repo at {{ borg_repo_host_path }}; NFS-mounted UniFi Drive share at
+# {{ nas_mount_host_path }} receives rsync of new segment files after each run.
+
+- name: Install NFS client packages
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+    state: present
+    update_cache: true
+  become: true
+
+- name: Create stack and repo directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/build"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/borgmatic"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/scripts"
+
+- name: Create Borg repo parent directory
+  ansible.builtin.file:
+    path: "{{ borg_repo_host_path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0700'
+  become: true
+
+- name: Create NAS mount point
+  ansible.builtin.file:
+    path: "{{ nas_mount_host_path }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Deploy systemd mount unit
+  ansible.builtin.template:
+    src: "systemd/{{ nas_systemd_unit_basename }}.mount.j2"
+    dest: "/etc/systemd/system/{{ nas_systemd_unit_basename }}.mount"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify:
+    - Reload systemd
+
+- name: Deploy systemd automount unit
+  ansible.builtin.template:
+    src: "systemd/{{ nas_systemd_unit_basename }}.automount.j2"
+    dest: "/etc/systemd/system/{{ nas_systemd_unit_basename }}.automount"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify:
+    - Reload systemd
+    - Restart NAS automount
+
+- name: Enable and start NAS automount
+  ansible.builtin.systemd:
+    name: "{{ nas_systemd_unit_basename }}.automount"
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+
+- name: Deploy build Dockerfile
+  ansible.builtin.template:
+    src: Dockerfile.borgmatic.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/build/Dockerfile"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy borgmatic config
+  ansible.builtin.template:
+    src: borgmatic.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/borgmatic/config.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/borgmatic.env.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/borgmatic.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy post-backup rsync script
+  ansible.builtin.template:
+    src: scripts/post-backup-rsync.sh.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/post-backup-rsync.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    remove_orphans: true
+    build: always
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

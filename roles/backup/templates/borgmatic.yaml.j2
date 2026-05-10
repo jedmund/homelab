@@ -1,0 +1,39 @@
+# {{ ansible_managed }}
+# Borgmatic configuration for nuc-mini local Borg repo.
+# Repo lives on local disk at {{ borg_repo_host_path }}; rsync ships
+# new segments to the NFS-mounted UniFi Drive share after each successful run.
+
+source_directories:
+{% for path in borg_source_paths %}
+    - {{ path }}
+{% endfor %}
+
+repositories:
+    - path: {{ borg_repo_container_path }}
+      label: {{ borg_repo_label }}
+
+exclude_patterns:
+{% for pattern in borg_exclude_patterns %}
+    - {{ pattern }}
+{% endfor %}
+
+# Encryption passphrase comes from BORG_PASSPHRASE env var (set via env file).
+encryption_passphrase: "{% raw %}{credential env BORG_PASSPHRASE}{% endraw %}"
+
+# Retention: roll snapshots off after one month.
+keep_daily: {{ borg_keep_daily }}
+
+# Compression
+compression: {{ borg_compression }}
+
+# Integrity checks
+checks:
+    - name: repository
+      frequency: {{ borg_check_repository_frequency }}
+    - name: archives
+      frequency: {{ borg_check_archives_frequency }}
+
+# After every successful backup, rsync the repo to the NFS-mounted NAS share.
+# The NAS's existing Backblaze sync picks up the new segment files.
+after_actions:
+    - /scripts/post-backup-rsync.sh
