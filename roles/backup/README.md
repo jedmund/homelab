@@ -178,3 +178,42 @@ in-app Settings panel. Bootstrap procedure:
 
 Subsequent users log in via PocketID, mapped to whatever role you've
 configured on the borg-ui side.
+
+## Monitoring (Healthchecks.io)
+
+Borgmatic pings a per-check URL at `hc-ping.com` on every run. If no
+ping arrives within the configured grace period, Healthchecks.io
+notifies via email (or any channel you've wired up).
+
+### Setup
+
+1. Create a (free) account at https://healthchecks.io.
+2. Create a new check:
+   - Name: `nuc-mini borgmatic`
+   - Schedule: `Cron`, expression `0 2 * * *` (matches `borg_backup_cron`)
+   - Grace time: `1 hour` (allows the run to take up to an hour past the
+     scheduled start before alerting; first runs can be slow)
+3. Copy the ping URL (looks like `https://hc-ping.com/<uuid>`).
+4. Add to vault: `ansible-vault edit group_vars/backup/vault.yml`,
+   add `borg_healthchecks_url: "https://hc-ping.com/<uuid>"`.
+5. Redeploy: `make deploy-backup`.
+
+### What gets sent
+
+The default config sends pings on `finish` (any run completes) and
+`fail` states, with `send_logs: true` so the dashboard at
+healthchecks.io shows the full borgmatic output for the latest few
+runs. Adjust `borg_healthchecks_states` in defaults to also ping on
+`start` if you want visibility into mid-run hangs.
+
+Healthchecks.io's free tier is sufficient for a single check at this
+frequency. Add channels (ntfy, Slack, Pushover, etc.) on the
+Healthchecks.io side, not in borgmatic config.
+
+## Netdata integration (future)
+
+A possible follow-up: ingest borgmatic's metrics into Netdata via the
+`go.d.plugin` Prometheus collector for trend visibility (repo size, run
+duration, dedup ratio). Requires confirming the borgmatic-collective
+Docker image actually exposes a `/metrics` endpoint, which isn't
+documented as of writing. Deferred until verified.

@@ -78,6 +78,15 @@ borg_networks:
 #   romm_db_user, romm_db_password, romm_db_name, romm_db_root_password
 #   couchdb_user, couchdb_password
 
+# Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
+# period at https://healthchecks.io and put its ping URL in the vault.
+# borg_healthchecks_url - defined in vault
+borg_healthchecks_send_logs: true
+borg_healthchecks_verify_tls: true
+borg_healthchecks_states:
+  - finish
+  - fail
+
 # NAS mount (rsync target)
 nas_mount_host_path: /mnt/nas/backup
 nas_mount_container_path: /nas

@@ -103,3 +103,14 @@ before_backup:
 # Rsync the repo to the NFS-mounted NAS share after every successful run.
 after_actions:
     - /scripts/post-backup-rsync.sh
+
+# Monitoring: ping Healthchecks.io after each run. URL itself is the secret,
+# pulled from the env file.
+healthchecks:
+    ping_url: "{% raw %}{credential env HEALTHCHECKS_PING_URL}{% endraw %}"
+    send_logs: {{ borg_healthchecks_send_logs | string | lower }}
+    verify_tls: {{ borg_healthchecks_verify_tls | string | lower }}
+    states:
+{% for state in borg_healthchecks_states %}
+        - {{ state }}
+{% endfor %}
