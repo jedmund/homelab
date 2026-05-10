@@ -2,6 +2,9 @@
 # Borgmatic configuration for nuc-mini local Borg repo.
 # Repo lives on local disk at {{ borg_repo_host_path }}; rsync ships
 # new segments to the NFS-mounted UniFi Drive share after each successful run.
+#
+# This file contains secrets (DB passwords, healthchecks URL, passphrase)
+# templated inline from vault. Deployed with mode 0600.
 
 source_directories:
 {% for path in borg_source_paths %}
@@ -18,8 +21,7 @@ exclude_patterns:
     - {{ pattern }}
 {% endfor %}
 
-# Encryption passphrase comes from BORG_PASSPHRASE env var (set via env file).
-encryption_passphrase: "{% raw %}{credential env BORG_PASSPHRASE}{% endraw %}"
+encryption_passphrase: "{{ borg_passphrase }}"
 
 # Retention: roll snapshots off after one month.
 keep_daily: {{ borg_keep_daily }}
@@ -41,39 +43,39 @@ postgresql_databases:
     - name: {{ immich_db_name }}
       hostname: immich_postgres
       username: {{ immich_db_username }}
-      password: "{% raw %}{credential env IMMICH_DB_PASSWORD}{% endraw %}"
+      password: "{{ immich_db_password }}"
     - name: {{ mastodon_db_name }}
       hostname: mastodon_postgres
       username: {{ mastodon_db_user }}
-      password: "{% raw %}{credential env MASTODON_DB_PASSWORD}{% endraw %}"
+      password: "{{ mastodon_db_password }}"
     - name: {{ synapse_db_name }}
       hostname: synapse_postgres
       username: {{ synapse_db_user }}
-      password: "{% raw %}{credential env SYNAPSE_DB_PASSWORD}{% endraw %}"
+      password: "{{ synapse_db_password }}"
     - name: {{ mas_db_name }}
       hostname: mas_postgres
       username: {{ mas_db_user }}
-      password: "{% raw %}{credential env MAS_DB_PASSWORD}{% endraw %}"
+      password: "{{ mas_db_password }}"
     - name: {{ n8n_db_name }}
       hostname: n8n_postgres
       username: {{ n8n_db_user }}
-      password: "{% raw %}{credential env N8N_DB_PASSWORD}{% endraw %}"
+      password: "{{ n8n_db_password }}"
     - name: {{ miniflux_db_name }}
       hostname: miniflux-db
       username: {{ miniflux_db_user }}
-      password: "{% raw %}{credential env MINIFLUX_DB_PASSWORD}{% endraw %}"
+      password: "{{ miniflux_db_password }}"
     - name: {{ forgejo_db_name }}
       hostname: forgejo_postgres
       username: {{ forgejo_db_user }}
-      password: "{% raw %}{credential env FORGEJO_DB_PASSWORD}{% endraw %}"
+      password: "{{ forgejo_db_password }}"
     - name: {{ blinko_db_name }}
       hostname: blinko_postgres
       username: {{ blinko_db_user }}
-      password: "{% raw %}{credential env BLINKO_DB_PASSWORD}{% endraw %}"
+      password: "{{ blinko_db_password }}"
     - name: {{ draftboard_db_name }}
       hostname: draftboard_postgres
       username: {{ draftboard_db_user }}
-      password: "{% raw %}{credential env DRAFTBOARD_DB_PASSWORD}{% endraw %}"
+      password: "{{ draftboard_db_password }}"
 
 # Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
 # what's set on the container; mysqldump needs LOCK TABLES which the romm
@@ -82,7 +84,7 @@ mariadb_databases:
     - name: all
       hostname: romm-db
       username: root
-      password: "{% raw %}{credential env ROMM_DB_ROOT_PASSWORD}{% endraw %}"
+      password: "{{ romm_db_root_password }}"
 
 # Native MongoDB hook for Komodo. Dumps the admin database which contains
 # Komodo's stack and deploy state.
@@ -91,23 +93,27 @@ mongodb_databases:
       hostname: komodo_mongo
       authentication_database: admin
       username: {{ komodo_db_username }}
-      password: "{% raw %}{credential env KOMODO_DB_PASSWORD}{% endraw %}"
+      password: "{{ komodo_db_password }}"
 
-# Custom dumps for CouchDB and SQLite. These write to {{ borg_dumps_container_path }}
-# before the backup runs; borgmatic then snapshots that directory as part
-# of source_directories above.
-before_backup:
-    - /scripts/dump-couchdb.sh
-    - /scripts/dump-sqlite.sh
+# Custom dumps for CouchDB and SQLite plus the post-backup rsync to NAS.
+# The dump scripts write to {{ borg_dumps_container_path }} (also in
+# source_directories), so the resulting files land in the same archive.
+commands:
+    - before: action
+      when:
+          - create
+      run:
+          - /scripts/dump-couchdb.sh
+          - /scripts/dump-sqlite.sh
+    - after: action
+      when:
+          - create
+      run:
+          - /scripts/post-backup-rsync.sh
 
-# Rsync the repo to the NFS-mounted NAS share after every successful run.
-after_actions:
-    - /scripts/post-backup-rsync.sh
-
-# Monitoring: ping Healthchecks.io after each run. URL itself is the secret,
-# pulled from the env file.
+# Monitoring: ping Healthchecks.io after each run.
 healthchecks:
-    ping_url: "{% raw %}{credential env HEALTHCHECKS_PING_URL}{% endraw %}"
+    ping_url: "{{ borg_healthchecks_url }}"
     send_logs: {{ borg_healthchecks_send_logs | string | lower }}
     verify_tls: {{ borg_healthchecks_verify_tls | string | lower }}
     states:

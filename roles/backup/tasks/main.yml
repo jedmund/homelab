@@ -92,7 +92,8 @@
     src: borgmatic.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/borgmatic/config.yaml"
     owner: "{{ ansible_user }}"
-    mode: '0644'
+    mode: '0600'
+  no_log: true
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment file
