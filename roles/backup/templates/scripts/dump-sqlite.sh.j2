@@ -7,15 +7,18 @@
 #
 # Output lands in {{ borg_dumps_container_path }}/sqlite/, which is part
 # of the borg source path; the next snapshot picks them up.
+#
+# Per-file failures (one DB locked, missing, or unreadable) are logged
+# but don't abort the rest of the list. Final exit code is 0 as long as
+# at least one DB dumped, so borgmatic continues with the files that
+# DID work. Summary of failures emitted on stderr.
 
-set -euo pipefail
+set -uo pipefail
 
 DUMP_DIR="{{ borg_dumps_container_path }}/sqlite"
 mkdir -p "$DUMP_DIR"
 
-# Clean previous dumps so we don't carry stale state across runs. Use null
-# globbing so the pattern expands to nothing instead of itself if a class
-# of file doesn't exist yet.
+# Clean previous dumps so we don't carry stale state across runs.
 shopt -s nullglob
 rm -f "$DUMP_DIR"/*.db "$DUMP_DIR"/*.sqlite "$DUMP_DIR"/*.sqlite3
 shopt -u nullglob
@@ -41,14 +44,33 @@ SQLITE_FILES=(
     "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.blobs.db"
 )
 
+FAILED=()
+SUCCEEDED=0
+
 for src in "${SQLITE_FILES[@]}"; do
     if [ ! -f "$src" ]; then
         echo "dump-sqlite: skipping missing ${src}" >&2
         continue
     fi
-    # Flatten the path into a single filename: /opt/docker/foo/bar.db -> foo_bar.db
     rel="${src#/opt/docker/}"
     dest="${DUMP_DIR}/${rel//\//_}"
     echo "dump-sqlite: ${src} -> ${dest}"
-    sqlite3 "$src" ".backup '${dest}'"
+    if sqlite3 "$src" ".backup '${dest}'"; then
+        SUCCEEDED=$((SUCCEEDED + 1))
+    else
+        echo "dump-sqlite: FAILED on ${src}" >&2
+        rm -f "${dest}"
+        FAILED+=("$src")
+    fi
 done
+
+echo "dump-sqlite: ${SUCCEEDED} succeeded, ${#FAILED[@]} failed"
+if [ "${#FAILED[@]}" -gt 0 ]; then
+    echo "dump-sqlite: failed files:" >&2
+    printf '  - %s\n' "${FAILED[@]}" >&2
+fi
+
+# Exit 0 as long as at least one DB dumped. A complete shutout (every DB
+# unreadable) probably means something structural is wrong and is worth
+# failing on.
+[ "$SUCCEEDED" -gt 0 ]

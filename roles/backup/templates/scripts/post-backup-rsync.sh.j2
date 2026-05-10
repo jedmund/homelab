@@ -16,8 +16,13 @@ fi
 # --delete keeps NAS in sync with local after Borg's compact rewrites.
 # Borg segment files are immutable once written so a partial rsync isn't
 # corrupting; the next run picks up where this one left off.
+#
+# UniFi Drive's NFS export doesn't allow chown to whatever uid the
+# borgmatic container runs as, so skip owner/group/perms preservation
+# entirely. Times are kept so rsync can detect actual content changes.
 exec rsync \
-    --archive \
+    --recursive \
+    --times \
     --delete \
     --human-readable \
     --info=stats2 \
