@@ -29,6 +29,35 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  borg-ui:
+    container_name: borg-ui
+    image: {{ borg_ui_image }}
+    restart: {{ restart_policy }}
+    environment:
+      - TZ={{ timezone }}
+      - PORT={{ borg_ui_container_port }}
+      - PUBLIC_BASE_URL=https://{{ borg_ui_domain }}
+    networks:
+      - proxy-network
+    volumes:
+      - borg-ui-data:/data
+      - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy-network
+      traefik.http.routers.borg-ui.rule: "Host(`{{ borg_ui_domain }}`)"
+      traefik.http.routers.borg-ui.entrypoints: "websecure"
+      traefik.http.routers.borg-ui.tls.certresolver: "letsencrypt"
+      traefik.http.services.borg-ui.loadbalancer.server.port: "{{ borg_ui_container_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  borg-ui-data:
+
 networks:
 {% for net in borg_networks %}
   {{ net }}:
