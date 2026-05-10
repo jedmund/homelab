@@ -47,6 +47,14 @@ borg_check_archives_frequency: 1 month
 borg_dumps_host_path: /var/backup/dumps
 borg_dumps_container_path: /dumps
 
+# borg-ui (web frontend)
+borg_ui_image: ghcr.io/karanhudia/borg-ui:latest
+borg_ui_domain: backup.atelier.house
+borg_ui_container_port: 8081
+# OIDC against PocketID is configured manually via the borg-ui Settings
+# panel after first deploy (the image doesn't accept OIDC config via env
+# vars). See README for the bootstrap procedure.
+
 # Networks the borgmatic container needs to join so it can reach every DB
 # by container hostname. All declared external because they're created by
 # other stacks.

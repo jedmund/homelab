@@ -128,7 +128,6 @@ and `/opt/docker/backup` (avoid recursive snapshot).
 
 ## What's not covered yet
 
-- Web UI for browsing/restore: lands in PR 3 (borg-ui with PocketID OIDC).
 - Monitoring: lands in PR 4 (Healthchecks.io plus Netdata scrape).
 - Plex's library database: deep path with spaces, deferred. Restoring
   from the bare config dir snapshot can result in inconsistent WAL state
@@ -136,3 +135,46 @@ and `/opt/docker/backup` (avoid recursive snapshot).
 - Named docker volumes that aren't covered by DB dumps (e.g. Synapse's
   media store at `matrix_synapse-data`, Mastodon's local media if any).
   TBD whether these need explicit handling.
+
+## Web UI
+
+`borg-ui` runs alongside `borgmatic` in the same stack, mounts the local
+repo read-only at `/repo`, and is exposed via Traefik at
+`https://backup.atelier.house`. Native PocketID OIDC is the auth model.
+
+### One-time bootstrap (after first deploy)
+
+Borg UI's OIDC configuration isn't env-var driven; it lives in the
+in-app Settings panel. Bootstrap procedure:
+
+1. **Register the OIDC client in PocketID:**
+   - Application name: `Borg UI`
+   - Redirect URI: `https://backup.atelier.house` plus whatever
+     callback path borg-ui's Settings panel reports (typically
+     `/api/auth/oidc/callback` or similar - confirm in the UI).
+   - Save client ID and secret somewhere safe.
+
+2. **First-time admin login:**
+   ```
+   open https://backup.atelier.house
+   # Default credentials on a fresh install: admin / admin123
+   ```
+
+3. **Configure OIDC inside borg-ui:**
+   - Navigate to Settings -> Authentication -> OIDC
+   - Issuer URL: `https://id.atelier.house`
+   - Client ID and secret: from step 1
+   - Scopes: `openid profile email`
+   - Save and test
+
+4. **Add the local repo:**
+   - Navigate to Repositories -> Add Local
+   - Path: `/repo`
+   - Passphrase: the value from `borg_passphrase` in
+     `group_vars/backup/vault.yml`
+
+5. **(Optional) Disable the default admin** once OIDC is confirmed
+   working, or rotate its password to something random and forget it.
+
+Subsequent users log in via PocketID, mapped to whatever role you've
+configured on the borg-ui side.
