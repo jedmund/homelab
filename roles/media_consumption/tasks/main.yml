@@ -47,6 +47,20 @@
   no_log: true
   notify: Restart {{ stack_name }} stack
 
+- name: Reset multi-scrobbler dead-letter cache
+  # One-shot: an upstream multi-scrobbler bug (`Cannot read properties of
+  # undefined (reading 'normalize')`) crashes the dead-letter retry path,
+  # wedging any plays it contains. Run this task with the
+  # `multi-scrobbler-reset` tag to clear the cache; on subsequent normal
+  # deploys it's a no-op (file already absent or healthy).
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/multi-scrobbler/ms-scrobble.cache"
+    state: absent
+  notify: Restart {{ stack_name }} stack
+  tags:
+    - never
+    - multi-scrobbler-reset
+
 - name: Deploy multi-scrobbler config
   template:
     src: "config/multi-scrobbler/config.json.j2"
@@ -60,5 +74,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

@@ -37,5 +37,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
