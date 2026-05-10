@@ -324,58 +324,6 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
-  album-sort:
-    container_name: album_sort
-    build: {{ album_sort_source_path }}
-    restart: {{ restart_policy }}
-    networks:
-      - shared
-    ports:
-      - {{ album_sort_port }}:{{ album_sort_container_port }}
-    env_file:
-      - ./env/album-sort.env
-    environment:
-      - TZ={{ timezone }}
-      - ORIGIN={{ album_sort_origin }}
-      - UNSORTED_PATH={{ album_sort_unsorted_path }}
-      - SORTED_PATH={{ album_sort_sorted_path }}
-      - DATA_PATH={{ album_sort_data_path }}
-      - WATCH_INTERVAL={{ album_sort_watch_interval }}
-      - BEETS_WEB_URL=http://beets:8337
-      - BEETS_API_URL=http://beets:8338
-    volumes:
-      - music:/music
-      - ./album-sort-data:/data
-    depends_on:
-      - beets
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
-  beets:
-    container_name: album_sort_beets
-    build: {{ album_sort_source_path }}/deploy/beets
-    restart: {{ restart_policy }}
-    networks:
-      - shared
-    environment:
-      - TZ={{ timezone }}
-      - MUSIC_SORTED_PATH={{ album_sort_sorted_path }}
-    volumes:
-      - music:/music
-      - ./album-sort-beets-data:/data/beets
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
 volumes:
   videos:
     external: true
