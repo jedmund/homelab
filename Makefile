@@ -109,6 +109,10 @@ deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
+deploy-backup: ## Deploy backup stack (Borgmatic)
+	@echo "$(BLUE)Deploying backup stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
+
 ##@ Deployment - Specific Services
 
 deploy-traefik: ## Deploy only Traefik
