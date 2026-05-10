@@ -12,6 +12,8 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config/homebox"
+    - "{{ docker_base_path }}/{{ stack_name }}/album-sort-data"
+    - "{{ docker_base_path }}/{{ stack_name }}/album-sort-beets-data"
 
 - name: Create Papra data directories
   file:
@@ -24,6 +26,16 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra"
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra/db"
     - "{{ docker_base_path }}/{{ stack_name }}/config/papra/documents"
+
+- name: Pull latest album-sort source
+  ansible.builtin.git:
+    repo: "{{ album_sort_repo }}"
+    dest: "{{ album_sort_source_path }}"
+    version: "{{ album_sort_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
   template:
@@ -43,6 +55,7 @@
     - immich
     - papra
     - homebox
+    - album-sort
   no_log: true
   notify: Restart {{ stack_name }} stack
 
@@ -50,5 +63,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    build: always
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

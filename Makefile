@@ -89,7 +89,7 @@ deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
 
 ##@ Deployment - Future Stacks
 
-deploy-content: ## Deploy content management stack
+deploy-content-management: ## Deploy content management stack
 	@echo "$(BLUE)Deploying content management...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/content_management.yml $(VAULT_FLAG)
 
