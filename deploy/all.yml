@@ -18,6 +18,8 @@
           9. Utilities
           10. Productivity
           11. Social
+          12. Matrix
+          13. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -63,3 +65,7 @@
 # Matrix stack
 - import_playbook: matrix.yml
   tags: [matrix]
+
+# Backup stack (deploy last - snapshots whatever is on disk)
+- import_playbook: backup.yml
+  tags: [backup]
