@@ -7,6 +7,7 @@ source_directories:
 {% for path in borg_source_paths %}
     - {{ path }}
 {% endfor %}
+    - {{ borg_dumps_container_path }}
 
 repositories:
     - path: {{ borg_repo_container_path }}
@@ -33,7 +34,72 @@ checks:
     - name: archives
       frequency: {{ borg_check_archives_frequency }}
 
-# After every successful backup, rsync the repo to the NFS-mounted NAS share.
-# The NAS's existing Backblaze sync picks up the new segment files.
+# Native PostgreSQL hooks: dumps stream directly into the archive without
+# touching local disk. Each entry connects to the DB container by name
+# over its docker network.
+postgresql_databases:
+    - name: {{ immich_db_name }}
+      hostname: immich_postgres
+      username: {{ immich_db_username }}
+      password: "{% raw %}{credential env IMMICH_DB_PASSWORD}{% endraw %}"
+    - name: {{ mastodon_db_name }}
+      hostname: mastodon_postgres
+      username: {{ mastodon_db_user }}
+      password: "{% raw %}{credential env MASTODON_DB_PASSWORD}{% endraw %}"
+    - name: {{ synapse_db_name }}
+      hostname: synapse_postgres
+      username: {{ synapse_db_user }}
+      password: "{% raw %}{credential env SYNAPSE_DB_PASSWORD}{% endraw %}"
+    - name: {{ mas_db_name }}
+      hostname: mas_postgres
+      username: {{ mas_db_user }}
+      password: "{% raw %}{credential env MAS_DB_PASSWORD}{% endraw %}"
+    - name: {{ n8n_db_name }}
+      hostname: n8n_postgres
+      username: {{ n8n_db_user }}
+      password: "{% raw %}{credential env N8N_DB_PASSWORD}{% endraw %}"
+    - name: {{ miniflux_db_name }}
+      hostname: miniflux-db
+      username: {{ miniflux_db_user }}
+      password: "{% raw %}{credential env MINIFLUX_DB_PASSWORD}{% endraw %}"
+    - name: {{ forgejo_db_name }}
+      hostname: forgejo_postgres
+      username: {{ forgejo_db_user }}
+      password: "{% raw %}{credential env FORGEJO_DB_PASSWORD}{% endraw %}"
+    - name: {{ blinko_db_name }}
+      hostname: blinko_postgres
+      username: {{ blinko_db_user }}
+      password: "{% raw %}{credential env BLINKO_DB_PASSWORD}{% endraw %}"
+    - name: {{ draftboard_db_name }}
+      hostname: draftboard_postgres
+      username: {{ draftboard_db_user }}
+      password: "{% raw %}{credential env DRAFTBOARD_DB_PASSWORD}{% endraw %}"
+
+# Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
+# what's set on the container; mysqldump needs LOCK TABLES which the romm
+# user may not have.
+mariadb_databases:
+    - name: all
+      hostname: romm-db
+      username: root
+      password: "{% raw %}{credential env ROMM_DB_ROOT_PASSWORD}{% endraw %}"
+
+# Native MongoDB hook for Komodo. Dumps the admin database which contains
+# Komodo's stack and deploy state.
+mongodb_databases:
+    - name: all
+      hostname: komodo_mongo
+      authentication_database: admin
+      username: {{ komodo_db_username }}
+      password: "{% raw %}{credential env KOMODO_DB_PASSWORD}{% endraw %}"
+
+# Custom dumps for CouchDB and SQLite. These write to {{ borg_dumps_container_path }}
+# before the backup runs; borgmatic then snapshots that directory as part
+# of source_directories above.
+before_backup:
+    - /scripts/dump-couchdb.sh
+    - /scripts/dump-sqlite.sh
+
+# Rsync the repo to the NFS-mounted NAS share after every successful run.
 after_actions:
     - /scripts/post-backup-rsync.sh

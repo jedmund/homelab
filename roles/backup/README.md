@@ -105,11 +105,34 @@ ls -la /mnt/nas/backup/borg-nuc-mini/
 
 Should mirror the structure of `/var/backup/borg/`.
 
-## Notes
+## What's covered
 
-- This is **PR 1**: file-level snapshots only. Database consistency
-  arrives in PR 2 via Borgmatic's native PostgreSQL/MongoDB hooks plus
-  custom `before_backup` scripts for CouchDB and SQLite.
-- The borg-ui web UI lands in PR 3.
-- Healthchecks.io / Netdata monitoring lands in PR 4.
-- Don't trust DB restores from snapshots taken before PR 2 ships.
+**Native borgmatic hooks** (streamed dump, no temp files):
+
+- 9 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
+  Forgejo, Blinko, Draftboard
+- 1 MariaDB: RomM (via `mariadb_databases` hook, dumped as root)
+- 1 MongoDB: Komodo (admin database, full dump)
+
+**Custom `before_backup` scripts** writing to `/var/backup/dumps/`:
+
+- CouchDB (Obsidian LiveSync): per-database JSON dump with attachments
+- SQLite: `sqlite3 .backup` snapshots for PocketID, Papra, Homebox,
+  album-sort, *arrs (Sonarr/Radarr/Lidarr/Prowlarr), qui, Pinchflat,
+  Kavita, Stash, Tunarr
+
+**File-level snapshots** (`/opt/docker`): every stack's bind-mounted
+configs, env files (encrypted at rest by borg), and other on-disk state.
+Excludes `/opt/docker/musicbrainz` (reproducible from upstream dumps)
+and `/opt/docker/backup` (avoid recursive snapshot).
+
+## What's not covered yet
+
+- Web UI for browsing/restore: lands in PR 3 (borg-ui with PocketID OIDC).
+- Monitoring: lands in PR 4 (Healthchecks.io plus Netdata scrape).
+- Plex's library database: deep path with spaces, deferred. Restoring
+  from the bare config dir snapshot can result in inconsistent WAL state
+  if Plex was writing during the backup.
+- Named docker volumes that aren't covered by DB dumps (e.g. Synapse's
+  media store at `matrix_synapse-data`, Mastodon's local media if any).
+  TBD whether these need explicit handling.
