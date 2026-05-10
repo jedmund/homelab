@@ -73,11 +73,13 @@ for src in "${SQLITE_FILES[@]}"; do
     fi
 done
 
+{% raw %}
 echo "dump-sqlite: ${SUCCEEDED} succeeded, ${#FAILED[@]} failed"
 if [ "${#FAILED[@]}" -gt 0 ]; then
     echo "dump-sqlite: failed files:" >&2
     printf '  - %s\n' "${FAILED[@]}" >&2
 fi
+{% endraw %}
 
 # Exit 0 as long as at least one DB dumped. A complete shutout (every DB
 # unreadable) probably means something structural is wrong and is worth
