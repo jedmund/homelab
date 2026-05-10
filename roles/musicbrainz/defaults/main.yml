@@ -1,0 +1,31 @@
+---
+# Stack identity
+stack_name: musicbrainz
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Upstream metabrainz/musicbrainz-docker checkout.
+# Pin to a tagged release so the Dockerfile's MUSICBRAINZ_SERVER_VERSION ARG
+# default matches a prebuilt base image actually published on Docker Hub.
+# Master HEAD often references images that haven't been pushed yet (e.g.
+# `metabrainz/musicbrainz-docker-musicbrainz:<tag>-build0` 404s during build).
+# Latest tags: https://github.com/metabrainz/musicbrainz-docker/tags
+musicbrainz_upstream_repo: https://github.com/metabrainz/musicbrainz-docker.git
+musicbrainz_upstream_version: v-2026-04-27.0
+musicbrainz_upstream_path: "{{ config_base }}/upstream"
+
+# MusicBrainz web service (WS/2 endpoint)
+musicbrainz_domain: musicbrainz.atelier.house
+musicbrainz_web_port: 5000
+
+# Image versions tracked in upstream's .env (override via vars when needed)
+musicbrainz_postgres_version: 18
+musicbrainz_solr_version: 4.1.0
+
+# Compose overlay set: default + replication-token + replication-cron + our local overlay
+musicbrainz_compose_files:
+  - docker-compose.yml
+  - compose/replication-token.yml
+  - compose/replication-cron.yml
+  - local/compose/atelier.yml
+
+# musicbrainz_replication_token - defined in vault

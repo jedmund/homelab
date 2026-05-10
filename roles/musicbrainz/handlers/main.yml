@@ -1,0 +1,8 @@
+---
+- name: Restart {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ musicbrainz_upstream_path }}"
+    state: present
+    remove_orphans: true
+    recreate: always
+    build: always

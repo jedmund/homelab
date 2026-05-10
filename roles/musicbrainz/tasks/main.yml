@@ -1,0 +1,68 @@
+---
+# MusicBrainz mirror - clones metabrainz/musicbrainz-docker upstream and
+# layers a local/ overlay (Traefik labels, network attachment) on top.
+# Initial DB import is a manual one-shot; see roles/musicbrainz/README.md.
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+
+- name: Clone/update musicbrainz-docker upstream
+  ansible.builtin.git:
+    repo: "{{ musicbrainz_upstream_repo }}"
+    dest: "{{ musicbrainz_upstream_path }}"
+    version: "{{ musicbrainz_upstream_version }}"
+    update: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
+
+- name: Create local overlay directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ musicbrainz_upstream_path }}/local"
+    - "{{ musicbrainz_upstream_path }}/local/compose"
+    - "{{ musicbrainz_upstream_path }}/local/secrets"
+
+- name: Deploy upstream .env
+  template:
+    src: env.j2
+    dest: "{{ musicbrainz_upstream_path }}/.env"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy atelier compose overlay
+  template:
+    src: local/compose/atelier.yml.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/compose/atelier.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy MetaBrainz replication access token
+  template:
+    src: local/secrets/metabrainz_access_token.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/secrets/metabrainz_access_token"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ musicbrainz_upstream_path }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    build: always
+  register: compose_result
