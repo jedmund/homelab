@@ -5,11 +5,9 @@
 
 FROM {{ borgmatic_upstream_image }}
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
         rsync \
-        nfs-common \
-        sqlite3 \
+        nfs-utils \
+        sqlite \
         jq \
-        curl && \
-    rm -rf /var/lib/apt/lists/*
+        curl
