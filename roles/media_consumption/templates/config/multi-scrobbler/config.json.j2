@@ -12,7 +12,8 @@
           "preCompare": [
             {
               "type": "musicbrainz",
-              "name": "mb"
+              "name": "mb",
+              "onFailure": "continue"
             }
           ]
         }
@@ -37,7 +38,8 @@
       "data": {
         "apis": [
           {
-            "contact": "{{ multi_scrobbler_mb_contact }}"
+            "contact": "{{ multi_scrobbler_mb_contact }}",
+            "url": "http://musicbrainz:{{ musicbrainz_web_port }}"
           }
         ]
       },

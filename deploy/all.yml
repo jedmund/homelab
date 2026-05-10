@@ -11,12 +11,13 @@
           2. Infrastructure Gateway (Traefik, PocketID)
           3. Infrastructure Core (Komodo)
           4. Media Acquisition
-          5. Media Consumption
-          6. Content Management
-          7. Development
-          8. Utilities
-          9. Productivity
-          10. Social
+          5. MusicBrainz mirror
+          6. Media Consumption
+          7. Content Management
+          8. Development
+          9. Utilities
+          10. Productivity
+          11. Social
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -32,6 +33,9 @@
 # Media stack
 - import_playbook: media_acquisition.yml
   tags: [media, media_acquisition]
+
+- import_playbook: musicbrainz.yml
+  tags: [media, musicbrainz]
 
 - import_playbook: media_consumption.yml
   tags: [media, media_consumption]
