@@ -48,7 +48,7 @@ borg_dumps_host_path: /var/backup/dumps
 borg_dumps_container_path: /dumps
 
 # borg-ui (web frontend)
-borg_ui_image: ghcr.io/karanhudia/borg-ui:latest
+borg_ui_image: ainullcode/borg-ui:latest
 borg_ui_domain: backup.atelier.house
 borg_ui_container_port: 8081
 # OIDC against PocketID is configured manually via the borg-ui Settings
