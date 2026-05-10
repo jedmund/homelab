@@ -119,7 +119,7 @@ Should mirror the structure of `/var/backup/borg/`.
 - CouchDB (Obsidian LiveSync): per-database JSON dump with attachments
 - SQLite: `sqlite3 .backup` snapshots for PocketID, Papra, Homebox,
   album-sort, *arrs (Sonarr/Radarr/Lidarr/Prowlarr), qui, Pinchflat,
-  Kavita, Stash, Tunarr
+  Kavita, Stash, Tunarr, Plex library DB and blobs DB
 
 **File-level snapshots** (`/opt/docker`): every stack's bind-mounted
 configs, env files (encrypted at rest by borg), and other on-disk state.
@@ -128,10 +128,6 @@ and `/opt/docker/backup` (avoid recursive snapshot).
 
 ## What's not covered yet
 
-- Monitoring: lands in PR 4 (Healthchecks.io plus Netdata scrape).
-- Plex's library database: deep path with spaces, deferred. Restoring
-  from the bare config dir snapshot can result in inconsistent WAL state
-  if Plex was writing during the backup.
 - Named docker volumes that aren't covered by DB dumps (e.g. Synapse's
   media store at `matrix_synapse-data`, Mastodon's local media if any).
   TBD whether these need explicit handling.
