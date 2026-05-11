@@ -2,61 +2,6 @@
 name: {{ stack_name }}
 
 services:
-  forgejo:
-    container_name: forgejo
-    image: {{ forgejo_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-      - backend
-    ports:
-      - "{{ forgejo_ssh_port }}:{{ forgejo_ssh_listen_port }}"
-    volumes:
-      - forgejo-data:/data
-      - /etc/localtime:/etc/localtime:ro
-    env_file:
-      - ./env/forgejo.env
-    environment:
-      - USER_UID={{ forgejo_user_uid }}
-      - USER_GID={{ forgejo_user_gid }}
-    depends_on:
-      forgejo-db:
-        condition: service_healthy
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.forgejo.rule: "Host(`{{ forgejo_domain }}`)"
-      traefik.http.routers.forgejo.entrypoints: "websecure"
-      traefik.http.routers.forgejo.tls.certresolver: "letsencrypt"
-      traefik.http.services.forgejo.loadbalancer.server.port: "{{ forgejo_web_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
-  forgejo-db:
-    container_name: forgejo_postgres
-    image: {{ forgejo_db_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - backend
-    volumes:
-      - forgejo-pgdata:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER={{ forgejo_db_user }}
-      - POSTGRES_PASSWORD={{ forgejo_db_password }}
-      - POSTGRES_DB={{ forgejo_db_name }}
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ forgejo_db_user }}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: "5m"
-        max-file: {{ logging_max_file }}
-
   gitlab:
     container_name: gitlab
     image: {{ gitlab_image }}
@@ -166,9 +111,6 @@ services:
         max-file: {{ logging_max_file }}
 
 volumes:
-  forgejo-data:
-    external: true
-  forgejo-pgdata:
   open-webui-data:
     external: true
 

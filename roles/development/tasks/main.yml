@@ -1,5 +1,5 @@
 ---
-# Development Stack - Forgejo, GitLab, GitLab Runner, Renovate, Open WebUI
+# Development Stack - GitLab, GitLab Runner, Renovate, Open WebUI
 
 - name: Create {{ stack_name }} directories
   file:
@@ -33,7 +33,6 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
-    - forgejo
     - gitlab
     - renovate
   no_log: true

@@ -6,33 +6,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # Server IPs
 max_server_ip: 192.168.1.245
 
-# Forgejo settings
-forgejo_image: codeberg.org/forgejo/forgejo:15.0.0
-forgejo_domain: git.atelier.house
-forgejo_ssh_port: 2222
-forgejo_web_port: 3000
-forgejo_host_port: 3030
-forgejo_user_uid: "1000"
-forgejo_user_gid: "1000"
-forgejo_root_url: "https://{{ forgejo_domain }}"
-forgejo_ssh_listen_port: "2222"
-forgejo_openid_signin_enabled: "false"
-forgejo_openid_signup_enabled: "false"
-forgejo_oauth2_auto_registration: "true"
-forgejo_oauth2_account_linking: auto
-forgejo_oauth2_username: email
-forgejo_disable_registration: "false"
-forgejo_require_signin_view: "false"
-
-# Forgejo database
-forgejo_db_image: postgres:16-alpine
-forgejo_db_host: forgejo-db
-forgejo_db_port: "5432"
-forgejo_db_name: forgejo
-forgejo_db_user: forgejo
-
 # Vault secrets consumed by this role:
-#   forgejo_db_password
 #   open_webui_secret_key, open_webui_oauth_client_id, open_webui_oauth_client_secret
 #   gitlab_initial_root_password
 #   gitlab_oidc_client_id, gitlab_oidc_client_secret
@@ -41,9 +15,9 @@ forgejo_db_user: forgejo
 
 # GitLab CE settings
 gitlab_image: gitlab/gitlab-ce:17.5.2-ce.0
-gitlab_domain: gitlab.atelier.house
+gitlab_domain: git.atelier.house
 gitlab_registry_domain: registry.atelier.house
-gitlab_ssh_port: "2223"
+gitlab_ssh_port: "2222"
 gitlab_web_port: 80
 gitlab_registry_port: 5050
 gitlab_root_url: "https://{{ gitlab_domain }}"
@@ -75,7 +49,7 @@ renovate_log_level: info
 renovate_platform: gitlab
 # Hits GitLab over the backend docker network rather than out through
 # Traefik. GitLab's external_url still controls URLs in API responses,
-# so MR links etc. continue to point at gitlab.atelier.house.
+# so MR links etc. continue to point at git.atelier.house.
 renovate_endpoint: "http://gitlab/api/v4/"
 renovate_git_author: "Renovate Bot <renovate-bot@{{ gitlab_domain }}>"
 renovate_autodiscover: "true"
