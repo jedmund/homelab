@@ -31,6 +31,61 @@ forgejo_db_port: "5432"
 forgejo_db_name: forgejo
 forgejo_db_user: forgejo
 
+# Vault secrets consumed by this role:
+#   forgejo_db_password
+#   open_webui_secret_key, open_webui_oauth_client_id, open_webui_oauth_client_secret
+#   gitlab_initial_root_password
+#   gitlab_oidc_client_id, gitlab_oidc_client_secret
+#   gitlab_runner_auth_token
+#   renovate_gitlab_token, renovate_github_token (optional)
+
+# GitLab CE settings
+gitlab_image: gitlab/gitlab-ce:17.5.2-ce.0
+gitlab_domain: gitlab.atelier.house
+gitlab_registry_domain: registry.atelier.house
+gitlab_ssh_port: "2223"
+gitlab_web_port: 80
+gitlab_registry_port: 5050
+gitlab_root_url: "https://{{ gitlab_domain }}"
+gitlab_registry_url: "https://{{ gitlab_registry_domain }}"
+gitlab_shm_size: "256m"
+# All four below come from vault once configured. Empty defaults let the
+# first deploy succeed; GitLab generates its own initial root password
+# (logged at /etc/gitlab/initial_root_password inside the container) if
+# the env var is empty, and OIDC just won't work until PocketID client
+# creds are populated.
+gitlab_initial_root_password: ""
+gitlab_oidc_client_id: ""
+gitlab_oidc_client_secret: ""
+
+# GitLab Runner settings
+gitlab_runner_image: gitlab/gitlab-runner:v17.5.2
+gitlab_runner_name: nuc-mini-docker
+gitlab_runner_concurrent: 4
+gitlab_runner_default_image: alpine:latest
+gitlab_runner_log_level: info
+# Generated in GitLab admin UI after first GitLab boot, then added to
+# vault. Empty default lets the first deploy render config.toml without
+# failing; runner will log auth errors until the token is populated.
+gitlab_runner_auth_token: ""
+
+# Renovate settings
+renovate_image: renovate/renovate:39
+renovate_log_level: info
+renovate_platform: gitlab
+# Hits GitLab over the backend docker network rather than out through
+# Traefik. GitLab's external_url still controls URLs in API responses,
+# so MR links etc. continue to point at gitlab.atelier.house.
+renovate_endpoint: "http://gitlab/api/v4/"
+renovate_git_author: "Renovate Bot <renovate-bot@{{ gitlab_domain }}>"
+renovate_autodiscover: "true"
+renovate_onboarding: "true"
+renovate_schedule_cron: "0 8 * * 1"  # Mondays 08:00 local
+# Created on a dedicated `renovate-bot` GitLab user after GitLab is up.
+# Empty default so templating works on first deploy; the weekly cron
+# will no-op (or noisily fail) until the vault entry is populated.
+renovate_gitlab_token: ""
+
 # Open WebUI settings
 open_webui_image: ghcr.io/open-webui/open-webui:main
 open_webui_domain: ai.atelier.house

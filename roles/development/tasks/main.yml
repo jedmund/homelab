@@ -1,6 +1,5 @@
 ---
-# Development Stack - Forgejo, Open WebUI
-# Uses docker_compose_v2 for container orchestration
+# Development Stack - Forgejo, GitLab, GitLab Runner, Renovate, Open WebUI
 
 - name: Create {{ stack_name }} directories
   file:
@@ -11,6 +10,13 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/logs"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/data"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner"
+    - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/renovate"
 
 - name: Deploy compose file
   template:
@@ -28,8 +34,46 @@
     mode: '0600'
   loop:
     - forgejo
+    - gitlab
+    - renovate
   no_log: true
   notify: Restart {{ stack_name }} stack
+
+- name: Deploy GitLab omnibus config
+  template:
+    src: gitlab/gitlab.rb.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/gitlab/config/gitlab.rb"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Reconfigure GitLab if running
+
+- name: Deploy GitLab Runner config
+  template:
+    src: gitlab-runner/config.toml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner/config/config.toml"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Renovate config
+  template:
+    src: renovate/config.js.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/renovate/config.js"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Schedule Renovate weekly run
+  ansible.builtin.cron:
+    name: renovate
+    user: "{{ ansible_user }}"
+    job: "docker compose -f {{ docker_base_path }}/{{ stack_name }}/compose.yaml run --rm renovate >> /var/log/renovate.log 2>&1"
+    minute: "{{ renovate_schedule_cron.split(' ')[0] }}"
+    hour: "{{ renovate_schedule_cron.split(' ')[1] }}"
+    day: "{{ renovate_schedule_cron.split(' ')[2] }}"
+    month: "{{ renovate_schedule_cron.split(' ')[3] }}"
+    weekday: "{{ renovate_schedule_cron.split(' ')[4] }}"
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:

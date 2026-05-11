@@ -57,6 +57,81 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
+  gitlab:
+    container_name: gitlab
+    image: {{ gitlab_image }}
+    restart: {{ restart_policy }}
+    hostname: {{ gitlab_domain }}
+    shm_size: {{ gitlab_shm_size }}
+    networks:
+      - proxy
+      - backend
+    ports:
+      - "{{ gitlab_ssh_port }}:22"
+    volumes:
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
+    env_file:
+      - ./env/gitlab.env
+    healthcheck:
+      test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail", "--max-time", "10"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 600s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.gitlab.rule: "Host(`{{ gitlab_domain }}`)"
+      traefik.http.routers.gitlab.entrypoints: "websecure"
+      traefik.http.routers.gitlab.tls.certresolver: "letsencrypt"
+      traefik.http.routers.gitlab.service: "gitlab"
+      traefik.http.services.gitlab.loadbalancer.server.port: "{{ gitlab_web_port }}"
+      traefik.http.routers.gitlab-registry.rule: "Host(`{{ gitlab_registry_domain }}`)"
+      traefik.http.routers.gitlab-registry.entrypoints: "websecure"
+      traefik.http.routers.gitlab-registry.tls.certresolver: "letsencrypt"
+      traefik.http.routers.gitlab-registry.service: "gitlab-registry"
+      traefik.http.services.gitlab-registry.loadbalancer.server.port: "{{ gitlab_registry_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  gitlab-runner:
+    container_name: gitlab_runner
+    image: {{ gitlab_runner_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - ./gitlab-runner/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  renovate:
+    container_name: renovate
+    image: {{ renovate_image }}
+    restart: "no"
+    networks:
+      - backend
+    env_file:
+      - ./env/renovate.env
+    volumes:
+      - ./renovate/config.js:/usr/src/app/config.js:ro
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   open-webui:
     container_name: open_webui
     image: {{ open_webui_image }}

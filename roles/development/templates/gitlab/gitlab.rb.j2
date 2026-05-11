@@ -1,0 +1,67 @@
+# {{ ansible_managed }}
+# GitLab Omnibus configuration. Reloaded by `gitlab-ctl reconfigure` on
+# container start. Keep this file authoritative; never edit gitlab.rb on
+# the host directly.
+
+external_url '{{ gitlab_root_url }}'
+registry_external_url '{{ gitlab_registry_url }}'
+
+# Traefik terminates TLS; GitLab speaks plain HTTP behind it.
+nginx['listen_https'] = false
+nginx['listen_port'] = {{ gitlab_web_port }}
+nginx['redirect_http_to_https'] = false
+nginx['real_ip_trusted_addresses'] = ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+nginx['real_ip_header'] = 'X-Forwarded-For'
+nginx['real_ip_recursive'] = 'on'
+letsencrypt['enable'] = false
+
+registry_nginx['listen_https'] = false
+registry_nginx['listen_port'] = {{ gitlab_registry_port }}
+registry_nginx['redirect_http_to_https'] = false
+registry_nginx['proxy_set_headers'] = {
+  "X-Forwarded-Proto" => "https",
+  "X-Forwarded-Ssl"   => "on"
+}
+
+# Git SSH lives on a non-default host port; tell GitLab what to advertise in clone URLs.
+gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }}
+
+# Backups: omnibus writes archives to this path inside the container.
+# We bind-mount the parent so borgmatic can pick them up from the host.
+gitlab_rails['backup_path'] = '/var/opt/gitlab/backups'
+gitlab_rails['backup_keep_time'] = 86400
+
+# OmniAuth / OIDC via PocketID.
+gitlab_rails['omniauth_enabled'] = true
+gitlab_rails['omniauth_allow_single_sign_on'] = ['openid_connect']
+gitlab_rails['omniauth_block_auto_created_users'] = false
+gitlab_rails['omniauth_auto_link_user'] = ['openid_connect']
+gitlab_rails['omniauth_providers'] = [
+  {
+    name: 'openid_connect',
+    label: 'PocketID',
+    icon: nil,
+    args: {
+      name: 'openid_connect',
+      scope: ['openid', 'profile', 'email'],
+      response_type: 'code',
+      issuer: 'https://id.atelier.house',
+      discovery: true,
+      client_auth_method: 'basic',
+      uid_field: 'sub',
+      send_scope_to_token_endpoint: true,
+      pkce: true,
+      client_options: {
+        identifier: '{{ gitlab_oidc_client_id }}',
+        secret: '{{ gitlab_oidc_client_secret }}',
+        redirect_uri: '{{ gitlab_root_url }}/users/auth/openid_connect/callback'
+      }
+    }
+  }
+]
+
+# Resource ceilings tuned for a shared homelab host. Bump if CI gets sluggish.
+puma['worker_processes'] = 2
+sidekiq['max_concurrency'] = 10
+prometheus_monitoring['enable'] = false
+gitlab_rails['gitlab_default_theme'] = 2
