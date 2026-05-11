@@ -38,13 +38,22 @@
     mode: '0600'
   register: bridge_netplan
 
-- name: Apply bridge netplan (auto-rolls-back after 120s if connection drops)
-  command: netplan try --timeout 120
+- name: Apply bridge netplan (briefly drops SSH while br0 takes over the IP)
+  command: netplan apply
   when: bridge_netplan.changed
-  # netplan try waits for user confirmation by default. The --timeout
-  # variant accepts changes automatically if the Ansible SSH connection
-  # stays alive past the timeout, and rolls back if the bridge breaks
-  # connectivity. This is the safe form for remote application.
+  async: 30
+  poll: 0
+  # netplan try does not support reverting bridge or bond changes
+  # (kernel limitation), so it bails out immediately. Use netplan apply
+  # in fire-and-forget mode. The bridge's macaddress is pinned to the
+  # physical NIC's MAC in the template, so DHCP returns the same lease
+  # and Ansible can reconnect on the same inventory IP.
+
+- name: Wait for SSH to recover after the bridge swap
+  wait_for_connection:
+    timeout: 180
+    delay: 20
+  when: bridge_netplan.changed
 
 - name: Ensure libvirt image directory exists
   file:
