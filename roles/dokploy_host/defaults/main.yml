@@ -1,0 +1,49 @@
+---
+# dokploy_host role: provisions a KVM VM on nuc-mini that runs Dokploy.
+# The VM owns its own LAN IP and its own Traefik. The existing nuc-mini
+# Traefik is untouched.
+#
+# atelier.house DNS records that resolve to this VM (keep current as apps
+# are onboarded):
+#   dokploy.atelier.house        - admin UI
+#   *.apps.atelier.house         - default per-app wildcard
+#   <add per-app overrides here, e.g. sorter.atelier.house>
+
+# VM identity
+vm_name: dokploy
+vm_hostname: dokploy.lan
+vm_static_ip: 192.168.1.8
+vm_gateway: 192.168.1.1
+vm_netmask_bits: 24
+vm_dns_servers:
+  - 1.1.1.1
+  - 1.0.0.1
+
+# VM resources
+vm_vcpus: 4
+vm_memory_mb: 8192
+vm_disk_gb: 100
+
+# Guest OS
+vm_image_url: https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+vm_image_checksum_url: https://cloud-images.ubuntu.com/releases/24.04/release/SHA256SUMS
+vm_image_dest: /var/lib/libvirt/images/ubuntu-24.04-server-cloudimg-amd64.img
+vm_disk_path: /var/lib/libvirt/images/{{ vm_name }}.qcow2
+vm_seed_iso: /var/lib/libvirt/images/{{ vm_name }}-seed.iso
+vm_os_variant: ubuntu24.04
+
+# Host bridge
+bridge_iface: br0
+# Set to the physical interface on nuc-mini (verified during run); enp89s0
+# is the typical name on Intel NUCs but is host-specific. Override via
+# group_vars or host_vars if it differs.
+bridge_phys_iface: enp89s0
+
+# SSH key for cloud-init authorized_keys (uses the same key Ansible uses)
+vm_authorized_key_lookup: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+
+# Backup
+vm_backup_dir: /var/backup/dokploy
+vm_backup_keep_days: 7
+vm_backup_cron_hour: 1
+vm_backup_cron_minute: 0

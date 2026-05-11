@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Bridge over the host's primary NIC so the Dokploy VM can attach to br0
+# and get its own LAN IP. The host's IP migrates from the physical
+# interface onto the bridge.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ bridge_phys_iface }}:
+      dhcp4: false
+      dhcp6: false
+  bridges:
+    {{ bridge_iface }}:
+      interfaces:
+        - {{ bridge_phys_iface }}
+      dhcp4: true
+      dhcp6: false
+      parameters:
+        stp: false
+        forward-delay: 0

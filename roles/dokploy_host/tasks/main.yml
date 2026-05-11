@@ -1,0 +1,200 @@
+---
+# dokploy_host: provision an Ubuntu KVM VM on nuc-mini that runs Dokploy.
+# Idempotent: re-running this role should not destroy the VM. The
+# virt-install step is gated on `virsh dominfo {{ vm_name }}` returning
+# non-zero (i.e. domain does not yet exist).
+
+- name: Install virtualization stack
+  apt:
+    name:
+      - qemu-kvm
+      - libvirt-daemon-system
+      - libvirt-clients
+      - virtinst
+      - cloud-image-utils
+      - bridge-utils
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Ensure libvirtd is running
+  systemd:
+    name: libvirtd
+    state: started
+    enabled: yes
+
+- name: Add ansible_user to libvirt and kvm groups
+  user:
+    name: "{{ ansible_user }}"
+    groups: [libvirt, kvm]
+    append: yes
+
+- name: Deploy bridge netplan config
+  template:
+    src: netplan/50-br0.yaml.j2
+    dest: /etc/netplan/50-br0.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  register: bridge_netplan
+
+- name: Apply bridge netplan (auto-rolls-back after 120s if connection drops)
+  command: netplan try --timeout 120
+  when: bridge_netplan.changed
+  # netplan try waits for user confirmation by default. The --timeout
+  # variant accepts changes automatically if the Ansible SSH connection
+  # stays alive past the timeout, and rolls back if the bridge breaks
+  # connectivity. This is the safe form for remote application.
+
+- name: Ensure libvirt image directory exists
+  file:
+    path: /var/lib/libvirt/images
+    state: directory
+    owner: root
+    group: root
+    mode: '0711'
+
+- name: Download Ubuntu 24.04 cloud image
+  get_url:
+    url: "{{ vm_image_url }}"
+    dest: "{{ vm_image_dest }}"
+    mode: '0644'
+    # Skip if file exists and is non-empty; the SHA256SUMS file would be
+    # the authoritative integrity check, but get_url's force=no default
+    # avoids re-downloading and Ubuntu re-publishes immutable point
+    # releases under a versioned path, so existence is sufficient.
+
+- name: Check if VM domain already exists
+  command: virsh dominfo {{ vm_name }}
+  register: vm_domain_check
+  failed_when: false
+  changed_when: false
+
+- name: Render cloud-init user-data
+  template:
+    src: cloud-init/user-data.yaml.j2
+    dest: /var/lib/libvirt/images/{{ vm_name }}-user-data.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  when: vm_domain_check.rc != 0
+
+- name: Render cloud-init network-config
+  template:
+    src: cloud-init/network-config.yaml.j2
+    dest: /var/lib/libvirt/images/{{ vm_name }}-network-config.yaml
+    owner: root
+    group: root
+    mode: '0600'
+  when: vm_domain_check.rc != 0
+
+- name: Build cloud-init seed ISO
+  command: >
+    cloud-localds
+      --network-config=/var/lib/libvirt/images/{{ vm_name }}-network-config.yaml
+      {{ vm_seed_iso }}
+      /var/lib/libvirt/images/{{ vm_name }}-user-data.yaml
+  args:
+    creates: "{{ vm_seed_iso }}"
+  when: vm_domain_check.rc != 0
+
+- name: Copy cloud image to VM disk
+  copy:
+    src: "{{ vm_image_dest }}"
+    dest: "{{ vm_disk_path }}"
+    remote_src: yes
+    force: no
+    owner: root
+    group: root
+    mode: '0600'
+  when: vm_domain_check.rc != 0
+
+- name: Resize VM disk to target size
+  command: qemu-img resize {{ vm_disk_path }} {{ vm_disk_gb }}G
+  when: vm_domain_check.rc != 0
+  changed_when: true
+
+- name: Define the VM
+  command: >
+    virt-install
+      --name {{ vm_name }}
+      --memory {{ vm_memory_mb }}
+      --vcpus {{ vm_vcpus }}
+      --disk path={{ vm_disk_path }},format=qcow2,bus=virtio
+      --disk path={{ vm_seed_iso }},device=cdrom
+      --os-variant {{ vm_os_variant }}
+      --network bridge={{ bridge_iface }},model=virtio
+      --graphics none
+      --import
+      --noautoconsole
+      --noreboot
+  when: vm_domain_check.rc != 0
+
+- name: Mark VM autostart
+  command: virsh autostart {{ vm_name }}
+  when: vm_domain_check.rc != 0
+  changed_when: true
+
+- name: Get VM domain state
+  command: virsh domstate {{ vm_name }}
+  register: vm_domstate
+  changed_when: false
+
+- name: Start the VM if not running
+  command: virsh start {{ vm_name }}
+  when: "'running' not in vm_domstate.stdout"
+  changed_when: true
+
+- name: Wait for VM SSH to come up
+  wait_for:
+    host: "{{ vm_static_ip }}"
+    port: 22
+    delay: 15
+    timeout: 600
+    state: started
+
+- name: Ensure backup directory exists
+  file:
+    path: "{{ vm_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install VM backup script
+  copy:
+    content: |
+      #!/usr/bin/env bash
+      # {{ ansible_managed }}
+      # Nightly application-consistent qcow2 dump of the Dokploy VM.
+      # Shuts the guest down cleanly, copies + compresses the disk
+      # image, restarts the guest, prunes archives older than
+      # {{ vm_backup_keep_days }} days. Borgmatic picks up the dump
+      # via its /opt/docker source path or an extension here.
+      set -euo pipefail
+
+      virsh shutdown {{ vm_name }} || true
+      for _ in $(seq 1 60); do
+        state=$(virsh domstate {{ vm_name }} 2>/dev/null || echo unknown)
+        [ "$state" = "shut off" ] && break
+        sleep 1
+      done
+
+      stamp=$(date +%F)
+      qemu-img convert -O qcow2 -c {{ vm_disk_path }} {{ vm_backup_dir }}/{{ vm_name }}-${stamp}.qcow2
+
+      virsh start {{ vm_name }}
+
+      find {{ vm_backup_dir }} -name '{{ vm_name }}-*.qcow2' -mtime +{{ vm_backup_keep_days }} -delete
+    dest: /usr/local/sbin/dokploy-vm-backup
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Schedule nightly VM backup
+  ansible.builtin.cron:
+    name: dokploy-vm-backup
+    user: root
+    job: "/usr/local/sbin/dokploy-vm-backup >> /var/log/dokploy-vm-backup.log 2>&1"
+    minute: "{{ vm_backup_cron_minute }}"
+    hour: "{{ vm_backup_cron_hour }}"

@@ -1,0 +1,30 @@
+#cloud-config
+# {{ ansible_managed }}
+
+hostname: {{ vm_hostname }}
+manage_etc_hosts: true
+
+users:
+  - name: ubuntu
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - {{ vm_authorized_key_lookup }}
+
+package_update: true
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - unattended-upgrades
+  - curl
+  - ca-certificates
+
+runcmd:
+  - systemctl enable --now qemu-guest-agent
+  - systemctl enable --now unattended-upgrades
+
+power_state:
+  mode: reboot
+  condition: True
