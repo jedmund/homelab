@@ -1,7 +1,8 @@
 # {{ ansible_managed }}
 # Bridge over the host's primary NIC so the Dokploy VM can attach to br0
 # and get its own LAN IP. The host's IP migrates from the physical
-# interface onto the bridge.
+# interface onto the bridge. The bridge's MAC is pinned to the physical
+# NIC's MAC so the existing DHCP lease (and inventory IP) stays valid.
 network:
   version: 2
   renderer: networkd
@@ -13,6 +14,7 @@ network:
     {{ bridge_iface }}:
       interfaces:
         - {{ bridge_phys_iface }}
+      macaddress: {{ ansible_facts[bridge_phys_iface]['macaddress'] }}
       dhcp4: true
       dhcp6: false
       parameters:
