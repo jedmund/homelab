@@ -27,12 +27,19 @@
   # dokploy-postgres, dokploy-redis, dokploy, and dokploy-traefik. The
   # script is deliberately not idempotent so we gate it on dokploy_present.
 
-- name: Swap dokploy service image to the fork
-  command: docker service update --image {{ dokploy_image }} --force dokploy
+- name: Swap dokploy service image and apply env vars
+  command: >
+    docker service update
+    --image {{ dokploy_image }}
+    --env-add DOKPLOY_ENABLE_SELF_HOSTED_SSO={{ dokploy_enable_sso | string | lower }}
+    --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }}
+    --force
+    dokploy
   changed_when: true
   # `--force` is the standard way to redeploy a service even when the
   # image tag is unchanged (e.g. when canary moves to a new sha). The
-  # update is rolling; Swarm handles the transition.
+  # update is rolling; Swarm handles the transition. --env-add is
+  # idempotent: re-applying the same env vars is a no-op.
 
 - name: Print bootstrap URL
   debug:

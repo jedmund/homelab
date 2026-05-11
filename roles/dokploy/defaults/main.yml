@@ -18,3 +18,10 @@ dokploy_image: ghcr.io/jedmund/dokploy:canary
 dokploy_install_url: https://dokploy.com/install.sh
 dokploy_install_script_path: /root/dokploy-install.sh
 dokploy_config_dir: /etc/dokploy
+
+# Self-hosted SSO. Both env vars are read by Dokploy on container start.
+# dokploy_sso_primary makes SSO the default login (regular form is
+# secondary). If SSO is misconfigured, set this to false to avoid being
+# locked out.
+dokploy_enable_sso: true
+dokploy_sso_primary: true
