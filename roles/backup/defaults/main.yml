@@ -28,6 +28,10 @@ borg_compression: zstd,3
 # Source paths to back up (read-only mounted into container at same path)
 borg_source_paths:
   - /opt/docker
+  # Dokploy VM qcow2 dumps produced nightly by /usr/local/sbin/dokploy-vm-backup
+  # (dokploy_host role). The VM is shut down before each dump so the
+  # image is application-consistent on first boot from a restore.
+  - /var/backup/dokploy
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
