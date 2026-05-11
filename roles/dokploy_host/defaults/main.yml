@@ -34,10 +34,9 @@ vm_os_variant: ubuntu24.04
 
 # Host bridge
 bridge_iface: br0
-# Set to the physical interface on nuc-mini (verified during run); enp89s0
-# is the typical name on Intel NUCs but is host-specific. Override via
-# group_vars or host_vars if it differs.
-bridge_phys_iface: enp89s0
+# Active physical NIC on nuc-mini (confirmed via `ip link`). nuc-mini has
+# two onboard ports (enp46s0 and enp86s0); only enp46s0 is cabled.
+bridge_phys_iface: enp46s0
 
 # SSH key for cloud-init authorized_keys (uses the same key Ansible uses)
 vm_authorized_key_lookup: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
