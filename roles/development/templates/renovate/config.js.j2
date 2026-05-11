@@ -1,0 +1,16 @@
+// {{ ansible_managed }}
+// Renovate self-hosted config. Loaded via RENOVATE_CONFIG_FILE; everything
+// here is overridable by per-repo .renovaterc.json once onboarding lands.
+
+module.exports = {
+  platform: '{{ renovate_platform }}',
+  endpoint: '{{ renovate_endpoint }}',
+  gitAuthor: '{{ renovate_git_author }}',
+  autodiscover: {{ renovate_autodiscover }},
+  onboarding: {{ renovate_onboarding }},
+  onboardingConfig: {
+    extends: ['config:recommended'],
+  },
+  logLevel: '{{ renovate_log_level }}',
+  // GitLab is self-signed via Lets Encrypt through Traefik; no extra CA needed.
+};

@@ -2,59 +2,79 @@
 name: {{ stack_name }}
 
 services:
-  forgejo:
-    container_name: forgejo
-    image: {{ forgejo_image }}
+  gitlab:
+    container_name: gitlab
+    image: {{ gitlab_image }}
     restart: {{ restart_policy }}
+    hostname: {{ gitlab_domain }}
+    shm_size: {{ gitlab_shm_size }}
     networks:
       - proxy
       - backend
     ports:
-      - "{{ forgejo_ssh_port }}:{{ forgejo_ssh_listen_port }}"
+      - "{{ gitlab_ssh_port }}:22"
     volumes:
-      - forgejo-data:/data
-      - /etc/localtime:/etc/localtime:ro
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
     env_file:
-      - ./env/forgejo.env
-    environment:
-      - USER_UID={{ forgejo_user_uid }}
-      - USER_GID={{ forgejo_user_gid }}
-    depends_on:
-      forgejo-db:
-        condition: service_healthy
+      - ./env/gitlab.env
+    healthcheck:
+      test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail", "--max-time", "10"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 600s
     labels:
       traefik.enable: "true"
-      traefik.http.routers.forgejo.rule: "Host(`{{ forgejo_domain }}`)"
-      traefik.http.routers.forgejo.entrypoints: "websecure"
-      traefik.http.routers.forgejo.tls.certresolver: "letsencrypt"
-      traefik.http.services.forgejo.loadbalancer.server.port: "{{ forgejo_web_port }}"
+      traefik.http.routers.gitlab.rule: "Host(`{{ gitlab_domain }}`)"
+      traefik.http.routers.gitlab.entrypoints: "websecure"
+      traefik.http.routers.gitlab.tls.certresolver: "letsencrypt"
+      traefik.http.routers.gitlab.service: "gitlab"
+      traefik.http.services.gitlab.loadbalancer.server.port: "{{ gitlab_web_port }}"
+      traefik.http.routers.gitlab-registry.rule: "Host(`{{ gitlab_registry_domain }}`)"
+      traefik.http.routers.gitlab-registry.entrypoints: "websecure"
+      traefik.http.routers.gitlab-registry.tls.certresolver: "letsencrypt"
+      traefik.http.routers.gitlab-registry.service: "gitlab-registry"
+      traefik.http.services.gitlab-registry.loadbalancer.server.port: "{{ gitlab_registry_port }}"
     logging:
       driver: {{ logging_driver }}
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  forgejo-db:
-    container_name: forgejo_postgres
-    image: {{ forgejo_db_image }}
+  gitlab-runner:
+    container_name: gitlab_runner
+    image: {{ gitlab_runner_image }}
     restart: {{ restart_policy }}
     networks:
       - backend
     volumes:
-      - forgejo-pgdata:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER={{ forgejo_db_user }}
-      - POSTGRES_PASSWORD={{ forgejo_db_password }}
-      - POSTGRES_DB={{ forgejo_db_name }}
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "{{ forgejo_db_user }}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./gitlab-runner/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      gitlab:
+        condition: service_healthy
     logging:
       driver: {{ logging_driver }}
       options:
-        max-size: "5m"
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  renovate:
+    container_name: renovate
+    image: {{ renovate_image }}
+    restart: "no"
+    networks:
+      - backend
+    env_file:
+      - ./env/renovate.env
+    volumes:
+      - ./renovate/config.js:/usr/src/app/config.js:ro
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
   open-webui:
@@ -91,9 +111,6 @@ services:
         max-file: {{ logging_max_file }}
 
 volumes:
-  forgejo-data:
-    external: true
-  forgejo-pgdata:
   open-webui-data:
     external: true
 

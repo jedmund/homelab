@@ -64,10 +64,6 @@ postgresql_databases:
       hostname: miniflux-db
       username: {{ miniflux_db_user }}
       password: "{{ miniflux_db_password }}"
-    - name: {{ forgejo_db_name }}
-      hostname: forgejo_postgres
-      username: {{ forgejo_db_user }}
-      password: "{{ forgejo_db_password }}"
     - name: {{ blinko_db_name }}
       hostname: blinko_postgres
       username: {{ blinko_db_user }}
