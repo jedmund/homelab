@@ -1,0 +1,50 @@
+---
+# dokploy: bootstrap Dokploy inside the VM, then point its service at
+# the fork image. Idempotent: subsequent runs skip the install step
+# and re-apply the image swap (a no-op if the SHA hasn't moved).
+
+- name: Check whether Dokploy is already installed
+  stat:
+    path: "{{ dokploy_config_dir }}"
+  register: dokploy_present
+
+- name: Fetch Dokploy install script
+  get_url:
+    url: "{{ dokploy_install_url }}"
+    dest: "{{ dokploy_install_script_path }}"
+    mode: '0700'
+    owner: root
+    group: root
+  when: not dokploy_present.stat.exists
+
+- name: Run Dokploy install script
+  command: bash {{ dokploy_install_script_path }}
+  environment:
+    DOKPLOY_VERSION: "{{ dokploy_version }}"
+  when: not dokploy_present.stat.exists
+  # Installs Docker if missing, initializes Swarm with the VM's private
+  # IP as advertise-addr, creates the dokploy-network overlay, deploys
+  # dokploy-postgres, dokploy-redis, dokploy, and dokploy-traefik. The
+  # script is deliberately not idempotent so we gate it on dokploy_present.
+
+- name: Swap dokploy service image to the fork
+  command: docker service update --image {{ dokploy_image }} --force dokploy
+  changed_when: true
+  # `--force` is the standard way to redeploy a service even when the
+  # image tag is unchanged (e.g. when canary moves to a new sha). The
+  # update is rolling; Swarm handles the transition.
+
+- name: Print bootstrap URL
+  debug:
+    msg: |
+      Dokploy is up. Finish setup in the browser:
+        http://{{ ansible_host }}:3000
+
+      Post-deploy tasks:
+        1. Create the initial admin user.
+        2. Configure PocketID OIDC under Settings.
+        3. Add Cloudflare API token as a cert resolver under Settings -> Certificates.
+        4. Add Cloudflare A records:
+             dokploy.atelier.house  -> {{ ansible_host }}
+             *.apps.atelier.house   -> {{ ansible_host }}
+        5. Visit https://dokploy.atelier.house to confirm the cert issued.

@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# cloud-init network-config v2: static IP on the VM's single NIC.
+version: 2
+ethernets:
+  ens3:
+    dhcp4: false
+    addresses:
+      - {{ vm_static_ip }}/{{ vm_netmask_bits }}
+    routes:
+      - to: default
+        via: {{ vm_gateway }}
+    nameservers:
+      addresses:
+{% for dns in vm_dns_servers %}
+        - {{ dns }}
+{% endfor %}

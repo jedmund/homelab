@@ -1,0 +1,20 @@
+---
+# dokploy role: runs inside the Dokploy VM. Bootstraps Dokploy via the
+# upstream install script, then swaps the Swarm service image to the
+# fork at ghcr.io/jedmund/dokploy:canary.
+#
+# Post-deploy configuration done manually through Dokploy's admin UI:
+#   - PocketID OIDC client
+#   - Cloudflare DNS-01 cert resolver (token from password manager)
+#
+# Vault secrets consumed by this role:
+#   (none yet; cloudflare token is configured via Dokploy UI, not Ansible)
+
+# Dokploy track
+dokploy_version: canary
+dokploy_image: ghcr.io/jedmund/dokploy:canary
+
+# Install script
+dokploy_install_url: https://dokploy.com/install.sh
+dokploy_install_script_path: /root/dokploy-install.sh
+dokploy_config_dir: /etc/dokploy

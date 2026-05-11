@@ -1,0 +1,6 @@
+---
+- name: Install and configure Dokploy in the VM
+  hosts: dokploy
+  become: yes
+  roles:
+    - dokploy
