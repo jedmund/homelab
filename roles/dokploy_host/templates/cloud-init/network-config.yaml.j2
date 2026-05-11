@@ -1,8 +1,14 @@
 # {{ ansible_managed }}
 # cloud-init network-config v2: static IP on the VM's single NIC.
+# Match by name pattern rather than hardcoding a kernel interface name:
+# Ubuntu 24.04 cloud images on virtio sometimes call the NIC ens3 and
+# sometimes enp1s0 depending on the qemu PCI topology, so a wildcard
+# is the only way to be confident the config lands on the real device.
 version: 2
 ethernets:
-  ens3:
+  primary:
+    match:
+      name: "en*"
     dhcp4: false
     addresses:
       - {{ vm_static_ip }}/{{ vm_netmask_bits }}
