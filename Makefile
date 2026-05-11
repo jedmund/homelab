@@ -117,6 +117,10 @@ deploy-dokploy-host: ## Provision Dokploy VM on nuc-mini (libvirt + bridge)
 	@echo "$(BLUE)Provisioning Dokploy VM on nuc-mini...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/dokploy_host.yml $(VAULT_FLAG)
 
+deploy-dokploy: ## Install Dokploy inside the VM
+	@echo "$(BLUE)Installing Dokploy inside the VM...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/dokploy.yml $(VAULT_FLAG)
+
 ##@ Deployment - Specific Services
 
 deploy-traefik: ## Deploy only Traefik

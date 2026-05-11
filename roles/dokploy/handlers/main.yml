@@ -1,0 +1,4 @@
+---
+# No handlers yet. Dokploy manages its own service lifecycle once the
+# install script has run; image swaps are explicit `docker service
+# update` calls in the task list rather than handler-driven.
