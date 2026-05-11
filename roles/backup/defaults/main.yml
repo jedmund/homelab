@@ -68,7 +68,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, forgejo, blinko, draftboard, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, draftboard, miniflux, romm
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -81,7 +81,6 @@ borg_networks:
 #   mas_db_password
 #   n8n_db_password
 #   miniflux_db_password
-#   forgejo_db_password
 #   blinko_db_password
 #   draftboard_db_password
 #   komodo_db_username, komodo_db_password
@@ -107,8 +106,6 @@ n8n_db_name: n8n
 n8n_db_user: n8n
 miniflux_db_name: miniflux
 miniflux_db_user: miniflux
-forgejo_db_name: forgejo
-forgejo_db_user: forgejo
 blinko_db_name: blinko
 blinko_db_user: blinko
 draftboard_db_name: draftboard
