@@ -86,6 +86,13 @@ renovate_schedule_cron: "0 8 * * 1"  # Mondays 08:00 local
 # will no-op (or noisily fail) until the vault entry is populated.
 renovate_gitlab_token: ""
 
+# GitLab backup dump (consumed by borgmatic's /opt/docker source path).
+# Runs shortly before borgmatic's nightly cron (02:00) to give large
+# instances headroom. SKIP=registry,artifacts keeps the dump small;
+# raw registry blobs are recoverable from the filesystem path.
+gitlab_backup_cron: "50 1 * * *"
+gitlab_backup_skip: "registry,artifacts"
+
 # Open WebUI settings
 open_webui_image: ghcr.io/open-webui/open-webui:main
 open_webui_domain: ai.atelier.house

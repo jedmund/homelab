@@ -64,6 +64,17 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
 
+- name: Schedule GitLab application-consistent backup
+  ansible.builtin.cron:
+    name: gitlab-backup
+    user: "{{ ansible_user }}"
+    job: "docker exec gitlab gitlab-backup create SKIP={{ gitlab_backup_skip }} CRON=1 >> /var/log/gitlab-backup.log 2>&1"
+    minute: "{{ gitlab_backup_cron.split(' ')[0] }}"
+    hour: "{{ gitlab_backup_cron.split(' ')[1] }}"
+    day: "{{ gitlab_backup_cron.split(' ')[2] }}"
+    month: "{{ gitlab_backup_cron.split(' ')[3] }}"
+    weekday: "{{ gitlab_backup_cron.split(' ')[4] }}"
+
 - name: Schedule Renovate weekly run
   ansible.builtin.cron:
     name: renovate

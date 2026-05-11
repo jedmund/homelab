@@ -32,9 +32,18 @@ borg_source_paths:
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
 # backup itself: avoid recursive snapshot of the borgmatic config dir
+# gitlab: live DB/cache files are unsafe to copy mid-write; the dump
+#   produced by the gitlab-backup cron (development role) under
+#   data/backups is the consistent restore artifact for those subsystems.
+#   The rest of /opt/docker/development/gitlab (config, git-data, uploads,
+#   registry blobs) is safe to copy live and stays in the archive.
 borg_exclude_patterns:
   - /opt/docker/musicbrainz
   - /opt/docker/backup
+  - /opt/docker/development/gitlab/data/postgresql
+  - /opt/docker/development/gitlab/data/redis
+  - /opt/docker/development/gitlab/data/prometheus
+  - /opt/docker/development/gitlab/logs
 
 # Integrity checks
 borg_check_repository_frequency: 1 week
