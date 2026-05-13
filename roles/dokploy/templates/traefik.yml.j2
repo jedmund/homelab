@@ -1,0 +1,51 @@
+# {{ ansible_managed }}
+# Dokploy's bundled Traefik static config. Owned by Ansible: re-running
+# the dokploy role re-templates this file so DNS-01 (Cloudflare) stays
+# in place even if Dokploy's install script or upgrades try to revert
+# to the default HTTP-01 challenge.
+#
+# Dokploy's "Web Server -> Server Domain / Certificate Provider" UI
+# writes per-app routers that reference the `letsencrypt` resolver
+# defined below; redefining that resolver to use DNS-01 means every
+# router Dokploy creates gets a DNS-01 cert without further UI config.
+global:
+  sendAnonymousUsage: false
+providers:
+  swarm:
+    exposedByDefault: false
+    watch: true
+  docker:
+    exposedByDefault: false
+    watch: true
+    network: dokploy-network
+  file:
+    directory: /etc/dokploy/traefik/dynamic
+    watch: true
+entryPoints:
+  web:
+    address: :80
+  websecure:
+    address: :443
+    http3:
+      advertisedPort: 443
+    http:
+      tls:
+        certResolver: letsencrypt
+api:
+  insecure: true
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: {{ dokploy_acme_email }}
+      storage: /etc/dokploy/traefik/dynamic/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        propagation:
+          delayBeforeChecks: 30s
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+accessLog:
+  filePath: /etc/dokploy/traefik/dynamic/access.log
+  format: json
+  bufferingSize: 100
