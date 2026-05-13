@@ -567,3 +567,33 @@ http:
     yardsale-add-bucket:
       addPrefix:
         prefix: "/yardsale"
+
+# ========== TCP passthrough to Dokploy VM ==========
+# Dokploy runs in a KVM VM at {{ dokploy_vm_ip }} with its own bundled
+# Traefik. nuc-mini's Traefik forwards the raw TLS stream by SNI so
+# Dokploy's Traefik terminates TLS with its own Let's Encrypt cert.
+# LAN clients reach the VM directly via UniFi DNS; WAN clients land
+# here via the existing 80/443 port forward. Same Let's Encrypt cert
+# either way. Avoids Cloudflare's CDN restrictions on streaming media
+# since the byte stream is end-to-end between client and Dokploy.
+tcp:
+  routers:
+    dokploy-passthrough:
+      entryPoints:
+        - websecure
+      # HostSNI does not accept label-level wildcards (`*.apps.foo` is
+      # not interpreted as one-label wildcard, only the bare `*` is a
+      # catch-all). HostSNIRegexp uses Go regex, so we match any
+      # subdomain depth under apps.atelier.house. This covers both
+      # flat (test.apps.atelier.house) and Vercel-style
+      # (pr-42.album-sort.apps.atelier.house) preview hostnames.
+      rule: "HostSNI(`dokploy.{{ traefik_domain }}`) || HostSNIRegexp(`^.+\\.apps\\.atelier\\.house$`)"
+      tls:
+        passthrough: true
+      service: dokploy-vm
+
+  services:
+    dokploy-vm:
+      loadBalancer:
+        servers:
+          - address: "{{ dokploy_vm_ip }}:443"
