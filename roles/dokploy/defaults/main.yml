@@ -1,14 +1,17 @@
 ---
 # dokploy role: runs inside the Dokploy VM. Bootstraps Dokploy via the
 # upstream install script, then swaps the Swarm service image to the
-# fork at ghcr.io/jedmund/dokploy:canary.
+# fork at ghcr.io/jedmund/dokploy:canary, templates Traefik for DNS-01
+# Cloudflare cert issuance, and recreates the dokploy-traefik
+# container with the Cloudflare token in env.
 #
 # Post-deploy configuration done manually through Dokploy's admin UI:
-#   - PocketID OIDC client
-#   - Cloudflare DNS-01 cert resolver (token from password manager)
+#   - PocketID OIDC client (Dokploy UI flow)
+#   - Server Domain + Certificate Provider Let's Encrypt (UI flow,
+#     hits the dnsChallenge resolver this role templates)
 #
 # Vault secrets consumed by this role:
-#   (none yet; cloudflare token is configured via Dokploy UI, not Ansible)
+#   dokploy_cloudflare_token  - Cloudflare API token, Zone.DNS:Edit on atelier.house
 
 # Dokploy track
 dokploy_version: canary
@@ -25,3 +28,17 @@ dokploy_config_dir: /etc/dokploy
 # locked out.
 dokploy_enable_sso: true
 dokploy_sso_primary: true
+
+# Traefik (Dokploy's bundled instance). The install script pins
+# traefik:v3.6.7; keep this matched so we don't accidentally bump
+# Traefik when re-templating the container.
+dokploy_traefik_image: traefik:v3.6.7
+dokploy_traefik_container: dokploy-traefik
+dokploy_traefik_config_path: "{{ dokploy_config_dir }}/traefik/traefik.yml"
+
+# ACME / certificate issuance
+dokploy_acme_email: justin@jedmund.com
+# Empty default lets the role template render on first run before the
+# vault entry exists; Traefik will log auth errors against Cloudflare
+# until the real token is populated and the play re-runs.
+dokploy_cloudflare_token: ""

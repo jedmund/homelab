@@ -1,7 +1,9 @@
 ---
-# dokploy: bootstrap Dokploy inside the VM, then point its service at
-# the fork image. Idempotent: subsequent runs skip the install step
-# and re-apply the image swap (a no-op if the SHA hasn't moved).
+# dokploy: bootstrap Dokploy inside the VM, then own the bits the
+# install script leaves manual: image swap to the fork, Traefik
+# DNS-01 (Cloudflare) static config, and the dokploy-traefik
+# container's CF_DNS_API_TOKEN env. Idempotent: re-runs skip the
+# install step and re-apply the rest.
 
 - name: Check whether Dokploy is already installed
   stat:
@@ -41,6 +43,39 @@
   # update is rolling; Swarm handles the transition. --env-add is
   # idempotent: re-applying the same env vars is a no-op.
 
+- name: Template Traefik static config (DNS-01 via Cloudflare)
+  template:
+    src: traefik.yml.j2
+    dest: "{{ dokploy_traefik_config_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: dokploy_traefik_config
+
+- name: Reconcile dokploy-traefik container with Cloudflare token in env
+  community.docker.docker_container:
+    name: "{{ dokploy_traefik_container }}"
+    image: "{{ dokploy_traefik_image }}"
+    state: started
+    restart_policy: always
+    recreate: "{{ dokploy_traefik_config.changed }}"
+    env:
+      CF_DNS_API_TOKEN: "{{ dokploy_cloudflare_token }}"
+    volumes:
+      - "{{ dokploy_traefik_config_path }}:/etc/traefik/traefik.yml"
+      - "{{ dokploy_config_dir }}/traefik/dynamic:/etc/dokploy/traefik/dynamic"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    published_ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    networks:
+      - name: dokploy-network
+    comparisons:
+      env: strict
+      networks: allow_more_present
+  no_log: true
+
 - name: Print bootstrap URL
   debug:
     msg: |
@@ -50,8 +85,11 @@
       Post-deploy tasks:
         1. Create the initial admin user.
         2. Configure PocketID OIDC under Settings.
-        3. Add Cloudflare API token as a cert resolver under Settings -> Certificates.
+        3. In Web Server, set Server Domain (e.g. deploy.atelier.house)
+           and pick Let's Encrypt as the certificate provider. The
+           Traefik resolver is already configured for Cloudflare
+           DNS-01, so the cert issues without exposing HTTP-01 to
+           the internet.
         4. Add Cloudflare A records:
-             dokploy.atelier.house  -> {{ ansible_host }}
-             *.apps.atelier.house   -> {{ ansible_host }}
-        5. Visit https://dokploy.atelier.house to confirm the cert issued.
+             deploy.atelier.house  -> {{ ansible_host }}
+             *.apps.atelier.house  -> {{ ansible_host }}
