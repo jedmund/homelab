@@ -139,6 +139,145 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  dawarich-app:
+    container_name: dawarich_app
+    image: {{ dawarich_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/dawarich.env
+    ports:
+      - "{{ dawarich_external_port }}:3000"
+    stdin_open: true
+    tty: true
+    entrypoint: web-entrypoint.sh
+    command: ['bin/rails', 'server', '-p', '3000', '-b', '::']
+    volumes:
+      - dawarich-public:/var/app/public
+      - dawarich-watched:/var/app/tmp/imports/watched
+      - dawarich-storage:/var/app/storage
+      - dawarich-db-data:/dawarich_db_data
+    depends_on:
+      dawarich-db:
+        condition: service_healthy
+        restart: true
+      dawarich-redis:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\".*ok'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  dawarich-sidekiq:
+    container_name: dawarich_sidekiq
+    image: {{ dawarich_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/dawarich.env
+    stdin_open: true
+    tty: true
+    entrypoint: sidekiq-entrypoint.sh
+    command: ['sidekiq']
+    volumes:
+      - dawarich-public:/var/app/public
+      - dawarich-watched:/var/app/tmp/imports/watched
+      - dawarich-storage:/var/app/storage
+    depends_on:
+      dawarich-db:
+        condition: service_healthy
+        restart: true
+      dawarich-redis:
+        condition: service_healthy
+        restart: true
+      dawarich-app:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  dawarich-db:
+    container_name: dawarich_postgres
+    image: {{ dawarich_db_image }}
+    restart: {{ restart_policy }}
+    shm_size: 1g
+    environment:
+      POSTGRES_USER: {{ dawarich_db_username }}
+      POSTGRES_PASSWORD: {{ dawarich_db_password }}
+      POSTGRES_DB: {{ dawarich_db_name }}
+    volumes:
+      - dawarich-db-data:/var/lib/postgresql/data
+      - dawarich-shared:/var/shared
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ dawarich_db_username }} -d {{ dawarich_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  dawarich-redis:
+    container_name: dawarich_redis
+    image: {{ dawarich_redis_image }}
+    restart: {{ restart_policy }}
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --appendonly no
+    volumes:
+      - dawarich-shared:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  dawarich-photon:
+    container_name: dawarich_photon
+    image: {{ dawarich_photon_image }}
+    restart: {{ restart_policy }}
+    environment:
+      - REGION={{ dawarich_photon_region }}
+      - INITIAL_DOWNLOAD={{ dawarich_photon_initial_download }}
+    volumes:
+      - dawarich-photon-data:/photon/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:2322/api?q=test"]
+      interval: 60s
+      timeout: 10s
+      retries: 10
+      start_period: 60m
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   immich-pgdata:
     external: true
@@ -150,6 +289,13 @@ volumes:
     external: true
   music:
     external: true
+
+  dawarich-db-data:
+  dawarich-shared:
+  dawarich-public:
+  dawarich-watched:
+  dawarich-storage:
+  dawarich-photon-data:
 
 networks:
   default:
