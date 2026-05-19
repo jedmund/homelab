@@ -116,6 +116,8 @@ adguard_port_http: 80
 adguard_port_setup: 3000
 adguard_port_dns_tcp: 53
 adguard_port_dns_udp: 53
+# Bind DNS to the host LAN IP so it coexists with libvirt's dnsmasq on 192.168.122.1
+adguard_dns_bind_ip: "{{ ansible_host }}"
 
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.
