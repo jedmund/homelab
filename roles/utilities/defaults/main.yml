@@ -4,16 +4,18 @@ stack_name: utilities
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # n8n settings (moved from development)
-n8n_image: n8nio/n8n:latest
+# Fork image with the self-hosted-SSO unlock patch (see jedmund/n8n@jedmund/sso-pocketid).
+n8n_image: ghcr.io/jedmund/n8n:sso-pocketid
 n8n_domain: n8n.atelier.house
 n8n_port: 5678
 n8n_host_port: 5678
 n8n_protocol: https
 n8n_webhook_url: "https://{{ n8n_domain }}/"
 n8n_user_management_disabled: "false"
-n8n_oidc_enabled: "true"
-n8n_oidc_issuer_url: "https://id.atelier.house"
-n8n_oidc_redirect_uri: "https://{{ n8n_domain }}/rest/oauth2-credential/callback"
+# OIDC client (PocketID at https://id.atelier.house) is configured via the
+# in-app SSO settings UI at https://{{ n8n_domain }}/settings/sso.
+# Redirect URI to register in PocketID: https://{{ n8n_domain }}/sso/oidc/callback
+n8n_self_hosted_sso_enabled: "true"
 
 # n8n database
 n8n_db_image: postgres:16-alpine
