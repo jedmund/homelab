@@ -114,6 +114,8 @@ dawarich_oidc_issuer: "https://id.atelier.house"
 dawarich_oidc_redirect_uri: "{{ dawarich_base_url }}/users/auth/openid_connect/callback"
 dawarich_oidc_auto_register: "true"
 dawarich_allow_email_password_registration: "false"
+# 1.7.8+: login is gated separately from registration; defaults true upstream
+dawarich_allow_email_password_login: "false"
 
 # Dawarich SMTP (SendGrid via shared key from compute_servers vault)
 dawarich_smtp_server: smtp.sendgrid.net
