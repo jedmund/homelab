@@ -183,8 +183,8 @@ services:
     networks:
       - proxy
     ports:
-      - "{{ adguard_port_dns_tcp }}:53/tcp"
-      - "{{ adguard_port_dns_udp }}:53/udp"
+      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_tcp }}:53/tcp"
+      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_udp }}:53/udp"
       - "{{ adguard_port_setup }}:3000/tcp"
     volumes:
       - ./config/adguard/work:/opt/adguardhome/work
