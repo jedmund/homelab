@@ -91,6 +91,14 @@ deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
 	@echo "$(BLUE)Deploying media consumption...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG)
 
+deploy-reading: ## Deploy reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
+	@echo "$(BLUE)Deploying reading stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG)
+
+deploy-reading-check: ## Dry-run of reading stack deployment
+	@echo "$(BLUE)Checking reading deployment (dry-run)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG) --check --diff
+
 ##@ Deployment - Future Stacks
 
 deploy-content-management: ## Deploy content management stack

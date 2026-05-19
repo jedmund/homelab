@@ -1,0 +1,157 @@
+name: reading
+
+services:
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: unless-stopped
+    ports:
+      - 8280:8080
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://miniflux:secret@miniflux-db/miniflux?sslmode=disable
+      - RUN_MIGRATIONS=1
+      - CREATE_ADMIN=1
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=supersecret
+      - BASE_URL=https://rss.atelier.house
+      - POLLING_FREQUENCY=60
+      - BATCH_SIZE=100
+      - POLLING_PARSING_ERROR_LIMIT=3
+      - WORKER_POOL_SIZE=5
+      - METRICS_COLLECTOR=1
+      - METRICS_ALLOWED_NETWORKS=127.0.0.1/8,::1/128,192.168.0.0/16
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=miniflux
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=miniflux
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./data/miniflux-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "miniflux"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: unless-stopped
+    depends_on:
+      - miniflux-db
+    environment:
+      - PGHOST=miniflux-db
+      - PGUSER=miniflux
+      - PGPASSWORD=secret
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./backups/miniflux:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U miniflux miniflux > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        ls -t /backup/miniflux_backup_*.sql | tail -n +8 | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: unless-stopped
+    ports:
+      - 2000:2000
+    depends_on:
+      - miniflux
+    environment:
+      - TZ=America/Los_Angeles
+
+  fivefilters:
+    image: heussd/fivefilters-full-text-rss:latest
+    container_name: fivefilters
+    restart: unless-stopped
+    ports:
+      - 8181:80
+    environment:
+      - FTR_ADMIN_PASSWORD=changeme
+    volumes:
+      - ./config/fivefilters/cache:/var/www/html/cache
+
+  karakeep:
+    container_name: karakeep_web
+    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    restart: unless-stopped
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - 3232:3000
+    env_file:
+      - .env
+    environment:
+      MEILI_ADDR: http://karakeep-meilisearch:7700
+      BROWSER_WEB_URL: http://karakeep-chrome:9222
+      DATA_DIR: /data
+    depends_on:
+      - karakeep-chrome
+      - karakeep-meilisearch
+
+  karakeep-chrome:
+    container_name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    restart: unless-stopped
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+
+  karakeep-meilisearch:
+    container_name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+
+  kavita:
+    image: jvmilazz0/kavita:latest
+    container_name: kavita
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./config/kavita:/config
+      - comics:/manga
+    ports:
+      - 5353:5000
+    restart: unless-stopped
+
+volumes:
+  karakeep-data:
+  karakeep-meilisearch:
+  comics:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.999,vers=4,nolock,soft,rw"
+      device: ":/volume1/comics"

@@ -43,6 +43,10 @@
 - import_playbook: media_consumption.yml
   tags: [media, media_consumption]
 
+# Reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
+- import_playbook: reading.yml
+  tags: [reading]
+
 # Content stack
 - import_playbook: content_management.yml
   tags: [content, content_management]
