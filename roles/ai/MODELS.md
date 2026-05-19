@@ -99,6 +99,25 @@ higher once KV cache is allocated.
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
 
+## Speech-to-text (whisper / speaches, not llama-swap)
+
+Voice input is served by the `whisper` container (speaches), not llama-swap.
+The model lives in the `whisper-cache` named volume. Unlike TEI, speaches
+does **not** lazy-download on first transcription — without a pre-pull,
+the first request 404s with "Model '...' is not installed locally" and
+OpenWebUI shows "Server Connection Error". The `Pre-pull whisper default
+model` task in `tasks/main.yml` handles this idempotently on every deploy
+(it skips the POST if the model is already in the cache).
+
+- **Current model**: `Systran/faster-distil-whisper-large-v3` (pinned in
+  `whisper_default_model` in `defaults/main.yml`). Distil variant is ~6x
+  faster than `large-v3` for ~1% WER loss; good default for composer voice
+  input. Switch to `Systran/faster-whisper-large-v3` for max accuracy on
+  long-form transcription.
+- **Manual pull** (if needed, e.g. after wiping the volume or adding a
+  second model): `curl -X POST http://192.168.1.100:9000/v1/models/<id>`
+  where `<id>` is a path from `GET /v1/registry?task=automatic-speech-recognition`.
+
 ## Embeddings (TEI, not llama-swap)
 
 Embeddings are served by the TEI container, not llama-swap, so there is no
