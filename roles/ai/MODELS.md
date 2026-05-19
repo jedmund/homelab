@@ -24,7 +24,8 @@ higher once KV cache is allocated.
 
 ### qwen3.6 — daily driver, quality
 
-- **File**: `Qwen3.6-27B-MTP-UD-Q4_K_XL.gguf`
+- **File**: `Qwen3.6-27B-UD-Q4_K_XL.gguf` (unsloth puts the "MTP" marker on
+  the repo, not the filename; this file is still the MTP build)
 - **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
 - **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s on Blackwell,
