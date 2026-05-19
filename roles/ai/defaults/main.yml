@@ -25,7 +25,7 @@ ai_models:
   - name: qwen3.6-flash
     file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
     args: >-
-      -ngl 999 -c 32768 --flash-attn
+      -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
@@ -44,7 +44,7 @@ ai_models:
     # build, which the --spec-type draft-mtp arg below relies on).
     file: Qwen3.6-27B-UD-Q4_K_XL.gguf
     args: >-
-      -ngl 999 -c 32768 --flash-attn
+      -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --spec-type draft-mtp --spec-draft-n-max 6
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
@@ -58,7 +58,7 @@ ai_models:
   - name: gemma4
     file: gemma-4-31B-it-UD-Q4_K_XL.gguf
     args: >-
-      -ngl 999 -c 32768 --flash-attn
+      -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
@@ -79,7 +79,7 @@ ai_models:
   - name: gpt-oss
     file: gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf
     args: >-
-      -ngl 999 -c 32768 --flash-attn
+      -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --jinja
     aliases:
@@ -93,7 +93,7 @@ ai_models:
     # it auto-loads the rest from the same directory.
     file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
     args: >-
-      -ngl 999 -c 65536 --flash-attn
+      -ngl 999 -c 65536 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 40
       --jinja
