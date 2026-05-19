@@ -12,10 +12,13 @@ n8n_host_port: 5678
 n8n_protocol: https
 n8n_webhook_url: "https://{{ n8n_domain }}/"
 n8n_user_management_disabled: "false"
+# Unlocks enterprise features on the fork image without a license:
+# OIDC SSO, Sharing, Log Streaming, Environments (source control),
+# External Secrets, and the three Project Roles (admin/editor/viewer).
 # OIDC client (PocketID at https://id.atelier.house) is configured via the
 # in-app SSO settings UI at https://{{ n8n_domain }}/settings/sso.
-# Redirect URI to register in PocketID: https://{{ n8n_domain }}/sso/oidc/callback
-n8n_self_hosted_sso_enabled: "true"
+# Redirect URI to register in PocketID: https://{{ n8n_domain }}/rest/sso/oidc/callback
+n8n_self_hosted_features_enabled: "true"
 # Number of reverse proxy hops in front of n8n (Traefik = 1). Needed for
 # n8n to trust X-Forwarded-* headers — without it the OIDC callback's
 # state/nonce cookies fail to round-trip and SSO sign-in silently breaks.
