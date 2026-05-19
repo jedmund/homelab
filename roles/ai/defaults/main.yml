@@ -24,6 +24,7 @@ ai_models:
   # ~1GB VRAM.
   - name: qwen3.6-flash
     file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    group: chat
     args: >-
       -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -43,6 +44,7 @@ ai_models:
     # in the filename, only in the repo name (the file is still the MTP
     # build, which the --spec-type draft-mtp arg below relies on).
     file: Qwen3.6-27B-UD-Q4_K_XL.gguf
+    group: chat
     args: >-
       -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -57,6 +59,7 @@ ai_models:
   # recommended values; no MTP variant available upstream.
   - name: gemma4
     file: gemma-4-31B-it-UD-Q4_K_XL.gguf
+    group: chat
     args: >-
       -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -67,6 +70,7 @@ ai_models:
 
   - name: qwen3-coder
     file: Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf
+    group: chat
     args: "-ngl 99 -c 16384"
     aliases:
       - "qwen3-coder:30b"
@@ -78,6 +82,7 @@ ai_models:
   # loads the rest); verify the shard count after download and adjust.
   - name: gpt-oss
     file: gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf
+    group: chat
     args: >-
       -ngl 999 -c 32768 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -92,6 +97,7 @@ ai_models:
     # Split GGUF: 3 shards (~78GB total). Point llama-server at shard 1;
     # it auto-loads the rest from the same directory.
     file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
+    group: chat
     args: >-
       -ngl 999 -c 65536 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -106,6 +112,7 @@ ai_models:
   # one more service for marginal gain.
   - name: bge-reranker
     file: bge-reranker-v2-m3-Q8_0.gguf
+    group: aux
     args: "-ngl 99 --reranking"
     ttl: 300
     aliases:
@@ -114,6 +121,23 @@ ai_models:
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
 ai_model_default_ttl: 600
+
+# llama-swap groups. Without these, every model lingers in VRAM until
+# its TTL expires, so switching between two big models OOMs the GPU
+# (e.g. loading minimax-m27 ~79GB while gpt-oss ~70GB is still resident
+# on a 96GB card). The `chat` group has swap: true so only one chat
+# model is resident at a time; exclusive: false lets the reranker
+# coexist. The `aux` group is persistent: true + swap: false so the
+# reranker stays loaded across chat-model swaps (OpenWebUI's RAG path
+# hits chat + reranker on the same request).
+ai_model_groups:
+  chat:
+    swap: true
+    exclusive: false
+  aux:
+    swap: false
+    exclusive: false
+    persistent: true
 
 # Whisper STT (speaches, formerly faster-whisper-server)
 # https://github.com/speaches-ai/speaches

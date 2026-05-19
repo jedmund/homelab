@@ -15,3 +15,18 @@ models:
 {% endif %}
 
 {% endfor %}
+{% if ai_model_groups is defined and ai_model_groups %}
+groups:
+{% for group_name, opts in ai_model_groups.items() %}
+  {{ group_name }}:
+    swap: {{ 'true' if opts.swap | default(true) else 'false' }}
+    exclusive: {{ 'true' if opts.exclusive | default(true) else 'false' }}
+{% if opts.persistent is defined %}
+    persistent: {{ 'true' if opts.persistent else 'false' }}
+{% endif %}
+    members:
+{% for m in ai_models if m.group | default(none) == group_name %}
+      - {{ m.name }}
+{% endfor %}
+{% endfor %}
+{% endif %}
