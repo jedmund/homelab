@@ -16,6 +16,10 @@ n8n_user_management_disabled: "false"
 # in-app SSO settings UI at https://{{ n8n_domain }}/settings/sso.
 # Redirect URI to register in PocketID: https://{{ n8n_domain }}/sso/oidc/callback
 n8n_self_hosted_sso_enabled: "true"
+# Number of reverse proxy hops in front of n8n (Traefik = 1). Needed for
+# n8n to trust X-Forwarded-* headers — without it the OIDC callback's
+# state/nonce cookies fail to round-trip and SSO sign-in silently breaks.
+n8n_proxy_hops: "1"
 
 # n8n database
 n8n_db_image: postgres:16-alpine
