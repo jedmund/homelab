@@ -8,7 +8,11 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
 llama_swap_port: 11434
 llama_swap_log_level: info
-llama_swap_health_check_timeout: 60
+# Seconds llama-swap waits for a newly spawned llama-server to pass its
+# health check before killing it. Cold-loading minimax-m27 (~80GB) from
+# NVMe to VRAM with -ngl 999 takes ~125s on this box; 300 gives ~2.4x
+# headroom for that and any larger future model.
+llama_swap_health_check_timeout: 300
 
 # Model catalogue
 # Models live in {{ config_base }}/models on the host and are mounted at
