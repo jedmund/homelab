@@ -78,7 +78,9 @@ ai_models:
   # Sampling pinned to the values MiniMax recommends; --jinja is required
   # for the chat template + tool-call handling to work correctly.
   - name: minimax-m27
-    file: MiniMax-M2.7-UD-IQ3_S.gguf
+    # Split GGUF: 3 shards (~78GB total). Point llama-server at shard 1;
+    # it auto-loads the rest from the same directory.
+    file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
     args: >-
       -ngl 999 -c 65536 --flash-attn
       --cache-type-k q8_0 --cache-type-v q8_0
