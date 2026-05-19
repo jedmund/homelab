@@ -19,7 +19,8 @@
           10. Productivity
           11. Social
           12. Matrix
-          13. Backup
+          13. AI (max only)
+          14. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -65,6 +66,10 @@
 # Matrix stack
 - import_playbook: matrix.yml
   tags: [matrix]
+
+# AI stack (targets the `ai` group — currently `max` only)
+- import_playbook: ai.yml
+  tags: [ai]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

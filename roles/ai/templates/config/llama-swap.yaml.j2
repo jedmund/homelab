@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+healthCheckTimeout: {{ llama_swap_health_check_timeout }}
+logLevel: {{ llama_swap_log_level }}
+
+models:
+{% for model in ai_models %}
+  {{ model.name }}:
+    cmd: llama-server --port ${PORT} --model /models/{{ model.file }} {{ model.args | trim }}
+    ttl: {{ model.ttl | default(ai_model_default_ttl) }}
+{% if model.aliases is defined %}
+    aliases:
+{% for alias in model.aliases %}
+      - "{{ alias }}"
+{% endfor %}
+{% endif %}
+
+{% endfor %}
