@@ -31,24 +31,24 @@ Required keys (see `group_vars/reading/README.md` for the full list):
 
 ## 2. Migrate the data on `nuc-mini`
 
+Pattern: deploy the role normally (same as every other stack — no
+special tags or split phases), then perform a one-time docker-compose
+level data swap, then bring containers back up against the migrated
+data.
+
 The new stack expects:
 - bind-mounted dirs under `/opt/docker/reading/...`
 - docker named volumes named `reading_karakeep-data` and
   `reading_karakeep-meilisearch`
 
-Today, both live under `media-consumption_*`. We pre-populate the new
-homes, **then** run `make deploy-reading` for the first time, so the
-new containers start with data already in place — no bring-up /
-tear-down dance.
+Both are created automatically by the initial `make deploy-reading`
+run. We populate them after the fact and restart.
 
-### 2a. Dry-run the ansible deploy
+### 2a. Dry-run
 
 ```bash
 make deploy-reading-check
 ```
-
-Read the diff. Confirm it only touches `/opt/docker/reading/...` and
-no other paths.
 
 ### 2b. Stop the soon-to-be-moved services in the old stack
 
@@ -63,34 +63,36 @@ docker compose rm -f \
   karakeep karakeep-chrome karakeep-meilisearch kavita
 ```
 
-Leave the old DB data + named volumes on disk for rollback safety —
-we'll prune them later.
+Leave the old bind-mount dirs + named volumes on disk for rollback
+safety — we'll prune them later.
 
-### 2c. Have ansible create destination directories (no containers yet)
-
-The role's docker_compose_v2 task is tagged `up`, so we can run
-everything else first — directories, compose file, env files — without
-starting containers.
+### 2c. Deploy the `reading` stack normally
 
 ```bash
-ansible-playbook deploy/reading.yml \
-  -i inventory/hosts.yml \
-  --vault-password-file ~/.ansible-vault-pass \
-  --skip-tags up
+make deploy-reading
 ```
 
-This creates `/opt/docker/reading/{,env,data/miniflux-db,backups/miniflux,config/kavita,config/fivefilters/cache}`
-with the right ownership, plus the compose.yaml and env files.
+This is a vanilla deploy: ansible creates dirs, drops compose + env
+files, and brings containers up. Miniflux's Postgres initializes a
+fresh empty DB; Karakeep's named volumes are created empty. That's
+fine — we'll replace the data in the next steps.
 
-### 2d. Move bind-mounted host directories
+### 2d. Stop the new stack (one-time, for the data swap)
 
-Ansible created the leaf dirs as empty placeholders. `rmdir` them
-first (`rmdir` only removes empty dirs, so it's safe) so the `mv`
+```bash
+ssh nuc-mini 'cd /opt/docker/reading && docker compose down'
+```
+
+### 2e. Move bind-mounted host directories
+
+Ansible created the leaf dirs as empty placeholders, and Postgres
+populated `data/miniflux-db` on first start. Remove both so the `mv`
 lands in the right place instead of nesting.
 
 ```bash
-sudo rmdir /opt/docker/reading/data/miniflux-db \
-           /opt/docker/reading/backups/miniflux \
+ssh nuc-mini
+sudo rm -rf /opt/docker/reading/data/miniflux-db
+sudo rmdir /opt/docker/reading/backups/miniflux \
            /opt/docker/reading/config/kavita
 
 sudo mv /opt/docker/media-consumption/data/miniflux-db \
@@ -101,34 +103,36 @@ sudo mv /opt/docker/media-consumption/config/kavita \
         /opt/docker/reading/config/kavita
 ```
 
-### 2e. Copy Karakeep named volumes between compose projects
+`rm -rf` on `data/miniflux-db` because Postgres seeded it with a
+fresh empty cluster during 2c; the other two are empty placeholders
+so `rmdir` is enough.
 
-Named volumes are scoped to the compose project name. Create the new
-destinations and tar-pipe the contents across:
+### 2f. Repopulate Karakeep named volumes
+
+The new `reading_karakeep-*` volumes were created empty by step 2c.
+Tar-pipe the old contents in (the source volumes still exist under
+their `media-consumption_*` names):
 
 ```bash
-docker volume create reading_karakeep-data
-docker volume create reading_karakeep-meilisearch
-
 for vol in karakeep-data karakeep-meilisearch; do
   docker run --rm \
     -v media-consumption_${vol}:/from \
     -v reading_${vol}:/to \
-    alpine sh -c 'cd /from && tar cf - . | (cd /to && tar xf -)'
+    alpine sh -c 'cd /to && rm -rf ./* ./.[!.]* 2>/dev/null; cd /from && tar cf - . | (cd /to && tar xf -)'
 done
 ```
 
-### 2f. Start the stack
+The `rm` inside clears whatever Karakeep/Meilisearch wrote to the new
+empty volume during step 2c before copying the real data in.
+
+### 2g. Bring the stack back up
 
 ```bash
-make deploy-reading
+ssh nuc-mini 'cd /opt/docker/reading && docker compose up -d'
 ```
 
-Same playbook, this time without `--skip-tags up`. Directories and
-templates are already in place (idempotent no-ops); ansible just runs
-the docker_compose_v2 task, which starts containers against the
-populated data. Postgres reads the moved data dir; Karakeep reads the
-populated volumes.
+Postgres reads the moved data dir, Karakeep reads the populated
+volumes, history is intact.
 
 ## 3. Verify
 
