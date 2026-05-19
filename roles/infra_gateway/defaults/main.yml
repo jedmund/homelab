@@ -21,7 +21,6 @@ ddclient_atelier_subdomains:
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
-  - glance.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - idea.atelier.house
@@ -97,9 +96,6 @@ tinyauth_allowed_user: "justin@jedmund.com"
 
 # OpenSpeedTest settings
 openspeedtest_port: 3000
-
-# Glance settings
-glance_port: 8080
 
 # Line settings
 line_port: 5180
