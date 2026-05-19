@@ -100,11 +100,19 @@ ai_models:
   - name: minimax-m27
     # Split GGUF: 3 shards (~78GB total). Point llama-server at shard 1;
     # it auto-loads the rest from the same directory.
+    #
+    # Context sized for OpenCode/agentic coding on real repos: 65K was
+    # not enough — chat history + tool outputs + file contents blew
+    # past it in a couple of turns. KV cache pinned to q4_0 instead of
+    # q8_0 to keep the 128K window inside 96GB (q8 at 128K = ~100GB
+    # resident, OOMs the Blackwell). Q4 KV trades a small amount of
+    # long-context recall precision for the doubled window; acceptable
+    # for code agent loops, less ideal for needle-in-haystack QA.
     file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
     group: chat
     args: >-
-      -ngl 999 -c 65536 --flash-attn on
-      --cache-type-k q8_0 --cache-type-v q8_0
+      -ngl 999 -c 131072 --flash-attn on
+      --cache-type-k q4_0 --cache-type-v q4_0
       --temp 1.0 --top-p 0.95 --top-k 40
       --jinja
     aliases:
