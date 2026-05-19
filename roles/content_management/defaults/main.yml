@@ -77,7 +77,11 @@ album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
 album_sort_data_path: /data
 album_sort_watch_interval: "30000"
+# Multi-Scrobbler integration
+album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
+
 # Secrets defined in vault:
 # album_sort_apple_music_team_id, album_sort_apple_music_key_id,
 # album_sort_apple_music_private_key, album_sort_discogs_token,
 # album_sort_kagi_api_key, album_sort_lastfm_api_key, album_sort_lastfm_api_secret
+# album_sort_multi_scrobbler_token
