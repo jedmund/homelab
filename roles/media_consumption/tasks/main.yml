@@ -1,5 +1,5 @@
 ---
-# Media Consumption Stack - Miniflux, Karakeep, Kavita, RomM, Plex, Tunarr
+# Media Consumption Stack - RomM, Plex, Tunarr, Multi-scrobbler, Stash
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -11,9 +11,6 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/data/miniflux-db"
-    - "{{ docker_base_path }}/{{ stack_name }}/backups/miniflux"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/kavita"
     - "{{ docker_base_path }}/{{ stack_name }}/config/romm"
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex"
     - "{{ docker_base_path }}/{{ stack_name }}/config/plex/transcode"
@@ -40,8 +37,6 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
-    - miniflux
-    - karakeep
     - romm
     - stash
   no_log: true

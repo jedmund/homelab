@@ -1,0 +1,7 @@
+---
+- name: Deploy reading stack
+  hosts: reading
+  become: yes
+
+  roles:
+    - reading
