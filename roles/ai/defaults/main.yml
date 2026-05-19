@@ -77,3 +77,29 @@ ai_models:
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
 ai_model_default_ttl: 600
+
+# Whisper STT (speaches, formerly faster-whisper-server)
+# https://github.com/speaches-ai/speaches
+# OpenAI-compatible: POST /v1/audio/transcriptions
+whisper_image: ghcr.io/speaches-ai/speaches:latest-cuda
+whisper_port: 9000
+# Default model downloaded on first use. distil-large-v3 is the fastest
+# high-quality option; bump to faster-whisper-large-v3 for max accuracy.
+whisper_default_model: Systran/faster-distil-whisper-large-v3
+
+# Kokoro TTS (kokoro-fastapi)
+# https://github.com/remsky/Kokoro-FastAPI
+# OpenAI-compatible: POST /v1/audio/speech
+kokoro_image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+kokoro_port: 8880
+# af_sky | af_bella | af_nicole | am_adam | am_michael | bf_emma | bf_isabella
+kokoro_default_voice: af_sky
+
+# SearXNG (metasearch, fronts web search for OpenWebUI's RAG)
+# https://github.com/searxng/searxng
+searxng_image: docker.io/searxng/searxng:latest
+searxng_port: 8889
+searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
+# Lives in vault as `searxng_secret_key`; empty default lets the first
+# render succeed but SearXNG will refuse to start until populated.
+searxng_secret_key: ""

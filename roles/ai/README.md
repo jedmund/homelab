@@ -1,8 +1,17 @@
 # ai
 
-llama-swap on `max`, fronting llama.cpp. Hot-swaps models on demand; exposes an
-OpenAI-compatible API (port `11434`, the Ollama port — OpenWebUI on `nuc-mini`
-talks to it as an OpenAI endpoint).
+GPU-bound AI services on `max`. Four containers in one stack:
+
+| Service | Container | Host port | OpenAI-compatible |
+|---|---|---|---|
+| llama-swap (+ llama.cpp) | `mostlygeek/llama-swap:cuda` | `11434` | yes (chat) |
+| whisper STT (speaches) | `speaches-ai/speaches:latest-cuda` | `9000` | yes (`/v1/audio/transcriptions`) |
+| kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
+| SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
+
+OpenWebUI (running on `nuc-mini`) is wired to all four via env vars in
+`roles/development`; nothing needs to be set in the OpenWebUI admin UI
+after deployment.
 
 ## Layout
 
@@ -10,9 +19,15 @@ talks to it as an OpenAI endpoint).
 {{ docker_base_path }}/ai/
 ├── compose.yaml                # rendered from templates/compose.yaml.j2
 ├── config/
-│   └── llama-swap.yaml         # rendered from templates/config/llama-swap.yaml.j2
+│   ├── llama-swap.yaml         # rendered from templates/config/llama-swap.yaml.j2
+│   └── searxng/settings.yml    # rendered from templates/config/searxng/settings.yml.j2
 └── models/                     # GGUF files, populated out of band
 ```
+
+## Secrets in vault
+
+- `searxng_secret_key` — generate with `openssl rand -hex 32`. SearXNG
+  refuses to start with the empty default.
 
 ## Model files
 

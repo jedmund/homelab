@@ -1,0 +1,46 @@
+# {{ ansible_managed }}
+# SearXNG configuration. Extends the upstream defaults; only overrides
+# what's needed for OpenWebUI to use it as a RAG web-search backend.
+
+use_default_settings: true
+
+general:
+  instance_name: "Atelier SearXNG"
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+
+server:
+  secret_key: "{{ searxng_secret_key }}"
+  # OpenWebUI fires bursts of requests for RAG; the upstream limiter
+  # treats those as abuse and 429s them.
+  limiter: false
+  image_proxy: false
+  method: "GET"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  # The JSON format is required for OpenWebUI to parse results;
+  # upstream defaults ship with only `html` enabled.
+  formats:
+    - html
+    - json
+
+ui:
+  static_use_hash: true
+
+# Lightweight default engine set. Override by adding entries here; see
+# https://docs.searxng.org/admin/engines/ for the full list.
+engines:
+  - name: duckduckgo
+    disabled: false
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: wikipedia
+    disabled: false
+  - name: github
+    disabled: false

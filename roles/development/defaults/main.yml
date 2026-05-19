@@ -4,7 +4,8 @@ stack_name: development
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Server IPs
-max_server_ip: 192.168.1.245
+# Sourced from inventory so the IP is only ever defined in one place.
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
 
 # Vault secrets consumed by this role:
 #   open_webui_secret_key, open_webui_oauth_client_id, open_webui_oauth_client_secret
@@ -81,3 +82,14 @@ open_webui_oauth_merge_accounts: "true"
 open_webui_oauth_provider_name: PocketID
 open_webui_oidc_provider_url: "https://id.atelier.house/.well-known/openid-configuration"
 open_webui_oauth_scopes: "openid email profile"
+
+# Voice + web-search wiring for OpenWebUI. Services run in the `ai` stack
+# on max; OpenWebUI connects to them over the LAN via their published
+# host ports. Keep these ports in sync with roles/ai/defaults/main.yml.
+open_webui_whisper_port: 9000
+open_webui_kokoro_port: 8880
+open_webui_searxng_port: 8889
+open_webui_audio_stt_base_url: "http://{{ max_server_ip }}:{{ open_webui_whisper_port }}/v1"
+open_webui_audio_tts_base_url: "http://{{ max_server_ip }}:{{ open_webui_kokoro_port }}/v1"
+open_webui_audio_tts_voice: af_sky
+open_webui_searxng_query_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}/search?q=<query>&format=json"
