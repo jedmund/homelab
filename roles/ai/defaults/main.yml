@@ -60,13 +60,10 @@ ai_models:
     aliases:
       - "minimax:m27"
 
-  - name: nomic-embed
-    file: nomic-embed-text-v1.5-Q8_0.gguf
-    args: "-ngl 99 --embedding"
-    ttl: 300
-    aliases:
-      - "nomic-embed-text"
-
+  # nomic-embed lived here under llama-swap; embeddings are now served
+  # by the dedicated TEI container at :11435 (see tei_* below). Reranker
+  # stays in llama-swap because reranker volume is low and TEI would be
+  # one more service for marginal gain.
   - name: bge-reranker
     file: bge-reranker-v2-m3-Q8_0.gguf
     args: "-ngl 99 --reranking"
@@ -103,3 +100,20 @@ searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
 # Lives in vault as `searxng_secret_key`; empty default lets the first
 # render succeed but SearXNG will refuse to start until populated.
 searxng_secret_key: ""
+
+# Text Embeddings Inference (TEI) from HuggingFace
+# https://github.com/huggingface/text-embeddings-inference
+# OpenAI-compatible: POST /v1/embeddings
+# Single-model server (one container per model). Cached under a named
+# volume so the model only downloads once.
+tei_image: ghcr.io/huggingface/text-embeddings-inference:cuda-latest
+tei_port: 11435
+# Pinned to the same model that the (now-retired) nomic-embed entry in
+# llama-swap served, so OpenWebUI and any other consumer can swap in
+# place without re-embedding. Swap for BAAI/bge-large-en-v1.5 or
+# Qwen/Qwen3-Embedding-8B if you want top-of-MTEB at higher cost.
+tei_model_id: nomic-ai/nomic-embed-text-v1.5
+# Inference batch sizing. Defaults are conservative; bump if you serve
+# heavy ingestion workloads (e.g. Karakeep bulk re-embed).
+tei_max_concurrent_requests: 512
+tei_max_batch_tokens: 16384

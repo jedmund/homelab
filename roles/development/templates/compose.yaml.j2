@@ -113,6 +113,11 @@ services:
       - ENABLE_RAG_WEB_SEARCH=true
       - RAG_WEB_SEARCH_ENGINE=searxng
       - SEARXNG_QUERY_URL={{ open_webui_searxng_query_url }}
+      # RAG embeddings via TEI (HuggingFace text-embeddings-inference) on max
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_OPENAI_API_BASE_URL={{ open_webui_rag_embedding_base_url }}
+      - RAG_OPENAI_API_KEY=sk-no-key-required
+      - RAG_EMBEDDING_MODEL={{ open_webui_rag_embedding_model }}
     labels:
       traefik.enable: "true"
       traefik.http.routers.open-webui.rule: "Host(`{{ open_webui_domain }}`)"

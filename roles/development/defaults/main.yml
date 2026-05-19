@@ -93,3 +93,11 @@ open_webui_audio_stt_base_url: "http://{{ max_server_ip }}:{{ open_webui_whisper
 open_webui_audio_tts_base_url: "http://{{ max_server_ip }}:{{ open_webui_kokoro_port }}/v1"
 open_webui_audio_tts_voice: af_sky
 open_webui_searxng_query_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}/search?q=<query>&format=json"
+
+# RAG embeddings via TEI on max (replaces the previous llama-swap
+# nomic-embed entry). OpenWebUI's RAG_* env vars only seed initial
+# values on a fresh database; existing embeddings remain on whatever
+# model they were created with.
+open_webui_tei_port: 11435
+open_webui_rag_embedding_base_url: "http://{{ max_server_ip }}:{{ open_webui_tei_port }}/v1"
+open_webui_rag_embedding_model: nomic-ai/nomic-embed-text-v1.5

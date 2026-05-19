@@ -84,6 +84,37 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  tei:
+    image: {{ tei_image }}
+    container_name: tei
+    restart: {{ restart_policy }}
+    ports:
+      - {{ tei_port }}:80
+    volumes:
+      - tei-cache:/data
+    command:
+      - --model-id={{ tei_model_id }}
+      - --max-concurrent-requests={{ tei_max_concurrent_requests }}
+      - --max-batch-tokens={{ tei_max_batch_tokens }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   searxng:
     image: {{ searxng_image }}
     container_name: searxng
@@ -114,3 +145,4 @@ services:
 
 volumes:
   whisper-cache:
+  tei-cache:
