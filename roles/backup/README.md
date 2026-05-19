@@ -117,7 +117,7 @@ Should mirror the structure of `/var/backup/borg/`.
 **Custom `before_backup` scripts** writing to `/var/backup/dumps/`:
 
 - CouchDB (Obsidian LiveSync): per-database JSON dump with attachments
-- SQLite: `sqlite3 .backup` snapshots for PocketID, Papra, Homebox,
+- SQLite: `sqlite3 .backup` snapshots for PocketID, Line, Papra, Homebox,
   album-sort, *arrs (Sonarr/Radarr/Lidarr/Prowlarr), qui, Pinchflat,
   Kavita, Stash, Tunarr, Plex library DB and blobs DB
 
