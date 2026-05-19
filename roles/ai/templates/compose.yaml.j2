@@ -109,6 +109,31 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  playwright:
+    image: {{ playwright_image }}
+    container_name: playwright
+    restart: {{ restart_policy }}
+    # `command:` (not entrypoint) because the image's default entrypoint
+    # already sets up node; we just point it at run-server. Version in
+    # the npx invocation must match the image tag to avoid a Playwright
+    # client/server protocol mismatch.
+    command: ["npx", "-y", "playwright@{{ playwright_version }}", "run-server", "--port", "3000", "--host", "0.0.0.0"]
+    ports:
+      - {{ playwright_port }}:3000
+    healthcheck:
+      # No HTTP health endpoint; the server only speaks WebSocket. A TCP
+      # probe via /dev/tcp confirms the port is bound.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/3000'"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   searxng:
     image: {{ searxng_image }}
     container_name: searxng

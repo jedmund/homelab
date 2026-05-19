@@ -174,6 +174,17 @@ searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
 # render succeed but SearXNG will refuse to start until populated.
 searxng_secret_key: ""
 
+# Playwright remote-browser server for OpenWebUI's web scraper. Without
+# this, OpenWebUI falls back to the LangChain WebBaseLoader (plain
+# httpx), which most modern sites block — the symptom is "No sources
+# found" after a successful web search because every fetch returned 0
+# bytes. The Microsoft Playwright image must match the Playwright
+# version pinned in OpenWebUI's backend/requirements.txt; bump
+# playwright_version (and the image tag) together when OpenWebUI does.
+playwright_image: mcr.microsoft.com/playwright:v1.58.0-noble
+playwright_version: "1.58.0"
+playwright_port: 3000
+
 # Text Embeddings Inference (TEI) from HuggingFace
 # https://github.com/huggingface/text-embeddings-inference
 # OpenAI-compatible: POST /v1/embeddings

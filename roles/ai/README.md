@@ -1,6 +1,6 @@
 # ai
 
-GPU-bound AI services on `max`. Five containers in one stack:
+GPU-bound AI services on `max`. Six containers in one stack:
 
 | Service | Container | Host port | OpenAI-compatible |
 |---|---|---|---|
@@ -9,10 +9,22 @@ GPU-bound AI services on `max`. Five containers in one stack:
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
 | TEI embeddings | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
 | SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
+| Playwright | `mcr.microsoft.com/playwright` | `3000` | n/a (WebSocket only) |
 
 OpenWebUI (running on `nuc-mini`) is wired to all of these via env vars in
-`roles/development`; nothing needs to be set in the OpenWebUI admin UI
-after deployment.
+`roles/development`. Most env vars take effect on first deploy only —
+OpenWebUI persists them to its database and subsequent restarts use the
+DB value, so changing an env var on an existing install requires either
+editing it in Admin -> Settings or a one-shot start with
+`RESET_CONFIG_ON_START=true`.
+
+The Playwright sidecar exists because OpenWebUI's default web loader is
+LangChain's httpx-based `WebBaseLoader`, which most modern sites block;
+without Playwright, web search "succeeds" but every page fetch returns
+0 bytes and the chat reports "No sources found". The image tag is
+pinned to match the `playwright==X.Y.Z` line in OpenWebUI's
+`backend/requirements.txt` — bump `playwright_version` (and the image
+tag in `playwright_image`) together when OpenWebUI updates Playwright.
 
 ## Layout
 

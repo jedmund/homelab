@@ -113,6 +113,10 @@ services:
       - ENABLE_RAG_WEB_SEARCH=true
       - RAG_WEB_SEARCH_ENGINE=searxng
       - SEARXNG_QUERY_URL={{ open_webui_searxng_query_url }}
+      # Web page scraping via Playwright (also on max). Replaces the
+      # default LangChain httpx loader, which most sites block.
+      - WEB_LOADER_ENGINE={{ open_webui_web_loader_engine }}
+      - PLAYWRIGHT_WS_URL={{ open_webui_playwright_ws_url }}
       # RAG embeddings via TEI (HuggingFace text-embeddings-inference) on max
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL={{ open_webui_rag_embedding_base_url }}

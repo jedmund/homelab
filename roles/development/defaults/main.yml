@@ -94,6 +94,19 @@ open_webui_audio_tts_base_url: "http://{{ max_server_ip }}:{{ open_webui_kokoro_
 open_webui_audio_tts_voice: af_sky
 open_webui_searxng_query_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}/search?q=<query>&format=json"
 
+# Playwright sidecar (also in the ai stack on max). Without this,
+# OpenWebUI falls back to LangChain's httpx-based WebBaseLoader, which
+# every modern site blocks; the symptom is "No sources found" after a
+# successful search because all page fetches returned 0 bytes. Keep
+# this port in sync with playwright_port in roles/ai/defaults/main.yml.
+# Note: WEB_LOADER_ENGINE and PLAYWRIGHT_WS_URL are PersistentConfig in
+# OpenWebUI — env vars only seed the value on a fresh database. On an
+# existing install, set them once via Admin -> Settings -> Documents or
+# do a one-shot restart with RESET_CONFIG_ON_START=true to re-seed.
+open_webui_playwright_port: 3000
+open_webui_web_loader_engine: playwright
+open_webui_playwright_ws_url: "ws://{{ max_server_ip }}:{{ open_webui_playwright_port }}"
+
 # RAG embeddings via TEI on max (replaces the previous llama-swap
 # nomic-embed entry). OpenWebUI's RAG_* env vars only seed initial
 # values on a fresh database; existing embeddings remain on whatever
