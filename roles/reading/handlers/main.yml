@@ -5,3 +5,4 @@
     state: present
     remove_orphans: true
     recreate: always
+  tags: [up]

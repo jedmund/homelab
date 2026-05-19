@@ -43,3 +43,4 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
+  tags: [up]

@@ -32,37 +32,29 @@ Required keys (see `group_vars/reading/README.md` for the full list):
 ## 2. Migrate the data on `nuc-mini`
 
 The new stack expects:
-- bind-mounted dirs under `~/docker/reading/...`
+- bind-mounted dirs under `/opt/docker/reading/...`
 - docker named volumes named `reading_karakeep-data` and
   `reading_karakeep-meilisearch`
 
-Today, both live under `media-consumption_*`. We move them.
+Today, both live under `media-consumption_*`. We pre-populate the new
+homes, **then** run `make deploy-reading` for the first time, so the
+new containers start with data already in place — no bring-up /
+tear-down dance.
 
-### 2a. Render the new stack to disk without starting it
-
-Run ansible with `--check` first so you can see exactly what will
-change, then deploy. The first real deploy will create the host
-directories and pull the images. We'll bring containers up only after
-the data is in place.
+### 2a. Dry-run the ansible deploy
 
 ```bash
-# Dry-run
 make deploy-reading-check
-
-# Real run that will try to start containers. Either way, we'll stop
-# them immediately to do the data move. (Or wrap with --skip-tags if
-# you add a tag to the docker_compose_v2 task in roles/reading/tasks/main.yml.)
-make deploy-reading
-
-# Stop the freshly-started reading containers so the volumes are quiet
-ssh nuc-mini 'cd ~/docker/reading && docker compose down'
 ```
+
+Read the diff. Confirm it only touches `/opt/docker/reading/...` and
+no other paths.
 
 ### 2b. Stop the soon-to-be-moved services in the old stack
 
 ```bash
 ssh nuc-mini
-cd ~/docker/media-consumption
+cd /opt/docker/media-consumption
 docker compose stop \
   miniflux miniflux-db miniflux-db-backup reactflux \
   karakeep karakeep-chrome karakeep-meilisearch kavita
@@ -71,20 +63,53 @@ docker compose rm -f \
   karakeep karakeep-chrome karakeep-meilisearch kavita
 ```
 
-### 2c. Move bind-mounted host directories
+Leave the old DB data + named volumes on disk for rollback safety —
+we'll prune them later.
+
+### 2c. Have ansible create destination directories (no containers yet)
+
+The role's docker_compose_v2 task is tagged `up`, so we can run
+everything else first — directories, compose file, env files — without
+starting containers.
 
 ```bash
-sudo mv data/miniflux-db ~/docker/reading/data/miniflux-db
-sudo mv backups/miniflux ~/docker/reading/backups/miniflux
-sudo mv config/kavita   ~/docker/reading/config/kavita
+ansible-playbook deploy/reading.yml \
+  -i inventory/hosts.yml \
+  --vault-password-file ~/.ansible-vault-pass \
+  --skip-tags up
 ```
 
-### 2d. Copy Karakeep named volumes between compose projects
+This creates `/opt/docker/reading/{,env,data/miniflux-db,backups/miniflux,config/kavita,config/fivefilters/cache}`
+with the right ownership, plus the compose.yaml and env files.
 
-Named volumes are scoped to the compose project name, so the new
-`reading_karakeep-*` volumes start empty. Tar-pipe the contents over:
+### 2d. Move bind-mounted host directories
+
+Ansible created the leaf dirs as empty placeholders. `rmdir` them
+first (`rmdir` only removes empty dirs, so it's safe) so the `mv`
+lands in the right place instead of nesting.
 
 ```bash
+sudo rmdir /opt/docker/reading/data/miniflux-db \
+           /opt/docker/reading/backups/miniflux \
+           /opt/docker/reading/config/kavita
+
+sudo mv /opt/docker/media-consumption/data/miniflux-db \
+        /opt/docker/reading/data/miniflux-db
+sudo mv /opt/docker/media-consumption/backups/miniflux \
+        /opt/docker/reading/backups/miniflux
+sudo mv /opt/docker/media-consumption/config/kavita \
+        /opt/docker/reading/config/kavita
+```
+
+### 2e. Copy Karakeep named volumes between compose projects
+
+Named volumes are scoped to the compose project name. Create the new
+destinations and tar-pipe the contents across:
+
+```bash
+docker volume create reading_karakeep-data
+docker volume create reading_karakeep-meilisearch
+
 for vol in karakeep-data karakeep-meilisearch; do
   docker run --rm \
     -v media-consumption_${vol}:/from \
@@ -93,12 +118,17 @@ for vol in karakeep-data karakeep-meilisearch; do
 done
 ```
 
-### 2e. Bring the new stack up
+### 2f. Start the stack
 
 ```bash
-cd ~/docker/reading
-docker compose up -d
+make deploy-reading
 ```
+
+Same playbook, this time without `--skip-tags up`. Directories and
+templates are already in place (idempotent no-ops); ansible just runs
+the docker_compose_v2 task, which starts containers against the
+populated data. Postgres reads the moved data dir; Karakeep reads the
+populated volumes.
 
 ## 3. Verify
 
@@ -154,7 +184,7 @@ make edit-vault FILE=group_vars/media_consumption/vault.yml
 If anything goes sideways before the cleanup step, the old data is
 still intact:
 
-- `~/docker/media-consumption/data/miniflux-db/` (if you used `mv`,
+- `/opt/docker/media-consumption/data/miniflux-db/` (if you used `mv`,
   data is now under `reading/`, so reverse the `mv`)
 - `media-consumption_karakeep-data` and `media-consumption_karakeep-meilisearch`
   docker volumes (we only copied, didn't delete)
