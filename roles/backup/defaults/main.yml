@@ -33,6 +33,18 @@ borg_source_paths:
   # image is application-consistent on first boot from a restore.
   - /var/backup/dokploy
 
+# Named docker volumes that aren't under /opt/docker (i.e. stacks using
+# internal compose volumes rather than bind mounts). Mounted read-only
+# into the borgmatic container at `path` and added to source_directories
+# so their contents are captured. SQLite files inside these volumes also
+# need an entry in dump-sqlite.sh.j2 for a consistent snapshot.
+#
+# Volume names follow docker compose's project_volume convention; check
+# `docker volume ls` on the host if in doubt.
+borg_named_volumes:
+  - volume: media-consumption_karakeep-data
+    path: /karakeep-data
+
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
 # backup itself: avoid recursive snapshot of the borgmatic config dir
@@ -87,6 +99,8 @@ borg_networks:
 #   miniflux_db_password
 #   blinko_db_password
 #   draftboard_db_password
+#   dawarich_db_password
+#   ideon_db_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   couchdb_user, couchdb_password
@@ -114,6 +128,10 @@ blinko_db_name: blinko
 blinko_db_user: blinko
 draftboard_db_name: draftboard
 draftboard_db_user: draftboard
+dawarich_db_name: dawarich_production
+dawarich_db_username: dawarich
+ideon_db_name: ideon
+ideon_db_user: ideon
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
 # period at https://healthchecks.io and put its ping URL in the vault.

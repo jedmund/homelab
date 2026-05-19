@@ -109,28 +109,36 @@ Should mirror the structure of `/var/backup/borg/`.
 
 **Native borgmatic hooks** (streamed dump, no temp files):
 
-- 9 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
-  Forgejo, Blinko, Draftboard
+- 10 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
+  Blinko, Draftboard, Dawarich, Ideon
 - 1 MariaDB: RomM (via `mariadb_databases` hook, dumped as root)
 - 1 MongoDB: Komodo (admin database, full dump)
 
 **Custom `before_backup` scripts** writing to `/var/backup/dumps/`:
 
 - CouchDB (Obsidian LiveSync): per-database JSON dump with attachments
-- SQLite: `sqlite3 .backup` snapshots for PocketID, Papra, Homebox,
+- SQLite: `sqlite3 .backup` snapshots for PocketID, Line, Papra, Homebox,
   album-sort, *arrs (Sonarr/Radarr/Lidarr/Prowlarr), qui, Pinchflat,
-  Kavita, Stash, Tunarr, Plex library DB and blobs DB
+  Kavita, Stash, Tunarr, Plex library DB and blobs DB, Karakeep
 
 **File-level snapshots** (`/opt/docker`): every stack's bind-mounted
 configs, env files (encrypted at rest by borg), and other on-disk state.
 Excludes `/opt/docker/musicbrainz` (reproducible from upstream dumps)
 and `/opt/docker/backup` (avoid recursive snapshot).
 
+**Named docker volumes** (`borg_named_volumes` in defaults): for stacks
+that use internal compose volumes rather than bind mounts. The volume is
+mounted read-only into the borgmatic container at a known path, added to
+`source_directories`, and any SQLite inside also gets a dump-sqlite
+entry. Currently: `media-consumption_karakeep-data` -> `/karakeep-data`
+(captures Karakeep's SQLite plus its asset/screenshot store).
+
 ## What's not covered yet
 
-- Named docker volumes that aren't covered by DB dumps (e.g. Synapse's
-  media store at `matrix_synapse-data`, Mastodon's local media if any).
-  TBD whether these need explicit handling.
+- Named docker volumes for stacks that aren't yet listed in
+  `borg_named_volumes`. Synapse's media store at `matrix_synapse-data`
+  is the main known gap; Mastodon's local media may be another. Add
+  them to `borg_named_volumes` if they need explicit handling.
 
 ## Web UI
 
