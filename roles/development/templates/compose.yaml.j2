@@ -91,6 +91,13 @@ services:
       - WEBUI_AUTH={{ open_webui_auth }}
       - WEBUI_URL={{ open_webui_url }}
       - WEBUI_SECRET_KEY={{ open_webui_secret_key }}
+      # Per-user API keys (Settings -> Account -> API keys). Required for
+      # external clients (OpenCode, Claude Code, etc.) to hit OpenWebUI's
+      # OpenAI-compatible endpoints with a user-scoped bearer token.
+      # Endpoint restrictions stay enabled so a leaked personal key can't
+      # be used to call admin routes.
+      - ENABLE_API_KEYS=true
+      - ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS=true
       - ENABLE_OAUTH_SIGNUP={{ open_webui_oauth_signup }}
       - OAUTH_MERGE_ACCOUNTS_BY_EMAIL={{ open_webui_oauth_merge_accounts }}
       - OAUTH_PROVIDER_NAME={{ open_webui_oauth_provider_name }}
