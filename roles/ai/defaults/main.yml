@@ -68,11 +68,19 @@ ai_models:
     aliases:
       - "qwen3-coder:30b"
 
+  # OpenAI's open-weight 120B MoE (~5.1B active per token). At Unsloth's
+  # UD-Q4_K_XL it lands ~65-70GB on disk, leaving headroom for KV cache on
+  # the 96GB Blackwell. Replaces the gpt-oss-20b entry that sized for the
+  # previous 2x 3090 setup. Split GGUF (shard 1 here, llama-server auto-
+  # loads the rest); verify the shard count after download and adjust.
   - name: gpt-oss
-    file: openai_gpt-oss-20b-Q6_K.gguf
-    args: "-ngl 99 -c 8192"
+    file: gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf
+    args: >-
+      -ngl 999 -c 32768 --flash-attn
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --jinja
     aliases:
-      - "gpt-oss:20b"
+      - "gpt-oss:120b"
 
   # 229B / 10B-active MoE; needs flash-attn + KV quantisation to fit 96GB.
   # Sampling pinned to the values MiniMax recommends; --jinja is required

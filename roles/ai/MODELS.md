@@ -56,14 +56,20 @@ higher once KV cache is allocated.
 - **VRAM**: ~25 GB on disk; ~28 GB live at 16k context.
 - **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
 
-### gpt-oss — small fast option
+### gpt-oss — different-lineage check against Qwen/Gemma
 
-- **File**: `openai_gpt-oss-20b-Q6_K.gguf`
-- **Source**: `bartowski/openai_gpt-oss-20b-GGUF`
-- **Pull**: `hf download bartowski/openai_gpt-oss-20b-GGUF --include "*Q6_K*.gguf" --local-dir .`
-- **Why**: OpenAI's open-weight 20B. Useful as a sanity-check against the
-  Qwen/Gemma family and as a small, low-VRAM target for batched workloads.
-- **VRAM**: ~17 GB on disk; ~20 GB live at 8k context.
+- **File**: `gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf` (+ remaining shards
+  in the same directory; verify the actual shard count after download)
+- **Source**: `unsloth/gpt-oss-120b-GGUF`
+- **Pull**: `hf download unsloth/gpt-oss-120b-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
+- **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). Kept as a
+  third lineage (alongside Qwen and Gemma) for genuine cross-family
+  comparison; on 96 GB VRAM the 120B is the right tier, the 20B variant we
+  used to run was sized for the previous 2x 3090 setup.
+- **VRAM**: ~65-70 GB on disk; comfortably under the 96 GB ceiling at 32k
+  context with KV quantisation.
+- **Notes**: Split GGUF (same convention as MiniMax). `--jinja` for the
+  chat template.
 
 ### minimax-m27 — big-brain for hard problems
 
