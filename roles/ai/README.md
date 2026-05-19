@@ -7,6 +7,7 @@ GPU-bound AI services on `max`. Four containers in one stack:
 | llama-swap (+ llama.cpp) | `mostlygeek/llama-swap:cuda` | `11434` | yes (chat) |
 | whisper STT (speaches) | `speaches-ai/speaches:latest-cuda` | `9000` | yes (`/v1/audio/transcriptions`) |
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
+| TEI embeddings | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
 | SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
 
 OpenWebUI (running on `nuc-mini`) is wired to all four via env vars in
