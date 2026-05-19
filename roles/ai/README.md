@@ -37,28 +37,33 @@ Models are large binaries and live outside Ansible. Download them into
 `/models/`. The role's `ai_models` list in `defaults/main.yml` references each
 file by name; update both the list and the directory in lockstep.
 
-Current catalogue (matches the prototype stack at `/opt/stacks/ai/`):
+Current catalogue:
 
 ```bash
-# Daily-driver Qwen3 family
-hf download bartowski/Qwen3-14B-GGUF       --include "*q6_k*.gguf"     --local-dir .
-hf download bartowski/Qwen_Qwen3-32B-GGUF  --include "*Q4_K_M*.gguf"   --local-dir .
+# Daily drivers — Qwen3.6 (multimodal, hybrid Gated DeltaNet + attention).
+# The MTP variant of the dense 27B gets the real speedup; the MoE 35B-A3B
+# uses the non-MTP build because MTP barely helps MoE models.
+hf download unsloth/Qwen3.6-35B-A3B-GGUF     --include "*UD-Q4_K_XL*.gguf" --local-dir .
+hf download unsloth/Qwen3.6-27B-MTP-GGUF     --include "*UD-Q4_K_XL*.gguf" --local-dir .
+
+# Gemma 4 31B-it — Google's top-of-Arena open dense model
+hf download unsloth/gemma-4-31B-it-GGUF      --include "*UD-Q4_K_XL*.gguf" --local-dir .
+
+# Coding specialist (Qwen3.6 may eventually subsume this; keep for now)
 hf download bartowski/Qwen3-Coder-30B-A3B-Instruct-GGUF --include "*Q6_K*.gguf" --local-dir .
 
 # gpt-oss
-hf download bartowski/openai_gpt-oss-20b-GGUF --include "*Q6_K*.gguf"  --local-dir .
+hf download bartowski/openai_gpt-oss-20b-GGUF --include "*Q6_K*.gguf" --local-dir .
 
-# Vision (needs both the model and the mmproj projection)
-hf download bartowski/Qwen3VL-8B-Instruct-GGUF --include "*Q8_0*.gguf"          --local-dir .
-hf download bartowski/Qwen3VL-8B-Instruct-GGUF --include "mmproj-*F16*.gguf"    --local-dir .
-
-# MiniMax M2.7 — 229B/10B-active MoE, agentic + coding
+# MiniMax M2.7 — 229B/10B-active MoE, big-brain for hard problems
 hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ3_S*.gguf" --local-dir .
 
-# Embeddings + reranker (for OpenWebUI semantic search)
-hf download nomic-ai/nomic-embed-text-v1.5-GGUF --include "*Q8_0*.gguf" --local-dir .
-hf download gpustack/bge-reranker-v2-m3-GGUF    --include "*Q8_0*.gguf" --local-dir .
+# Reranker (for OpenWebUI semantic-search reranking)
+hf download gpustack/bge-reranker-v2-m3-GGUF --include "*Q8_0*.gguf" --local-dir .
 ```
+
+Embeddings are served by TEI, not llama-swap; TEI downloads its model
+(`nomic-ai/nomic-embed-text-v1.5`) on first start via the HF hub.
 
 ## Hardware notes
 
@@ -67,6 +72,15 @@ VRAM). The compose service uses `deploy.resources.reservations.devices` with
 `driver: nvidia, count: all`, so any GPU set the host exposes via the NVIDIA
 container toolkit is picked up automatically.
 
+## Llama.cpp version requirement
+
+The `qwen3.6` (Qwen3.6-27B-MTP) entry uses the `--spec-type draft-mtp` flag,
+which requires llama.cpp from 2026-05-16 or later. Before first deploy, run
+`docker pull ghcr.io/mostlygeek/llama-swap:cuda` on `max` to ensure the
+bundled llama-server is recent enough; if MTP-enabled models fail to start
+with a flag error in `docker logs llama-swap`, the image is stale and a
+pull will fix it.
+
 The MiniMax M2.7 entry pins flash-attn, q8_0 KV quantisation, and MiniMax's
 recommended sampling params. Without `--jinja` the chat template and
-tool-calling break.
+tool-calling break for it, Gemma 4, and Qwen3.6.

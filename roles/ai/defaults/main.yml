@@ -17,17 +17,50 @@ llama_swap_health_check_timeout: 60
 # llama-server backend; aliases let OpenWebUI/Ollama clients reach them
 # under familiar names.
 ai_models:
-  - name: qwen3-14b
-    file: qwen3-14b-q6_k.gguf
-    args: "-ngl 99 -c 8192"
+  # Fast everyday driver — Qwen3.6 35B total / 3B active per token MoE.
+  # ~240 tok/s on Blackwell. Multimodal. Using the non-MTP variant
+  # because MTP barely moves MoE (~1.15x) — the dense models below get
+  # the real MTP win, this one just keeps the simpler config and saves
+  # ~1GB VRAM.
+  - name: qwen3.6-flash
+    file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    args: >-
+      -ngl 999 -c 32768 --flash-attn
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
     aliases:
-      - "qwen3:14b"
+      - "qwen3.6:35b-a3b"
+      - "qwen3.6-fast"
 
-  - name: qwen3-32b
-    file: Qwen_Qwen3-32B-Q4_K_M.gguf
-    args: "-ngl 99 -c 8192"
+  # Quality everyday driver — Qwen3.6 27B dense with multi-token
+  # prediction. ~160 tok/s on Blackwell, multimodal, 256K context.
+  # MTP flags require llama.cpp from 2026-05-16 or newer; `docker pull
+  # ghcr.io/mostlygeek/llama-swap:cuda` before first deploy to ensure
+  # the bundled llama-server is recent enough.
+  - name: qwen3.6
+    file: Qwen3.6-27B-MTP-UD-Q4_K_XL.gguf
+    args: >-
+      -ngl 999 -c 32768 --flash-attn
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --spec-type draft-mtp --spec-draft-n-max 6
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
     aliases:
-      - "qwen3:32b"
+      - "qwen3.6:27b"
+
+  # Different lineage from Qwen — Google's top-of-Arena open dense
+  # model. Multimodal (text+image), 256K context. Sampling per Google's
+  # recommended values; no MTP variant available upstream.
+  - name: gemma4
+    file: gemma-4-31B-it-UD-Q4_K_XL.gguf
+    args: >-
+      -ngl 999 -c 32768 --flash-attn
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 64
+      --jinja
+    aliases:
+      - "gemma4:31b"
 
   - name: qwen3-coder
     file: Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf
@@ -40,12 +73,6 @@ ai_models:
     args: "-ngl 99 -c 8192"
     aliases:
       - "gpt-oss:20b"
-
-  - name: qwen3-vl
-    file: Qwen3VL-8B-Instruct-Q8_0.gguf
-    args: "--mmproj /models/mmproj-Qwen3VL-8B-Instruct-F16.gguf -ngl 99 -c 4096"
-    aliases:
-      - "qwen3-vl:8b"
 
   # 229B / 10B-active MoE; needs flash-attn + KV quantisation to fit 96GB.
   # Sampling pinned to the values MiniMax recommends; --jinja is required
