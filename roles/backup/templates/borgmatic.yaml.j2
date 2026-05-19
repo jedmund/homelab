@@ -10,6 +10,9 @@ source_directories:
 {% for path in borg_source_paths %}
     - {{ path }}
 {% endfor %}
+{% for vol in borg_named_volumes %}
+    - {{ vol.path }}
+{% endfor %}
     - {{ borg_dumps_container_path }}
 
 repositories:

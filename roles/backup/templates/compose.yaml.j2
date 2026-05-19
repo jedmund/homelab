@@ -23,6 +23,9 @@ services:
 {% for path in borg_source_paths %}
       - {{ path }}:{{ path }}:ro
 {% endfor %}
+{% for vol in borg_named_volumes %}
+      - {{ vol.volume }}:{{ vol.path }}:ro
+{% endfor %}
     logging:
       driver: {{ logging_driver }}
       options:
@@ -57,6 +60,11 @@ services:
 
 volumes:
   borg-ui-data:
+{% for vol in borg_named_volumes %}
+  {{ vol.volume }}:
+    name: {{ vol.volume }}
+    external: true
+{% endfor %}
 
 networks:
 {% for net in borg_networks %}

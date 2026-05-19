@@ -33,6 +33,18 @@ borg_source_paths:
   # image is application-consistent on first boot from a restore.
   - /var/backup/dokploy
 
+# Named docker volumes that aren't under /opt/docker (i.e. stacks using
+# internal compose volumes rather than bind mounts). Mounted read-only
+# into the borgmatic container at `path` and added to source_directories
+# so their contents are captured. SQLite files inside these volumes also
+# need an entry in dump-sqlite.sh.j2 for a consistent snapshot.
+#
+# Volume names follow docker compose's project_volume convention; check
+# `docker volume ls` on the host if in doubt.
+borg_named_volumes:
+  - volume: media-consumption_karakeep-data
+    path: /karakeep-data
+
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
 # backup itself: avoid recursive snapshot of the borgmatic config dir
