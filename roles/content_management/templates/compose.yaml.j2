@@ -164,10 +164,13 @@ services:
         condition: service_healthy
         restart: true
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\".*ok'"]
-      interval: 30s
+      # APPLICATION_PROTOCOL=https makes Rails 301-redirect plain HTTP to HTTPS,
+      # which wget cannot satisfy against non-TLS Puma. Send X-Forwarded-Proto
+      # so force_ssl treats the probe as already-secure.
+      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:3000/api/v1/health | grep -q '\"status\".*ok'"]
+      interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 30
       start_period: 60s
     logging:
       driver: {{ logging_driver }}
