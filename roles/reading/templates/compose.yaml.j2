@@ -107,7 +107,7 @@ services:
     environment:
       - FTR_ADMIN_PASSWORD={{ fivefilters_admin_password }}
     volumes:
-      - ./config/fivefilters/cache:/var/www/html/cache
+      - fivefilters-cache:/var/www/html/cache
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
       interval: {{ healthcheck_interval }}
@@ -217,6 +217,7 @@ services:
 volumes:
   karakeep-data:
   karakeep-meilisearch:
+  fivefilters-cache:
 
   comics:
     external: true

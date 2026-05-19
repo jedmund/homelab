@@ -89,7 +89,7 @@ services:
     environment:
       - FTR_ADMIN_PASSWORD=changeme
     volumes:
-      - ./config/fivefilters/cache:/var/www/html/cache
+      - fivefilters-cache:/var/www/html/cache
 
   karakeep:
     container_name: karakeep_web
@@ -149,6 +149,7 @@ services:
 volumes:
   karakeep-data:
   karakeep-meilisearch:
+  fivefilters-cache:
   comics:
     driver: local
     driver_opts:
