@@ -1,6 +1,6 @@
 # ai
 
-GPU-bound AI services on `max`. Four containers in one stack:
+GPU-bound AI services on `max`. Five containers in one stack:
 
 | Service | Container | Host port | OpenAI-compatible |
 |---|---|---|---|
@@ -10,7 +10,7 @@ GPU-bound AI services on `max`. Four containers in one stack:
 | TEI embeddings | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
 | SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
 
-OpenWebUI (running on `nuc-mini`) is wired to all four via env vars in
+OpenWebUI (running on `nuc-mini`) is wired to all of these via env vars in
 `roles/development`; nothing needs to be set in the OpenWebUI admin UI
 after deployment.
 
@@ -30,37 +30,12 @@ after deployment.
 - `searxng_secret_key` — generate with `openssl rand -hex 32`. SearXNG
   refuses to start with the empty default.
 
-## Model files
+## Models
 
-Models are large binaries and live outside Ansible. Download them into
-`{{ docker_base_path }}/ai/models/` on `max` so the container sees them at
-`/models/`. The role's `ai_models` list in `defaults/main.yml` references each
-file by name; update both the list and the directory in lockstep.
-
-Current catalogue:
-
-```bash
-# Daily drivers — Qwen3.6 (multimodal, hybrid Gated DeltaNet + attention).
-# The MTP variant of the dense 27B gets the real speedup; the MoE 35B-A3B
-# uses the non-MTP build because MTP barely helps MoE models.
-hf download unsloth/Qwen3.6-35B-A3B-GGUF     --include "*UD-Q4_K_XL*.gguf" --local-dir .
-hf download unsloth/Qwen3.6-27B-MTP-GGUF     --include "*UD-Q4_K_XL*.gguf" --local-dir .
-
-# Gemma 4 31B-it — Google's top-of-Arena open dense model
-hf download unsloth/gemma-4-31B-it-GGUF      --include "*UD-Q4_K_XL*.gguf" --local-dir .
-
-# Coding specialist (Qwen3.6 may eventually subsume this; keep for now)
-hf download bartowski/Qwen3-Coder-30B-A3B-Instruct-GGUF --include "*Q6_K*.gguf" --local-dir .
-
-# gpt-oss
-hf download bartowski/openai_gpt-oss-20b-GGUF --include "*Q6_K*.gguf" --local-dir .
-
-# MiniMax M2.7 — 229B/10B-active MoE, big-brain for hard problems
-hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ3_S*.gguf" --local-dir .
-
-# Reranker (for OpenWebUI semantic-search reranking)
-hf download gpustack/bge-reranker-v2-m3-GGUF --include "*Q8_0*.gguf" --local-dir .
-```
+The model catalogue (what's installed, why, how to pull each GGUF, how to add
+or swap one) lives in [MODELS.md](MODELS.md). The `ai_models` list in
+`defaults/main.yml` is the source of truth for what llama-swap serves;
+MODELS.md is the human-readable companion.
 
 Embeddings are served by TEI, not llama-swap; TEI downloads its model
 (`nomic-ai/nomic-embed-text-v1.5`) on first start via the HF hub.
@@ -84,3 +59,11 @@ pull will fix it.
 The MiniMax M2.7 entry pins flash-attn, q8_0 KV quantisation, and MiniMax's
 recommended sampling params. Without `--jinja` the chat template and
 tool-calling break for it, Gemma 4, and Qwen3.6.
+
+## First-time deploy
+
+`docker compose up` on a fresh `max` has to pull roughly 20–30 GB of CUDA
+images, and Ansible buffers task output until the module returns, so the
+`Deploy ai stack` task can look frozen for many minutes. Pre-pull the images
+(`docker pull` each one in `compose.yaml.j2`) before running the playbook for
+the first time to avoid the perceived hang.

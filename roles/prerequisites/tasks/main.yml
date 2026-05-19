@@ -77,3 +77,59 @@
   user:
     name: "{{ ansible_user }}"
     shell: /bin/zsh
+
+# GitHub CLI (gh)
+- name: Add GitHub CLI GPG key
+  apt_key:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    keyring: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    state: present
+
+- name: Add GitHub CLI repository
+  apt_repository:
+    repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    state: present
+    filename: github-cli
+
+- name: Install GitHub CLI
+  apt:
+    name: gh
+    state: present
+    update_cache: yes
+
+# GitLab CLI (glab)
+- name: Add GitLab CLI GPG key
+  apt_key:
+    url: https://packages.gitlab.com/gitlab/cli/gpgkey
+    keyring: /etc/apt/keyrings/gitlab-cli.gpg
+    state: present
+
+- name: Add GitLab CLI repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/gitlab-cli.gpg] https://packages.gitlab.com/gitlab/cli/ubuntu/ {{ ansible_distribution_release }} main"
+    state: present
+    filename: gitlab-cli
+
+- name: Install GitLab CLI
+  apt:
+    name: glab
+    state: present
+    update_cache: yes
+
+# HuggingFace CLI (hf) via pipx
+- name: Install pipx
+  apt:
+    name: pipx
+    state: present
+
+- name: Install HuggingFace CLI via pipx
+  become_user: "{{ ansible_user }}"
+  command: pipx install "huggingface_hub[cli]"
+  args:
+    creates: "/home/{{ ansible_user }}/.local/bin/hf"
+
+- name: Ensure pipx bin dir is on PATH
+  become_user: "{{ ansible_user }}"
+  command: pipx ensurepath
+  register: pipx_ensurepath
+  changed_when: "'added to' in pipx_ensurepath.stdout or 'Success' in pipx_ensurepath.stdout"
