@@ -29,3 +29,88 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+  whisper:
+    image: {{ whisper_image }}
+    container_name: whisper
+    restart: {{ restart_policy }}
+    ports:
+      - {{ whisper_port }}:8000
+    volumes:
+      - whisper-cache:/home/ubuntu/.cache/huggingface
+    environment:
+      - WHISPER__MODEL={{ whisper_default_model }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kokoro:
+    image: {{ kokoro_image }}
+    container_name: kokoro
+    restart: {{ restart_policy }}
+    ports:
+      - {{ kokoro_port }}:8880
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8880/v1/audio/voices"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  searxng:
+    image: {{ searxng_image }}
+    container_name: searxng
+    restart: {{ restart_policy }}
+    ports:
+      - {{ searxng_port }}:8080
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL={{ searxng_base_url }}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  whisper-cache:

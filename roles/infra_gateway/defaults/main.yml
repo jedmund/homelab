@@ -121,7 +121,8 @@ adguard_port_setup: 3000
 adguard_port_dns_tcp: 53
 adguard_port_dns_udp: 53
 
-# Server IPs for Traefik dynamic configs
-mini_server_ip: 192.168.1.6
-max_server_ip: 192.168.1.245
-dokploy_vm_ip: 192.168.1.8
+# Server IPs for Traefik dynamic configs.
+# Sourced from inventory so the IPs are only ever defined in one place.
+mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"
