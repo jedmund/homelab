@@ -125,6 +125,7 @@ tunarr_database_url: "file:/config/tunarr.db"
 # Multi-scrobbler settings
 multi_scrobbler_port: 9078
 multi_scrobbler_base_url: "https://scrobble.atelier.house"
+# multi_scrobbler_lze_token - defined in vault
 # musicbrainz_web_port: matches the port published by the musicbrainz role on
 # the shared docker network. multi-scrobbler resolves http://musicbrainz:<port>
 # directly without going through Traefik (which would hit TinyAuth).
