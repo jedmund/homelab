@@ -294,6 +294,15 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Dawarich - where.{{ traefik_domain }}
+    dawarich:
+      rule: "Host(`where.{{ traefik_domain }}`)"
+      service: dawarich
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
     # RomM - rom.{{ traefik_domain }}
     romm:
       rule: "Host(`rom.{{ traefik_domain }}`)"
@@ -500,6 +509,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:3100"
+
+    dawarich:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3030"
 
     romm:
       loadBalancer:
