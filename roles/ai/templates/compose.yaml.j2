@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  llama-swap:
+    image: {{ llama_swap_image }}
+    container_name: llama-swap
+    restart: {{ restart_policy }}
+    ports:
+      - {{ llama_swap_port }}:8080
+    volumes:
+      - ./config/llama-swap.yaml:/app/config.yaml
+      - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}

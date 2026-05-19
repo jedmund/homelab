@@ -1,0 +1,79 @@
+---
+# Stack identity
+stack_name: ai
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# llama-swap settings
+# https://github.com/mostlygeek/llama-swap
+llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
+llama_swap_port: 11434
+llama_swap_log_level: info
+llama_swap_health_check_timeout: 60
+
+# Model catalogue
+# Models live in {{ config_base }}/models on the host and are mounted at
+# /models inside the container. Files are downloaded out of band (see
+# roles/ai/README.md). Each entry becomes a llama-swap model with a
+# llama-server backend; aliases let OpenWebUI/Ollama clients reach them
+# under familiar names.
+ai_models:
+  - name: qwen3-14b
+    file: qwen3-14b-q6_k.gguf
+    args: "-ngl 99 -c 8192"
+    aliases:
+      - "qwen3:14b"
+
+  - name: qwen3-32b
+    file: Qwen_Qwen3-32B-Q4_K_M.gguf
+    args: "-ngl 99 -c 8192"
+    aliases:
+      - "qwen3:32b"
+
+  - name: qwen3-coder
+    file: Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf
+    args: "-ngl 99 -c 16384"
+    aliases:
+      - "qwen3-coder:30b"
+
+  - name: gpt-oss
+    file: openai_gpt-oss-20b-Q6_K.gguf
+    args: "-ngl 99 -c 8192"
+    aliases:
+      - "gpt-oss:20b"
+
+  - name: qwen3-vl
+    file: Qwen3VL-8B-Instruct-Q8_0.gguf
+    args: "--mmproj /models/mmproj-Qwen3VL-8B-Instruct-F16.gguf -ngl 99 -c 4096"
+    aliases:
+      - "qwen3-vl:8b"
+
+  # 229B / 10B-active MoE; needs flash-attn + KV quantisation to fit 96GB.
+  # Sampling pinned to the values MiniMax recommends; --jinja is required
+  # for the chat template + tool-call handling to work correctly.
+  - name: minimax-m27
+    file: MiniMax-M2.7-UD-IQ3_S.gguf
+    args: >-
+      -ngl 999 -c 65536 --flash-attn
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 40
+      --jinja
+    aliases:
+      - "minimax:m27"
+
+  - name: nomic-embed
+    file: nomic-embed-text-v1.5-Q8_0.gguf
+    args: "-ngl 99 --embedding"
+    ttl: 300
+    aliases:
+      - "nomic-embed-text"
+
+  - name: bge-reranker
+    file: bge-reranker-v2-m3-Q8_0.gguf
+    args: "-ngl 99 --reranking"
+    ttl: 300
+    aliases:
+      - "bge-reranker-v2-m3"
+
+# Default TTL (seconds of idle before llama-swap unloads a model).
+# Individual ai_models entries can override via their own `ttl:` key.
+ai_model_default_ttl: 600
