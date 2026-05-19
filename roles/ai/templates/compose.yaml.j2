@@ -65,13 +65,6 @@ services:
     restart: {{ restart_policy }}
     ports:
       - {{ kokoro_port }}:8880
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8880/v1/audio/voices"]
       interval: {{ healthcheck_interval }}
@@ -94,6 +87,7 @@ services:
       - tei-cache:/data
     command:
       - --model-id={{ tei_model_id }}
+      - --revision={{ tei_model_revision }}
       - --max-concurrent-requests={{ tei_max_concurrent_requests }}
       - --max-batch-tokens={{ tei_max_batch_tokens }}
     deploy:
@@ -131,6 +125,12 @@ services:
       - CHOWN
       - SETGID
       - SETUID
+      # Container starts as root with no USER directive; the entrypoint
+      # chowns /etc/searxng to searxng (977) but never drops privileges,
+      # so granian ends up running as root. Without DAC_OVERRIDE root
+      # cannot read the 0640 settings.yml owned by uid 977 (matches the
+      # upstream searxng-docker compose).
+      - DAC_OVERRIDE
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
       interval: {{ healthcheck_interval }}

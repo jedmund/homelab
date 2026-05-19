@@ -127,7 +127,12 @@ whisper_default_model: Systran/faster-distil-whisper-large-v3
 # Kokoro TTS (kokoro-fastapi)
 # https://github.com/remsky/Kokoro-FastAPI
 # OpenAI-compatible: POST /v1/audio/speech
-kokoro_image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+#
+# Pinned to the CPU image because Kokoro is small (~80M params) and the
+# -gpu image bundles a PyTorch built for sm_50..sm_90, which can't run
+# on the RTX PRO 6000 Blackwell (sm_120). Switch back to -gpu when
+# upstream ships a PyTorch 2.7+/CUDA 12.8 image with Blackwell kernels.
+kokoro_image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
 kokoro_port: 8880
 # af_sky | af_bella | af_nicole | am_adam | am_michael | bf_emma | bf_isabella
 kokoro_default_voice: af_sky
@@ -153,6 +158,12 @@ tei_port: 11435
 # place without re-embedding. Swap for BAAI/bge-large-en-v1.5 or
 # Qwen/Qwen3-Embedding-8B if you want top-of-MTEB at higher cost.
 tei_model_id: nomic-ai/nomic-embed-text-v1.5
+# Pinned revision: the 2026-04-07 "v5 Transformers (#57)" commit on main
+# adds an `n_positions` field whose serde alias collides with the existing
+# `max_position_embeddings`, so TEI rejects the config as a duplicate
+# field. This commit is the one immediately before that change. Bump (or
+# remove the --revision flag) once upstream fixes the alias collision.
+tei_model_revision: e5cf08aadaa33385f5990def41f7a23405aec398
 # Inference batch sizing. Defaults are conservative; bump if you serve
 # heavy ingestion workloads (e.g. Karakeep bulk re-embed).
 tei_max_concurrent_requests: 512
