@@ -85,15 +85,17 @@ ssh nuc-mini 'cd /opt/docker/reading && docker compose down'
 
 ### 2e. Move bind-mounted host directories
 
-Ansible created the leaf dirs as empty placeholders, and Postgres
-populated `data/miniflux-db` on first start. Remove both so the `mv`
-lands in the right place instead of nesting.
+During step 2c, the first-start of the containers populated all three
+destination dirs with fresh state: Postgres seeded an empty cluster
+in `data/miniflux-db`, the miniflux-db-backup container wrote an
+initial pg_dump into `backups/miniflux`, and Kavita created config
+files in `config/kavita`. Wipe all three before the `mv`.
 
 ```bash
 ssh nuc-mini
-sudo rm -rf /opt/docker/reading/data/miniflux-db
-sudo rmdir /opt/docker/reading/backups/miniflux \
-           /opt/docker/reading/config/kavita
+sudo rm -rf /opt/docker/reading/data/miniflux-db \
+            /opt/docker/reading/backups/miniflux \
+            /opt/docker/reading/config/kavita
 
 sudo mv /opt/docker/media-consumption/data/miniflux-db \
         /opt/docker/reading/data/miniflux-db
@@ -102,10 +104,6 @@ sudo mv /opt/docker/media-consumption/backups/miniflux \
 sudo mv /opt/docker/media-consumption/config/kavita \
         /opt/docker/reading/config/kavita
 ```
-
-`rm -rf` on `data/miniflux-db` because Postgres seeded it with a
-fresh empty cluster during 2c; the other two are empty placeholders
-so `rmdir` is enough.
 
 ### 2f. Repopulate Karakeep named volumes
 
