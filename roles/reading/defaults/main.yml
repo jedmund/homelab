@@ -23,6 +23,7 @@ miniflux_worker_pool_size: "5"
 miniflux_metrics_collector: "1"
 miniflux_metrics_allowed_networks: "127.0.0.1/8,::1/128,192.168.0.0/16"
 miniflux_backup_retention_days: 7
+miniflux_fetcher_allow_private_networks: "1"
 
 # Reactflux settings
 reactflux_port: 2000
