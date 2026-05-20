@@ -78,7 +78,7 @@ ideon_log_level_client: warn
 # ideon_secret_key - defined in vault (32+ char random, openssl rand -hex 32)
 
 # Ideon database
-ideon_db_image: postgres:18-alpine
+ideon_db_image: postgres:17-alpine
 ideon_db_host: ideon-db
 ideon_db_port: "5432"
 ideon_db_name: ideon

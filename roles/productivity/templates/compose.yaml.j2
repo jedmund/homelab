@@ -232,7 +232,7 @@ services:
       ideon-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:{{ ideon_port }}/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:{{ ideon_port }}/api/health"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
