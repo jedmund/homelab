@@ -26,7 +26,6 @@ musicbrainz_compose_files:
   - docker-compose.yml
   - compose/replication-token.yml
   - compose/replication-cron.yml
-  - compose/search-indexer.yml
   - local/compose/atelier.yml
 
 # musicbrainz_replication_token - defined in vault
