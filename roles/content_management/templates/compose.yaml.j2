@@ -94,6 +94,7 @@ services:
   album-sort:
     container_name: album_sort
     build: {{ album_sort_source_path }}
+    image: {{ stack_name }}/album-sort:local
     restart: {{ restart_policy }}
     ports:
       - {{ album_sort_port }}:{{ album_sort_container_port }}
@@ -126,6 +127,7 @@ services:
   beets:
     container_name: album_sort_beets
     build: {{ album_sort_source_path }}/deploy/beets
+    image: {{ stack_name }}/beets:local
     restart: {{ restart_policy }}
     environment:
       - TZ={{ timezone }}
