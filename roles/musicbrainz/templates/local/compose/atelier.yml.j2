@@ -5,6 +5,12 @@
 # http://musicbrainz:{{ musicbrainz_web_port }}.
 
 services:
+  # Upstream gives every service `restart: unless-stopped` except `indexer`,
+  # so a single crash leaves the indexer permanently down and search indexes
+  # drift out of sync with replicated DB updates.
+  indexer:
+    restart: unless-stopped
+
   musicbrainz:
     networks:
       - default
