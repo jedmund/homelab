@@ -135,6 +135,7 @@ services:
     build:
       context: {{ line_source_path }}
       dockerfile: deploy/Dockerfile
+    image: {{ stack_name }}/line:local
     restart: {{ restart_policy }}
     networks:
       - proxy

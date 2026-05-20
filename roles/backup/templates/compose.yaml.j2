@@ -7,6 +7,7 @@ services:
     build:
       context: ./build
       dockerfile: Dockerfile
+    image: {{ stack_name }}/borgmatic:local
     restart: {{ restart_policy }}
     env_file:
       - ./env/borgmatic.env

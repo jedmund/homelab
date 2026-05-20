@@ -7,6 +7,7 @@ services:
     build:
       context: ./config/strudel
       dockerfile: Dockerfile
+    image: {{ stack_name }}/strudel:local
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -125,6 +126,7 @@ services:
     build:
       context: ./config/draftboard
       dockerfile: dist/Dockerfile
+    image: {{ stack_name }}/draftboard:local
     restart: {{ restart_policy }}
     networks:
       - proxy
