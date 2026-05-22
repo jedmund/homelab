@@ -33,9 +33,15 @@ ai_models:
   - name: qwen3.6-flash
     file: Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
     group: chat
+    # --mmproj wires the multimodal projector so image inputs work;
+    # without it text-only inference still runs fine but images are
+    # dropped. Unsloth ships the mmproj alongside the main weights in
+    # the same GGUF repo. Verify the exact filename after download
+    # (sometimes BF16, sometimes F16).
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-Qwen3.6-35B-A3B-F16.gguf
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
     aliases:
@@ -54,9 +60,12 @@ ai_models:
   - name: qwen3.6-flash-uncensored
     file: Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf
     group: chat
+    # HauhauCS publishes mmproj as a separate file alongside the
+    # quants; pattern is mmproj-<full-model-name>-f16.gguf.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
     aliases:
@@ -81,9 +90,12 @@ ai_models:
     # build, which the --spec-type draft-mtp arg below relies on).
     file: Qwen3.6-27B-UD-Q6_K_XL.gguf
     group: chat
+    # --mmproj enables image inputs. Verify mmproj filename after
+    # download from unsloth/Qwen3.6-27B-MTP-GGUF.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-Qwen3.6-27B-F16.gguf
       --spec-type draft-mtp --spec-draft-n-max 6
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
@@ -100,9 +112,12 @@ ai_models:
   - name: gemma4
     file: gemma-4-31B-it-UD-Q6_K_XL.gguf
     group: chat
+    # --mmproj enables image inputs. Verify mmproj filename after
+    # download from unsloth/gemma-4-31B-it-GGUF.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-gemma-4-31B-it-F16.gguf
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
@@ -117,9 +132,12 @@ ai_models:
   - name: gemma4-uncensored
     file: Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf
     group: chat
+    # HauhauCS mmproj filename pattern matches the weights filename
+    # with a mmproj- prefix and -f16.gguf suffix. Verify after download.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-f16.gguf
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
@@ -138,6 +156,7 @@ ai_models:
     args: >-
       -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
@@ -277,7 +296,16 @@ ai_models:
 
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
-ai_model_default_ttl: 600
+# Bumped from 600 (10 min) to 7200 (2 hours) because the previous
+# value kicked models out aggressively during normal workday use:
+# step away for a meeting and come back to a 1-2 min cold-load tax on
+# the next opencode request. With the chat group's `swap: true`
+# policy, only one chat model is resident at a time anyway, so the
+# only cost of a longer TTL is GPU idle power (~30-50 W per card
+# while a model is loaded but not generating). Models that swap in
+# under heavy use (e.g. ~80GB minimax-m27 cold-loading from NVMe to
+# VRAM) take ~2 min, well worth avoiding for a few extra watts.
+ai_model_default_ttl: 7200
 
 # llama-swap groups. Without these, every model lingers in VRAM until
 # its TTL expires, so switching between two big models OOMs the GPU

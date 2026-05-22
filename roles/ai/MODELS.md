@@ -17,9 +17,12 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### qwen3.6-flash — daily driver, fastest
 
-- **File**: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
+- **Files**:
+  - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
+  - mmproj: `mmproj-Qwen3.6-35B-A3B-F16.gguf` (image projector;
+    verify exact filename after download)
 - **Source**: `unsloth/Qwen3.6-35B-A3B-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
   Blackwell, multimodal. Default chat model when latency matters more
   than depth. Bumped to Q8_K_XL once the second Blackwell arrived:
@@ -30,13 +33,18 @@ VRAM is usually a bit higher once KV cache is allocated.
   budget with the chat group's swap-on-load policy.
 - **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
   (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
-  variant instead.
+  variant instead. `--mmproj` wires up vision; without it text-only
+  inference still works but image inputs are dropped.
 
 ### qwen3.6-flash-uncensored — abliterated variant of the MoE flash model
 
-- **File**: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+  - mmproj: `mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf` (~900 MB)
 - **Source**: `HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive`
-- **Pull**: `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf --local-dir .`
 - **Why**: Abliterated (refusal-vector-removed) build of the same base
   model as `qwen3.6-flash`, kept at the same fidelity tier (~10 bpw) so
   quality comparisons against the non-abliterated sibling stay clean.
@@ -50,18 +58,20 @@ VRAM is usually a bit higher once KV cache is allocated.
   The "Aggressive" suffix means more thorough refusal removal than the
   standard abliterated variant; downside is that over-suppressed refusal
   vectors can leak into benign reasoning, so if coherence on normal
-  tasks degrades, switch to a less aggressive HauhauCS build. mmproj
-  is shipped as a separate file (`mmproj-...-f16.gguf`, ~900 MB), not
-  downloaded here because the non-uncensored sibling also runs without
-  vision; if you ever wire up multimodality, both entries need the
-  matching mmproj added via `--mmproj /models/<file>`.
+  tasks degrades, switch to a less aggressive HauhauCS build. mmproj is
+  shipped as a separate file and now wired up via `--mmproj`; both
+  weights and mmproj must be present before llama-server boots, or it
+  fails to start.
 
 ### qwen3.6 — daily driver, quality
 
-- **File**: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP" marker on
-  the repo, not the filename; this file is still the MTP build)
+- **Files**:
+  - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP"
+    marker on the repo, not the filename; this file is still the MTP
+    build)
+  - mmproj: `mmproj-Qwen3.6-27B-F16.gguf` (verify after download)
 - **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
   Blackwell, multimodal, 256K context. Use when the MoE flash model's
   answers feel thin. Bumped to Q6_K_XL once the second Blackwell arrived:
@@ -73,13 +83,17 @@ VRAM is usually a bit higher once KV cache is allocated.
 - **Notes**: Needs `--spec-type draft-mtp`, which requires llama.cpp from
   2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda`
   before first deploy; if model fails to load with a flag error in
-  `docker logs llama-swap`, the image is stale.
+  `docker logs llama-swap`, the image is stale. `--mmproj` wires up
+  vision; image inputs require the mmproj file to be present alongside
+  the weights.
 
 ### gemma4 — different lineage from Qwen
 
-- **File**: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
+- **Files**:
+  - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
+  - mmproj: `mmproj-gemma-4-31B-it-F16.gguf` (verify after download)
 - **Source**: `unsloth/gemma-4-31B-it-GGUF`
-- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Google's top-of-Arena open dense model. Multimodal (text +
   image), 256K context. Kept around to have a non-Qwen-family option
   when comparing answers or hitting Qwen-specific quirks. Bumped to
@@ -88,13 +102,19 @@ VRAM is usually a bit higher once KV cache is allocated.
 - **VRAM**: ~25 GB on disk; ~55 GB live with `--parallel 4 -c 262144`
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Sampling uses Google's recommended values (`--top-k 64`).
-  No MTP variant available upstream.
+  No MTP variant available upstream. `--mmproj` wires up vision;
+  Gemma 4's image input format follows the standard llama-server
+  vision protocol.
 
 ### gemma4-uncensored — abliterated MoE Gemma 4
 
-- **File**: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
+  - mmproj: `mmproj-Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-f16.gguf` (verify after download)
 - **Source**: `HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced`
-- **Pull**: `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced mmproj-Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-f16.gguf --local-dir .`
 - **Why**: Abliterated MoE companion to the dense `gemma4` entry. 26B
   total / 4B active per token, so decode speed is closer to a 4B model
   than to the 31B dense flagship. "Balanced" abliteration removes
@@ -104,15 +124,19 @@ VRAM is usually a bit higher once KV cache is allocated.
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Q8_K_P (~10 bpw) is HauhauCS's analog of Unsloth's
   UD-Q8_K_XL. MoE means the bigger quant is essentially free in tok/s.
-  Sampling uses Gemma's recommended `--top-k 64`. If the dataset
-  exposes an mmproj file for image input, wire it in via `--mmproj`
-  (left out by default to match the rest of the chat-group entries).
+  Sampling uses Gemma's recommended `--top-k 64`. `--mmproj` wires up
+  vision; image inputs require the mmproj file to be present alongside
+  the weights before llama-server boots.
 
 ### gemma-e4b-uncensored — small dense Gemma 4 (abliterated)
 
-- **File**: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+  - mmproj: `mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf` (verify after download)
 - **Source**: `HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive`
-- **Pull**: `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf --local-dir .`
 - **Why**: Small dense Gemma 4 "E4B" variant for quick low-latency
   tasks; abliterated for cases where refusal training on a small model
   gets noisy. Sized similarly to `qwen3-small` but kept in the GPU
@@ -124,7 +148,9 @@ VRAM is usually a bit higher once KV cache is allocated.
   for project-scale conversations.
 - **Notes**: "Aggressive" abliteration removes refusal vectors more
   thoroughly; possible coherence leak on benign prompts. Swap for a
-  Balanced HauhauCS build if that bites in practice.
+  Balanced HauhauCS build if that bites in practice. `--mmproj` wires
+  up vision; image inputs require the mmproj file alongside the
+  weights before llama-server boots.
 
 ### qwen3-coder — coding specialist
 
