@@ -42,6 +42,27 @@ ai_models:
       - "qwen3.6:35b-a3b"
       - "qwen3.6-fast"
 
+  # Abliterated variant of qwen3.6-flash for prompts where the upstream
+  # refusal training gets in the way. Same base architecture and sampling,
+  # so all the parallel/context tuning carries over. HauhauCS's "Q8_K_P"
+  # is their analog of Unsloth's UD-Q8_K_XL (selective higher-precision
+  # tensors, ~10 bpw); kept at parity tier with the non-abliterated
+  # sibling so quality comparisons stay clean. The "Aggressive" build
+  # removes refusal vectors more thoroughly than the standard abliterated
+  # variant; if coherence on benign tasks suffers, downgrade to a less
+  # aggressive HauhauCS build.
+  - name: qwen3.6-flash-uncensored
+    file: Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
+    aliases:
+      - "qwen3.6:35b-a3b-uncensored"
+      - "qwen3.6-uncensored"
+
   # Quality everyday driver — Qwen3.6 27B dense with multi-token
   # prediction. Currently ~160 tok/s at Q4 on Blackwell, multimodal,
   # 256K context. Bumped to Q6_K_XL once the second Blackwell arrived:
@@ -86,6 +107,41 @@ ai_models:
       --jinja
     aliases:
       - "gemma4:31b"
+
+  # Abliterated MoE variant from the Gemma 4 family. 26B total / 4B
+  # active, so decode is fast despite the bigger total. HauhauCS's
+  # "Balanced" build removes refusal vectors less aggressively than the
+  # "Aggressive" line, so benign-task degradation should be minimal.
+  # Q8_K_P (~10 bpw) is parity with the standard gemma4 entry's quality
+  # tier; MoE means the larger quant is essentially free in tok/s.
+  - name: gemma4-uncensored
+    file: Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 64
+      --jinja
+    aliases:
+      - "gemma4:26b-a4b-uncensored"
+
+  # Small dense Gemma 4 "E4B" variant, abliterated. Sized for quick
+  # low-latency tasks where the larger gemma4 entries are overkill.
+  # "Aggressive" abliteration removes refusals more thoroughly than the
+  # "Balanced" line; if coherence on benign prompts degrades, swap for
+  # a less aggressive HauhauCS build. Smaller -c here (-c 131072 = 4x
+  # 32K slots) because a 4B model is usually a fast-chat tool, not the
+  # one you reach for at 64K of project context.
+  - name: gemma-e4b-uncensored
+    file: Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 64
+      --jinja
+    aliases:
+      - "gemma-4:e4b-uncensored"
 
   # Coding-tuned MoE (30B total / 3B active). Bumped to Q8_K_XL alongside
   # qwen3.6-flash for the same reason: MoE decode reads only active
