@@ -89,6 +89,8 @@ services:
       tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ traefik_domain }}"
       tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.llamaswap.config.domain: "models.{{ traefik_domain }}"
+      tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
     logging:
       driver: {{ logging_driver }}
       options:
