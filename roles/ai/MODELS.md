@@ -18,11 +18,14 @@ VRAM is usually a bit higher once KV cache is allocated.
 ### qwen3.6-flash — daily driver, fastest
 
 - **Files**:
-  - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
-  - mmproj: `mmproj-Qwen3.6-35B-A3B-F16.gguf` (image projector;
-    verify exact filename after download)
+  - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf` (top-level)
+  - mmproj: `Qwen3.6-35B-A3B/mmproj-F16.gguf` (per-model subdir; Unsloth
+    publishes mmproj under a generic name so each one lives in its own
+    subdirectory to avoid collisions)
 - **Source**: `unsloth/Qwen3.6-35B-A3B-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
+- **Pull**:
+  - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
+  - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-35B-A3B/`
 - **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
   Blackwell, multimodal. Default chat model when latency matters more
   than depth. Bumped to Q8_K_XL once the second Blackwell arrived:
@@ -66,12 +69,14 @@ VRAM is usually a bit higher once KV cache is allocated.
 ### qwen3.6 — daily driver, quality
 
 - **Files**:
-  - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP"
-    marker on the repo, not the filename; this file is still the MTP
-    build)
-  - mmproj: `mmproj-Qwen3.6-27B-F16.gguf` (verify after download)
+  - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (top-level; unsloth puts the
+    "MTP" marker on the repo, not the filename; this file is still the
+    MTP build)
+  - mmproj: `Qwen3.6-27B/mmproj-F16.gguf` (per-model subdir)
 - **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
+- **Pull**:
+  - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+  - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-27B/`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
   Blackwell, multimodal, 256K context. Use when the MoE flash model's
   answers feel thin. Bumped to Q6_K_XL once the second Blackwell arrived:
@@ -90,10 +95,12 @@ VRAM is usually a bit higher once KV cache is allocated.
 ### gemma4 — different lineage from Qwen
 
 - **Files**:
-  - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
-  - mmproj: `mmproj-gemma-4-31B-it-F16.gguf` (verify after download)
+  - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf` (top-level)
+  - mmproj: `gemma-4-31B-it/mmproj-F16.gguf` (per-model subdir)
 - **Source**: `unsloth/gemma-4-31B-it-GGUF`
-- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
+- **Pull**:
+  - `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+  - `hf download unsloth/gemma-4-31B-it-GGUF --include "mmproj*.gguf" --local-dir ./gemma-4-31B-it/`
 - **Why**: Google's top-of-Arena open dense model. Multimodal (text +
   image), 256K context. Kept around to have a non-Qwen-family option
   when comparing answers or hitting Qwen-specific quirks. Bumped to

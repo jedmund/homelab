@@ -36,12 +36,14 @@ ai_models:
     # --mmproj wires the multimodal projector so image inputs work;
     # without it text-only inference still runs fine but images are
     # dropped. Unsloth ships the mmproj alongside the main weights in
-    # the same GGUF repo. Verify the exact filename after download
-    # (sometimes BF16, sometimes F16).
+    # the same GGUF repo, but with a *generic* filename
+    # (mmproj-F16.gguf), so each Unsloth mmproj needs its own
+    # subdirectory to avoid name collisions when multiple Unsloth
+    # multimodal models live in the same /models/ root.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
-      --mmproj /models/mmproj-Qwen3.6-35B-A3B-F16.gguf
+      --mmproj /models/Qwen3.6-35B-A3B/mmproj-F16.gguf
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
     aliases:
@@ -90,12 +92,13 @@ ai_models:
     # build, which the --spec-type draft-mtp arg below relies on).
     file: Qwen3.6-27B-UD-Q6_K_XL.gguf
     group: chat
-    # --mmproj enables image inputs. Verify mmproj filename after
-    # download from unsloth/Qwen3.6-27B-MTP-GGUF.
+    # --mmproj enables image inputs. Unsloth ships the projector under
+    # a generic filename, so it lives in a per-model subdirectory to
+    # avoid colliding with the other Unsloth mmproj files in /models/.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
-      --mmproj /models/mmproj-Qwen3.6-27B-F16.gguf
+      --mmproj /models/Qwen3.6-27B/mmproj-F16.gguf
       --spec-type draft-mtp --spec-draft-n-max 6
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
@@ -112,12 +115,13 @@ ai_models:
   - name: gemma4
     file: gemma-4-31B-it-UD-Q6_K_XL.gguf
     group: chat
-    # --mmproj enables image inputs. Verify mmproj filename after
-    # download from unsloth/gemma-4-31B-it-GGUF.
+    # --mmproj enables image inputs. Unsloth ships the projector under
+    # a generic filename, so it lives in a per-model subdirectory to
+    # avoid colliding with the other Unsloth mmproj files in /models/.
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
-      --mmproj /models/mmproj-gemma-4-31B-it-F16.gguf
+      --mmproj /models/gemma-4-31B-it/mmproj-F16.gguf
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
