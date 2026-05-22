@@ -1,0 +1,7 @@
+---
+- name: Deploy AI training stack
+  hosts: ai_training
+  become: yes
+
+  roles:
+    - ai_training

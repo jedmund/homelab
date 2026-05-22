@@ -1,0 +1,49 @@
+---
+# AI Training stack — long-lived container that idles on `sleep infinity`
+# and is `docker exec`'d into for fine-tuning runs. Volumes persist the
+# HF cache, base-model downloads, datasets, output adapters, and logs
+# across container lifecycles. While a training run is active it
+# consumes both GPUs; llama-swap inference will queue or fail. Stop
+# inference workloads before launching long runs.
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/build"
+    - "{{ config_base }}/base_models"
+    - "{{ config_base }}/datasets"
+    - "{{ config_base }}/adapters"
+    - "{{ config_base }}/logs"
+    - "{{ config_base }}/runs"
+    - "{{ config_base }}/hf_cache"
+
+- name: Render Dockerfile
+  ansible.builtin.template:
+    src: Dockerfile.j2
+    dest: "{{ config_base }}/build/Dockerfile"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Rebuild trainer image
+
+- name: Render compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Render training run scripts
+  ansible.builtin.template:
+    src: runs/train.py.j2
+    dest: "{{ config_base }}/runs/{{ item.name }}.py"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop: "{{ ai_training_runs }}"
+  vars:
+    run: "{{ item }}"

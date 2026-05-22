@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+# {{ ansible_managed }}
+"""LoRA fine-tune: {{ run.name }}
+
+Base model : {{ run.base_model }}
+Dataset    : {{ run.dataset }} (split={{ run.dataset_split | default('train') }})
+Adapter    : /adapters/{{ run.name }}
+Logs       : /logs/{{ run.name }}  (tensorboard)
+
+Launch from the host:
+    docker compose -f {{ config_base }}/compose.yaml exec trainer \\
+        python /runs/{{ run.name }}.py
+"""
+import os
+
+from datasets import load_dataset
+from trl import SFTConfig, SFTTrainer
+from unsloth import FastLanguageModel
+
+
+BASE_MODEL = "{{ run.base_model }}"
+DATASET_ID = "{{ run.dataset }}"
+DATASET_SPLIT = "{{ run.dataset_split | default('train') }}"
+ADAPTER_OUT = "/adapters/{{ run.name }}"
+LOG_DIR = "/logs/{{ run.name }}"
+MAX_SEQ_LENGTH = {{ run.max_seq_length }}
+LOAD_IN_4BIT = {{ run.load_in_4bit | default(true) | to_json }}
+
+
+def main() -> None:
+    print(f"[{{ run.name }}] Loading base model: {BASE_MODEL}")
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=BASE_MODEL,
+        max_seq_length=MAX_SEQ_LENGTH,
+        load_in_4bit=LOAD_IN_4BIT,
+    )
+
+    print(f"[{{ run.name }}] Attaching LoRA adapters (r={{ run.lora_rank }}, alpha={{ run.lora_alpha }})")
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r={{ run.lora_rank }},
+        lora_alpha={{ run.lora_alpha }},
+        lora_dropout={{ run.lora_dropout }},
+        target_modules={{ run.target_modules | to_json }},
+        use_gradient_checkpointing="unsloth",
+    )
+
+    print(f"[{{ run.name }}] Loading dataset: {DATASET_ID} (split={DATASET_SPLIT})")
+    dataset = load_dataset(DATASET_ID, split=DATASET_SPLIT)
+    print(f"[{{ run.name }}] Dataset schema: {list(dataset.features.keys())}")
+
+    def formatting_func(example):
+        # The angrygiraffe reasoning dumps typically ship one of:
+        #   - {"messages": [...]} (HF chat-format)
+        #   - {"prompt": str, "response": str}
+        #   - {"instruction": str, "output": str}
+        # Adjust this branch after inspecting the dataset schema printed
+        # above if the keys differ.
+        if "messages" in example:
+            return {
+                "text": tokenizer.apply_chat_template(
+                    example["messages"], tokenize=False
+                )
+            }
+        if "prompt" in example and "response" in example:
+            messages = [
+                {"role": "user", "content": example["prompt"]},
+                {"role": "assistant", "content": example["response"]},
+            ]
+        elif "instruction" in example and "output" in example:
+            messages = [
+                {"role": "user", "content": example["instruction"]},
+                {"role": "assistant", "content": example["output"]},
+            ]
+        else:
+            raise ValueError(
+                f"Unknown dataset schema: {list(example.keys())}. "
+                "Edit formatting_func in this script."
+            )
+        return {"text": tokenizer.apply_chat_template(messages, tokenize=False)}
+
+    dataset = dataset.map(formatting_func, remove_columns=dataset.column_names)
+
+    print(f"[{{ run.name }}] Starting training")
+    trainer = SFTTrainer(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=dataset,
+        args=SFTConfig(
+            output_dir=ADAPTER_OUT,
+            num_train_epochs={{ run.epochs }},
+            per_device_train_batch_size={{ run.batch_size }},
+            gradient_accumulation_steps={{ run.gradient_accumulation_steps }},
+            learning_rate={{ run.learning_rate }},
+            max_seq_length=MAX_SEQ_LENGTH,
+            warmup_ratio={{ run.warmup_ratio | default(0.03) }},
+            logging_dir=LOG_DIR,
+            logging_steps=10,
+            save_strategy="epoch",
+            optim="adamw_8bit",
+            bf16=True,
+            report_to="tensorboard",
+        ),
+    )
+
+    trainer.train()
+    model.save_pretrained(ADAPTER_OUT)
+    tokenizer.save_pretrained(ADAPTER_OUT)
+    print(f"[{{ run.name }}] Adapter saved to {ADAPTER_OUT}")
+
+
+if __name__ == "__main__":
+    main()

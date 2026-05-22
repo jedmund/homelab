@@ -1,0 +1,58 @@
+---
+# Stack identity
+stack_name: ai_training
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Container image — built locally from templates/Dockerfile.j2 because no
+# upstream image bundles Blackwell-compatible torch/CUDA + unsloth in a
+# version combo that's reliably current. Tagged so docker doesn't try to
+# pull from a registry.
+ai_training_image_name: homelab/ai-training
+ai_training_image_tag: "homelab/ai-training:latest"
+
+# Pinned versions baked into the image. PyTorch 2.7 + CUDA 12.8 is the
+# first combo with first-class Blackwell (sm_120) kernels; older combos
+# either compile to PTX (slow) or fail at runtime. Bump when newer
+# combos are validated against unsloth main.
+ai_training_python_version: "3.11"
+ai_training_torch_version: "2.7.0"
+ai_training_torch_cuda_channel: "cu128"
+ai_training_cuda_base_image: "nvidia/cuda:12.8.1-devel-ubuntu24.04"
+
+# Hugging Face token (vault). Optional — needed only for gated models /
+# private datasets. The container picks it up from the env if set.
+ai_training_hf_token: ""
+
+# Training runs catalog. Each entry renders to a script at
+# {{ config_base }}/runs/<name>.py. Add entries here for future runs; the
+# first is the proof-of-concept on Qwen3-4B.
+ai_training_runs:
+  # Proof of concept: distil Claude Opus 4.6/4.7 reasoning traces into
+  # Qwen3-4B via QLoRA. Small base + small dataset = a complete training
+  # loop in ~30 min on one Pro 6000, lets us validate the plumbing
+  # before scaling to a 27B/35B run that takes hours.
+  - name: qwen3-4b-reasoning-distill
+    base_model: Qwen/Qwen3-4B-Instruct-2507
+    dataset: angrygiraffe/claude-opus-4.6-4.7-reasoning-8.7k
+    dataset_split: train
+    lora_rank: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    learning_rate: 0.0002
+    epochs: 2
+    batch_size: 2
+    gradient_accumulation_steps: 4
+    max_seq_length: 4096
+    warmup_ratio: 0.03
+    # QLoRA: load base model in 4bit, train rank-16 adapters in bf16.
+    # Drops VRAM footprint ~4x compared to fp16 LoRA at modest quality
+    # cost; for a 4B PoC this is overkill but it's the reusable default.
+    load_in_4bit: true
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - gate_proj
+      - up_proj
+      - down_proj

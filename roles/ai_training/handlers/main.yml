@@ -1,0 +1,13 @@
+---
+- name: Rebuild trainer image
+  ansible.builtin.command:
+    cmd: "docker build -t {{ ai_training_image_tag }} ."
+    chdir: "{{ config_base }}/build"
+  notify: Restart {{ stack_name }} stack
+
+- name: Restart {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    recreate: always

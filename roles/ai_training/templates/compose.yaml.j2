@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  trainer:
+    image: {{ ai_training_image_tag }}
+    container_name: ai-trainer
+    restart: "no"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ./base_models:/base_models
+      - ./datasets:/datasets
+      - ./adapters:/adapters
+      - ./logs:/logs
+      - ./runs:/runs
+      - ./hf_cache:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - TRANSFORMERS_CACHE=/root/.cache/huggingface
+      - PYTHONUNBUFFERED=1
+{% if ai_training_hf_token | length > 0 %}
+      - HF_TOKEN={{ ai_training_hf_token }}
+{% endif %}
+    # Container idles via `sleep infinity` (CMD in Dockerfile). Launch
+    # a training run with:
+    #   docker compose -f {{ config_base }}/compose.yaml exec trainer \
+    #     python /runs/<run-name>.py
+    # While a run is active both GPUs are saturated; llama-swap inference
+    # will queue or fail. Stop inference workloads first.
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
