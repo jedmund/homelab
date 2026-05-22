@@ -34,6 +34,7 @@ ddclient_atelier_subdomains:
   - matrix-auth.atelier.house
   - matrix-rtc.atelier.house
   - mc.atelier.house
+  - models.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
   - notes.atelier.house
@@ -94,6 +95,12 @@ tinyauth_pocketid_scopes: "openid email profile groups"
 # TinyAuth access control
 # tinyauth_allowed_user (single primary admin email) - defined in vault
 tinyauth_allowed_user: "{{ vault_tinyauth_allowed_user }}"
+# Shared atelier allowlist (comma-separated for tinyauth.apps.*.users.allow
+# labels). Only referenced by apps that explicitly opt in, e.g. the
+# llama-swap web UI for a partner/collaborator. All other apps continue to
+# reference tinyauth_allowed_user directly and remain single-user.
+# tinyauth_atelier_users (comma-separated email list) - defined in vault
+tinyauth_atelier_users: "{{ vault_tinyauth_atelier_users }}"
 
 # OpenSpeedTest settings
 openspeedtest_port: 3000
