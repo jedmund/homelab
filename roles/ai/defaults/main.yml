@@ -7,7 +7,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # https://github.com/mostlygeek/llama-swap
 llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
 llama_swap_port: 11434
-llama_swap_log_level: info
+llama_swap_log_level: debug
 # Seconds llama-swap waits for a newly spawned llama-server to pass its
 # health check before killing it. Cold-loading minimax-m27 (~80GB) from
 # NVMe to VRAM with -ngl 999 takes ~125s on this box; 300 gives ~2.4x
