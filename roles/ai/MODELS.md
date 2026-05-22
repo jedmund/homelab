@@ -38,9 +38,13 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### qwen3.6-flash-uncensored — abliterated variant of the MoE flash model
 
-- **File**: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+  - mmproj: `mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf` (~900 MB)
 - **Source**: `HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive`
-- **Pull**: `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf --local-dir .`
 - **Why**: Abliterated (refusal-vector-removed) build of the same base
   model as `qwen3.6-flash`, kept at the same fidelity tier (~10 bpw) so
   quality comparisons against the non-abliterated sibling stay clean.
@@ -54,11 +58,10 @@ VRAM is usually a bit higher once KV cache is allocated.
   The "Aggressive" suffix means more thorough refusal removal than the
   standard abliterated variant; downside is that over-suppressed refusal
   vectors can leak into benign reasoning, so if coherence on normal
-  tasks degrades, switch to a less aggressive HauhauCS build. mmproj
-  is shipped as a separate file (`mmproj-...-f16.gguf`, ~900 MB), not
-  downloaded here because the non-uncensored sibling also runs without
-  vision; if you ever wire up multimodality, both entries need the
-  matching mmproj added via `--mmproj /models/<file>`.
+  tasks degrades, switch to a less aggressive HauhauCS build. mmproj is
+  shipped as a separate file and now wired up via `--mmproj`; both
+  weights and mmproj must be present before llama-server boots, or it
+  fails to start.
 
 ### qwen3.6 — daily driver, quality
 
@@ -105,9 +108,13 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### gemma4-uncensored — abliterated MoE Gemma 4
 
-- **File**: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
+  - mmproj: `mmproj-Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-f16.gguf` (verify after download)
 - **Source**: `HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced`
-- **Pull**: `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced mmproj-Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-f16.gguf --local-dir .`
 - **Why**: Abliterated MoE companion to the dense `gemma4` entry. 26B
   total / 4B active per token, so decode speed is closer to a 4B model
   than to the 31B dense flagship. "Balanced" abliteration removes
@@ -117,15 +124,19 @@ VRAM is usually a bit higher once KV cache is allocated.
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Q8_K_P (~10 bpw) is HauhauCS's analog of Unsloth's
   UD-Q8_K_XL. MoE means the bigger quant is essentially free in tok/s.
-  Sampling uses Gemma's recommended `--top-k 64`. If the dataset
-  exposes an mmproj file for image input, wire it in via `--mmproj`
-  (left out by default to match the rest of the chat-group entries).
+  Sampling uses Gemma's recommended `--top-k 64`. `--mmproj` wires up
+  vision; image inputs require the mmproj file to be present alongside
+  the weights before llama-server boots.
 
 ### gemma-e4b-uncensored — small dense Gemma 4 (abliterated)
 
-- **File**: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+- **Files**:
+  - Weights: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
+  - mmproj: `mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf` (verify after download)
 - **Source**: `HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive`
-- **Pull**: `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+- **Pull**:
+  - `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
+  - `hf download HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf --local-dir .`
 - **Why**: Small dense Gemma 4 "E4B" variant for quick low-latency
   tasks; abliterated for cases where refusal training on a small model
   gets noisy. Sized similarly to `qwen3-small` but kept in the GPU
@@ -137,7 +148,9 @@ VRAM is usually a bit higher once KV cache is allocated.
   for project-scale conversations.
 - **Notes**: "Aggressive" abliteration removes refusal vectors more
   thoroughly; possible coherence leak on benign prompts. Swap for a
-  Balanced HauhauCS build if that bites in practice.
+  Balanced HauhauCS build if that bites in practice. `--mmproj` wires
+  up vision; image inputs require the mmproj file alongside the
+  weights before llama-server boots.
 
 ### qwen3-coder — coding specialist
 
