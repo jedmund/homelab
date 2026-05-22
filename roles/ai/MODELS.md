@@ -17,48 +17,70 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### qwen3.6-flash — daily driver, fastest
 
-- **File**: `Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf`
+- **File**: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
 - **Source**: `unsloth/Qwen3.6-35B-A3B-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
-- **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on Blackwell,
-  multimodal. Default chat model when latency matters more than depth.
-- **VRAM**: ~22 GB on disk; ~26 GB live at 32k context.
-- **Notes**: Non-MTP build on purpose. MTP barely helps MoE models (~1.15x) and
-  costs ~1 GB VRAM, so the dense 27B below gets the MTP variant instead.
+- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
+- **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
+  Blackwell, multimodal. Default chat model when latency matters more
+  than depth. Bumped to Q8_K_XL once the second Blackwell arrived:
+  MoE token decode reads only active params, so Q8 costs effectively
+  nothing in throughput while giving a real weights-quality bump.
+- **VRAM**: ~37 GB on disk; ~70 GB live with `--parallel 4 -c 262144`
+  (four sticky 64K slots, q8_0 KV). Comfortably inside the 192 GB total
+  budget with the chat group's swap-on-load policy.
+- **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
+  (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
+  variant instead.
 
 ### qwen3.6 — daily driver, quality
 
-- **File**: `Qwen3.6-27B-UD-Q4_K_XL.gguf` (unsloth puts the "MTP" marker on
+- **File**: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP" marker on
   the repo, not the filename; this file is still the MTP build)
 - **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
-- **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s on Blackwell,
-  multimodal, 256K context. Use when the MoE flash model's answers feel thin.
-- **VRAM**: ~17 GB on disk; ~22 GB live at 32k context.
+- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
+  Blackwell, multimodal, 256K context. Use when the MoE flash model's
+  answers feel thin. Bumped to Q6_K_XL once the second Blackwell arrived:
+  for dense models token decode reads all weights, so the bigger quant
+  costs ~20% throughput (~130 tok/s expected) but gives a meaningful
+  quality bump. Q8 would halve throughput, too steep for this tier.
+- **VRAM**: ~22 GB on disk; ~50 GB live with `--parallel 4 -c 262144`
+  (four sticky 64K slots, q8_0 KV).
 - **Notes**: Needs `--spec-type draft-mtp`, which requires llama.cpp from
-  2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda` before
-  first deploy; if model fails to load with a flag error in `docker logs
-  llama-swap`, the image is stale.
+  2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda`
+  before first deploy; if model fails to load with a flag error in
+  `docker logs llama-swap`, the image is stale.
 
 ### gemma4 — different lineage from Qwen
 
-- **File**: `gemma-4-31B-it-UD-Q4_K_XL.gguf`
+- **File**: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
 - **Source**: `unsloth/gemma-4-31B-it-GGUF`
-- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
-- **Why**: Google's top-of-Arena open dense model. Multimodal (text + image),
-  256K context. Kept around to have a non-Qwen-family option when comparing
-  answers or hitting Qwen-specific quirks.
-- **VRAM**: ~19 GB on disk; ~24 GB live at 32k context.
-- **Notes**: Sampling uses Google's recommended values (`--top-k 64`). No MTP
-  variant available upstream.
+- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Why**: Google's top-of-Arena open dense model. Multimodal (text +
+  image), 256K context. Kept around to have a non-Qwen-family option
+  when comparing answers or hitting Qwen-specific quirks. Bumped to
+  Q6_K_XL alongside qwen3.6 once the second Blackwell arrived; same
+  reasoning (dense throughput cost is real, Q6 is the sweet spot).
+- **VRAM**: ~25 GB on disk; ~55 GB live with `--parallel 4 -c 262144`
+  (four sticky 64K slots, q8_0 KV).
+- **Notes**: Sampling uses Google's recommended values (`--top-k 64`).
+  No MTP variant available upstream.
 
 ### qwen3-coder — coding specialist
 
-- **File**: `Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf`
-- **Source**: `bartowski/Qwen3-Coder-30B-A3B-Instruct-GGUF`
-- **Pull**: `hf download bartowski/Qwen3-Coder-30B-A3B-Instruct-GGUF --include "*Q6_K*.gguf" --local-dir .`
-- **Why**: Coding-tuned MoE, still strong on diff / patch / tool-use tasks.
-- **VRAM**: ~25 GB on disk; ~28 GB live at 16k context.
+- **File**: `Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf`
+- **Source**: `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` (switched from
+  bartowski to unsloth for consistency with the rest of the catalogue;
+  if Unsloth doesn't publish a `UD-Q8_K_XL` for this model, fall back to
+  bartowski's `Q8_0` and adjust the file/pull lines accordingly).
+- **Pull**: `hf download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
+- **Why**: Coding-tuned MoE (30B total, 3B active per token). Strong on
+  diff / patch / tool-use tasks. Bumped from Q6 to Q8_K_XL alongside
+  qwen3.6-flash: MoE decode reads only active params, so the bigger
+  quant is essentially free in tok/s. Context bumped from 16K to four
+  64K sticky slots: 16K was painful for any non-trivial coding session.
+- **VRAM**: ~32 GB on disk; ~60 GB live with `--parallel 4 -c 262144`
+  (four sticky 64K slots, q8_0 KV).
 - **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
 
 ### gpt-oss — different-lineage check against Qwen/Gemma

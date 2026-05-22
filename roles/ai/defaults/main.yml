@@ -25,12 +25,16 @@ ai_models:
   # ~240 tok/s on Blackwell. Multimodal. Using the non-MTP variant
   # because MTP barely moves MoE (~1.15x) — the dense models below get
   # the real MTP win, this one just keeps the simpler config and saves
-  # ~1GB VRAM.
+  # ~1GB VRAM. Bumped to Q8_K_XL once the second Blackwell arrived:
+  # MoE decode speed scales with active params (3B), not total weights,
+  # so the bigger quant is essentially free in tok/s. --parallel 4
+  # -c 262144 gives four sticky 64K slots for prefix-cache reuse across
+  # project conversations.
   - name: qwen3.6-flash
-    file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    file: Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
@@ -39,7 +43,14 @@ ai_models:
       - "qwen3.6-fast"
 
   # Quality everyday driver — Qwen3.6 27B dense with multi-token
-  # prediction. ~160 tok/s on Blackwell, multimodal, 256K context.
+  # prediction. Currently ~160 tok/s at Q4 on Blackwell, multimodal,
+  # 256K context. Bumped to Q6_K_XL once the second Blackwell arrived:
+  # for dense models token decode reads all weights, so the bigger
+  # quant costs ~20% in tok/s (~130 tok/s expected) but gives a real
+  # quality bump that's worth it for the "quality" daily driver slot.
+  # Q8 would be ~half the throughput — too steep for this dense tier.
+  # --parallel 4 -c 262144 gives four sticky 64K slots, same as
+  # qwen3.6-flash, so prefix-cache reuse works across project threads.
   # MTP flags require llama.cpp from 2026-05-16 or newer; `docker pull
   # ghcr.io/mostlygeek/llama-swap:cuda` before first deploy to ensure
   # the bundled llama-server is recent enough.
@@ -47,10 +58,10 @@ ai_models:
     # Pulled from unsloth/Qwen3.6-27B-MTP-GGUF; unsloth doesn't put "MTP"
     # in the filename, only in the repo name (the file is still the MTP
     # build, which the --spec-type draft-mtp arg below relies on).
-    file: Qwen3.6-27B-UD-Q4_K_XL.gguf
+    file: Qwen3.6-27B-UD-Q6_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --spec-type draft-mtp --spec-draft-n-max 6
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
@@ -60,22 +71,34 @@ ai_models:
 
   # Different lineage from Qwen — Google's top-of-Arena open dense
   # model. Multimodal (text+image), 256K context. Sampling per Google's
-  # recommended values; no MTP variant available upstream.
+  # recommended values; no MTP variant available upstream. Bumped to
+  # Q6_K_XL alongside qwen3.6 once the second Blackwell arrived (same
+  # reasoning: dense models pay throughput for bigger quants, Q6 is
+  # the sweet spot). --parallel 4 -c 262144 mirrors the other chat
+  # models for prefix-cache stickiness.
   - name: gemma4
-    file: gemma-4-31B-it-UD-Q4_K_XL.gguf
+    file: gemma-4-31B-it-UD-Q6_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
       - "gemma4:31b"
 
+  # Coding-tuned MoE (30B total / 3B active). Bumped to Q8_K_XL alongside
+  # qwen3.6-flash for the same reason: MoE decode reads only active
+  # params, so Q8 is essentially free. Context bumped from 16K (which
+  # was painful for any real coding session) to 4x64K sticky slots.
+  # Likely subsumed by Qwen3.6 eventually; keep until then.
   - name: qwen3-coder
-    file: Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf
+    file: Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf
     group: chat
-    args: "-ngl 99 -c 16384"
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --jinja
     aliases:
       - "qwen3-coder:30b"
 
