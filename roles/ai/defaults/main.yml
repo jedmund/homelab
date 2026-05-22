@@ -296,7 +296,16 @@ ai_models:
 
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
-ai_model_default_ttl: 600
+# Bumped from 600 (10 min) to 7200 (2 hours) because the previous
+# value kicked models out aggressively during normal workday use:
+# step away for a meeting and come back to a 1-2 min cold-load tax on
+# the next opencode request. With the chat group's `swap: true`
+# policy, only one chat model is resident at a time anyway, so the
+# only cost of a longer TTL is GPU idle power (~30-50 W per card
+# while a model is loaded but not generating). Models that swap in
+# under heavy use (e.g. ~80GB minimax-m27 cold-loading from NVMe to
+# VRAM) take ~2 min, well worth avoiding for a few extra watts.
+ai_model_default_ttl: 7200
 
 # llama-swap groups. Without these, every model lingers in VRAM until
 # its TTL expires, so switching between two big models OOMs the GPU
