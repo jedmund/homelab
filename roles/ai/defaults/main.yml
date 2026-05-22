@@ -80,15 +80,17 @@ ai_models:
       - "qwen3-coder:30b"
 
   # OpenAI's open-weight 120B MoE (~5.1B active per token). At Unsloth's
-  # UD-Q4_K_XL it lands ~65-70GB on disk, leaving headroom for KV cache on
-  # the 96GB Blackwell. Replaces the gpt-oss-20b entry that sized for the
-  # previous 2x 3090 setup. Split GGUF (shard 1 here, llama-server auto-
-  # loads the rest); verify the shard count after download and adjust.
+  # UD-Q6_K_XL it lands ~95GB on disk; with --parallel 4 -c 131072 (four
+  # sticky 32K slots) the live footprint is ~125GB, well inside the 192GB
+  # dual-Blackwell budget. Bumped from Q4_K_XL once the second card
+  # arrived. Split GGUF; verify the shard count after download — Unsloth
+  # typically ships 120B at this quant as 2 or 3 shards, adjust the file
+  # path below if needed.
   - name: gpt-oss
-    file: gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf
+    file: UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --jinja
     aliases:

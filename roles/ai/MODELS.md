@@ -63,18 +63,20 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### gpt-oss — different-lineage check against Qwen/Gemma
 
-- **File**: `gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf` (+ remaining shards
-  in the same directory; verify the actual shard count after download)
+- **File**: `UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf`
+  (organised under a per-quant subdirectory; verify the actual shard
+  count after download and adjust the path if it differs).
 - **Source**: `unsloth/gpt-oss-120b-GGUF`
-- **Pull**: `hf download unsloth/gpt-oss-120b-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir .`
-- **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). Kept as a
-  third lineage (alongside Qwen and Gemma) for genuine cross-family
-  comparison; on 96 GB VRAM the 120B is the right tier, the 20B variant we
-  used to run was sized for the previous 2x 3090 setup.
-- **VRAM**: ~65-70 GB on disk; comfortably under the 96 GB ceiling at 32k
-  context with KV quantisation.
-- **Notes**: Split GGUF (same convention as MiniMax). `--jinja` for the
-  chat template.
+- **Pull**: `hf download unsloth/gpt-oss-120b-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir ./UD-Q6_K_XL/`
+- **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). Kept
+  as a third lineage (alongside Qwen and Gemma) for genuine cross-family
+  comparison. Bumped from Q4_K_XL once the second Blackwell arrived: the
+  120B at Q6 is the meaningful quality target this hardware unlocks.
+- **VRAM**: ~95 GB on disk; ~125 GB live with `--parallel 4 -c 131072`
+  (four sticky 32K slots, q8_0 KV). Well inside the 192 GB total budget.
+- **Notes**: Split GGUF. `--jinja` for the chat template. Same
+  parallel-slot treatment as minimax-m27 so cross-lineage comparison
+  benefits from prefix-cache stickiness across project conversations.
 
 ### minimax-m27 — big-brain for hard problems
 
