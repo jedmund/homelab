@@ -1,0 +1,35 @@
+// {{ ansible_managed }}
+// Openclaw config (JSON5: comments and trailing commas allowed).
+// Schema is evolving; treat this as a starting point and update as the
+// upstream config reference at https://docs.openclaw.ai/gateway/configuration
+// stabilizes.
+{
+  gateway: {
+    port: {{ openclaw_port }},
+  },
+
+  // Tool execution runs on the host (no Docker sandbox). Chosen because
+  // the mac-mini doesn't hold sensitive files that warrant the VM
+  // overhead Docker Desktop / OrbStack imposes on macOS.
+  agents: {
+    defaults: {
+      sandbox: {
+        mode: "{{ openclaw_sandbox_mode }}",
+      },
+      model: {
+        primary: "local/{{ openclaw_local_llm_default_model }}",
+      },
+    },
+  },
+
+  // Point Openclaw at llama-swap on max over the LAN (OpenAI-compatible
+  // API, no auth at the API surface). The web UI at models.atelier.house
+  // is TinyAuth-gated separately.
+  models: {
+    providers: {
+      local: {
+        baseUrl: "{{ openclaw_local_llm_base_url }}",
+      },
+    },
+  },
+}

@@ -1,0 +1,8 @@
+---
+- name: Deploy openclaw stack
+  hosts: openclaw
+  become: no
+  gather_facts: yes
+
+  roles:
+    - openclaw
