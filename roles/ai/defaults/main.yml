@@ -130,6 +130,21 @@ ai_models:
     aliases:
       - "bge-reranker-v2-m3"
 
+  # CPU-resident small model used as opencode's `small_model` for context
+  # compaction / summarization. -ngl 0 keeps it off the GPU because the
+  # larger chat models fill most of available VRAM; the `cpu` group below
+  # is persistent: true so the llama-server process stays warm and
+  # compaction calls skip the cold-load tax. 5900X handles a 4B Q4_K_M in
+  # RAM (~2.5GB resident) with no impact on GPU workloads.
+  - name: qwen3-small
+    file: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+    group: cpu
+    args: >-
+      -ngl 0 --threads 12 --threads-batch 12
+      -c 32768 --jinja
+    aliases:
+      - "qwen3:4b"
+
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
 ai_model_default_ttl: 600
@@ -147,6 +162,13 @@ ai_model_groups:
     swap: true
     exclusive: false
   aux:
+    swap: false
+    exclusive: false
+    persistent: true
+  # CPU-only models. swap: false + persistent: true keeps the llama-server
+  # process loaded across chat-model swaps so opencode compaction never
+  # pays the cold-load tax on top of slow CPU prompt processing.
+  cpu:
     swap: false
     exclusive: false
     persistent: true

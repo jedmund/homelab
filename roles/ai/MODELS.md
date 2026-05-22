@@ -5,9 +5,13 @@ served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
 list in `roles/ai/defaults/main.yml` references each file by name; keep this
 document and that list in sync when adding or removing a model.
 
-Hardware budget: single NVIDIA RTX Pro 6000 Blackwell, 96 GB VRAM. Sizes below
-are rough on-disk numbers for the quant chosen; live VRAM is usually a bit
-higher once KV cache is allocated.
+Hardware budget: 2x NVIDIA RTX Pro 6000 Blackwell, 192 GB VRAM total (one
+600 W workstation card + one 300 W Max-Q). llama.cpp splits layers across
+both GPUs via its default auto-balance; the Max-Q is slightly slower per
+layer but close on memory bandwidth, so layer-split without an explicit
+`--tensor-split` is the working configuration until profiling says
+otherwise. Sizes below are rough on-disk numbers for the quant chosen; live
+VRAM is usually a bit higher once KV cache is allocated.
 
 ## Installed models
 
@@ -98,6 +102,28 @@ higher once KV cache is allocated.
 - **Why**: Reranks retrieval hits for OpenWebUI's RAG. Low volume, so it stays
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
+
+### qwen3-small — CPU-resident compaction model
+
+- **File**: `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
+- **Source**: `unsloth/Qwen3-4B-Instruct-2507-GGUF`
+- **Pull**: `hf download unsloth/Qwen3-4B-Instruct-2507-GGUF --include "*Q4_K_M*.gguf" --local-dir .`
+- **Why**: Used as opencode's `small_model` for context compaction. Lives
+  on CPU (`-ngl 0`) for two reasons: (a) the larger quants fill most of
+  the 192 GB VRAM budget once their KV pool is allocated, so a coresident
+  GPU model would be tight; (b) compaction needs `persistent: true` to
+  avoid a cold-load tax, but the `chat` group is `swap: true` and would
+  evict it whenever a chat model swaps in. CPU placement sidesteps both,
+  and the `cpu` group keeps the llama-server process warm so compaction
+  skips the model-load tax on top of slow CPU prompt processing.
+- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 5900X with
+  `--threads 12 --threads-batch 12`. Expect ~200 tok/s prompt processing on
+  long inputs, so a 100k-token compaction lands in the 5-8 minute range.
+- **Notes**: Not for interactive chat: its `name`/`alias` is intentionally
+  not exposed in OpenWebUI's normal model list (no one would pick it). The
+  alias `qwen3:4b` exists so opencode can reach it under a friendly name.
+  If compaction latency turns out to be too painful, the next escalation is
+  the 1.5B variant of this family (~3-4 min on the same hardware).
 
 ## Speech-to-text (whisper / speaches, not llama-swap)
 
