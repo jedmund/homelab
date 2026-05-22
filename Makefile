@@ -125,6 +125,10 @@ deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 
+deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
+	@echo "$(BLUE)Deploying Openclaw...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/openclaw.yml $(VAULT_FLAG)
+
 deploy-dokploy-host: ## Provision Dokploy VM on nuc-mini (libvirt + bridge)
 	@echo "$(BLUE)Provisioning Dokploy VM on nuc-mini...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/dokploy_host.yml $(VAULT_FLAG)
