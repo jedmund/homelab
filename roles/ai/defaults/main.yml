@@ -254,8 +254,18 @@ ai_models:
   # Quant A/B candidate 2: UD-Q4_K_XL (~115-120GB). Unsloth's premium
   # 4-bit: K-quant baseline with selective higher-precision tensors on
   # the layers the imatrix flags as most sensitive. Faster decode than
-  # IQ4_XS, modestly larger. Best-quality 4-bit-class option that still
-  # leaves room for full q8_0 KV at 256K total.
+  # IQ4_XS, modestly larger.
+  #
+  # Context is intentionally 64K-per-slot here (-c 262144 --parallel 4)
+  # instead of the 80K-per-slot the iq3/iq4 entries above use. At 80K
+  # per slot Q4_K_XL was hitting an illegal-memory-access during MoE
+  # routing warmup: ~118GB weights + ~58GB KV + scratch crossed the
+  # 192GB-per-pair ceiling once activation / expert-routing scratch
+  # was factored in (the crash surfaced in ggml_cuda_op_topk_moe on
+  # device 1, the Max-Q card). Dropping to 64K-per-slot (~47GB KV)
+  # leaves ~17GB margin and the model boots cleanly. Breaks "identical
+  # args" with the lighter A/B candidates, but the alternative is a
+  # model that doesn't load at all.
   - name: minimax-m27-q4
     # Files live under the UD-Q4_K_XL/ subdirectory inside /models (shared
     # with the gpt-oss Q4_K_XL files until that model is bumped to Q6).
@@ -264,7 +274,7 @@ ai_models:
     file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
     group: chat
     args: >-
-      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 40
       --jinja --log-verbosity 1
