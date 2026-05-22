@@ -92,7 +92,8 @@ tinyauth_pocketid_user_info_url: "{{ pocketid_app_url }}/api/oidc/userinfo"
 tinyauth_pocketid_redirect_url: "{{ tinyauth_app_url }}/api/oauth/callback/pocketid"
 tinyauth_pocketid_scopes: "openid email profile groups"
 # TinyAuth access control
-tinyauth_allowed_user: "justin@jedmund.com"
+# tinyauth_allowed_user (single primary admin email) - defined in vault
+tinyauth_allowed_user: "{{ vault_tinyauth_allowed_user }}"
 
 # OpenSpeedTest settings
 openspeedtest_port: 3000
@@ -106,7 +107,8 @@ line_backup_dir: /data/backups
 line_app_url: "https://{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
-line_admin_emails: "justin@jedmund.com"
+# line_admin_emails (comma-separated admin email list) - defined in vault
+line_admin_emails: "{{ vault_line_admin_emails }}"
 line_forgejo_key: atelier
 line_forgejo_base_url: "https://git.{{ traefik_domain }}"
 line_forgejo_label: "Atelier"
