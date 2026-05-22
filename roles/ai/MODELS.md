@@ -17,9 +17,12 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### qwen3.6-flash — daily driver, fastest
 
-- **File**: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
+- **Files**:
+  - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf`
+  - mmproj: `mmproj-Qwen3.6-35B-A3B-F16.gguf` (image projector;
+    verify exact filename after download)
 - **Source**: `unsloth/Qwen3.6-35B-A3B-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
   Blackwell, multimodal. Default chat model when latency matters more
   than depth. Bumped to Q8_K_XL once the second Blackwell arrived:
@@ -30,7 +33,8 @@ VRAM is usually a bit higher once KV cache is allocated.
   budget with the chat group's swap-on-load policy.
 - **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
   (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
-  variant instead.
+  variant instead. `--mmproj` wires up vision; without it text-only
+  inference still works but image inputs are dropped.
 
 ### qwen3.6-flash-uncensored — abliterated variant of the MoE flash model
 
@@ -58,10 +62,13 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### qwen3.6 — daily driver, quality
 
-- **File**: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP" marker on
-  the repo, not the filename; this file is still the MTP build)
+- **Files**:
+  - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (unsloth puts the "MTP"
+    marker on the repo, not the filename; this file is still the MTP
+    build)
+  - mmproj: `mmproj-Qwen3.6-27B-F16.gguf` (verify after download)
 - **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
-- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
   Blackwell, multimodal, 256K context. Use when the MoE flash model's
   answers feel thin. Bumped to Q6_K_XL once the second Blackwell arrived:
@@ -73,13 +80,17 @@ VRAM is usually a bit higher once KV cache is allocated.
 - **Notes**: Needs `--spec-type draft-mtp`, which requires llama.cpp from
   2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda`
   before first deploy; if model fails to load with a flag error in
-  `docker logs llama-swap`, the image is stale.
+  `docker logs llama-swap`, the image is stale. `--mmproj` wires up
+  vision; image inputs require the mmproj file to be present alongside
+  the weights.
 
 ### gemma4 — different lineage from Qwen
 
-- **File**: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
+- **Files**:
+  - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf`
+  - mmproj: `mmproj-gemma-4-31B-it-F16.gguf` (verify after download)
 - **Source**: `unsloth/gemma-4-31B-it-GGUF`
-- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+- **Pull**: `hf download unsloth/gemma-4-31B-it-GGUF --include "*UD-Q6_K_XL*.gguf" "mmproj*.gguf" --local-dir .`
 - **Why**: Google's top-of-Arena open dense model. Multimodal (text +
   image), 256K context. Kept around to have a non-Qwen-family option
   when comparing answers or hitting Qwen-specific quirks. Bumped to
@@ -88,7 +99,9 @@ VRAM is usually a bit higher once KV cache is allocated.
 - **VRAM**: ~25 GB on disk; ~55 GB live with `--parallel 4 -c 262144`
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Sampling uses Google's recommended values (`--top-k 64`).
-  No MTP variant available upstream.
+  No MTP variant available upstream. `--mmproj` wires up vision;
+  Gemma 4's image input format follows the standard llama-server
+  vision protocol.
 
 ### gemma4-uncensored — abliterated MoE Gemma 4
 
