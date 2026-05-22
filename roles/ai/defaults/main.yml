@@ -94,29 +94,78 @@ ai_models:
     aliases:
       - "gpt-oss:120b"
 
-  # 229B / 10B-active MoE; needs flash-attn + KV quantisation to fit 96GB.
-  # Sampling pinned to the values MiniMax recommends; --jinja is required
+  # 229B / 10B-active MoE. With 2x RTX Pro 6000 (192GB total VRAM, one
+  # 600W workstation + one 300W Max-Q) we have room for higher-quality
+  # quants, full-fidelity q8_0 KV, and parallel slots. llama.cpp auto-
+  # splits layers across both GPUs; the Max-Q is slightly slower per
+  # layer but close on memory bandwidth, so default auto-split is fine
+  # until profiling says otherwise (then tune via --tensor-split).
+  #
+  # Three entries during the quant A/B: pick the winner via opencode's
+  # model name. All three share identical inference params so the only
+  # variable is weights quant. --parallel 4 -c 327680 gives four sticky
+  # 80K slots (~320K total KV pool), which fits 3-4 active project
+  # conversations plus an occasional guest without trampling each
+  # other's prefix cache. 80K was picked so Q4_K_XL (~118GB model +
+  # ~59GB KV at q8_0 + overhead = ~185GB) fits inside 192GB with a
+  # ~7GB margin; bigger slots would OOM the Q4 candidate during the
+  # A/B test. Once a quant winner is picked, this can grow (IQ4_XS
+  # comfortably allows 96K+ slots, IQ3_S allows 128K).
+  # Sampling pinned to MiniMax's recommended values; --jinja is required
   # for the chat template + tool-call handling to work correctly.
   - name: minimax-m27
-    # Split GGUF: 3 shards (~78GB total). Point llama-server at shard 1;
-    # it auto-loads the rest from the same directory.
-    #
-    # Context sized for OpenCode/agentic coding on real repos: 65K was
-    # not enough — chat history + tool outputs + file contents blew
-    # past it in a couple of turns. KV cache pinned to q4_0 instead of
-    # q8_0 to keep the 128K window inside 96GB (q8 at 128K = ~100GB
-    # resident, OOMs the Blackwell). Q4 KV trades a small amount of
-    # long-context recall precision for the doubled window; acceptable
-    # for code agent loops, less ideal for needle-in-haystack QA.
+    # Current default: IQ3_S (~80GB). Kept while A/B testing the higher
+    # quants below; once a winner is chosen, point this entry at the
+    # winning file and delete the others (plus the orphaned GGUFs).
     file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
     group: chat
     args: >-
-      -ngl 999 -c 131072 --flash-attn on
-      --cache-type-k q4_0 --cache-type-v q4_0
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 40
-      --jinja
+      --jinja --log-verbosity 1
     aliases:
       - "minimax:m27"
+      - "minimax-m27-iq3"
+
+  # Quant A/B candidate 1: UD-IQ4_XS (~95-100GB). I-quants use an
+  # importance matrix to allocate bits where the model cares most;
+  # better quality per byte than legacy K-quants but slightly slower to
+  # decode. Cheapest meaningful quality step up from IQ3_S.
+  - name: minimax-m27-iq4
+    # Files live under the UD-IQ4_XS/ subdirectory inside /models, matching
+    # the per-quant directory layout used for the other quant candidates.
+    # Unsloth ships this quant as a 4-shard split GGUF; verify after
+    # download.
+    file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 40
+      --jinja --log-verbosity 1
+    aliases:
+      - "minimax:m27-iq4"
+
+  # Quant A/B candidate 2: UD-Q4_K_XL (~115-120GB). Unsloth's premium
+  # 4-bit: K-quant baseline with selective higher-precision tensors on
+  # the layers the imatrix flags as most sensitive. Faster decode than
+  # IQ4_XS, modestly larger. Best-quality 4-bit-class option that still
+  # leaves room for full q8_0 KV at 256K total.
+  - name: minimax-m27-q4
+    # Files live under the UD-Q4_K_XL/ subdirectory inside /models (shared
+    # with the gpt-oss Q4_K_XL files until that model is bumped to Q6).
+    # Unsloth ships this quant as a 4-shard split GGUF; verify after
+    # download.
+    file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 40
+      --jinja --log-verbosity 1
+    aliases:
+      - "minimax:m27-q4"
 
   # nomic-embed lived here under llama-swap; embeddings are now served
   # by the dedicated TEI container at :11435 (see tei_* below). Reranker

@@ -78,21 +78,38 @@ VRAM is usually a bit higher once KV cache is allocated.
 
 ### minimax-m27 — big-brain for hard problems
 
-- **File**: `MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf` (+ shards 2 and 3 in
-  the same directory)
+- **Files** (currently A/B testing three quants in parallel; pick the
+  winner via opencode's model name, then prune the losers):
+
+  | llama-swap entry | Quant | File (shard 1) | ~Disk | ~VRAM live |
+  |---|---|---|---|---|
+  | `minimax-m27` (also alias `minimax-m27-iq3`) | UD-IQ3_S | `MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf` (top-level) | ~78 GB | ~147 GB |
+  | `minimax-m27-iq4` | UD-IQ4_XS | `UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf` | ~95-100 GB | ~167 GB |
+  | `minimax-m27-q4` | UD-Q4_K_XL | `UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf` | ~115-120 GB | ~185 GB |
+
 - **Source**: `unsloth/MiniMax-M2.7-GGUF`
-- **Pull**: `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ3_S*.gguf" --local-dir .`
+- **Pull**: swap the quant tag into the include filter; new quants land
+  in per-quant subdirectories alongside other files of the same quant:
+  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ3_S*.gguf" --local-dir .` (legacy: top-level)
+  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ4_XS*.gguf" --local-dir ./UD-IQ4_XS/`
+  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir ./UD-Q4_K_XL/`
 - **Why**: 229B / 10B-active MoE. Reserved for problems where the smaller
   models stall (long reasoning chains, hard refactors, tool-call planning).
-- **VRAM**: ~78 GB on disk across three shards; close to the 96 GB ceiling
-  live at 65k context.
-- **Notes**: Split GGUF — too large for HuggingFace's per-file limit, so
-  unsloth ships it as `*-00001-of-00003.gguf` ... `*-00003-of-00003.gguf`.
-  llama.cpp handles this natively: point `--model` at shard 1 and it
-  auto-loads the rest from the same directory. Pinned to flash-attn + q8_0
-  KV quantisation to fit. `--jinja` is required for the chat template and
-  tool-call handling to work. Sampling values pinned per MiniMax's
-  recommendations.
+- **Inference**: `-c 327680 --parallel 4` gives four sticky 80K slots
+  (~320K total KV pool) with q8_0 KV throughout, shared across all three
+  A/B entries so the only variable is weights quant. 80K per slot was
+  picked so the heaviest candidate (Q4_K_XL at ~118 GB) still fits inside
+  192 GB with a ~7 GB margin; once a winner is chosen and the losers are
+  deleted, the per-slot ceiling can grow (IQ4_XS comfortably allows 96K+,
+  IQ3_S allows 128K).
+- **Notes**: Split GGUFs (too large for HuggingFace's per-file limit). The
+  IQ3_S build ships as 3 shards (legacy top-level location); IQ4_XS and
+  Q4_K_XL ship as 4 shards each in their per-quant subdirectories. Verify
+  the shard count after download; the llama-swap config assumes 3 shards
+  for IQ3_S and 4 shards for the other two. llama.cpp handles split GGUFs
+  natively: point `--model` at shard 1 and it auto-loads the rest from
+  the same directory. `--jinja` is required for the chat template and
+  tool-call handling. Sampling values pinned per MiniMax's recommendations.
 
 ### bge-reranker — RAG reranker
 
