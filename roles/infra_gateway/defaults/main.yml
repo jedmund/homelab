@@ -39,6 +39,7 @@ ddclient_atelier_subdomains:
   - netdata.atelier.house
   - notes.atelier.house
   - obsidian.sync.atelier.house
+  - openclaw.atelier.house
   - ov.atelier.house
   - photos.atelier.house
   - pi.atelier.house
@@ -129,4 +130,5 @@ adguard_dns_bind_ip: "{{ ansible_host }}"
 # Sourced from inventory so the IPs are only ever defined in one place.
 mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
+mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
 dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"
