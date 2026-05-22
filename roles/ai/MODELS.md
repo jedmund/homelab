@@ -212,13 +212,17 @@ VRAM is usually a bit higher once KV cache is allocated.
   - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir ./UD-Q4_K_XL/`
 - **Why**: 229B / 10B-active MoE. Reserved for problems where the smaller
   models stall (long reasoning chains, hard refactors, tool-call planning).
-- **Inference**: `-c 327680 --parallel 4` gives four sticky 80K slots
-  (~320K total KV pool) with q8_0 KV throughout, shared across all three
-  A/B entries so the only variable is weights quant. 80K per slot was
-  picked so the heaviest candidate (Q4_K_XL at ~118 GB) still fits inside
-  192 GB with a ~7 GB margin; once a winner is chosen and the losers are
-  deleted, the per-slot ceiling can grow (IQ4_XS comfortably allows 96K+,
-  IQ3_S allows 128K).
+- **Inference**: `-c 327680 --parallel 4` (four sticky 80K slots, q8_0
+  KV) for the IQ3_S and IQ4_XS entries. The Q4_K_XL entry intentionally
+  runs at `-c 262144 --parallel 4` (four sticky 64K slots) because at
+  80K per slot it OOM'd during MoE routing warmup: 118 GB weights +
+  ~58 GB KV + activation/expert-routing scratch crossed the 192 GB
+  ceiling and crashed in `ggml_cuda_op_topk_moe` on the Max-Q card.
+  Dropping Q4_K_XL to 64K per slot (~47 GB KV) leaves ~17 GB margin
+  and the model boots cleanly. The A/B test therefore compares two
+  variables (quant tier + slot size) on the Q4_K_XL row, not just
+  weights quant; weights quant is still the dominant factor for
+  output-quality comparisons.
 - **Notes**: Split GGUFs (too large for HuggingFace's per-file limit). The
   IQ3_S build ships as 3 shards (legacy top-level location); IQ4_XS and
   Q4_K_XL ship as 4 shards each in their per-quant subdirectories. Verify
