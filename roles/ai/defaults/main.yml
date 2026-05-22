@@ -7,7 +7,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # https://github.com/mostlygeek/llama-swap
 llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
 llama_swap_port: 11434
-llama_swap_log_level: info
+llama_swap_log_level: debug
 # Seconds llama-swap waits for a newly spawned llama-server to pass its
 # health check before killing it. Cold-loading minimax-m27 (~80GB) from
 # NVMe to VRAM with -ngl 999 takes ~125s on this box; 300 gives ~2.4x
@@ -25,12 +25,16 @@ ai_models:
   # ~240 tok/s on Blackwell. Multimodal. Using the non-MTP variant
   # because MTP barely moves MoE (~1.15x) — the dense models below get
   # the real MTP win, this one just keeps the simpler config and saves
-  # ~1GB VRAM.
+  # ~1GB VRAM. Bumped to Q8_K_XL once the second Blackwell arrived:
+  # MoE decode speed scales with active params (3B), not total weights,
+  # so the bigger quant is essentially free in tok/s. --parallel 4
+  # -c 262144 gives four sticky 64K slots for prefix-cache reuse across
+  # project conversations.
   - name: qwen3.6-flash
-    file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    file: Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
       --jinja
@@ -38,8 +42,36 @@ ai_models:
       - "qwen3.6:35b-a3b"
       - "qwen3.6-fast"
 
+  # Abliterated variant of qwen3.6-flash for prompts where the upstream
+  # refusal training gets in the way. Same base architecture and sampling,
+  # so all the parallel/context tuning carries over. HauhauCS's "Q8_K_P"
+  # is their analog of Unsloth's UD-Q8_K_XL (selective higher-precision
+  # tensors, ~10 bpw); kept at parity tier with the non-abliterated
+  # sibling so quality comparisons stay clean. The "Aggressive" build
+  # removes refusal vectors more thoroughly than the standard abliterated
+  # variant; if coherence on benign tasks suffers, downgrade to a less
+  # aggressive HauhauCS build.
+  - name: qwen3.6-flash-uncensored
+    file: Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
+    aliases:
+      - "qwen3.6:35b-a3b-uncensored"
+      - "qwen3.6-uncensored"
+
   # Quality everyday driver — Qwen3.6 27B dense with multi-token
-  # prediction. ~160 tok/s on Blackwell, multimodal, 256K context.
+  # prediction. Currently ~160 tok/s at Q4 on Blackwell, multimodal,
+  # 256K context. Bumped to Q6_K_XL once the second Blackwell arrived:
+  # for dense models token decode reads all weights, so the bigger
+  # quant costs ~20% in tok/s (~130 tok/s expected) but gives a real
+  # quality bump that's worth it for the "quality" daily driver slot.
+  # Q8 would be ~half the throughput — too steep for this dense tier.
+  # --parallel 4 -c 262144 gives four sticky 64K slots, same as
+  # qwen3.6-flash, so prefix-cache reuse works across project threads.
   # MTP flags require llama.cpp from 2026-05-16 or newer; `docker pull
   # ghcr.io/mostlygeek/llama-swap:cuda` before first deploy to ensure
   # the bundled llama-server is recent enough.
@@ -47,10 +79,10 @@ ai_models:
     # Pulled from unsloth/Qwen3.6-27B-MTP-GGUF; unsloth doesn't put "MTP"
     # in the filename, only in the repo name (the file is still the MTP
     # build, which the --spec-type draft-mtp arg below relies on).
-    file: Qwen3.6-27B-UD-Q4_K_XL.gguf
+    file: Qwen3.6-27B-UD-Q6_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --spec-type draft-mtp --spec-draft-n-max 6
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
@@ -60,63 +92,161 @@ ai_models:
 
   # Different lineage from Qwen — Google's top-of-Arena open dense
   # model. Multimodal (text+image), 256K context. Sampling per Google's
-  # recommended values; no MTP variant available upstream.
+  # recommended values; no MTP variant available upstream. Bumped to
+  # Q6_K_XL alongside qwen3.6 once the second Blackwell arrived (same
+  # reasoning: dense models pay throughput for bigger quants, Q6 is
+  # the sweet spot). --parallel 4 -c 262144 mirrors the other chat
+  # models for prefix-cache stickiness.
   - name: gemma4
-    file: gemma-4-31B-it-UD-Q4_K_XL.gguf
+    file: gemma-4-31B-it-UD-Q6_K_XL.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 64
       --jinja
     aliases:
       - "gemma4:31b"
 
-  - name: qwen3-coder
-    file: Qwen3-Coder-30B-A3B-Instruct-Q6_K.gguf
+  # Abliterated MoE variant from the Gemma 4 family. 26B total / 4B
+  # active, so decode is fast despite the bigger total. HauhauCS's
+  # "Balanced" build removes refusal vectors less aggressively than the
+  # "Aggressive" line, so benign-task degradation should be minimal.
+  # Q8_K_P (~10 bpw) is parity with the standard gemma4 entry's quality
+  # tier; MoE means the larger quant is essentially free in tok/s.
+  - name: gemma4-uncensored
+    file: Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf
     group: chat
-    args: "-ngl 99 -c 16384"
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 64
+      --jinja
+    aliases:
+      - "gemma4:26b-a4b-uncensored"
+
+  # Small dense Gemma 4 "E4B" variant, abliterated. Sized for quick
+  # low-latency tasks where the larger gemma4 entries are overkill.
+  # "Aggressive" abliteration removes refusals more thoroughly than the
+  # "Balanced" line; if coherence on benign prompts degrades, swap for
+  # a less aggressive HauhauCS build. Smaller -c here (-c 131072 = 4x
+  # 32K slots) because a 4B model is usually a fast-chat tool, not the
+  # one you reach for at 64K of project context.
+  - name: gemma-e4b-uncensored
+    file: Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 64
+      --jinja
+    aliases:
+      - "gemma-4:e4b-uncensored"
+
+  # Coding-tuned MoE (30B total / 3B active). Bumped to Q8_K_XL alongside
+  # qwen3.6-flash for the same reason: MoE decode reads only active
+  # params, so Q8 is essentially free. Context bumped from 16K (which
+  # was painful for any real coding session) to 4x64K sticky slots.
+  # Likely subsumed by Qwen3.6 eventually; keep until then.
+  - name: qwen3-coder
+    file: Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --jinja
     aliases:
       - "qwen3-coder:30b"
 
   # OpenAI's open-weight 120B MoE (~5.1B active per token). At Unsloth's
-  # UD-Q4_K_XL it lands ~65-70GB on disk, leaving headroom for KV cache on
-  # the 96GB Blackwell. Replaces the gpt-oss-20b entry that sized for the
-  # previous 2x 3090 setup. Split GGUF (shard 1 here, llama-server auto-
-  # loads the rest); verify the shard count after download and adjust.
+  # UD-Q6_K_XL it lands ~95GB on disk; with --parallel 4 -c 131072 (four
+  # sticky 32K slots) the live footprint is ~125GB, well inside the 192GB
+  # dual-Blackwell budget. Bumped from Q4_K_XL once the second card
+  # arrived. Split GGUF; verify the shard count after download — Unsloth
+  # typically ships 120B at this quant as 2 or 3 shards, adjust the file
+  # path below if needed.
   - name: gpt-oss
-    file: gpt-oss-120b-UD-Q4_K_XL-00001-of-00002.gguf
+    file: UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf
     group: chat
     args: >-
-      -ngl 999 -c 32768 --flash-attn on
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --jinja
     aliases:
       - "gpt-oss:120b"
 
-  # 229B / 10B-active MoE; needs flash-attn + KV quantisation to fit 96GB.
-  # Sampling pinned to the values MiniMax recommends; --jinja is required
+  # 229B / 10B-active MoE. With 2x RTX Pro 6000 (192GB total VRAM, one
+  # 600W workstation + one 300W Max-Q) we have room for higher-quality
+  # quants, full-fidelity q8_0 KV, and parallel slots. llama.cpp auto-
+  # splits layers across both GPUs; the Max-Q is slightly slower per
+  # layer but close on memory bandwidth, so default auto-split is fine
+  # until profiling says otherwise (then tune via --tensor-split).
+  #
+  # Three entries during the quant A/B: pick the winner via opencode's
+  # model name. All three share identical inference params so the only
+  # variable is weights quant. --parallel 4 -c 327680 gives four sticky
+  # 80K slots (~320K total KV pool), which fits 3-4 active project
+  # conversations plus an occasional guest without trampling each
+  # other's prefix cache. 80K was picked so Q4_K_XL (~118GB model +
+  # ~59GB KV at q8_0 + overhead = ~185GB) fits inside 192GB with a
+  # ~7GB margin; bigger slots would OOM the Q4 candidate during the
+  # A/B test. Once a quant winner is picked, this can grow (IQ4_XS
+  # comfortably allows 96K+ slots, IQ3_S allows 128K).
+  # Sampling pinned to MiniMax's recommended values; --jinja is required
   # for the chat template + tool-call handling to work correctly.
   - name: minimax-m27
-    # Split GGUF: 3 shards (~78GB total). Point llama-server at shard 1;
-    # it auto-loads the rest from the same directory.
-    #
-    # Context sized for OpenCode/agentic coding on real repos: 65K was
-    # not enough — chat history + tool outputs + file contents blew
-    # past it in a couple of turns. KV cache pinned to q4_0 instead of
-    # q8_0 to keep the 128K window inside 96GB (q8 at 128K = ~100GB
-    # resident, OOMs the Blackwell). Q4 KV trades a small amount of
-    # long-context recall precision for the doubled window; acceptable
-    # for code agent loops, less ideal for needle-in-haystack QA.
+    # Current default: IQ3_S (~80GB). Kept while A/B testing the higher
+    # quants below; once a winner is chosen, point this entry at the
+    # winning file and delete the others (plus the orphaned GGUFs).
     file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
     group: chat
     args: >-
-      -ngl 999 -c 131072 --flash-attn on
-      --cache-type-k q4_0 --cache-type-v q4_0
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 40
-      --jinja
+      --jinja --log-verbosity 1
     aliases:
       - "minimax:m27"
+      - "minimax-m27-iq3"
+
+  # Quant A/B candidate 1: UD-IQ4_XS (~95-100GB). I-quants use an
+  # importance matrix to allocate bits where the model cares most;
+  # better quality per byte than legacy K-quants but slightly slower to
+  # decode. Cheapest meaningful quality step up from IQ3_S.
+  - name: minimax-m27-iq4
+    # Files live under the UD-IQ4_XS/ subdirectory inside /models, matching
+    # the per-quant directory layout used for the other quant candidates.
+    # Unsloth ships this quant as a 4-shard split GGUF; verify after
+    # download.
+    file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 40
+      --jinja --log-verbosity 1
+    aliases:
+      - "minimax:m27-iq4"
+
+  # Quant A/B candidate 2: UD-Q4_K_XL (~115-120GB). Unsloth's premium
+  # 4-bit: K-quant baseline with selective higher-precision tensors on
+  # the layers the imatrix flags as most sensitive. Faster decode than
+  # IQ4_XS, modestly larger. Best-quality 4-bit-class option that still
+  # leaves room for full q8_0 KV at 256K total.
+  - name: minimax-m27-q4
+    # Files live under the UD-Q4_K_XL/ subdirectory inside /models (shared
+    # with the gpt-oss Q4_K_XL files until that model is bumped to Q6).
+    # Unsloth ships this quant as a 4-shard split GGUF; verify after
+    # download.
+    file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 0.95 --top-k 40
+      --jinja --log-verbosity 1
+    aliases:
+      - "minimax:m27-q4"
 
   # nomic-embed lived here under llama-swap; embeddings are now served
   # by the dedicated TEI container at :11435 (see tei_* below). Reranker
@@ -129,6 +259,21 @@ ai_models:
     ttl: 300
     aliases:
       - "bge-reranker-v2-m3"
+
+  # CPU-resident small model used as opencode's `small_model` for context
+  # compaction / summarization. -ngl 0 keeps it off the GPU because the
+  # larger chat models fill most of available VRAM; the `cpu` group below
+  # is persistent: true so the llama-server process stays warm and
+  # compaction calls skip the cold-load tax. 5900X handles a 4B Q4_K_M in
+  # RAM (~2.5GB resident) with no impact on GPU workloads.
+  - name: qwen3-small
+    file: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+    group: cpu
+    args: >-
+      -ngl 0 --threads 12 --threads-batch 12
+      -c 32768 --jinja
+    aliases:
+      - "qwen3:4b"
 
 # Default TTL (seconds of idle before llama-swap unloads a model).
 # Individual ai_models entries can override via their own `ttl:` key.
@@ -147,6 +292,13 @@ ai_model_groups:
     swap: true
     exclusive: false
   aux:
+    swap: false
+    exclusive: false
+    persistent: true
+  # CPU-only models. swap: false + persistent: true keeps the llama-server
+  # process loaded across chat-model swaps so opencode compaction never
+  # pays the cold-load tax on top of slow CPU prompt processing.
+  cpu:
     swap: false
     exclusive: false
     persistent: true
