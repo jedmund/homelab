@@ -11,6 +11,12 @@
   // Tool execution runs on the host (no Docker sandbox). Chosen because
   // the mac-mini doesn't hold sensitive files that warrant the VM
   // overhead Docker Desktop / OrbStack imposes on macOS.
+  //
+  // model:      text-only turns. minimax-m27-q4 piggybacks on the coding
+  //             workload that's usually resident on max.
+  // imageModel: turns carrying an image auto-route here (per Openclaw's
+  //             gateway/config-agents docs), so vision pays the chat-group
+  //             swap cost only when an attachment actually arrives.
   agents: {
     defaults: {
       sandbox: {
@@ -18,6 +24,9 @@
       },
       model: {
         primary: "local/{{ openclaw_local_llm_default_model }}",
+      },
+      imageModel: {
+        primary: "local/{{ openclaw_local_llm_vision_model }}",
       },
     },
   },
