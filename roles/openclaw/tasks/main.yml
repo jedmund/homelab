@@ -49,6 +49,17 @@
     state: directory
     mode: '0700'
 
+- name: Template openclaw service env file
+  # Channel secrets (Discord bot token, etc.) live here and are resolved
+  # by openclaw.json at startup via { source: "env", id: "<NAME>" }.
+  ansible.builtin.template:
+    src: env/openclaw.env.j2
+    dest: "{{ openclaw_config_dir }}/.env"
+    mode: '0600'
+    backup: true
+  no_log: true
+  register: _openclaw_env
+
 - name: Template openclaw config
   ansible.builtin.template:
     src: openclaw.json.j2
@@ -57,12 +68,12 @@
     backup: true
   register: _openclaw_config
 
-- name: Reminder if config changed
+- name: Reminder if config or env changed
   ansible.builtin.debug:
     msg: >
-      Openclaw config was updated. If the gateway daemon is already
-      installed, restart it on the mac-mini with:
+      Openclaw config or env was updated. If the gateway daemon is
+      already installed, restart it on the mac-mini with:
       `launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway`
       (substitute the actual label from
       `launchctl list | grep -i openclaw` if different).
-  when: _openclaw_config.changed
+  when: _openclaw_config.changed or _openclaw_env.changed

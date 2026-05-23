@@ -57,4 +57,44 @@
       },
     },
   },
+{% if openclaw_discord_enabled %}
+
+  // Discord channel. DM-only personal use: groupPolicy disabled (the bot
+  // ignores server traffic entirely), dmPolicy allowlist restricted to
+  // a single user ID. Bot token is loaded from the env file at
+  // {{ openclaw_config_dir }}/.env. To open up to a server later, set
+  // groupPolicy to "allowlist" and add a guilds block (see
+  // https://docs.openclaw.ai/channels/discord).
+  channels: {
+    discord: {
+      enabled: true,
+      token: {
+        source: "env",
+        provider: "default",
+        id: "DISCORD_BOT_TOKEN",
+      },
+      applicationId: "{{ openclaw_discord_application_id }}",
+      groupPolicy: "disabled",
+      dmPolicy: "allowlist",
+      allowFrom: ["discord:{{ openclaw_discord_user_id }}"],
+      replyToMode: "first",
+      historyLimit: 20,
+      dmHistoryLimit: 50,
+      streaming: {
+        mode: "progress",
+      },
+      commands: {
+        native: "auto",
+      },
+      execApprovals: {
+        enabled: true,
+        target: "dm",
+      },
+      threadBindings: {
+        enabled: true,
+        idleHours: 24,
+      },
+    },
+  },
+{% endif %}
 }

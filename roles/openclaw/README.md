@@ -36,12 +36,48 @@ Mac), do this on the mac-mini console (not over SSH):
 5. **Verify the Traefik route.** Hit https://openclaw.atelier.house from
    another device; it should land on the mac-mini through TinyAuth.
 
-## Channel + MCP wiring
+## Discord channel (DM-only personal bot)
 
-Channels (iMessage, Slack, etc.) and MCP servers (Spark, Apple apps) are
-configured via the Openclaw Control UI rather than this role's config
-template. Once those are dialed in, export the resulting
-`~/.openclaw/openclaw.json` and fold the additions back into
+Discord is wired through the role's config template, gated by
+`openclaw_discord_enabled` (default true). Setup is one-time on the
+Discord side:
+
+1. **Create the application.** Discord Developer Portal then New
+   Application. Name it (e.g. "Openclaw"). On the **Bot** tab, set
+   "Public Bot" to off. If you hit "Private application cannot have a
+   default authorization link", go to **Installation** and set Install
+   Link to "None", then save.
+2. **Enable intents.** On the Bot tab, enable **Message Content
+   Intent** (required) and optionally Server Members Intent.
+3. **Grab the token.** Bot tab, Reset Token. This is
+   `vault_openclaw_discord_bot_token`. Treat as a password.
+4. **Grab IDs.** In Discord, enable Developer Mode (Settings, Advanced,
+   Developer Mode), then right-click your own profile, Copy User ID.
+   That's `vault_openclaw_discord_user_id`. The Application ID is on
+   the Developer Portal General Information tab; that's
+   `vault_openclaw_discord_application_id` (improves daemon startup).
+5. **Invite the bot.** Openclaw only supports Guild Install, not User
+   Install. OAuth2, URL Generator, integration type "Guild Install",
+   scopes: `bot` + `applications.commands`. Bot Permissions: Send
+   Messages, Read Message History, Embed Links, Attach Files
+   (optionally Use Slash Commands). Generate the URL, invite the bot
+   to any server you're in (a private one-person server is fine; the
+   role's config sets `groupPolicy: "disabled"` so server traffic is
+   ignored).
+6. **Add the vault entries**, then re-run `make deploy-openclaw` and
+   restart the gateway daemon (`launchctl kickstart -k
+   gui/$(id -u)/<label>`). DM the bot to confirm it responds.
+
+To disable Discord entirely set `openclaw_discord_enabled: false` in
+a host_vars/group_vars override; the channels block is then omitted
+from the rendered config.
+
+## Other channels + MCP wiring
+
+Channels other than Discord (iMessage, Slack, etc.) and MCP servers
+(Spark, Apple apps) are configured via the Openclaw Control UI rather
+than this role's config template. Once those are dialed in, export the
+resulting `~/.openclaw/openclaw.json` and fold the additions back into
 `templates/openclaw.json.j2` so the config is reproducible.
 
 ## Why no Docker sandbox

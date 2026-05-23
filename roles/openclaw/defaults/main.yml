@@ -64,3 +64,19 @@ openclaw_local_llm_models:
     input: ["text", "image"]
     contextWindow: 65536
     maxTokens: 8192
+
+# Discord channel. Configured for personal use: DMs from a single user
+# only, no server (guild) traffic, no voice. The Discord bot itself must
+# be created out of band at the Discord Developer Portal; the user/app
+# IDs and bot token come from vault (see roles/openclaw/README.md for
+# the full bring-up). Set openclaw_discord_enabled: false to skip the
+# channel block (config still validates without Discord).
+#
+# Required vault entries when enabled:
+#   vault_openclaw_discord_bot_token       bot token from the Bot tab
+#   vault_openclaw_discord_user_id         your Discord user ID (snowflake)
+#   vault_openclaw_discord_application_id  application/client ID (startup hint)
+openclaw_discord_enabled: true
+openclaw_discord_bot_token: "{{ vault_openclaw_discord_bot_token }}"
+openclaw_discord_user_id: "{{ vault_openclaw_discord_user_id }}"
+openclaw_discord_application_id: "{{ vault_openclaw_discord_application_id }}"
