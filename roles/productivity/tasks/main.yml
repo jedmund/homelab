@@ -32,6 +32,14 @@
     mode: '0600'
   notify: Restart {{ stack_name }} stack
 
+- name: Generate Silverbullet multi-tenant config
+  template:
+    src: silverbullet.config.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/silverbullet.config.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2

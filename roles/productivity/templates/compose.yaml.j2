@@ -29,8 +29,17 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
+    command: ["silverbullet", "--config", "/etc/silverbullet/silverbullet.config.yaml", "-L", "0.0.0.0"]
+    environment:
+      SILVERBULLET_OIDC_CLIENT_SECRET: {{ silverbullet_oidc_client_secret }}
     volumes:
-      - silverbullet-space:/space
+      # Per-user spaces live under spaces_root. silverbullet-space is the
+      # legacy single-user volume — mounted here read-only for migration
+      # convenience; remove this line once you've copied legacy notes into
+      # your tenant directory.
+      - silverbullet-spaces:{{ silverbullet_spaces_root }}
+      - silverbullet-space:/legacy-space:ro
+      - {{ docker_base_path }}/{{ stack_name }}/config/silverbullet.config.yaml:/etc/silverbullet/silverbullet.config.yaml:ro
     labels:
       traefik.enable: "true"
       traefik.http.routers.silverbullet.rule: "Host(`{{ silverbullet_domain }}`)"
@@ -273,7 +282,8 @@ services:
         max-file: {{ logging_max_file }}
 
 volumes:
-  silverbullet-space:
+  silverbullet-space:      # legacy single-user volume — keep until migrated
+  silverbullet-spaces:     # multi-tenant spaces_root (Atelier fork)
   blinko-data:
   blinko-pgdata:
   couchdb-data:

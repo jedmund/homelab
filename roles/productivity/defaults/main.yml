@@ -10,11 +10,33 @@ strudel_port: 80
 strudel_host_port: 8800
 strudel_domain: strudel.atelier.house
 
-# Silverbullet settings
-silverbullet_image: zefhemel/silverbullet:latest
+# Silverbullet settings — Atelier fork (multi-tenant + OIDC).
+# Tracks the fork's main branch (our fork doesn't have a separate
+# upstream-compat branch; main is the multi-tenant version). Pin to a
+# commit SHA tag (e.g. ghcr.io/jedmund/silverbullet:sha-abc1234) when
+# you want reproducible deploys.
+silverbullet_image: ghcr.io/jedmund/silverbullet:main
 silverbullet_port: 3000
 silverbullet_host_port: 3001
 silverbullet_domain: notes.atelier.house
+silverbullet_spaces_root: /var/silverbullet/spaces
+
+# OIDC / PocketID integration. client_id + client_secret live in vault.yml
+# as silverbullet_oidc_client_id / silverbullet_oidc_client_secret.
+silverbullet_oidc_issuer: "https://id.atelier.house"
+silverbullet_oidc_redirect_url: "https://{{ silverbullet_domain }}/.auth/oidc/callback"
+silverbullet_oidc_scopes:
+  - openid
+  - profile
+  - email
+silverbullet_oidc_tenant_claim: sub
+# Empty list = allow any user authenticated by PocketID.
+silverbullet_oidc_allowed_emails: []
+
+# Display defaults applied to every newly-provisioned tenant space.
+silverbullet_space_index_page: index
+silverbullet_space_name: SilverBullet
+silverbullet_space_description: Notes for the Atelier homelab
 
 # Blinko settings
 blinko_image: blinkospace/blinko:latest

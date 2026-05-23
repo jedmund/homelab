@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+# Multi-tenant + OIDC config for the Atelier silverbullet fork.
+# client_secret is expanded from the SILVERBULLET_OIDC_CLIENT_SECRET env var
+# at startup so it doesn't sit in plaintext on disk.
+
+oidc:
+  issuer: {{ silverbullet_oidc_issuer }}
+  client_id: {{ silverbullet_oidc_client_id }}
+  client_secret: ${SILVERBULLET_OIDC_CLIENT_SECRET}
+  redirect_url: {{ silverbullet_oidc_redirect_url }}
+  scopes:
+{% for scope in silverbullet_oidc_scopes %}
+    - {{ scope }}
+{% endfor %}
+  tenant_claim: {{ silverbullet_oidc_tenant_claim }}
+{% if silverbullet_oidc_allowed_emails | length > 0 %}
+  allowed_emails:
+{% for pattern in silverbullet_oidc_allowed_emails %}
+    - "{{ pattern }}"
+{% endfor %}
+{% else %}
+  allowed_emails: []
+{% endif %}
+
+spaces_root: {{ silverbullet_spaces_root }}
+server_secret_path: {{ silverbullet_spaces_root }}/.silverbullet.server.json
+
+space_defaults:
+  index_page: {{ silverbullet_space_index_page }}
+  space_name: {{ silverbullet_space_name }}
+  space_description: {{ silverbullet_space_description }}
