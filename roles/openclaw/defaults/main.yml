@@ -27,9 +27,18 @@ openclaw_sandbox_mode: "off"
 # llama_swap_port (11434) is duplicated from roles/ai/defaults/main.yml
 # because the ai role's vars aren't in scope from this role.
 openclaw_local_llm_base_url: "http://{{ hostvars['max'].ansible_host }}:11434/v1"
+# Default is minimax-m27-q4 to piggyback on the coding workload (already
+# resident most of the day) and avoid the ~125s cold-load tax that comes
+# with the chat group's swap policy. minimax is text-only though, so
+# qwen3.6-flash is declared as a secondary for opt-in vision tasks
+# (iMessage photos, screenshots). Using qwen3.6-flash will evict minimax,
+# but the 2h ai_model_default_ttl keeps thrash bounded once a session
+# settles. See roles/ai/defaults/main.yml for the full model catalogue
+# and the chat group's swap policy.
 openclaw_local_llm_default_model: "minimax-m27-q4"
 # Custom (non-bundled) providers must declare which models they expose,
 # or openclaw rejects the config at startup. Names must match llama-swap's
-# model names (see roles/ai/defaults/main.yml).
+# model names.
 openclaw_local_llm_models:
   - "{{ openclaw_local_llm_default_model }}"
+  - qwen3.6-flash
