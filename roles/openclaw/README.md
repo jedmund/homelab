@@ -37,8 +37,10 @@ Mac), do this on the mac-mini console (not over SSH):
 4. **Note the launchd label.** `launchctl list | grep -i openclaw` --
    record it so future config changes can be applied with
    `launchctl kickstart -k gui/$(id -u)/<label>`.
-5. **Verify the Traefik route.** Hit https://openclaw.atelier.house from
+5. **Verify the Traefik route.** Hit https://claw.atelier.house from
    another device; it should land on the mac-mini through TinyAuth.
+   Requires `openclaw config set gateway.bind 'lan'` first (the wizard
+   defaults to loopback, which blocks LAN access).
 
 ## Discord channel (DM-only personal bot)
 

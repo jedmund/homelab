@@ -394,12 +394,12 @@ http:
 
     # ========== AI ==========
 
-    # Openclaw Control UI - openclaw.{{ traefik_domain }}
+    # Openclaw Control UI - claw.{{ traefik_domain }}
     # Service runs natively on mac-mini (LaunchAgent) so it can reach
     # iMessage, Spark Desktop's MCP, and the Apple-app MCPs. See
     # roles/openclaw/README.md.
     openclaw:
-      rule: "Host(`openclaw.{{ traefik_domain }}`)"
+      rule: "Host(`claw.{{ traefik_domain }}`)"
       service: openclaw
       entryPoints:
         - websecure

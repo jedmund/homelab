@@ -16,6 +16,7 @@ ddclient_atelier_subdomains:
   - bl.atelier.house
   - box.atelier.house
   - chat.atelier.house
+  - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
   - files.atelier.house
@@ -39,7 +40,6 @@ ddclient_atelier_subdomains:
   - netdata.atelier.house
   - notes.atelier.house
   - obsidian.sync.atelier.house
-  - openclaw.atelier.house
   - ov.atelier.house
   - photos.atelier.house
   - pi.atelier.house
