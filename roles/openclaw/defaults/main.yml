@@ -80,3 +80,16 @@ openclaw_discord_enabled: true
 openclaw_discord_bot_token: "{{ vault_openclaw_discord_bot_token }}"
 openclaw_discord_user_id: "{{ vault_openclaw_discord_user_id }}"
 openclaw_discord_application_id: "{{ vault_openclaw_discord_application_id }}"
+
+# Google Places API key for the `goplaces` skill (Google Maps lookups).
+# Get a key at console.cloud.google.com (enable the Places API, then
+# create an API key and restrict it to Places API). The env var is
+# loaded by the gateway daemon at startup; the openclaw skill picks it
+# up automatically. Set openclaw_goplaces_enabled: false to omit the
+# var (useful if the skill is disabled or the brew binary isn't
+# installed yet).
+#
+# Required vault entry when enabled:
+#   vault_openclaw_google_places_api_key   Places API key (treat as secret)
+openclaw_goplaces_enabled: true
+openclaw_google_places_api_key: "{{ vault_openclaw_google_places_api_key }}"

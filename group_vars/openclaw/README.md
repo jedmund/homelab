@@ -27,6 +27,13 @@ Discord channel (required while `openclaw_discord_enabled: true`):
 - `vault_openclaw_discord_application_id` — Application ID from the
   Developer Portal, General Information tab. Improves daemon startup.
 
-To stand up Openclaw without Discord, set `openclaw_discord_enabled:
-false` (in `group_vars/openclaw/main.yml` or `-e` at deploy time) and
-omit the Discord vault entries entirely.
+Google Places skill (required while `openclaw_goplaces_enabled: true`):
+
+- `vault_openclaw_google_places_api_key` — API key from
+  console.cloud.google.com. Enable the Places API on a project, create
+  an API key, restrict the key to Places API. Treat as a secret.
+
+To stand up Openclaw without one of these features, flip its
+`openclaw_<feature>_enabled` to `false` (in
+`group_vars/openclaw/main.yml` or via `-e` at deploy time) and omit the
+matching vault entries.
