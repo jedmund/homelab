@@ -24,6 +24,23 @@ http:
         - websecure
       tls:
         certResolver: letsencrypt
+
+    # SearXNG web UI - search.{{ traefik_domain }}
+    # Port 8889 matches searxng_port in roles/ai/defaults/main.yml; same
+    # cross-role hardcoding caveat as llamaswap above. TinyAuth-gated so
+    # the instance isn't reachable from the open internet (would otherwise
+    # get rate-limited / banned by upstream engines). LAN clients on the
+    # same network as max (e.g. OpenClaw on the mac-mini) still hit
+    # http://max:8889 directly without Traefik.
+    searxng:
+      rule: "Host(`search.{{ traefik_domain }}`)"
+      service: searxng
+      middlewares:
+        - tinyauth@file
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
   services:
     minecraft:
       loadBalancer:
@@ -33,3 +50,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ max_server_ip }}:11434"
+    searxng:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:8889"
