@@ -3,6 +3,12 @@
   hosts: openclaw
   become: no
   gather_facts: yes
+  # macOS SSH sessions don't source ~/.zprofile, so the Homebrew prefix
+  # (where brew, node, npm, and openclaw live) isn't on PATH. Pin it
+  # explicitly for every task in the play. /opt/homebrew is Apple Silicon,
+  # /usr/local is Intel; harmless to list both.
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
   roles:
     - openclaw

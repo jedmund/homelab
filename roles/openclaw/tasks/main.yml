@@ -4,21 +4,32 @@
 # must be run once by hand on the mac-mini after this role runs. See
 # roles/openclaw/README.md for the full bring-up sequence.
 
-- name: Ensure Homebrew is installed
-  ansible.builtin.command: brew --version
-  register: _brew_check
-  changed_when: false
-  failed_when: _brew_check.rc != 0
+- name: Check for Homebrew (Apple Silicon prefix)
+  ansible.builtin.stat:
+    path: /opt/homebrew/bin/brew
+  register: _brew_apple_silicon
+
+- name: Check for Homebrew (Intel prefix)
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: _brew_intel
+
+- name: Bootstrap Homebrew if missing
+  # NONINTERACTIVE=1 skips the "press RETURN" prompts. The installer still
+  # calls sudo to create /opt/homebrew and chown it to the SSH user, so
+  # that user needs (passwordless) sudo for this to complete unattended.
+  ansible.builtin.shell: |
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  environment:
+    NONINTERACTIVE: "1"
+  when:
+    - not _brew_apple_silicon.stat.exists
+    - not _brew_intel.stat.exists
 
 - name: Install Node {{ openclaw_node_formula }} via Homebrew
   community.general.homebrew:
     name: "{{ openclaw_node_formula }}"
     state: present
-
-- name: Resolve Homebrew prefix
-  ansible.builtin.command: brew --prefix
-  register: _brew_prefix
-  changed_when: false
 
 - name: Resolve {{ openclaw_node_formula }} bin path
   ansible.builtin.command: "brew --prefix {{ openclaw_node_formula }}"
