@@ -44,8 +44,23 @@ openclaw_local_llm_default_model: "minimax-m27-q4"
 openclaw_local_llm_vision_model: qwen3.6-flash
 
 # Custom (non-bundled) providers must declare which models they expose,
-# or openclaw rejects the config at startup. Names must match llama-swap's
-# model names.
+# or openclaw rejects the config at startup. Each entry maps to a model
+# object in openclaw.json under models.providers.local.models[]. Fields:
+#   id            llama-swap model name (must match roles/ai/defaults).
+#   name          display label for Openclaw's model picker.
+#   input         ["text"] or ["text", "image"] for multimodal.
+#   contextWindow per-slot context (chat group uses 64K-per-slot sticky).
+#   maxTokens     generation cap per response.
+# All other fields (cost, reasoning) are emitted as zeros/false by the
+# template since these are local models with no per-token pricing.
 openclaw_local_llm_models:
-  - "{{ openclaw_local_llm_default_model }}"
-  - "{{ openclaw_local_llm_vision_model }}"
+  - id: minimax-m27-q4
+    name: "MiniMax M2.7 (Q4_K_XL)"
+    input: ["text"]
+    contextWindow: 65536
+    maxTokens: 8192
+  - id: qwen3.6-flash
+    name: "Qwen3.6 Flash 35B-A3B (multimodal)"
+    input: ["text", "image"]
+    contextWindow: 65536
+    maxTokens: 8192

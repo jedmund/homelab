@@ -34,16 +34,26 @@
   // Point Openclaw at llama-swap on max over the LAN (OpenAI-compatible
   // API, no auth at the API surface). The web UI at models.atelier.house
   // is TinyAuth-gated separately. Custom providers must declare their
-  // models explicitly; bundled providers (anthropic, openai, etc.) don't.
+  // models as an array of objects (id, name, input, cost, contextWindow,
+  // maxTokens); bundled providers (anthropic, openai, etc.) don't.
   models: {
     providers: {
       local: {
         baseUrl: "{{ openclaw_local_llm_base_url }}",
-        models: {
-{% for model in openclaw_local_llm_models %}
-          "{{ model }}": {},
+        api: "openai-completions",
+        models: [
+{% for m in openclaw_local_llm_models %}
+          {
+            id: "{{ m.id }}",
+            name: "{{ m.name }}",
+            input: {{ m.input | to_json }},
+            reasoning: false,
+            contextWindow: {{ m.contextWindow }},
+            maxTokens: {{ m.maxTokens }},
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          },
 {% endfor %}
-        },
+        ],
       },
     },
   },
