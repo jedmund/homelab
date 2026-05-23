@@ -60,20 +60,24 @@
   no_log: true
   register: _openclaw_env
 
-- name: Template openclaw config
+- name: Bootstrap openclaw config if missing
+  # Bootstrap-only ownership. `openclaw onboard` and the Control UI both
+  # write to openclaw.json (adding session, tools, plugins, hooks, and
+  # gateway.auth.token alongside whatever we set). Force-overwriting on
+  # every deploy would wipe those out, so we only seed the file when it
+  # doesn't exist yet (force: false). To reset to the templated bootstrap,
+  # remove ~/.openclaw/openclaw.json on the mac-mini and re-run the deploy.
   ansible.builtin.template:
     src: openclaw.json.j2
     dest: "{{ openclaw_config_file }}"
     mode: '0600'
-    backup: true
+    force: false
   register: _openclaw_config
 
 - name: Reminder if config or env changed
   ansible.builtin.debug:
     msg: >
-      Openclaw config or env was updated. If the gateway daemon is
-      already installed, restart it on the mac-mini with:
-      `launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway`
-      (substitute the actual label from
-      `launchctl list | grep -i openclaw` if different).
+      Openclaw env (or initial config) was updated. If the gateway daemon
+      is already installed, restart it on the mac-mini with:
+      `launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway`.
   when: _openclaw_config.changed or _openclaw_env.changed

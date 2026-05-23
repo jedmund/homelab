@@ -10,10 +10,14 @@ the repo's usual Docker-compose pattern.
 
 - Installs `node@24` via Homebrew (Openclaw recommends Node 24).
 - Installs `openclaw` globally via that Node's npm.
-- Writes `~/.openclaw/openclaw.json` with:
-  - sandbox mode `off` (tool exec runs on the host),
-  - a `local` OpenAI-compatible provider pointing at llama-swap on `max`
-    (`http://192.168.1.100:11434/v1`).
+- Templates `~/.openclaw/.env` from vault on every deploy (Discord bot
+  token, etc.); the gateway loads this at startup.
+- **Bootstrap-only** writes `~/.openclaw/openclaw.json` the first time
+  (sandbox off, `local` provider pointing at llama-swap on `max`, both
+  declared models). After that the file is owned by `openclaw onboard`
+  and the Control UI; the role leaves it alone (`force: false` on the
+  template). To reset to the templated bootstrap, delete
+  `~/.openclaw/openclaw.json` on the mac-mini and re-run the deploy.
 
 ## One-time manual bring-up
 
