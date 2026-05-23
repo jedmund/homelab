@@ -28,3 +28,8 @@ openclaw_sandbox_mode: "off"
 # because the ai role's vars aren't in scope from this role.
 openclaw_local_llm_base_url: "http://{{ hostvars['max'].ansible_host }}:11434/v1"
 openclaw_local_llm_default_model: "minimax-m27-q4"
+# Custom (non-bundled) providers must declare which models they expose,
+# or openclaw rejects the config at startup. Names must match llama-swap's
+# model names (see roles/ai/defaults/main.yml).
+openclaw_local_llm_models:
+  - "{{ openclaw_local_llm_default_model }}"
