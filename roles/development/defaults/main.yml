@@ -120,6 +120,6 @@ open_webui_rag_embedding_model: nomic-ai/nomic-embed-text-v1.5
 # and the mobile/web clients. Zero-knowledge: traffic is E2E encrypted
 # with NaCl box, so the relay never sees payload content. No auth at the
 # edge by design; Traefik just terminates TLS and proxies the WS upgrade.
-paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.3.0
+paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.5.0
 paseo_relay_domain: paseo.relay.atelier.house
 paseo_relay_port: 8411
