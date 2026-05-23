@@ -114,3 +114,12 @@ open_webui_playwright_ws_url: "ws://{{ max_server_ip }}:{{ open_webui_playwright
 open_webui_tei_port: 11435
 open_webui_rag_embedding_base_url: "http://{{ max_server_ip }}:{{ open_webui_tei_port }}/v1"
 open_webui_rag_embedding_model: nomic-ai/nomic-embed-text-v1.5
+
+# Paseo relay settings
+# Self-hosted WS relay between the Paseo daemon (running on dev machines)
+# and the mobile/web clients. Zero-knowledge: traffic is E2E encrypted
+# with NaCl box, so the relay never sees payload content. No auth at the
+# edge by design; Traefik just terminates TLS and proxies the WS upgrade.
+paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.3.0
+paseo_relay_domain: paseo.relay.atelier.house
+paseo_relay_port: 8411
