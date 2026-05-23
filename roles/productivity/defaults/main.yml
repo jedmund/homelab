@@ -30,6 +30,8 @@ silverbullet_oidc_scopes:
   - profile
   - email
 silverbullet_oidc_tenant_claim: sub
+# Display name on the sign-in button ("Sign in with <provider_name>").
+silverbullet_oidc_provider_name: PocketID
 # Empty list = allow any user authenticated by PocketID.
 silverbullet_oidc_allowed_emails: []
 

@@ -13,6 +13,7 @@ oidc:
     - {{ scope }}
 {% endfor %}
   tenant_claim: {{ silverbullet_oidc_tenant_claim }}
+  provider_name: {{ silverbullet_oidc_provider_name }}
 {% if silverbullet_oidc_allowed_emails | length > 0 %}
   allowed_emails:
 {% for pattern in silverbullet_oidc_allowed_emails %}
