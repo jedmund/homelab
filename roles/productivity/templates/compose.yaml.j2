@@ -29,9 +29,16 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
-    command: ["silverbullet", "--config", "/etc/silverbullet/silverbullet.config.yaml", "-L", "0.0.0.0"]
+    # docker-entrypoint.sh prepends /silverbullet, so `command:` is just the
+    # CLI args to the binary.
+    command: ["--config", "/etc/silverbullet/silverbullet.config.yaml", "-L", "0.0.0.0"]
     environment:
       SILVERBULLET_OIDC_CLIENT_SECRET: {{ silverbullet_oidc_client_secret }}
+      # Skip the entrypoint's "stat $SB_FOLDER for PUID" path — /space
+      # doesn't exist in multi-tenant mode. Setting PUID/PGID explicitly is
+      # simpler than overriding the entrypoint entirely.
+      PUID: "0"
+      PGID: "0"
     volumes:
       # Per-user spaces live under spaces_root. silverbullet-space is the
       # legacy single-user volume — mounted here read-only for migration
