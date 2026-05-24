@@ -281,10 +281,10 @@ ai_models:
     aliases:
       - "minimax:m27-q4"
 
-  # nomic-embed lived here under llama-swap; embeddings are now served
-  # by the dedicated TEI container at :11435 (see tei_* below). Reranker
-  # stays in llama-swap because reranker volume is low and TEI would be
-  # one more service for marginal gain.
+  # nomic-embed lived here under llama-swap; the OpenWebUI RAG embedding
+  # stays on the dedicated TEI container at :11435 (see tei_* below).
+  # Reranker is also in llama-swap because reranker volume is low and
+  # TEI would be one more service for marginal gain.
   - name: bge-reranker
     file: bge-reranker-v2-m3-Q8_0.gguf
     group: aux
@@ -292,6 +292,48 @@ ai_models:
     ttl: 300
     aliases:
       - "bge-reranker-v2-m3"
+
+  # Embedding models, swap-loaded via llama-swap so only one is resident
+  # at a time. The `embed` group below is swap: true, so requesting any
+  # of these unloads whichever was previously active. RAG-style flows
+  # that need a chat model + embedding can run concurrently because
+  # exclusive: false lets the embed and chat groups coexist.
+  #
+  # Pooling differs by lineage:
+  #   - bge-m3 is XLM-RoBERTa style (encoder) -> --pooling cls
+  #   - Qwen3-Embedding is Qwen3-decoder based -> --pooling last
+  # Get this wrong and the model returns junk vectors without erroring,
+  # so leave the per-model --pooling flags alone unless you've checked
+  # the model card.
+  - name: bge-m3
+    file: bge-m3-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling cls
+      -c 8192 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "bge-m3:567m"
+
+  - name: qwen3-embed-0_6b
+    file: Qwen3-Embedding-0.6B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:0.6b"
+
+  - name: qwen3-embed-4b
+    file: Qwen3-Embedding-4B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:4b"
 
   # CPU-resident small model used as opencode's `small_model` for context
   # compaction / summarization. -ngl 0 keeps it off the GPU because the
@@ -344,6 +386,14 @@ ai_model_groups:
     swap: false
     exclusive: false
     persistent: true
+  # Embedding models: only one resident at a time (swap: true) but the
+  # group coexists with chat (exclusive: false) so RAG-style flows can
+  # have an embed model + a chat model loaded concurrently. The 4B
+  # Qwen3 embed is the largest entry (~5GB at Q8); the rest are under
+  # 1GB so cold-load tax on swap is small.
+  embed:
+    swap: true
+    exclusive: false
 
 # Whisper STT (speaches, formerly faster-whisper-server)
 # https://github.com/speaches-ai/speaches
