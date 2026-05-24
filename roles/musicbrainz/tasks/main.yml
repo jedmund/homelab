@@ -58,6 +58,29 @@
   no_log: true
   notify: Restart {{ stack_name }} stack
 
+# Render the multi-file overlay chain into a single self-contained compose
+# file so Komodo only sees one definition per service. `-f` flags here
+# override `COMPOSE_FILE` from .env (which points at the merged file we
+# are about to write), so this still works on the very first run.
+- name: Render merged compose file
+  ansible.builtin.command:
+    cmd: >-
+      docker compose
+      {% for f in musicbrainz_source_compose_files %} -f {{ f }}{% endfor %}
+      config
+    chdir: "{{ musicbrainz_upstream_path }}"
+  register: musicbrainz_merged_compose
+  changed_when: false
+  check_mode: false
+
+- name: Write merged compose file
+  ansible.builtin.copy:
+    content: "{{ musicbrainz_merged_compose.stdout }}\n"
+    dest: "{{ musicbrainz_upstream_path }}/{{ musicbrainz_merged_compose_path }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ musicbrainz_upstream_path }}"
