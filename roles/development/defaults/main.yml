@@ -39,6 +39,14 @@ gitlab_runner_name: nuc-mini-docker
 gitlab_runner_concurrent: 4
 gitlab_runner_default_image: alpine:latest
 gitlab_runner_log_level: info
+# Runner reaches GitLab over the backend docker network rather than out
+# through Traefik (mirrors renovate_endpoint below). Without this the
+# runner resolves git.atelier.house to the GitLab container's backend
+# IP via the container hostname, but tries port 443 — TLS terminates at
+# Traefik, GitLab itself only listens on 80 internally, so every job
+# poll fails with "connection refused". Also used as clone_url so the
+# job containers spawned on backend network clone via the internal URL.
+gitlab_runner_url: "http://gitlab"
 # Generated in GitLab admin UI after first GitLab boot, then added to
 # vault. Empty default lets the first deploy render config.toml without
 # failing; runner will log auth errors until the token is populated.

@@ -1,0 +1,27 @@
+---
+# Stack identity
+stack_name: development_macos
+
+# GitLab URL (matches roles/development/defaults/main.yml — the runner
+# talks to the same GitLab instance running on nuc-mini).
+gitlab_root_url: "https://git.atelier.house"
+
+# Vault secrets consumed by this role:
+#   gitlab_runner_macos_auth_token
+
+# GitLab Runner settings
+gitlab_runner_macos_name: mac-mini-xcode
+gitlab_runner_macos_concurrent: 2
+gitlab_runner_macos_log_level: info
+# Generated in the GitLab admin UI as a separate runner registration
+# from the nuc-mini docker runner, then added to vault. Empty default
+# lets the first deploy render config.toml without failing; runner
+# will log auth errors until the token is populated.
+gitlab_runner_macos_auth_token: ""
+
+# Runs as the same user that ansible connects with (`justin` in the
+# mac-mini inventory entry). User-mode is required for Xcode/keychain
+# access; system-mode would run as root and break code signing.
+gitlab_runner_macos_user: "{{ ansible_user }}"
+gitlab_runner_macos_home: "/Users/{{ gitlab_runner_macos_user }}"
+gitlab_runner_macos_config_dir: "{{ gitlab_runner_macos_home }}/.gitlab-runner"

@@ -1,0 +1,36 @@
+---
+# Development (macOS) Stack - GitLab Runner with shell executor for
+# iOS builds. User-mode install so Xcode and the login keychain are
+# reachable.
+
+- name: Install gitlab-runner via Homebrew
+  community.general.homebrew:
+    name: gitlab-runner
+    state: present
+
+- name: Ensure runner config directory exists
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_macos_config_dir }}"
+    state: directory
+    owner: "{{ gitlab_runner_macos_user }}"
+    mode: '0755'
+
+- name: Deploy gitlab-runner config
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ gitlab_runner_macos_config_dir }}/config.toml"
+    owner: "{{ gitlab_runner_macos_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart gitlab-runner
+
+- name: Install gitlab-runner as a user LaunchAgent
+  ansible.builtin.command: gitlab-runner install
+  args:
+    creates: "{{ gitlab_runner_macos_home }}/Library/LaunchAgents/gitlab.gitlab-runner.plist"
+  become: false
+
+- name: Ensure gitlab-runner is started
+  ansible.builtin.command: gitlab-runner start
+  become: false
+  changed_when: false
