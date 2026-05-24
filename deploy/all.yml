@@ -79,6 +79,10 @@
 - import_playbook: ai.yml
   tags: [ai]
 
+# Openclaw (targets the `openclaw` group, currently `mac-mini` only)
+- import_playbook: openclaw.yml
+  tags: [openclaw]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]

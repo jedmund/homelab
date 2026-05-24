@@ -392,6 +392,22 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # ========== AI ==========
+
+    # Openclaw Control UI - claw.{{ traefik_domain }}
+    # Service runs natively on mac-mini (LaunchAgent) so it can reach
+    # iMessage, Spark Desktop's MCP, and the Apple-app MCPs. See
+    # roles/openclaw/README.md.
+    openclaw:
+      rule: "Host(`claw.{{ traefik_domain }}`)"
+      service: openclaw
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # ========== Monitoring ==========
 
     # Netdata API bypass for Line widgets (no auth)
@@ -571,6 +587,12 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:19999"
+
+    # AI (native macOS service on mac-mini)
+    openclaw:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mac_mini_ip }}:18789"
 
   middlewares:
     yardsale-strip-images:

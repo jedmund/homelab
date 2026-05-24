@@ -16,6 +16,7 @@ ddclient_atelier_subdomains:
   - bl.atelier.house
   - box.atelier.house
   - chat.atelier.house
+  - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
   - files.atelier.house
@@ -47,6 +48,7 @@ ddclient_atelier_subdomains:
   - rom.atelier.house
   - rss.atelier.house
   - scrobble.atelier.house
+  - search.atelier.house
   - sl.atelier.house
   - so.atelier.house
   - sorter.atelier.house
@@ -129,4 +131,5 @@ adguard_dns_bind_ip: "{{ ansible_host }}"
 # Sourced from inventory so the IPs are only ever defined in one place.
 mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
+mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
 dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"

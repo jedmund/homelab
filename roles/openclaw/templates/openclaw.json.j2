@@ -1,0 +1,100 @@
+// {{ ansible_managed }}
+// Openclaw config (JSON5: comments and trailing commas allowed).
+// Schema is evolving; treat this as a starting point and update as the
+// upstream config reference at https://docs.openclaw.ai/gateway/configuration
+// stabilizes.
+{
+  gateway: {
+    port: {{ openclaw_port }},
+  },
+
+  // Tool execution runs on the host (no Docker sandbox). Chosen because
+  // the mac-mini doesn't hold sensitive files that warrant the VM
+  // overhead Docker Desktop / OrbStack imposes on macOS.
+  //
+  // model:      text-only turns. minimax-m27-q4 piggybacks on the coding
+  //             workload that's usually resident on max.
+  // imageModel: turns carrying an image auto-route here (per Openclaw's
+  //             gateway/config-agents docs), so vision pays the chat-group
+  //             swap cost only when an attachment actually arrives.
+  agents: {
+    defaults: {
+      sandbox: {
+        mode: "{{ openclaw_sandbox_mode }}",
+      },
+      model: {
+        primary: "local/{{ openclaw_local_llm_default_model }}",
+      },
+      imageModel: {
+        primary: "local/{{ openclaw_local_llm_vision_model }}",
+      },
+    },
+  },
+
+  // Point Openclaw at llama-swap on max over the LAN (OpenAI-compatible
+  // API, no auth at the API surface). The web UI at models.atelier.house
+  // is TinyAuth-gated separately. Custom providers must declare their
+  // models as an array of objects (id, name, input, cost, contextWindow,
+  // maxTokens); bundled providers (anthropic, openai, etc.) don't.
+  models: {
+    providers: {
+      local: {
+        baseUrl: "{{ openclaw_local_llm_base_url }}",
+        api: "openai-completions",
+        models: [
+{% for m in openclaw_local_llm_models %}
+          {
+            id: "{{ m.id }}",
+            name: "{{ m.name }}",
+            input: {{ m.input | to_json }},
+            reasoning: false,
+            contextWindow: {{ m.contextWindow }},
+            maxTokens: {{ m.maxTokens }},
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          },
+{% endfor %}
+        ],
+      },
+    },
+  },
+{% if openclaw_discord_enabled %}
+
+  // Discord channel. DM-only personal use: groupPolicy disabled (the bot
+  // ignores server traffic entirely), dmPolicy allowlist restricted to
+  // a single user ID. Bot token is loaded from the env file at
+  // {{ openclaw_config_dir }}/.env. To open up to a server later, set
+  // groupPolicy to "allowlist" and add a guilds block (see
+  // https://docs.openclaw.ai/channels/discord).
+  channels: {
+    discord: {
+      enabled: true,
+      token: {
+        source: "env",
+        provider: "default",
+        id: "DISCORD_BOT_TOKEN",
+      },
+      applicationId: "{{ openclaw_discord_application_id }}",
+      groupPolicy: "disabled",
+      dmPolicy: "allowlist",
+      allowFrom: ["discord:{{ openclaw_discord_user_id }}"],
+      replyToMode: "first",
+      historyLimit: 20,
+      dmHistoryLimit: 50,
+      streaming: {
+        mode: "progress",
+      },
+      commands: {
+        native: "auto",
+      },
+      execApprovals: {
+        enabled: true,
+        target: "dm",
+      },
+      threadBindings: {
+        enabled: true,
+        idleHours: 24,
+      },
+    },
+  },
+{% endif %}
+}

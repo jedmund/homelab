@@ -1,0 +1,5 @@
+---
+# Openclaw is daemonized by `openclaw onboard --install-daemon` (one-time
+# manual step). The launchd label isn't known until after that runs, so
+# this role doesn't auto-restart on config changes; see tasks/main.yml
+# for the kickstart command and roles/openclaw/README.md for context.
