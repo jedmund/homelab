@@ -85,11 +85,49 @@ services:
       - {{ tei_port }}:80
     volumes:
       - tei-cache:/data
+      - ./models:/models:ro
     command:
       - --model-id={{ tei_model_id }}
-      - --revision={{ tei_model_revision }}
       - --max-concurrent-requests={{ tei_max_concurrent_requests }}
       - --max-batch-tokens={{ tei_max_batch_tokens }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # Second TEI container for jinaai/jina-embeddings-v3. Reads the model
+  # directly from the host models directory (bind-mounted read-only)
+  # rather than pulling from HF Hub, because the user already downloaded
+  # the snapshot and the model isn't cleanly GGUFable for llama-swap
+  # (custom_st.py pooling + task-specific LoRA adapters). One TEI
+  # container per model is TEI's design constraint.
+  tei-jina:
+    image: {{ tei_image }}
+    container_name: tei-jina
+    restart: {{ restart_policy }}
+    ports:
+      - {{ tei_jina_port }}:80
+    volumes:
+      - tei-cache:/data
+      - ./models:/models:ro
+    command:
+      - --model-id={{ tei_jina_model_path }}
+      - --max-concurrent-requests={{ tei_jina_max_concurrent_requests }}
+      - --max-batch-tokens={{ tei_jina_max_batch_tokens }}
     deploy:
       resources:
         reservations:

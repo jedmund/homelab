@@ -241,6 +241,38 @@ VRAM is usually a bit higher once KV cache is allocated.
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
 
+### embedding models (swap group) — for project experimentation
+
+Three GGUF embedding models served via llama-swap under the `embed` group
+(`swap: true, exclusive: false`). Only one is resident at a time, but the
+group coexists with `chat`, so RAG-style flows that need an embed model plus
+a chat model in parallel work without contention. Use these for
+domain/quality comparisons in project code; OpenWebUI's always-on RAG
+embedding is on TEI (see Embeddings section below).
+
+| llama-swap name | File | Source | ~Disk | ~VRAM live | Pooling |
+|---|---|---|---|---|---|
+| `bge-m3` | `bge-m3-Q8_0.gguf` | `gpustack/bge-m3-GGUF` | ~600 MB | ~1 GB | `cls` (encoder) |
+| `qwen3-embed-0_6b` | `Qwen3-Embedding-0.6B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-0.6B-GGUF` | ~700 MB | ~1.5 GB | `last` (decoder) |
+| `qwen3-embed-4b` | `Qwen3-Embedding-4B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-4B-GGUF` | ~4.5 GB | ~6 GB | `last` (decoder) |
+
+- **Pull**:
+  - `hf download gpustack/bge-m3-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - `hf download Qwen/Qwen3-Embedding-0.6B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - `hf download Qwen/Qwen3-Embedding-4B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - Verify filenames after download; the publishers occasionally tweak case
+    or naming (e.g. `f16` vs `F16`, `Q8_0` vs `q8_0`). The `ai_models`
+    entries assume the canonical names in the table above.
+- **Why**: For embedding benchmark / domain-fit comparisons in project code.
+  All three are OpenAI-compatible at `http://max:11434/v1/embeddings` with
+  the `model` field set to the llama-swap name or alias.
+- **Pooling gotcha**: BGE is encoder-style (`--pooling cls`); Qwen3-Embedding
+  is decoder-style (`--pooling last`). Wrong pooling silently returns junk
+  vectors with no error. The `args` in `ai_models` are already set
+  correctly per model; don't crosswire them.
+- **TTL**: 300s per entry — embedding workloads tend to be bursty so the
+  short TTL releases VRAM quickly between sessions.
+
 ### qwen3-small — CPU-resident compaction model
 
 - **File**: `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
@@ -282,21 +314,49 @@ model` task in `tasks/main.yml` handles this idempotently on every deploy
   second model): `curl -X POST http://192.168.1.100:9000/v1/models/<id>`
   where `<id>` is a path from `GET /v1/registry?task=automatic-speech-recognition`.
 
-## Embeddings (TEI, not llama-swap)
+## Embeddings (always-on, TEI)
 
-Embeddings are served by the TEI container, not llama-swap, so there is no
-GGUF to manage on disk. TEI downloads its model on first start via the
-HuggingFace hub and caches it in the `tei-cache` named volume.
+Two TEI containers, each pinned to one model. TEI is single-model-per-container
+by design, so each "always-on" embedding model adds one container. For
+swap-loaded embedding models used in project experimentation, see the
+"embedding models (swap group)" section above; those go through llama-swap
+on `:11434`.
 
-- **Current model**: `nomic-ai/nomic-embed-text-v1.5` (pinned in
-  `tei_model_id` in `defaults/main.yml`). Matches the model the retired
-  llama-swap `nomic-embed` entry used to serve, so OpenWebUI and any other
-  consumer swap in place without re-embedding.
-- **Swap candidates**: `BAAI/bge-large-en-v1.5` or `Qwen/Qwen3-Embedding-8B`
-  for top-of-MTEB at higher cost. Changing the model is not free for existing
-  consumers: collections embedded with one model cannot be searched with
-  another, so plan a re-embed (OpenWebUI: Admin -> Documents -> reset vector
-  storage and re-ingest).
+### tei — OpenWebUI RAG embedding (always-on)
+
+- **Current model**: `Qwen/Qwen3-Embedding-0.6B` (1024-dim, multilingual,
+  top-of-MTEB at this size). Read directly from local disk at
+  `/opt/docker/ai/models/Qwen3-Embedding-0.6B/` (bind-mounted into the
+  container at `/models/Qwen3-Embedding-0.6B`); no HF Hub pull at runtime.
+- **History**: Was `nomic-ai/nomic-embed-text-v1.5` until 2026-05-24. Switched
+  to consolidate around the Qwen3 family already used elsewhere in the stack,
+  get a quality / multilingual bump, and drop the
+  `tei_model_revision: e5cf08aa...` pin (which existed only to dodge a TEI
+  serde-alias bug in newer nomic config revisions).
+- **Endpoint**: `http://192.168.1.100:11435/v1/embeddings`. Consumed by
+  OpenWebUI via `open_webui_rag_embedding_base_url` in
+  `roles/development/defaults/main.yml`.
+- **Re-embed on switch**: collections embedded under one model can't be
+  searched with another. Reset OpenWebUI vector storage (Admin -> Documents)
+  and re-ingest after the migration.
+- **Swap candidates**: `nomic-ai/nomic-embed-text-v2-moe` (multilingual MoE,
+  smaller idle footprint), `Snowflake/snowflake-arctic-embed-l-v2.0`
+  (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
+  ~7.6 GB resident.
+
+### tei-jina — jinaai/jina-embeddings-v3 (always-on)
+
+- **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
+  task-conditioned via LoRA adapters). Read from local disk at
+  `/opt/docker/ai/models/jina-embeddings-v3/` (bind-mounted read-only).
+- **Why a separate container**: jina-v3's task-specific LoRA adapters and
+  `custom_st.py` pooling logic don't translate to a clean GGUF, so llama-swap
+  can't serve it. To keep it available without losing the llama-swap embed
+  group's swap benefits for the other three, it gets its own dedicated TEI
+  container.
+- **Endpoint**: `http://192.168.1.100:11436/v1/embeddings`.
+- **Idle cost**: ~1.1 GB resident VRAM. Acceptable for the convenience of
+  having jina-v3 available alongside the swappable Qwen3 / bge-m3 embedders.
 
 ## Adding or removing a model
 

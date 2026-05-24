@@ -281,10 +281,10 @@ ai_models:
     aliases:
       - "minimax:m27-q4"
 
-  # nomic-embed lived here under llama-swap; embeddings are now served
-  # by the dedicated TEI container at :11435 (see tei_* below). Reranker
-  # stays in llama-swap because reranker volume is low and TEI would be
-  # one more service for marginal gain.
+  # nomic-embed lived here under llama-swap; the OpenWebUI RAG embedding
+  # stays on the dedicated TEI container at :11435 (see tei_* below).
+  # Reranker is also in llama-swap because reranker volume is low and
+  # TEI would be one more service for marginal gain.
   - name: bge-reranker
     file: bge-reranker-v2-m3-Q8_0.gguf
     group: aux
@@ -292,6 +292,48 @@ ai_models:
     ttl: 300
     aliases:
       - "bge-reranker-v2-m3"
+
+  # Embedding models, swap-loaded via llama-swap so only one is resident
+  # at a time. The `embed` group below is swap: true, so requesting any
+  # of these unloads whichever was previously active. RAG-style flows
+  # that need a chat model + embedding can run concurrently because
+  # exclusive: false lets the embed and chat groups coexist.
+  #
+  # Pooling differs by lineage:
+  #   - bge-m3 is XLM-RoBERTa style (encoder) -> --pooling cls
+  #   - Qwen3-Embedding is Qwen3-decoder based -> --pooling last
+  # Get this wrong and the model returns junk vectors without erroring,
+  # so leave the per-model --pooling flags alone unless you've checked
+  # the model card.
+  - name: bge-m3
+    file: bge-m3-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling cls
+      -c 8192 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "bge-m3:567m"
+
+  - name: qwen3-embed-0_6b
+    file: Qwen3-Embedding-0.6B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:0.6b"
+
+  - name: qwen3-embed-4b
+    file: Qwen3-Embedding-4B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:4b"
 
   # CPU-resident small model used as opencode's `small_model` for context
   # compaction / summarization. -ngl 0 keeps it off the GPU because the
@@ -344,6 +386,14 @@ ai_model_groups:
     swap: false
     exclusive: false
     persistent: true
+  # Embedding models: only one resident at a time (swap: true) but the
+  # group coexists with chat (exclusive: false) so RAG-style flows can
+  # have an embed model + a chat model loaded concurrently. The 4B
+  # Qwen3 embed is the largest entry (~5GB at Q8); the rest are under
+  # 1GB so cold-load tax on swap is small.
+  embed:
+    swap: true
+    exclusive: false
 
 # Whisper STT (speaches, formerly faster-whisper-server)
 # https://github.com/speaches-ai/speaches
@@ -390,22 +440,34 @@ playwright_port: 3000
 # Text Embeddings Inference (TEI) from HuggingFace
 # https://github.com/huggingface/text-embeddings-inference
 # OpenAI-compatible: POST /v1/embeddings
-# Single-model server (one container per model). Cached under a named
-# volume so the model only downloads once.
+# Single-model server (one container per model). For OpenWebUI RAG we
+# want one model always resident (no swap cold-load on every query), so
+# TEI handles that and llama-swap handles the swappable embed group
+# for project experimentation.
 tei_image: ghcr.io/huggingface/text-embeddings-inference:cuda-latest
 tei_port: 11435
-# Pinned to the same model that the (now-retired) nomic-embed entry in
-# llama-swap served, so OpenWebUI and any other consumer can swap in
-# place without re-embedding. Swap for BAAI/bge-large-en-v1.5 or
-# Qwen/Qwen3-Embedding-8B if you want top-of-MTEB at higher cost.
-tei_model_id: nomic-ai/nomic-embed-text-v1.5
-# Pinned revision: the 2026-04-07 "v5 Transformers (#57)" commit on main
-# adds an `n_positions` field whose serde alias collides with the existing
-# `max_position_embeddings`, so TEI rejects the config as a duplicate
-# field. This commit is the one immediately before that change. Bump (or
-# remove the --revision flag) once upstream fixes the alias collision.
-tei_model_revision: e5cf08aadaa33385f5990def41f7a23405aec398
+# Switched from nomic-ai/nomic-embed-text-v1.5 (2024-02, English-only,
+# 768-dim, was pinned to revision e5cf08aa... to dodge a TEI serde-alias
+# bug on newer commits) to Qwen/Qwen3-Embedding-0.6B (1024-dim,
+# multilingual, top-of-MTEB at this size). The OpenWebUI corpus is
+# small enough that the one-time re-embed is cheap. tei_model_id is now
+# a container-local path; the host models directory is bind-mounted
+# read-only into the container at /models (see compose.yaml.j2).
+tei_model_id: /models/Qwen3-Embedding-0.6B
 # Inference batch sizing. Defaults are conservative; bump if you serve
 # heavy ingestion workloads (e.g. Karakeep bulk re-embed).
 tei_max_concurrent_requests: 512
 tei_max_batch_tokens: 16384
+
+# Second TEI container for jinaai/jina-embeddings-v3. This one is kept
+# resident (no llama-swap equivalent) because jina-v3's task-specific
+# LoRA adapters and custom_st.py pooling don't have a clean GGUF, so
+# llama.cpp can't serve it. Disk weights live at
+# {{ config_base }}/models/jina-embeddings-v3 (mounted into the
+# container at /models read-only). Costs ~1.1GB resident VRAM; the
+# tradeoff for keeping jina-v3 available alongside the swap-group
+# Qwen3 / bge-m3 embedders.
+tei_jina_port: 11436
+tei_jina_model_path: /models/jina-embeddings-v3
+tei_jina_max_concurrent_requests: 256
+tei_jina_max_batch_tokens: 8192
