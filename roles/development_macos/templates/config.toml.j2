@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+# GitLab Runner config (mac-mini, shell executor for iOS builds).
+# Owned by Ansible; runner does not write back to this file outside
+# `register`/`verify`, and we never call those — the auth token comes
+# from vault directly.
+
+concurrent = {{ gitlab_runner_macos_concurrent }}
+check_interval = 0
+log_level = "{{ gitlab_runner_macos_log_level }}"
+shutdown_timeout = 0
+
+[session_server]
+  session_timeout = 1800
+
+[[runners]]
+  name = "{{ gitlab_runner_macos_name }}"
+  url = "{{ gitlab_root_url }}/"
+  id = 0
+  token = "{{ gitlab_runner_macos_auth_token }}"
+  token_obtained_at = 1970-01-01T00:00:00Z
+  token_expires_at = 0001-01-01T00:00:00Z
+  executor = "shell"
+  shell = "bash"

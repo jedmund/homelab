@@ -55,6 +55,10 @@
 - import_playbook: development.yml
   tags: [dev, development]
 
+# Development (macOS) stack - GitLab Runner on mac-mini for iOS builds
+- import_playbook: development_macos.yml
+  tags: [dev, development_macos]
+
 # Utilities stack
 - import_playbook: utilities.yml
   tags: [utilities]
