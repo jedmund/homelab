@@ -38,7 +38,7 @@ ddclient_atelier_subdomains:
   - n8n.atelier.house
   - netdata.atelier.house
   - notes.atelier.house
-  - obsidian-sync.atelier.house
+  - obsidian.sync.atelier.house
   - ov.atelier.house
   - photos.atelier.house
   - pi.atelier.house
@@ -116,9 +116,6 @@ line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
 # line_admin_emails (comma-separated admin email list) - defined in vault
 line_admin_emails: "{{ vault_line_admin_emails }}"
-line_forgejo_key: atelier
-line_forgejo_base_url: "https://git.{{ traefik_domain }}"
-line_forgejo_label: "Atelier"
 
 # AdGuard settings
 adguard_port_http: 80

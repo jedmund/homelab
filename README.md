@@ -29,7 +29,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── media_acquisition/# Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Gluetun, slskd, Album Sort (in-house)
 │   ├── media_consumption/# Plex, Miniflux, Kavita, Romm, Karakeep, Stash, Tunarr
 │   ├── content_management/ # Immich, Papra, Homebox, SongKong
-│   ├── development/      # Forgejo, Open WebUI
+│   ├── development/      # GitLab, GitLab Runner, Renovate, Open WebUI
 │   ├── utilities/        # n8n, ChangeDetection, Copyparty
 │   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard, Ideon
 │   ├── social/           # Mastodon
@@ -189,7 +189,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 
 #### Album Sort (in-house)
 
-[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a Forgejo clone (`album_sort_repo` in `roles/media_acquisition/defaults/main.yml`).
+[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a GitLab clone (`album_sort_repo` in `roles/content_management/defaults/main.yml`).
 
 | Variable | Description |
 |----------|-------------|
@@ -251,11 +251,13 @@ Ideon's SMTP password reuses the shared `sendgrid_api_key` (see `group_vars/comp
 
 | Variable | Description |
 |----------|-------------|
-| `forgejo_db_password` | Forgejo PostgreSQL password |
-| `n8n_db_password` | n8n PostgreSQL password |
-| `n8n_encryption_key` | n8n encryption key |
-| `n8n_oidc_client_id` | n8n OIDC client ID |
-| `n8n_oidc_client_secret` | n8n OIDC client secret |
+| `gitlab_initial_root_password` | GitLab initial root password (auto-generated if empty) |
+| `gitlab_oidc_client_id` | GitLab OIDC client ID (PocketID) |
+| `gitlab_oidc_client_secret` | GitLab OIDC client secret (PocketID) |
+| `gitlab_runner_auth_token` | GitLab Runner auth token (nuc-mini-docker) |
+| `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
+| `renovate_gitlab_token` | Renovate bot GitLab personal access token |
+| `renovate_github_token` | Renovate GitHub token (optional, for rate limits) |
 | `open_webui_secret_key` | Open WebUI session secret |
 | `open_webui_oauth_client_id` | Open WebUI OAuth client ID |
 | `open_webui_oauth_client_secret` | Open WebUI OAuth client secret |
@@ -385,10 +387,11 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 |---------|-----------|----------|------|
 | Miniflux | `miniflux-db` | `miniflux` | `miniflux` |
 | Immich | `immich-database` | `immich` | `postgres` |
-| Forgejo | `forgejo-db` | `forgejo` | `forgejo` |
 | n8n | `n8n-db` | `n8n` | `n8n` |
 | Blinko | `blinko-db` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
+
+GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/development/tasks/main.yml`.
 
 ### Backup (pg_dump)
 
@@ -399,7 +402,6 @@ docker exec <container> pg_dump -U <user> <database> > backup.sql
 # Examples
 docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
 docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
-docker exec forgejo-db pg_dump -U forgejo forgejo > forgejo_backup.sql
 docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
 docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
