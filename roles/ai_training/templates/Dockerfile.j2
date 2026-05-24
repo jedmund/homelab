@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+FROM {{ ai_training_cuda_base_image }}
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python{{ ai_training_python_version }} \
+    python{{ ai_training_python_version }}-venv \
+    python{{ ai_training_python_version }}-dev \
+    python3-pip \
+    git curl wget ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python{{ ai_training_python_version }} /usr/local/bin/python && \
+    ln -sf /usr/bin/python{{ ai_training_python_version }} /usr/local/bin/python3 && \
+    python -m pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# PyTorch with Blackwell-ready CUDA 12.8 kernels.
+RUN python -m pip install --no-cache-dir --break-system-packages \
+    torch=={{ ai_training_torch_version }} torchvision torchaudio \
+    --index-url https://download.pytorch.org/whl/{{ ai_training_torch_cuda_channel }}
+
+# Unsloth + training ecosystem. unsloth_zoo carries model templates;
+# trl/peft/accelerate are the standard Hugging Face training stack;
+# bitsandbytes provides the 4bit quantisation kernels QLoRA needs.
+RUN python -m pip install --no-cache-dir --break-system-packages \
+    unsloth \
+    "unsloth_zoo>=2025.0" \
+    transformers \
+    datasets \
+    accelerate \
+    bitsandbytes \
+    trl \
+    peft \
+    huggingface_hub \
+    sentencepiece \
+    protobuf \
+    tensorboard
+
+WORKDIR /workspace
+CMD ["sleep", "infinity"]
