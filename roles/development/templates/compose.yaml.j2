@@ -11,6 +11,7 @@ services:
     networks:
       - proxy
       - backend
+      - cibuild
     ports:
       - "{{ gitlab_ssh_port }}:22"
     volumes:
@@ -49,6 +50,7 @@ services:
     restart: {{ restart_policy }}
     networks:
       - backend
+      - cibuild
     volumes:
       - ./gitlab-runner/config:/etc/gitlab-runner
       - /var/run/docker.sock:/var/run/docker.sock
@@ -151,4 +153,7 @@ networks:
     external: true
   backend:
     name: {{ backend_network }}
+    external: true
+  cibuild:
+    name: {{ cibuild_network }}
     external: true
