@@ -440,22 +440,34 @@ playwright_port: 3000
 # Text Embeddings Inference (TEI) from HuggingFace
 # https://github.com/huggingface/text-embeddings-inference
 # OpenAI-compatible: POST /v1/embeddings
-# Single-model server (one container per model). Cached under a named
-# volume so the model only downloads once.
+# Single-model server (one container per model). For OpenWebUI RAG we
+# want one model always resident (no swap cold-load on every query), so
+# TEI handles that and llama-swap handles the swappable embed group
+# for project experimentation.
 tei_image: ghcr.io/huggingface/text-embeddings-inference:cuda-latest
 tei_port: 11435
-# Pinned to the same model that the (now-retired) nomic-embed entry in
-# llama-swap served, so OpenWebUI and any other consumer can swap in
-# place without re-embedding. Swap for BAAI/bge-large-en-v1.5 or
-# Qwen/Qwen3-Embedding-8B if you want top-of-MTEB at higher cost.
-tei_model_id: nomic-ai/nomic-embed-text-v1.5
-# Pinned revision: the 2026-04-07 "v5 Transformers (#57)" commit on main
-# adds an `n_positions` field whose serde alias collides with the existing
-# `max_position_embeddings`, so TEI rejects the config as a duplicate
-# field. This commit is the one immediately before that change. Bump (or
-# remove the --revision flag) once upstream fixes the alias collision.
-tei_model_revision: e5cf08aadaa33385f5990def41f7a23405aec398
+# Switched from nomic-ai/nomic-embed-text-v1.5 (2024-02, English-only,
+# 768-dim, was pinned to revision e5cf08aa... to dodge a TEI serde-alias
+# bug on newer commits) to Qwen/Qwen3-Embedding-0.6B (1024-dim,
+# multilingual, top-of-MTEB at this size). The OpenWebUI corpus is
+# small enough that the one-time re-embed is cheap. tei_model_id is now
+# a container-local path; the host models directory is bind-mounted
+# read-only into the container at /models (see compose.yaml.j2).
+tei_model_id: /models/Qwen3-Embedding-0.6B
 # Inference batch sizing. Defaults are conservative; bump if you serve
 # heavy ingestion workloads (e.g. Karakeep bulk re-embed).
 tei_max_concurrent_requests: 512
 tei_max_batch_tokens: 16384
+
+# Second TEI container for jinaai/jina-embeddings-v3. This one is kept
+# resident (no llama-swap equivalent) because jina-v3's task-specific
+# LoRA adapters and custom_st.py pooling don't have a clean GGUF, so
+# llama.cpp can't serve it. Disk weights live at
+# {{ config_base }}/models/jina-embeddings-v3 (mounted into the
+# container at /models read-only). Costs ~1.1GB resident VRAM; the
+# tradeoff for keeping jina-v3 available alongside the swap-group
+# Qwen3 / bge-m3 embedders.
+tei_jina_port: 11436
+tei_jina_model_path: /models/jina-embeddings-v3
+tei_jina_max_concurrent_requests: 256
+tei_jina_max_batch_tokens: 8192

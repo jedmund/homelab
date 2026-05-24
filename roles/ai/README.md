@@ -1,13 +1,14 @@
 # ai
 
-GPU-bound AI services on `max`. Six containers in one stack:
+GPU-bound AI services on `max`. Seven containers in one stack:
 
 | Service | Container | Host port | OpenAI-compatible |
 |---|---|---|---|
 | llama-swap (+ llama.cpp) | `mostlygeek/llama-swap:cuda` | `11434` | yes (chat, embeddings in `embed` group) |
 | whisper STT (speaches) | `speaches-ai/speaches:latest-cuda` | `9000` | yes (`/v1/audio/transcriptions`) |
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
-| TEI embeddings | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
+| TEI embeddings (Qwen3) | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
+| TEI embeddings (jina-v3) | `huggingface/text-embeddings-inference:cuda-latest` | `11436` | yes (`/v1/embeddings`) |
 | SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
 | Playwright | `mcr.microsoft.com/playwright` | `3000` | n/a (WebSocket only) |
 
@@ -49,15 +50,25 @@ or swap one) lives in [MODELS.md](MODELS.md). The `ai_models` list in
 `defaults/main.yml` is the source of truth for what llama-swap serves;
 MODELS.md is the human-readable companion.
 
-Embeddings are served by TEI, not llama-swap; TEI downloads its model
-(`nomic-ai/nomic-embed-text-v1.5`) on first start via the HF hub.
+Embeddings split across two surfaces:
+
+- **Always-on (TEI)** for OpenWebUI RAG and any other "no cold-load tax"
+  consumer. Two containers, each pinned to one model:
+  - `tei` -> `Qwen/Qwen3-Embedding-0.6B` at `:11435` (read from local
+    snapshot at `models/Qwen3-Embedding-0.6B/`).
+  - `tei-jina` -> `jinaai/jina-embeddings-v3` at `:11436` (read from local
+    snapshot at `models/jina-embeddings-v3/`).
+- **Swap-loaded (llama-swap)** for project experimentation. The `embed`
+  group has `swap: true`, so only one of `bge-m3`, `qwen3-embed-0_6b`,
+  `qwen3-embed-4b` is resident at a time, served at `:11434/v1/embeddings`.
 
 ## Hardware notes
 
-The current target is `max` (single NVIDIA RTX Pro 6000 Blackwell, 96 GB
-VRAM). The compose service uses `deploy.resources.reservations.devices` with
-`driver: nvidia, count: all`, so any GPU set the host exposes via the NVIDIA
-container toolkit is picked up automatically.
+The current target is `max` (two NVIDIA RTX Pro 6000 Blackwell cards: one
+600 W Workstation + one 300 W Max-Q, 192 GB VRAM total). The compose
+services use `deploy.resources.reservations.devices` with
+`driver: nvidia, count: all`, so any GPU set the host exposes via the
+NVIDIA container toolkit is picked up automatically.
 
 ## Llama.cpp version requirement
 

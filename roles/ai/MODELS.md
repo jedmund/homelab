@@ -314,21 +314,49 @@ model` task in `tasks/main.yml` handles this idempotently on every deploy
   second model): `curl -X POST http://192.168.1.100:9000/v1/models/<id>`
   where `<id>` is a path from `GET /v1/registry?task=automatic-speech-recognition`.
 
-## Embeddings (TEI, not llama-swap)
+## Embeddings (always-on, TEI)
 
-Embeddings are served by the TEI container, not llama-swap, so there is no
-GGUF to manage on disk. TEI downloads its model on first start via the
-HuggingFace hub and caches it in the `tei-cache` named volume.
+Two TEI containers, each pinned to one model. TEI is single-model-per-container
+by design, so each "always-on" embedding model adds one container. For
+swap-loaded embedding models used in project experimentation, see the
+"embedding models (swap group)" section above; those go through llama-swap
+on `:11434`.
 
-- **Current model**: `nomic-ai/nomic-embed-text-v1.5` (pinned in
-  `tei_model_id` in `defaults/main.yml`). Matches the model the retired
-  llama-swap `nomic-embed` entry used to serve, so OpenWebUI and any other
-  consumer swap in place without re-embedding.
-- **Swap candidates**: `BAAI/bge-large-en-v1.5` or `Qwen/Qwen3-Embedding-8B`
-  for top-of-MTEB at higher cost. Changing the model is not free for existing
-  consumers: collections embedded with one model cannot be searched with
-  another, so plan a re-embed (OpenWebUI: Admin -> Documents -> reset vector
-  storage and re-ingest).
+### tei — OpenWebUI RAG embedding (always-on)
+
+- **Current model**: `Qwen/Qwen3-Embedding-0.6B` (1024-dim, multilingual,
+  top-of-MTEB at this size). Read directly from local disk at
+  `/opt/docker/ai/models/Qwen3-Embedding-0.6B/` (bind-mounted into the
+  container at `/models/Qwen3-Embedding-0.6B`); no HF Hub pull at runtime.
+- **History**: Was `nomic-ai/nomic-embed-text-v1.5` until 2026-05-24. Switched
+  to consolidate around the Qwen3 family already used elsewhere in the stack,
+  get a quality / multilingual bump, and drop the
+  `tei_model_revision: e5cf08aa...` pin (which existed only to dodge a TEI
+  serde-alias bug in newer nomic config revisions).
+- **Endpoint**: `http://192.168.1.100:11435/v1/embeddings`. Consumed by
+  OpenWebUI via `open_webui_rag_embedding_base_url` in
+  `roles/development/defaults/main.yml`.
+- **Re-embed on switch**: collections embedded under one model can't be
+  searched with another. Reset OpenWebUI vector storage (Admin -> Documents)
+  and re-ingest after the migration.
+- **Swap candidates**: `nomic-ai/nomic-embed-text-v2-moe` (multilingual MoE,
+  smaller idle footprint), `Snowflake/snowflake-arctic-embed-l-v2.0`
+  (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
+  ~7.6 GB resident.
+
+### tei-jina — jinaai/jina-embeddings-v3 (always-on)
+
+- **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
+  task-conditioned via LoRA adapters). Read from local disk at
+  `/opt/docker/ai/models/jina-embeddings-v3/` (bind-mounted read-only).
+- **Why a separate container**: jina-v3's task-specific LoRA adapters and
+  `custom_st.py` pooling logic don't translate to a clean GGUF, so llama-swap
+  can't serve it. To keep it available without losing the llama-swap embed
+  group's swap benefits for the other three, it gets its own dedicated TEI
+  container.
+- **Endpoint**: `http://192.168.1.100:11436/v1/embeddings`.
+- **Idle cost**: ~1.1 GB resident VRAM. Acceptable for the convenience of
+  having jina-v3 available alongside the swappable Qwen3 / bge-m3 embedders.
 
 ## Adding or removing a model
 
