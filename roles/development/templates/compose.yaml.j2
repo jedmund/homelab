@@ -75,8 +75,14 @@ services:
     # `run` activates a named service regardless of profile.
     profiles:
       - cron
+    # `backend` reaches GitLab via `http://gitlab` for API + clones (see
+    # config.js gitUrl). `cibuild` (a non-internal bridge) is what gives
+    # renovate egress to Docker Hub, npm, PyPI, crates.io, GitHub, etc.
+    # for dependency tag lookups; without it every datasource lookup
+    # fails with EAI_AGAIN and no updates get proposed.
     networks:
       - backend
+      - cibuild
     env_file:
       - ./env/renovate.env
     volumes:
