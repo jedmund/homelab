@@ -67,6 +67,14 @@ services:
     container_name: renovate
     image: {{ renovate_image }}
     restart: "no"
+    # Renovate is a one-shot CLI driven by the host cron (see role tasks).
+    # Keeping it in the default profile leaves an Exited container behind
+    # after each run, which Komodo surfaces as the whole development stack
+    # going unhealthy. The `cron` profile excludes it from `compose up` /
+    # `compose ps` while `compose run --rm renovate` still works because
+    # `run` activates a named service regardless of profile.
+    profiles:
+      - cron
     networks:
       - backend
     env_file:
