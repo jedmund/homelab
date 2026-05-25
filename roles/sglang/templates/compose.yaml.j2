@@ -23,6 +23,15 @@ services:
       # same persistent volume. The community DSV4 compose does this.
       - hf-cache:/root/.cache
       - jit-cache:/cache/jit
+      # Explicit /dev/shm bind mount: with ipc:host + shm_size set,
+      # Docker can give the container a separate /dev/shm tmpfs that
+      # isn't actually the host's shared memory. Without this bind,
+      # sglang's pynccl wrapper fails ncclCommInitRank with a generic
+      # ncclSystemError that produces zero NCCL debug output (the
+      # failure is inside the cudaIpc layer before NCCL's logger
+      # fires). Took half a day to track down the first time; do not
+      # remove without re-running multi-GPU TP smoke tests.
+      - /dev/shm:/dev/shm
     # ipc: host + a generous shm are NCCL prerequisites for multi-GPU
     # tensor parallelism. Without them, --tp 2 deadlocks at startup.
     ipc: host
@@ -38,13 +47,17 @@ services:
 {% for k, v in (m.extra_env | default({})).items() %}
       {{ k }}: "{{ v }}"
 {% endfor %}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+{% if m.cuda_visible_devices is defined %}
+      CUDA_VISIBLE_DEVICES: "{{ m.cuda_visible_devices }}"
+{% endif %}
+    # Old-style `gpus: all` rather than the newer
+    # `deploy.resources.reservations.devices` block. The newer syntax
+    # somehow breaks sglang's pynccl multi-GPU init on this image (also
+    # part of the half-day NCCL debug). `gpus: all` works; matches the
+    # community DSV4 compose. If a future model needs a different GPU
+    # selection, add per-model `cuda_visible_devices` to constrain the
+    # set the container actually uses.
+    gpus: all
     # voipmonitor's image has its own entrypoint that doesn't pass
     # flag-only argv through cleanly (bash `exec "$@"` errors on a
     # leading `--`). Override the entrypoint with the full launcher

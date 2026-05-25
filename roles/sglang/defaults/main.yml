@@ -30,22 +30,22 @@ sglang_default_shm_size: "8gb"
 # budget, and we want explicit control over which side (SGLang or
 # llama-swap) owns VRAM at any given moment.
 
-# Env applied to every SGLang container. Sourced from the voipmonitor
-# SM120 FAQ + the GLM-5 example compose (the closest profile to V4
-# Flash: NVFP4 + MTP + novel attention).
-#   - DeepGemm crashes on SM120; both knobs must be off.
-#   - NCCL_P2P_LEVEL=SYS is the working default for the dual-Blackwell
-#     PCIe layout (no NVLink, no InfiniBand).
-#   - NCCL_GRAPH_FILE points at the tuned graph baked into the image.
-#   - SAFETENSORS_FAST_GPU=1 enables the fast safetensors loader path.
+# Env applied to every SGLang container. Kept intentionally minimal:
+# the voipmonitor SM120 FAQ recommends a wider tuning set (NCCL_GRAPH_FILE,
+# NCCL_MIN_NCHANNELS, NCCL_ALLOC_P2P_NET_LL_BUFFERS, SAFETENSORS_FAST_GPU)
+# that breaks SGLang on the lavd b12x image (some of those vars trip the
+# pynccl init path; NCCL_GRAPH_FILE points at a file lavd does not bake
+# in). Per-model `extra_env` can opt back in where needed.
+#   - SGLANG_ENABLE_*_GEMM=0: DeepGemm crashes on SM120; both knobs must
+#     be off regardless of image.
+#   - NCCL_P2P_LEVEL=SYS: working default for the dual-Blackwell PCIe
+#     layout (no NVLink, no InfiniBand).
+#   - NCCL_IB_DISABLE=1: no IB on this box; saves a useless plugin load.
+#   - OMP_NUM_THREADS=8: matches the lavd community config.
 sglang_common_env:
   NCCL_P2P_LEVEL: SYS
   NCCL_IB_DISABLE: "1"
-  NCCL_GRAPH_FILE: /etc/nccl_graph_opt.xml
-  NCCL_ALLOC_P2P_NET_LL_BUFFERS: "1"
-  NCCL_MIN_NCHANNELS: "8"
   OMP_NUM_THREADS: "8"
-  SAFETENSORS_FAST_GPU: "1"
   SGLANG_ENABLE_JIT_DEEPGEMM: "0"
   SGLANG_ENABLE_DEEP_GEMM: "0"
 
@@ -77,12 +77,23 @@ sglang_models:
     # parsers). Tag is date-coded; bump when a new image lands with
     # the A16 MoE kernel fix (see warning below).
     image: lavd/sglang-d4f-b12x:5-24
-    host_subdir: DeepSeek-V4-Flash-NVFP4-FP8-MTP
+    # Switched from canada-quant to RedHatAI: canada-quant's checkpoint
+    # is missing a quant scheme entry for `self_attn.wqkv_a` (the MQA
+    # Q+K+V tensor) and packs MoE experts in BF16 instead of NVFP4,
+    # both of which lavd's sglang trips on at model load. RedHatAI is
+    # a more established quant shop and the no-MTP variant matches the
+    # commented-out speculative flags below (we can't use MTP until the
+    # A16 MoE accuracy bug is fixed upstream anyway).
+    host_subdir: DeepSeek-V4-Flash-NVFP4-FP8
     container_port: 8000
     host_port: 11437
-    # Bumped to match the working community config; b12x kernels push
-    # significant intermediate state through tmpfs.
+    # Match the community DSV4 compose: b12x kernels push significant
+    # intermediate state through tmpfs.
     shm_size: "32gb"
+    # Constrain the container to the two cards on this box. Not strictly
+    # required (max has only 2 GPUs anyway) but matches the community
+    # config and removes any GPU-enumeration ambiguity NCCL might hit.
+    cuda_visible_devices: "0,1"
     # Per-model env from luke's working compose. All of these are
     # specific to the lavd image's DSV4 build, not generic SGLang.
     #   CUTE_DSL_ARCH=sm_120a            Blackwell-A target for cute-dsl
@@ -135,7 +146,7 @@ sglang_models:
     #   --ep=1                           expert-parallel size 1 (TP
     #                                    handles the split instead).
     args:
-      - --model-path=/models/DeepSeek-V4-Flash-NVFP4-FP8-MTP
+      - --model-path=/models/DeepSeek-V4-Flash-NVFP4-FP8
       - --served-model-name=deepseek-v4-flash
       - --tool-call-parser=deepseekv4
       - --reasoning-parser=deepseek-v4
