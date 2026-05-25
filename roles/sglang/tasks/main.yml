@@ -20,7 +20,7 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Reload {{ stack_name }} compose definitions
+  notify: Validate {{ stack_name }} compose file
 
 # No `docker_compose_v2: state: present` task here on purpose. Every
 # model service is gated behind a compose profile, so even an

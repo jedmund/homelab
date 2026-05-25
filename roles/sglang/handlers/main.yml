@@ -1,11 +1,13 @@
 ---
-# Reload (not restart) compose definitions. No recreate: always here
-# because heavy SGLang models take 60-90s to cold-load and a stray
-# ansible apply should not bounce a running model. To force a restart
-# after a flag change:
+# Validate the rendered compose file parses cleanly. Every model
+# service has `profiles:` set so the default project has no services
+# to bring up; `docker compose config` is the right shape of check
+# here (it parses the file and resolves vars/profiles without
+# starting anything). To actually apply a flag change to a running
+# model:
 #   docker compose -p {{ stack_name }} --profile <model> up -d --force-recreate
-- name: Reload {{ stack_name }} compose definitions
-  community.docker.docker_compose_v2:
-    project_src: "{{ config_base }}"
-    state: present
-    remove_orphans: true
+- name: Validate {{ stack_name }} compose file
+  ansible.builtin.command:
+    cmd: docker compose -p {{ stack_name }} config --quiet
+    chdir: "{{ config_base }}"
+  changed_when: false
