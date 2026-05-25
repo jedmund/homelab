@@ -125,6 +125,10 @@ deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 
+deploy-sglang: ## Deploy SGLang stack (DeepSeek V4 Flash and other novel-attention models) on max
+	@echo "$(BLUE)Deploying SGLang stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sglang.yml $(VAULT_FLAG)
+
 deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/openclaw.yml $(VAULT_FLAG)
