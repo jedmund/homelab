@@ -12,11 +12,13 @@
   // the mac-mini doesn't hold sensitive files that warrant the VM
   // overhead Docker Desktop / OrbStack imposes on macOS.
   //
-  // model:      text-only turns. minimax-m27-q4 piggybacks on the coding
-  //             workload that's usually resident on max.
+  // model:      text-only turns. Default is the coexistence-sized
+  //             qwen3.6 (chat group on llama-swap) so an opencode
+  //             session on minimax-iq4 can run alongside openclaw.
   // imageModel: turns carrying an image auto-route here (per Openclaw's
-  //             gateway/config-agents docs), so vision pays the chat-group
-  //             swap cost only when an attachment actually arrives.
+  //             gateway/config-agents docs), so vision pays the
+  //             swap-within-chat-group tax only when an attachment
+  //             actually arrives.
   agents: {
     defaults: {
       sandbox: {
@@ -57,6 +59,27 @@
       },
     },
   },
+{% if openclaw_proxy_enabled %}
+
+  // Web-fetch routing. Openclaw's built-in `web_fetch` tool has an
+  // SSRF guard that blocks URLs resolving to private IPs. With
+  // useTrustedEnvProxy: true and HTTPS_PROXY set in the daemon env
+  // (managed by this role: see tasks/main.yml + tasks/tinyproxy.yml),
+  // openclaw skips its own DNS lookup and "resolves to private IP"
+  // check because the proxy resolves DNS. Lets openclaw reach LAN
+  // services like rss.atelier.house; public URLs still work.
+  //
+  // Note: openclaw.json is rendered once at bootstrap (force: false),
+  // so this block only takes effect on a fresh install. Existing
+  // installs need the same block added by hand or via the Control UI.
+  tools: {
+    web: {
+      fetch: {
+        useTrustedEnvProxy: true,
+      },
+    },
+  },
+{% endif %}
 {% if openclaw_discord_enabled %}
 
   // Discord channel. DM-only personal use: groupPolicy disabled (the bot
