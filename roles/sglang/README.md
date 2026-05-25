@@ -4,9 +4,13 @@ SGLang-based inference stack on `max` for models llama.cpp can't serve
 (novel attention, large MoEs that need NVFP4 + tensor parallel). Runs
 alongside the `ai` role's llama-swap stack rather than replacing it.
 
-| Model | Host port | Quant | GPUs | Notes |
-|---|---|---|---|---|
-| DeepSeek V4 Flash | `11437` | NVFP4 + FP8 (MTP) | 2x Blackwell, `--tp 2` | Hybrid CSA + HCA attention; not llama.cpp-supported |
+| Model | Host port | Image | Quant | GPUs | Notes |
+|---|---|---|---|---|---|
+| DeepSeek V4 Flash | `11437` | `lavd/sglang-d4f-b12x:5-24` | NVFP4 + FP8 | 2x Blackwell, `--tp-size 2` | Hybrid CSA + HCA attention via `--attention-backend=dsv4`; experimental, see warning below |
+
+### Status: DeepSeek V4 Flash (2026-05-24)
+
+Working, but **the current `lavd/sglang-d4f-b12x:5-24` build has a confirmed A16 MoE kernel accuracy bug**. Outputs may be subtly wrong; do not use for anything where output correctness matters. MTP / speculative decoding is disabled because it exposes the bug more aggressively. Bump the image tag and re-enable the `--speculative-*` flags in `defaults/main.yml` once a newer lavd image with the fix lands.
 
 ## Why a separate stack?
 

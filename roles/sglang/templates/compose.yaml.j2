@@ -4,7 +4,7 @@ name: {{ stack_name }}
 services:
 {% for m in sglang_models %}
   {{ m.name }}:
-    image: {{ sglang_image }}
+    image: {{ m.image | default(sglang_image) }}
     container_name: {{ m.name }}
     # Manual lifecycle: don't auto-restart heavy models. If a model
     # crashes, we want to know about it rather than silently churn.
@@ -18,15 +18,19 @@ services:
       - {{ m.host_port }}:{{ m.container_port }}
     volumes:
       - ./models:/models:ro
-      - hf-cache:/root/.cache/huggingface
+      # Whole-cache mount (not just huggingface/) so SGLang's JIT
+      # kernel cache and any per-image cache locations land on the
+      # same persistent volume. The community DSV4 compose does this.
+      - hf-cache:/root/.cache
       - jit-cache:/cache/jit
     # ipc: host + a generous shm are NCCL prerequisites for multi-GPU
     # tensor parallelism. Without them, --tp 2 deadlocks at startup.
     ipc: host
-    shm_size: 8gb
+    shm_size: {{ m.shm_size | default(sglang_default_shm_size) }}
     ulimits:
       memlock: -1
       stack: 67108864
+      nofile: 1048576
     environment:
 {% for k, v in sglang_common_env.items() %}
       {{ k }}: "{{ v }}"
