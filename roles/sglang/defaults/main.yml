@@ -22,13 +22,21 @@ sglang_image: voipmonitor/sglang:cu130
 # llama-swap) owns VRAM at any given moment.
 
 # Env applied to every SGLang container. Sourced from the voipmonitor
-# SM120 FAQ:
+# SM120 FAQ + the GLM-5 example compose (the closest profile to V4
+# Flash: NVFP4 + MTP + novel attention).
 #   - DeepGemm crashes on SM120; both knobs must be off.
 #   - NCCL_P2P_LEVEL=SYS is the working default for the dual-Blackwell
 #     PCIe layout (no NVLink, no InfiniBand).
+#   - NCCL_GRAPH_FILE points at the tuned graph baked into the image.
+#   - SAFETENSORS_FAST_GPU=1 enables the fast safetensors loader path.
 sglang_common_env:
   NCCL_P2P_LEVEL: SYS
   NCCL_IB_DISABLE: "1"
+  NCCL_GRAPH_FILE: /etc/nccl_graph_opt.xml
+  NCCL_ALLOC_P2P_NET_LL_BUFFERS: "1"
+  NCCL_MIN_NCHANNELS: "8"
+  OMP_NUM_THREADS: "8"
+  SAFETENSORS_FAST_GPU: "1"
   SGLANG_ENABLE_JIT_DEEPGEMM: "0"
   SGLANG_ENABLE_DEEP_GEMM: "0"
 
@@ -55,23 +63,51 @@ sglang_models:
   # slowdown the FAQ flags for the triton backend.
   - name: deepseek-v4-flash
     host_subdir: DeepSeek-V4-Flash-NVFP4-FP8-MTP
-    container_port: 30000
+    container_port: 5000
     host_port: 11437
     tp: 2
-    # SGLANG_ENABLE_SPEC_V2 is required when speculative-algo=NEXTN is
-    # set; without it SGLang loads the model twice as its own draft and
-    # OOMs instantly.
+    # SGLANG_ENABLE_SPEC_V2 is required when speculative-algorithm=NEXTN
+    # is set; without it SGLang loads the model twice as its own draft
+    # and OOMs instantly.
     extra_env:
       SGLANG_ENABLE_SPEC_V2: "True"
+    # Modeled on the upstream GLM-5 example (closest profile: NVFP4 +
+    # MTP + novel attention class). Flag notes:
+    #   --quantization modelopt_fp4    required for NVFP4 weights.
+    #   --kv-cache-dtype bf16          mandatory on SM120 for this
+    #                                  attention class (fp8 garbles).
+    #   --trust-remote-code            V4 Flash has novel architecture
+    #                                  modules that ship in the repo.
+    #   --fp4-gemm-backend b12x        fastest FP4 GEMM kernel on SM120.
+    #   --moe-runner-backend b12x      fastest MoE expert kernel at
+    #                                  single-user concurrency.
+    #   --sleep-on-idle                SGLang's idle-sleep mode; weights
+    #                                  stay resident but the server
+    #                                  parks until a request arrives.
+    #                                  Keeps long-running container
+    #                                  cheap without manual stop/start.
+    #   --served-model-name            short, friendly id for clients;
+    #                                  default would be the full path.
     args:
       - --model-path=/models/DeepSeek-V4-Flash-NVFP4-FP8-MTP
-      - --tp=2
+      - --served-model-name=deepseek-v4-flash
+      - --quantization=modelopt_fp4
+      - --tensor-parallel-size=2
       - --kv-cache-dtype=bf16
-      - --moe-runner-backend=b12x
+      - --trust-remote-code
+      - --mem-fraction-static=0.85
+      - --chunked-prefill-size=16384
+      - --cuda-graph-max-bs=32
+      - --max-running-requests=64
       - --attention-backend=flashinfer
-      - --speculative-algo=NEXTN
+      - --fp4-gemm-backend=b12x
+      - --moe-runner-backend=b12x
+      - --speculative-algorithm=NEXTN
       - --speculative-num-steps=4
       - --speculative-num-draft-tokens=6
       - --speculative-eagle-topk=1
+      - --disable-custom-all-reduce
+      - --enable-metrics
+      - --sleep-on-idle
       - --host=0.0.0.0
-      - --port=30000
+      - --port=5000

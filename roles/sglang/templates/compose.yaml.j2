@@ -41,7 +41,14 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    command:
+    # voipmonitor's image has its own entrypoint that doesn't pass
+    # flag-only argv through cleanly (bash `exec "$@"` errors on a
+    # leading `--`). Override the entrypoint with the full launcher
+    # invocation, matching their own example compose files.
+    entrypoint:
+      - python3
+      - -m
+      - sglang.launch_server
 {% for arg in m.args %}
       - {{ arg }}
 {% endfor %}
