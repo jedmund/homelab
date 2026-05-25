@@ -1,0 +1,11 @@
+---
+# Reload (not restart) compose definitions. No recreate: always here
+# because heavy SGLang models take 60-90s to cold-load and a stray
+# ansible apply should not bounce a running model. To force a restart
+# after a flag change:
+#   docker compose -p {{ stack_name }} --profile <model> up -d --force-recreate
+- name: Reload {{ stack_name }} compose definitions
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true

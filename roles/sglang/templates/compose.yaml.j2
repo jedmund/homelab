@@ -1,0 +1,66 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+{% for m in sglang_models %}
+  {{ m.name }}:
+    image: {{ sglang_image }}
+    container_name: {{ m.name }}
+    # Manual lifecycle: don't auto-restart heavy models. If a model
+    # crashes, we want to know about it rather than silently churn.
+    restart: "no"
+    # Profiles gate startup. `docker compose up` with no --profile
+    # starts nothing; `--profile {{ m.name }}` starts just this model.
+    # The "all" profile is a convenience for bringing every catalog
+    # entry up at once (use only when you know VRAM allows it).
+    profiles: ["{{ m.name }}", "all"]
+    ports:
+      - {{ m.host_port }}:{{ m.container_port }}
+    volumes:
+      - ./models:/models:ro
+      - hf-cache:/root/.cache/huggingface
+      - jit-cache:/cache/jit
+    # ipc: host + a generous shm are NCCL prerequisites for multi-GPU
+    # tensor parallelism. Without them, --tp 2 deadlocks at startup.
+    ipc: host
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    environment:
+{% for k, v in sglang_common_env.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+{% for k, v in (m.extra_env | default({})).items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+{% for arg in m.args %}
+      - {{ arg }}
+{% endfor %}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:{{ m.container_port }}/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      # Cold-load tax for a ~140 GB NVFP4 model from NVMe -> VRAM is
+      # ~60-90s on this box; 180s gives margin for the JIT warmup that
+      # follows the weight load.
+      start_period: 180s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endfor %}
+
+volumes:
+  hf-cache:
+  jit-cache:

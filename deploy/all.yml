@@ -20,7 +20,8 @@
           11. Social
           12. Matrix
           13. AI (max only)
-          14. Backup
+          14. SGLang (max only)
+          15. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -78,6 +79,11 @@
 # AI stack (targets the `ai` group — currently `max` only)
 - import_playbook: ai.yml
   tags: [ai]
+
+# SGLang stack (targets the `ai` group, runs alongside llama-swap on max
+# for models llama.cpp can't serve)
+- import_playbook: sglang.yml
+  tags: [ai, sglang]
 
 # Openclaw (targets the `openclaw` group, currently `mac-mini` only)
 - import_playbook: openclaw.yml

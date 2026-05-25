@@ -1,0 +1,7 @@
+---
+- name: Deploy SGLang stack
+  hosts: ai
+  become: yes
+
+  roles:
+    - sglang

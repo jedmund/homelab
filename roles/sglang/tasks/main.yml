@@ -1,0 +1,28 @@
+---
+# SGLang stack - SM120-patched inference engine for models llama.cpp
+# can't serve. Models are downloaded out of band into
+# {{ config_base }}/models/<host_subdir>/; see roles/sglang/README.md
+# for the pull commands.
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/models"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Reload {{ stack_name }} compose definitions
+
+# No `docker_compose_v2: state: present` task here on purpose. Every
+# model service is gated behind a compose profile, so even an
+# unconditional `docker compose up` would start nothing. Bringing a
+# model up is an explicit operator action; see roles/sglang/README.md.
