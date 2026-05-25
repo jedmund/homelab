@@ -48,9 +48,12 @@ For DeepSeek V4 Flash:
 ```
 cd /opt/docker/sglang/models
 hf download canada-quant/DeepSeek-V4-Flash-NVFP4-FP8-MTP \
-  --local-dir DeepSeek-V4-Flash-NVFP4-FP8-MTP \
-  --local-dir-use-symlinks False
+  --local-dir DeepSeek-V4-Flash-NVFP4-FP8-MTP
 ```
+
+(The newer `hf` CLI dropped `--local-dir-use-symlinks`; `--local-dir`
+already writes plain files. If you're on the older `huggingface-cli`,
+add `--local-dir-use-symlinks False`.)
 
 The download is ~140 GB. Confirm checksums by spot-checking a couple of
 shards against the HF Hub `file_size` metadata before first launch.
