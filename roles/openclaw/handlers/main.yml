@@ -1,5 +1,21 @@
 ---
-# Openclaw is daemonized by `openclaw onboard --install-daemon` (one-time
-# manual step). The launchd label isn't known until after that runs, so
-# this role doesn't auto-restart on config changes; see tasks/main.yml
-# for the kickstart command and roles/openclaw/README.md for context.
+- name: Restart tinyproxy
+  community.general.homebrew_services:
+    name: tinyproxy
+    state: restarted
+
+- name: Restart openclaw gateway
+  # `openclaw onboard --install-daemon` registers the launchd agent
+  # under the label `ai.openclaw.gateway`. `launchctl kickstart -k`
+  # restarts it in place so the env-wrapper re-sources the service-env
+  # file and openclaw reloads config. The failed_when guard handles
+  # the first-time-deploy case where the daemon has not been onboarded
+  # yet; we surface that via the reminder task in tasks/main.yml
+  # instead of failing the play.
+  ansible.builtin.shell: "launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway"
+  register: _kickstart_result
+  changed_when: _kickstart_result.rc == 0
+  failed_when:
+    - _kickstart_result.rc != 0
+    - "'Could not find' not in _kickstart_result.stderr"
+    - "'No such process' not in _kickstart_result.stderr"

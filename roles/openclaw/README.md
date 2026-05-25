@@ -14,10 +14,48 @@ the repo's usual Docker-compose pattern.
   token, etc.); the gateway loads this at startup.
 - **Bootstrap-only** writes `~/.openclaw/openclaw.json` the first time
   (sandbox off, `local` provider pointing at llama-swap on `max`, both
-  declared models). After that the file is owned by `openclaw onboard`
-  and the Control UI; the role leaves it alone (`force: false` on the
-  template). To reset to the templated bootstrap, delete
-  `~/.openclaw/openclaw.json` on the mac-mini and re-run the deploy.
+  declared models, `tools.web.fetch.useTrustedEnvProxy` if proxy enabled).
+  After that the file is owned by `openclaw onboard` and the Control UI;
+  the role leaves it alone (`force: false` on the template). To reset to
+  the templated bootstrap, delete `~/.openclaw/openclaw.json` on the
+  mac-mini and re-run the deploy.
+- **Tinyproxy + service-env patch** when `openclaw_proxy_enabled` is true
+  (default). Installs `tinyproxy` via Homebrew, templates a loopback-only
+  config, starts it via `brew services`, and `blockinfile`-patches
+  `~/.openclaw/service-env/ai.openclaw.gateway.env` with `HTTPS_PROXY`
+  pointing at the local proxy. See the next section for the rationale.
+
+## Why the local proxy
+
+Openclaw's built-in `web_fetch` tool has a hard-coded SSRF guard that
+blocks any URL whose hostname resolves to a private/internal IP (see
+`/opt/homebrew/lib/node_modules/openclaw/dist/fetch-guard.js`). The
+`tools.web.fetch.ssrfPolicy` schema only accepts narrow opt-ins for
+fake-IP proxy ranges (`allowRfc2544BenchmarkRange`,
+`allowIpv6UniqueLocalRange`); no hostname allowlist field exists for that
+tool. Without a workaround, openclaw cannot fetch any `*.atelier.house`
+URL (they resolve locally to `192.168.1.6`).
+
+The blessed escape hatch is `tools.web.fetch.useTrustedEnvProxy: true`
+paired with an actual HTTP proxy. When that flag is on and `HTTPS_PROXY`
+is set, openclaw skips its own DNS lookup and the "resolves to private
+IP" check because the proxy is the one resolving DNS. Public URLs still
+work (the proxy forwards them too). Set:
+
+- `openclaw_proxy_enabled` (default `true`) toggles the whole thing.
+- `openclaw_proxy_port` (default `8888`) is the tinyproxy listen port.
+- `openclaw_proxy_no_proxy` defaults to a comma-separated list of
+  loopback addresses plus the `max` server's IP, so llama-swap / TEI /
+  SearXNG calls bypass the proxy on the hot path. Add to it if you want
+  other LAN IPs to skip the proxy hop.
+
+After `openclaw onboard --install-daemon` runs, **macOS will silently
+block tinyproxy's LAN connections until you approve Local Network for
+it in System Settings -> Privacy & Security -> Local Network**. The
+service-env block injection in the role waits until openclaw has
+created the service-env file (i.e. after onboarding) before applying;
+on first deploy the role surfaces a reminder and the patch lands on the
+next playbook run.
 
 ## One-time manual bring-up
 
@@ -28,7 +66,9 @@ Mac), do this on the mac-mini console (not over SSH):
    interactive and writes the launchd plist. Approve any macOS prompts.
 2. **Grant macOS permissions.** Open System Settings and approve, as they
    appear:
-   - Local Network (per the repo-wide gotcha for brew daemons),
+   - Local Network for **both** `openclaw` and `tinyproxy` (per the
+     repo-wide gotcha for brew daemons; tinyproxy needs LAN access to
+     reach the homelab services openclaw fetches),
    - Automation / Accessibility (for AppleScript-driven channels),
    - Full Disk Access (for Messages/Notes/Calendar reads),
    - Notifications (so iMessage replies surface).

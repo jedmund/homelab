@@ -102,3 +102,27 @@ openclaw_discord_application_id: "{{ vault_openclaw_discord_application_id }}"
 #   vault_openclaw_google_places_api_key   Places API key (treat as secret)
 openclaw_goplaces_enabled: true
 openclaw_google_places_api_key: "{{ vault_openclaw_google_places_api_key }}"
+
+# Local HTTP proxy (tinyproxy) for openclaw's web_fetch tool.
+#
+# Openclaw's web_fetch ships with a hard SSRF guard that blocks any URL
+# whose hostname resolves to a private/internal IP (the guard lives in
+# /opt/homebrew/lib/node_modules/openclaw/dist/fetch-guard.js). The
+# tools.web.fetch.ssrfPolicy schema only accepts narrow opt-ins for
+# fake-IP proxy ranges; no hostname allowlist field exists for that
+# tool. To let openclaw reach LAN services like rss.atelier.house we
+# route fetches through a loopback-only tinyproxy. With
+# useTrustedEnvProxy: true + HTTPS_PROXY set in the daemon env,
+# openclaw skips its own DNS lookup and "resolves to private IP" check
+# because the proxy is the one resolving DNS. Public URLs still work
+# (the proxy forwards them). Endpoints we already talk to directly
+# (llama-swap, TEI, SearXNG on max) are in NO_PROXY so the hot path
+# bypasses the proxy entirely.
+openclaw_proxy_enabled: true
+# Tinyproxy listens on 127.0.0.1 only; this is the port.
+openclaw_proxy_port: 8888
+# Comma-separated hostname/IP list that bypasses the proxy. Defaults
+# exclude loopback and max (LLM + embeddings + SearXNG endpoints
+# openclaw already reaches directly). Add other LAN IPs here if you
+# want them to skip the proxy hop.
+openclaw_proxy_no_proxy: "localhost,127.0.0.1,::1,{{ hostvars['max'].ansible_host }}"
