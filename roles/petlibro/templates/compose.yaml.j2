@@ -27,6 +27,10 @@ services:
   catbro:
     container_name: petlibro-catbro
     image: {{ catbro_image_tag }}
+    # local/* is a local-only tag with no upstream registry to pull from;
+    # `pull_policy: build` tells docker compose to build the image when it
+    # doesn't exist instead of attempting (and failing) a registry pull.
+    pull_policy: build
     build:
       context: .
       dockerfile: Dockerfile.catbro

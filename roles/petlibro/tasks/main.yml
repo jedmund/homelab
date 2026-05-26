@@ -76,6 +76,9 @@
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    build: "{{ 'always' if catbro_git.changed else 'never' }}"
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    # Force a rebuild when the catbro source changed; otherwise defer to the
+    # compose file (where catbro has `pull_policy: build`, so docker compose
+    # will build the image if it's missing and skip rebuilds when it's not).
+    build: "{{ 'always' if catbro_git.changed else 'policy' }}"
+    pull: policy
   register: compose_result
