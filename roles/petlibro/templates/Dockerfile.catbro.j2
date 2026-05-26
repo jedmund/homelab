@@ -1,0 +1,38 @@
+# {{ ansible_managed }}
+# Multi-stage build for catbro-server (Rust binary that statically links an
+# embedded go2rtc Go library). Heavy first build (~5-10 min); subsequent
+# builds are layer-cached.
+
+ARG RUST_VERSION=1.83
+ARG GO_VERSION=1.23
+
+FROM golang:${GO_VERSION}-bookworm AS go-build
+WORKDIR /src
+# Just warm the module cache; the actual Go compile happens inside cargo build
+# via build.rs which invokes `go build -buildmode=c-archive`.
+COPY src/go2rtc/go.mod src/go2rtc/go.sum ./
+RUN go mod download
+
+FROM rust:${RUST_VERSION}-bookworm AS rust-build
+# Need Go available at build time for the build.rs step
+ARG GO_VERSION
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates pkg-config build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+       | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+WORKDIR /build
+COPY src/ ./
+RUN cargo build --release --locked
+# Locate the resulting binary; the package is named petli_mock_cloud
+RUN cp target/release/petli_mock_cloud /tmp/catbro-server
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=rust-build /tmp/catbro-server /usr/local/bin/catbro-server
+WORKDIR /data
+ENTRYPOINT ["/usr/local/bin/catbro-server"]

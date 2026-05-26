@@ -1,0 +1,66 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  mosquitto:
+    container_name: petlibro-mosquitto
+    image: {{ mosquitto_image }}
+    restart: {{ restart_policy | default('unless-stopped') }}
+    ports:
+      # Exposed on the LAN so the feeders (via DNS rewrite) AND
+      # Home Assistant on NUC8 can both connect here.
+      - "{{ petlibro_mqtt_host_port }}:1883"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./data/mosquitto:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -t '$$SYS/broker/version' -C 1 -W 3 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: {{ logging_driver | default('json-file') }}
+      options:
+        max-size: {{ logging_max_size | default('10m') }}
+        max-file: {{ logging_max_file | default('3') }}
+
+  catbro:
+    container_name: petlibro-catbro
+    image: {{ catbro_image_tag }}
+    build:
+      context: .
+      dockerfile: Dockerfile.catbro
+    restart: {{ restart_policy | default('unless-stopped') }}
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    ports:
+      # go2rtc ports — exposed on LAN so HA on NUC8 can pull RTSP streams
+      - "{{ petlibro_go2rtc_api_host_port }}:1984"     # WebUI/HTTP API
+      - "{{ petlibro_go2rtc_rtsp_host_port }}:8554"    # RTSP
+      - "{{ petlibro_go2rtc_webrtc_host_port }}:8555"  # WebRTC TCP
+    volumes:
+      - ./data/catbro:/data
+    command:
+      - --mode={{ petlibro_mode }}
+      - --petlibro-host=mosquitto
+      - --petlibro-port=1883
+      - --ha-host=mosquitto
+      - --ha-port=1883
+      - --ha-discovery-prefix={{ petlibro_ha_discovery_prefix }}
+      - --petlibro-topic-prefix={{ petlibro_topic_prefix }}
+      - --creds-file=/data/creds.toml
+      - --state-file=/data/state.toml
+      - --go2rtc-config-file=/data/go2rtc.yaml
+      - --timezone={{ petlibro_timezone }}
+{% for subnet in petlibro_subnets %}
+      - --go2rtc-subnet={{ subnet }}
+{% endfor %}
+{% for feeder in petlibro_feeders %}
+      - "--go2rtc-name={{ feeder.device_sn }}={{ feeder.friendly_name }}"
+{% endfor %}
+    logging:
+      driver: {{ logging_driver | default('json-file') }}
+      options:
+        max-size: {{ logging_max_size | default('10m') }}
+        max-file: {{ logging_max_file | default('3') }}

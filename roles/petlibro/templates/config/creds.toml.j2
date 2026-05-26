@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+#
+# Per-feeder TUTK UID persistence. catbro uses this to map a feeder's
+# device_sn (what the MQTT topic uses) to its TUTK UID (what go2rtc uses
+# for the petlibro:// stream URL).
+#
+# In bridge mode we don't need cloud credentials — only the uid mapping.
+# Record mode would also populate client_id/username/password from the
+# actual cloud handshake.
+
+{% for feeder in petlibro_feeders %}
+[{{ feeder.device_sn }}]
+uid = "{{ feeder.tutk_uid }}"
+
+{% endfor %}
