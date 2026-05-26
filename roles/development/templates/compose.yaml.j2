@@ -67,8 +67,22 @@ services:
     container_name: renovate
     image: {{ renovate_image }}
     restart: "no"
+    # Renovate is a one-shot CLI driven by the host cron (see role tasks).
+    # Keeping it in the default profile leaves an Exited container behind
+    # after each run, which Komodo surfaces as the whole development stack
+    # going unhealthy. The `cron` profile excludes it from `compose up` /
+    # `compose ps` while `compose run --rm renovate` still works because
+    # `run` activates a named service regardless of profile.
+    profiles:
+      - cron
+    # `backend` reaches GitLab via `http://gitlab` for API + clones (see
+    # config.js gitUrl). `cibuild` (a non-internal bridge) is what gives
+    # renovate egress to Docker Hub, npm, PyPI, crates.io, GitHub, etc.
+    # for dependency tag lookups; without it every datasource lookup
+    # fails with EAI_AGAIN and no updates get proposed.
     networks:
       - backend
+      - cibuild
     env_file:
       - ./env/renovate.env
     volumes:
