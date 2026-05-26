@@ -45,23 +45,38 @@ services:
       - "{{ petlibro_go2rtc_webrtc_host_port }}:8555"  # WebRTC TCP
     volumes:
       - ./data/catbro:/data
+    # catbro's CLI parser expects space-separated `--flag value`, NOT `--flag=value`.
+    # Each pair of list items below is one (flag, value) tuple in argv.
     command:
-      - --mode={{ petlibro_mode }}
-      - --petlibro-host=mosquitto
-      - --petlibro-port=1883
-      - --ha-host=mosquitto
-      - --ha-port=1883
-      - --ha-discovery-prefix={{ petlibro_ha_discovery_prefix }}
-      - --petlibro-topic-prefix={{ petlibro_topic_prefix }}
-      - --creds-file=/data/creds.toml
-      - --state-file=/data/state.toml
-      - --go2rtc-config-file=/data/go2rtc.yaml
-      - --timezone={{ petlibro_timezone }}
+      - --mode
+      - "{{ petlibro_mode }}"
+      - --petlibro-host
+      - mosquitto
+      - --petlibro-port
+      - "1883"
+      - --ha-host
+      - mosquitto
+      - --ha-port
+      - "1883"
+      - --ha-discovery-prefix
+      - "{{ petlibro_ha_discovery_prefix }}"
+      - --petlibro-topic-prefix
+      - "{{ petlibro_topic_prefix }}"
+      - --creds-file
+      - /data/creds.toml
+      - --state-file
+      - /data/state.toml
+      - --go2rtc-config-file
+      - /data/go2rtc.yaml
+      - --timezone
+      - "{{ petlibro_timezone }}"
 {% for subnet in petlibro_subnets %}
-      - --go2rtc-subnet={{ subnet }}
+      - --go2rtc-subnet
+      - "{{ subnet }}"
 {% endfor %}
 {% for feeder in petlibro_feeders %}
-      - "--go2rtc-name={{ feeder.device_sn }}={{ feeder.friendly_name }}"
+      - --go2rtc-name
+      - "{{ feeder.device_sn }}={{ feeder.friendly_name }}"
 {% endfor %}
     logging:
       driver: {{ logging_driver | default('json-file') }}
