@@ -7,7 +7,7 @@
 # are onboarded):
 #   dokploy.atelier.house        - admin UI
 #   *.apps.atelier.house         - default per-app wildcard
-#   <add per-app overrides here, e.g. sorter.atelier.house>
+#   <add per-app overrides here, e.g. music.sort.atelier.house>
 
 # VM identity
 vm_name: dokploy
