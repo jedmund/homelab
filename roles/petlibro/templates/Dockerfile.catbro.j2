@@ -3,7 +3,9 @@
 # embedded go2rtc Go library via build.rs / cgo c-archive). Heavy first build
 # (~5-10 min); subsequent builds are layer-cached.
 
-ARG RUST_VERSION=1.83
+# Rust 1.85+ is required because catbro's transitive deps (indexmap 2.14+)
+# use Cargo's edition2024 feature, stabilized in Rust 1.85.
+ARG RUST_VERSION=1.86
 ARG GO_VERSION=1.23
 
 # Pull the official Go toolchain only to copy the installation tree into the
