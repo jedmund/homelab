@@ -32,6 +32,9 @@ entryPoints:
           - main: "{{ traefik_domain }}"
             sans:
               - "*.{{ traefik_domain }}"
+          - main: "sort.{{ traefik_domain }}"
+            sans:
+              - "*.sort.{{ traefik_domain }}"
 # Providers
 providers:
   docker:

@@ -51,7 +51,8 @@ ddclient_atelier_subdomains:
   - search.atelier.house
   - sl.atelier.house
   - so.atelier.house
-  - sorter.atelier.house
+  - manga.sort.atelier.house
+  - music.sort.atelier.house
   - speed.atelier.house
   - strudel.atelier.house
   - track.atelier.house
