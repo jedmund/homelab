@@ -137,6 +137,10 @@ deploy-dokploy: ## Install Dokploy inside the VM
 	@echo "$(BLUE)Installing Dokploy inside the VM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/dokploy.yml $(VAULT_FLAG)
 
+deploy-petlibro: ## Deploy Petlibro stack (catbro-server + Mosquitto on nuc-mini)
+	@echo "$(BLUE)Deploying Petlibro stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/petlibro.yml $(VAULT_FLAG)
+
 ##@ Deployment - Specific Services
 
 deploy-traefik: ## Deploy only Traefik
