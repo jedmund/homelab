@@ -154,9 +154,9 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Album Sort - sorter.{{ traefik_domain }}
+    # Album Sort - music.sort.{{ traefik_domain }}
     album-sort:
-      rule: "Host(`sorter.{{ traefik_domain }}`)"
+      rule: "Host(`music.sort.{{ traefik_domain }}`)"
       service: album-sort
       entryPoints:
         - websecure

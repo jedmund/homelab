@@ -71,7 +71,7 @@ album_sort_version: main
 album_sort_source_path: /home/justin/album-sort
 album_sort_port: 5180
 album_sort_container_port: 3000
-album_sort_domain: sorter.atelier.house
+album_sort_domain: music.sort.atelier.house
 album_sort_origin: "https://{{ album_sort_domain }}"
 album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
