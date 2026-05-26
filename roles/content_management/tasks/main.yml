@@ -15,6 +15,14 @@
     - "{{ docker_base_path }}/{{ stack_name }}/album-sort-data"
     - "{{ docker_base_path }}/{{ stack_name }}/album-sort-beets-data"
 
+- name: Create Manga Manager covers directory
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/manga-manager/covers"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+
 - name: Create Papra data directories
   file:
     path: "{{ item }}"

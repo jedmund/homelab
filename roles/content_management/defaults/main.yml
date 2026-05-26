@@ -65,6 +65,17 @@ homebox_oidc_verify_email: "false"
 songkong_image: songkong/songkong:latest
 songkong_port: 4567
 
+# Manga Manager (metadata editor for the comics volume)
+# Upstream warns the image ships with passwordless sudo; keep behind tinyauth.
+manga_manager_image: thepromidius/manga-manager:latest
+manga_manager_port: 3000
+manga_manager_external_port: 3110
+manga_manager_domain: "manga.sort.atelier.house"
+manga_manager_title: "Manga Manager"
+manga_manager_umask: "022"
+manga_manager_keyboard: "en-us-qwerty"
+manga_manager_subfolder: "/"
+
 # Album Sort (in-house app, built from source)
 album_sort_repo: ssh://git@git.atelier.house:2222/jedmund/album-sort.git
 album_sort_version: main

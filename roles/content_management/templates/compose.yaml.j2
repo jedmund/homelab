@@ -75,6 +75,29 @@ services:
     environment:
       - TZ={{ timezone }}
 
+  manga-manager:
+    container_name: manga_manager
+    image: {{ manga_manager_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "{{ manga_manager_external_port }}:{{ manga_manager_port }}"
+    volumes:
+      - comics:/manga
+      - ./config/manga-manager/covers:/covers
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - TZ={{ timezone }}
+      - TITLE={{ manga_manager_title }}
+      - UMASK={{ manga_manager_umask }}
+      - KEYBOARD={{ manga_manager_keyboard }}
+      - SUBFOLDER={{ manga_manager_subfolder }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   homebox:
     container_name: homebox
     image: {{ homebox_image }}
@@ -293,6 +316,8 @@ volumes:
   photos:
     external: true
   music:
+    external: true
+  comics:
     external: true
 
   dawarich-db-data:
