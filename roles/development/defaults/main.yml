@@ -127,3 +127,12 @@ open_webui_rag_embedding_base_url: "http://{{ max_server_ip }}:{{ open_webui_tei
 # effectively a label for OpenWebUI's UI/logs. Set to match the served
 # model for clarity.
 open_webui_rag_embedding_model: Qwen3-Embedding-0.6B
+
+# Paseo relay settings
+# Self-hosted WS relay between the Paseo daemon (running on dev machines)
+# and the mobile/web clients. Zero-knowledge: traffic is E2E encrypted
+# with NaCl box, so the relay never sees payload content. No auth at the
+# edge by design; Traefik just terminates TLS and proxies the WS upgrade.
+paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.5.0
+paseo_relay_domain: paseo.relay.atelier.house
+paseo_relay_port: 8411
