@@ -13,6 +13,37 @@ layer but close on memory bandwidth, so layer-split without an explicit
 otherwise. Sizes below are rough on-disk numbers for the quant chosen; live
 VRAM is usually a bit higher once KV cache is allocated.
 
+## Modes
+
+The catalog is organised around three usage modes, expressed via the
+`chat`, `code`, and `code-heavy` llama-swap groups in `defaults/main.yml`:
+
+| Mode | Active | Group occupancy | VRAM |
+|---|---|---|---|
+| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true, evicts chat + code) | ~185 GB / ~125 GB live |
+| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` (both swap: true, exclusive: false) | ~135 GB code + ~36-54 GB chat |
+| 3: idle / chat alone | any chat model | `chat` only | ~36-75 GB live |
+
+Mode 2 is the day-to-day default: an opencode session against minimax-iq4
+plus an openclaw DM via qwen3.6 (dense Q6 MTP). Mode 1 is for hard
+problems where you want the highest-quality minimax / gpt-oss and accept
+that openclaw chat will cold-load when needed. Mode 3 is vacation / weekend
+mode where there's no active coding workload.
+
+Two chat models are sized for coexistence with the code group:
+
+- `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
+  Default openclaw model.
+- `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
+  Openclaw's vision route lands here automatically, so it has to fit
+  alongside the code group.
+
+The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
+`gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
+larger contexts because they're picked manually; loading one while
+minimax-iq4 is resident may OOM. Unload the code slot first if you need
+one of these.
+
 ## Installed models
 
 ### qwen3.6-flash — daily driver, fastest
@@ -27,13 +58,15 @@ VRAM is usually a bit higher once KV cache is allocated.
   - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-35B-A3B/`
 - **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
-  Blackwell, multimodal. Default chat model when latency matters more
-  than depth. Bumped to Q8_K_XL once the second Blackwell arrived:
-  MoE token decode reads only active params, so Q8 costs effectively
-  nothing in throughput while giving a real weights-quality bump.
-- **VRAM**: ~37 GB on disk; ~70 GB live with `--parallel 4 -c 262144`
-  (four sticky 64K slots, q8_0 KV). Comfortably inside the 192 GB total
-  budget with the chat group's swap-on-load policy.
+  Blackwell, multimodal. Also the openclaw vision model: image-bearing
+  DMs route here automatically via `agents.defaults.imageModel`, so it
+  has to load cleanly while the code group is occupied. Bumped to
+  Q8_K_XL once the second Blackwell arrived: MoE token decode reads
+  only active params, so Q8 costs effectively nothing in throughput
+  while giving a real weights-quality bump.
+- **VRAM**: ~37 GB on disk; ~54 GB live with `--parallel 4 -c 131072`
+  (four sticky 32K slots, q8_0 KV). Sized so the openclaw vision route
+  fits alongside `minimax-m27-iq4` (~135 GB) in coexistence mode 2.
 - **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
   (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
   variant instead. `--mmproj` wires up vision; without it text-only
@@ -78,13 +111,17 @@ VRAM is usually a bit higher once KV cache is allocated.
   - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-27B/`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
-  Blackwell, multimodal, 256K context. Use when the MoE flash model's
-  answers feel thin. Bumped to Q6_K_XL once the second Blackwell arrived:
-  for dense models token decode reads all weights, so the bigger quant
-  costs ~20% throughput (~130 tok/s expected) but gives a meaningful
-  quality bump. Q8 would halve throughput, too steep for this tier.
-- **VRAM**: ~22 GB on disk; ~50 GB live with `--parallel 4 -c 262144`
-  (four sticky 64K slots, q8_0 KV).
+  Blackwell, multimodal. Default openclaw chat model. Bumped to Q6_K_XL
+  once the second Blackwell arrived: for dense models token decode reads
+  all weights, so the bigger quant costs ~20% throughput (~130 tok/s
+  expected) but gives a meaningful quality bump. Q8 would halve
+  throughput, too steep for this tier.
+- **VRAM**: ~22 GB on disk; ~36 GB live with `--parallel 2 -c 131072`
+  (two sticky 64K slots, q8_0 KV). Sized for coexistence with
+  `minimax-m27-iq4` (~135 GB) in mode 2; total ~171 GB, ~18 GB headroom.
+  Mode 3 leaves a lot of VRAM unused, but qwen3.6 stays at 128K total
+  context; add a wider-context variant later if 64K-per-chat-session
+  pinches.
 - **Notes**: Needs `--spec-type draft-mtp`, which requires llama.cpp from
   2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda`
   before first deploy; if model fails to load with a flag error in
@@ -183,54 +220,55 @@ VRAM is usually a bit higher once KV cache is allocated.
   count after download and adjust the path if it differs).
 - **Source**: `unsloth/gpt-oss-120b-GGUF`
 - **Pull**: `hf download unsloth/gpt-oss-120b-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir ./UD-Q6_K_XL/`
-- **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). Kept
-  as a third lineage (alongside Qwen and Gemma) for genuine cross-family
-  comparison. Bumped from Q4_K_XL once the second Blackwell arrived: the
-  120B at Q6 is the meaningful quality target this hardware unlocks.
+- **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). The
+  heavy reasoning alternative to `minimax-m27-q4` for cross-family
+  comparison on hard problems. Lives in the `code-heavy` group
+  (`exclusive: true`), so loading it evicts the chat group; pick it
+  when you want max quality and accept that openclaw chat will need to
+  cold-load when it's next called.
 - **VRAM**: ~95 GB on disk; ~125 GB live with `--parallel 4 -c 131072`
-  (four sticky 32K slots, q8_0 KV). Well inside the 192 GB total budget.
+  (four sticky 32K slots, q8_0 KV). Smaller live footprint than
+  minimax-m27-q4 (~185 GB) so there's plenty of room to grow the
+  context if a heavier session warrants it.
 - **Notes**: Split GGUF. `--jinja` for the chat template. Same
   parallel-slot treatment as minimax-m27 so cross-lineage comparison
   benefits from prefix-cache stickiness across project conversations.
 
 ### minimax-m27 — big-brain for hard problems
 
-- **Files** (currently A/B testing three quants in parallel; pick the
-  winner via opencode's model name, then prune the losers):
+Two entries, one per usage mode (see "Modes" section below for the full
+picture). The earlier IQ3_S entry was dropped after the three-mode design
+landed; iq4 covers the coexistence slot at higher quality and q4 covers
+solo at top quality, so IQ3 had no remaining role.
 
-  | llama-swap entry | Quant | File (shard 1) | ~Disk | ~VRAM live |
-  |---|---|---|---|---|
-  | `minimax-m27` (also alias `minimax-m27-iq3`) | UD-IQ3_S | `MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf` (top-level) | ~78 GB | ~147 GB |
-  | `minimax-m27-iq4` | UD-IQ4_XS | `UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf` | ~95-100 GB | ~167 GB |
-  | `minimax-m27-q4` | UD-Q4_K_XL | `UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf` | ~115-120 GB | ~185 GB |
+| llama-swap entry | Quant | Group | File (shard 1) | Args | ~Disk | ~VRAM live |
+|---|---|---|---|---|---|---|
+| `minimax-m27-iq4` (alias `minimax-m27`, `minimax:m27`) | UD-IQ4_XS | `code` (coexists with chat) | `UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf` | `-c 196608 --parallel 3` | ~95-100 GB | ~135 GB |
+| `minimax-m27-q4` (alias `minimax:m27-q4`) | UD-Q4_K_XL | `code-heavy` (exclusive, evicts chat) | `UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf` | `-c 262144 --parallel 4` | ~115-120 GB | ~185 GB |
 
 - **Source**: `unsloth/MiniMax-M2.7-GGUF`
-- **Pull**: swap the quant tag into the include filter; new quants land
-  in per-quant subdirectories alongside other files of the same quant:
-  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ3_S*.gguf" --local-dir .` (legacy: top-level)
+- **Pull** (split GGUFs per quant directory):
   - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ4_XS*.gguf" --local-dir ./UD-IQ4_XS/`
   - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir ./UD-Q4_K_XL/`
 - **Why**: 229B / 10B-active MoE. Reserved for problems where the smaller
   models stall (long reasoning chains, hard refactors, tool-call planning).
-- **Inference**: `-c 327680 --parallel 4` (four sticky 80K slots, q8_0
-  KV) for the IQ3_S and IQ4_XS entries. The Q4_K_XL entry intentionally
-  runs at `-c 262144 --parallel 4` (four sticky 64K slots) because at
-  80K per slot it OOM'd during MoE routing warmup: 118 GB weights +
-  ~58 GB KV + activation/expert-routing scratch crossed the 192 GB
-  ceiling and crashed in `ggml_cuda_op_topk_moe` on the Max-Q card.
-  Dropping Q4_K_XL to 64K per slot (~47 GB KV) leaves ~17 GB margin
-  and the model boots cleanly. The A/B test therefore compares two
-  variables (quant tier + slot size) on the Q4_K_XL row, not just
-  weights quant; weights quant is still the dominant factor for
-  output-quality comparisons.
-- **Notes**: Split GGUFs (too large for HuggingFace's per-file limit). The
-  IQ3_S build ships as 3 shards (legacy top-level location); IQ4_XS and
-  Q4_K_XL ship as 4 shards each in their per-quant subdirectories. Verify
-  the shard count after download; the llama-swap config assumes 3 shards
-  for IQ3_S and 4 shards for the other two. llama.cpp handles split GGUFs
-  natively: point `--model` at shard 1 and it auto-loads the rest from
-  the same directory. `--jinja` is required for the chat template and
-  tool-call handling. Sampling values pinned per MiniMax's recommendations.
+- **Inference**:
+  - iq4 runs at `-c 196608 --parallel 3` (three sticky 64K slots, q8_0
+    KV). Live ~135 GB. Sized for coexistence with a chat-tier model
+    (qwen3.6 ~36 GB, qwen3.6-flash ~54 GB) inside the 192 GB budget.
+  - q4 runs at `-c 262144 --parallel 4` (four sticky 64K slots). Live
+    ~185 GB. The `code-heavy` group is `exclusive: true`, so loading
+    q4 evicts the chat group; you get max minimax quality at the cost
+    of any coresident chat model. (At -c 327680 it OOM'd during MoE
+    routing warmup in `ggml_cuda_op_topk_moe`; 64K per slot is the
+    stable ceiling.)
+- **Notes**: Split GGUFs (too large for HuggingFace's per-file limit).
+  Both iq4 and q4 ship as 4 shards each in their per-quant
+  subdirectories. llama.cpp handles split GGUFs natively: point
+  `--model` at shard 1 and it auto-loads the rest from the same
+  directory. `--jinja` is required for the chat template and
+  tool-call handling. Sampling values pinned per MiniMax's
+  recommendations.
 
 ### bge-reranker — RAG reranker
 
@@ -240,6 +278,38 @@ VRAM is usually a bit higher once KV cache is allocated.
 - **Why**: Reranks retrieval hits for OpenWebUI's RAG. Low volume, so it stays
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
+
+### embedding models (swap group) — for project experimentation
+
+Three GGUF embedding models served via llama-swap under the `embed` group
+(`swap: true, exclusive: false`). Only one is resident at a time, but the
+group coexists with `chat`, so RAG-style flows that need an embed model plus
+a chat model in parallel work without contention. Use these for
+domain/quality comparisons in project code; OpenWebUI's always-on RAG
+embedding is on TEI (see Embeddings section below).
+
+| llama-swap name | File | Source | ~Disk | ~VRAM live | Pooling |
+|---|---|---|---|---|---|
+| `bge-m3` | `bge-m3-Q8_0.gguf` | `gpustack/bge-m3-GGUF` | ~600 MB | ~1 GB | `cls` (encoder) |
+| `qwen3-embed-0_6b` | `Qwen3-Embedding-0.6B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-0.6B-GGUF` | ~700 MB | ~1.5 GB | `last` (decoder) |
+| `qwen3-embed-4b` | `Qwen3-Embedding-4B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-4B-GGUF` | ~4.5 GB | ~6 GB | `last` (decoder) |
+
+- **Pull**:
+  - `hf download gpustack/bge-m3-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - `hf download Qwen/Qwen3-Embedding-0.6B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - `hf download Qwen/Qwen3-Embedding-4B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - Verify filenames after download; the publishers occasionally tweak case
+    or naming (e.g. `f16` vs `F16`, `Q8_0` vs `q8_0`). The `ai_models`
+    entries assume the canonical names in the table above.
+- **Why**: For embedding benchmark / domain-fit comparisons in project code.
+  All three are OpenAI-compatible at `http://max:11434/v1/embeddings` with
+  the `model` field set to the llama-swap name or alias.
+- **Pooling gotcha**: BGE is encoder-style (`--pooling cls`); Qwen3-Embedding
+  is decoder-style (`--pooling last`). Wrong pooling silently returns junk
+  vectors with no error. The `args` in `ai_models` are already set
+  correctly per model; don't crosswire them.
+- **TTL**: 300s per entry — embedding workloads tend to be bursty so the
+  short TTL releases VRAM quickly between sessions.
 
 ### qwen3-small — CPU-resident compaction model
 
@@ -282,21 +352,49 @@ model` task in `tasks/main.yml` handles this idempotently on every deploy
   second model): `curl -X POST http://192.168.1.100:9000/v1/models/<id>`
   where `<id>` is a path from `GET /v1/registry?task=automatic-speech-recognition`.
 
-## Embeddings (TEI, not llama-swap)
+## Embeddings (always-on, TEI)
 
-Embeddings are served by the TEI container, not llama-swap, so there is no
-GGUF to manage on disk. TEI downloads its model on first start via the
-HuggingFace hub and caches it in the `tei-cache` named volume.
+Two TEI containers, each pinned to one model. TEI is single-model-per-container
+by design, so each "always-on" embedding model adds one container. For
+swap-loaded embedding models used in project experimentation, see the
+"embedding models (swap group)" section above; those go through llama-swap
+on `:11434`.
 
-- **Current model**: `nomic-ai/nomic-embed-text-v1.5` (pinned in
-  `tei_model_id` in `defaults/main.yml`). Matches the model the retired
-  llama-swap `nomic-embed` entry used to serve, so OpenWebUI and any other
-  consumer swap in place without re-embedding.
-- **Swap candidates**: `BAAI/bge-large-en-v1.5` or `Qwen/Qwen3-Embedding-8B`
-  for top-of-MTEB at higher cost. Changing the model is not free for existing
-  consumers: collections embedded with one model cannot be searched with
-  another, so plan a re-embed (OpenWebUI: Admin -> Documents -> reset vector
-  storage and re-ingest).
+### tei — OpenWebUI RAG embedding (always-on)
+
+- **Current model**: `Qwen/Qwen3-Embedding-0.6B` (1024-dim, multilingual,
+  top-of-MTEB at this size). Read directly from local disk at
+  `/opt/docker/ai/models/Qwen3-Embedding-0.6B/` (bind-mounted into the
+  container at `/models/Qwen3-Embedding-0.6B`); no HF Hub pull at runtime.
+- **History**: Was `nomic-ai/nomic-embed-text-v1.5` until 2026-05-24. Switched
+  to consolidate around the Qwen3 family already used elsewhere in the stack,
+  get a quality / multilingual bump, and drop the
+  `tei_model_revision: e5cf08aa...` pin (which existed only to dodge a TEI
+  serde-alias bug in newer nomic config revisions).
+- **Endpoint**: `http://192.168.1.100:11435/v1/embeddings`. Consumed by
+  OpenWebUI via `open_webui_rag_embedding_base_url` in
+  `roles/development/defaults/main.yml`.
+- **Re-embed on switch**: collections embedded under one model can't be
+  searched with another. Reset OpenWebUI vector storage (Admin -> Documents)
+  and re-ingest after the migration.
+- **Swap candidates**: `nomic-ai/nomic-embed-text-v2-moe` (multilingual MoE,
+  smaller idle footprint), `Snowflake/snowflake-arctic-embed-l-v2.0`
+  (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
+  ~7.6 GB resident.
+
+### tei-jina — jinaai/jina-embeddings-v3 (always-on)
+
+- **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
+  task-conditioned via LoRA adapters). Read from local disk at
+  `/opt/docker/ai/models/jina-embeddings-v3/` (bind-mounted read-only).
+- **Why a separate container**: jina-v3's task-specific LoRA adapters and
+  `custom_st.py` pooling logic don't translate to a clean GGUF, so llama-swap
+  can't serve it. To keep it available without losing the llama-swap embed
+  group's swap benefits for the other three, it gets its own dedicated TEI
+  container.
+- **Endpoint**: `http://192.168.1.100:11436/v1/embeddings`.
+- **Idle cost**: ~1.1 GB resident VRAM. Acceptable for the convenience of
+  having jina-v3 available alongside the swappable Qwen3 / bge-m3 embedders.
 
 ## Adding or removing a model
 

@@ -39,6 +39,14 @@ gitlab_runner_name: nuc-mini-docker
 gitlab_runner_concurrent: 4
 gitlab_runner_default_image: alpine:latest
 gitlab_runner_log_level: info
+# Runner reaches GitLab over the backend docker network rather than out
+# through Traefik (mirrors renovate_endpoint below). Without this the
+# runner resolves git.atelier.house to the GitLab container's backend
+# IP via the container hostname, but tries port 443 — TLS terminates at
+# Traefik, GitLab itself only listens on 80 internally, so every job
+# poll fails with "connection refused". Also used as clone_url so the
+# job containers spawned on backend network clone via the internal URL.
+gitlab_runner_url: "http://gitlab"
 # Generated in GitLab admin UI after first GitLab boot, then added to
 # vault. Empty default lets the first deploy render config.toml without
 # failing; runner will log auth errors until the token is populated.
@@ -107,13 +115,18 @@ open_webui_playwright_port: 3000
 open_webui_web_loader_engine: playwright
 open_webui_playwright_ws_url: "ws://{{ max_server_ip }}:{{ open_webui_playwright_port }}"
 
-# RAG embeddings via TEI on max (replaces the previous llama-swap
-# nomic-embed entry). OpenWebUI's RAG_* env vars only seed initial
-# values on a fresh database; existing embeddings remain on whatever
-# model they were created with.
+# RAG embeddings via TEI on max. OpenWebUI's RAG_* env vars only seed
+# initial values on a fresh database; existing embeddings remain on
+# whatever model they were created with, so changing the model here
+# requires resetting OpenWebUI's vector store (Admin -> Documents) and
+# re-ingesting before new docs use the new embedding space.
 open_webui_tei_port: 11435
 open_webui_rag_embedding_base_url: "http://{{ max_server_ip }}:{{ open_webui_tei_port }}/v1"
-open_webui_rag_embedding_model: nomic-ai/nomic-embed-text-v1.5
+# TEI ignores the `model` field in OpenAI-format requests for single-model
+# containers (the one loaded model always answers), so this string is
+# effectively a label for OpenWebUI's UI/logs. Set to match the served
+# model for clarity.
+open_webui_rag_embedding_model: Qwen3-Embedding-0.6B
 
 # Paseo relay settings
 # Self-hosted WS relay between the Paseo daemon (running on dev machines)

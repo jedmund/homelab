@@ -22,3 +22,9 @@ healthcheck_start_period: 30s
 proxy_network: proxy-network
 backend_network: backend-internal
 shared_network: shared-network
+# Dedicated network for GitLab CI job containers. Non-internal so jobs
+# can reach the internet (apk/npm/bundle install), and shared with the
+# gitlab container so jobs can clone via http://gitlab without looping
+# through Traefik. Kept separate from shared_network to keep job
+# containers (arbitrary user code) off the network used by other stacks.
+cibuild_network: cibuild-network

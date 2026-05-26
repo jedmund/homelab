@@ -97,24 +97,26 @@
     state: present
     update_cache: yes
 
-# GitLab CLI (glab)
-- name: Add GitLab CLI GPG key
-  apt_key:
-    url: https://packages.gitlab.com/gitlab/cli/gpgkey
-    keyring: /etc/apt/keyrings/gitlab-cli.gpg
-    state: present
+# GitLab CLI (glab). Installed from the official .deb on GitLab
+# releases rather than packages.gitlab.com — the latter stopped
+# publishing a `Release` file for Ubuntu noble, breaking apt.
+# Bump glab_version when a new release is wanted; check:
+#   https://gitlab.com/gitlab-org/cli/-/releases
+- name: Install GitLab CLI (glab) from official .deb
+  vars:
+    glab_version: "1.99.0"
+    glab_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+  block:
+    - name: Download glab .deb
+      ansible.builtin.get_url:
+        url: "https://gitlab.com/gitlab-org/cli/-/releases/v{{ glab_version }}/downloads/glab_{{ glab_version }}_linux_{{ glab_arch }}.deb"
+        dest: "/tmp/glab_{{ glab_version }}_{{ glab_arch }}.deb"
+        mode: '0644'
 
-- name: Add GitLab CLI repository
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/gitlab-cli.gpg] https://packages.gitlab.com/gitlab/cli/ubuntu/ {{ ansible_distribution_release }} main"
-    state: present
-    filename: gitlab-cli
-
-- name: Install GitLab CLI
-  apt:
-    name: glab
-    state: present
-    update_cache: yes
+    - name: Install glab from .deb
+      ansible.builtin.apt:
+        deb: "/tmp/glab_{{ glab_version }}_{{ glab_arch }}.deb"
+        state: present
 
 # HuggingFace CLI (hf) via pipx
 - name: Install pipx

@@ -55,6 +55,10 @@
 - import_playbook: development.yml
   tags: [dev, development]
 
+# Development (macOS) stack - GitLab Runner on mac-mini for iOS builds
+- import_playbook: development_macos.yml
+  tags: [dev, development_macos]
+
 # Utilities stack
 - import_playbook: utilities.yml
   tags: [utilities]
@@ -74,6 +78,10 @@
 # AI stack (targets the `ai` group — currently `max` only)
 - import_playbook: ai.yml
   tags: [ai]
+
+# Openclaw (targets the `openclaw` group, currently `mac-mini` only)
+- import_playbook: openclaw.yml
+  tags: [openclaw]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

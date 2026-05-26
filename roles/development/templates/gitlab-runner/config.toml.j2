@@ -13,7 +13,8 @@ shutdown_timeout = 0
 
 [[runners]]
   name = "{{ gitlab_runner_name }}"
-  url = "{{ gitlab_root_url }}/"
+  url = "{{ gitlab_runner_url }}/"
+  clone_url = "{{ gitlab_runner_url }}"
   id = 0
   token = "{{ gitlab_runner_auth_token }}"
   token_obtained_at = 1970-01-01T00:00:00Z
@@ -31,7 +32,7 @@ shutdown_timeout = 0
     disable_entrypoint_overwrite = false
     oom_kill_disable = false
     disable_cache = false
-    network_mode = "{{ backend_network }}"
+    network_mode = "{{ cibuild_network }}"
     volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
     shm_size = 0
     network_mtu = 0

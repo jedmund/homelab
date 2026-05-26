@@ -22,14 +22,21 @@ llama_swap_health_check_timeout: 300
 # under familiar names.
 ai_models:
   # Fast everyday driver — Qwen3.6 35B total / 3B active per token MoE.
-  # ~240 tok/s on Blackwell. Multimodal. Using the non-MTP variant
+  # ~240 tok/s on Blackwell. Multimodal. Also the openclaw vision model:
+  # image-bearing turns get routed here automatically via openclaw's
+  # agents.defaults.imageModel, so it needs to load cleanly while a
+  # code-tier model is resident in VRAM. Using the non-MTP variant
   # because MTP barely moves MoE (~1.15x) — the dense models below get
   # the real MTP win, this one just keeps the simpler config and saves
   # ~1GB VRAM. Bumped to Q8_K_XL once the second Blackwell arrived:
   # MoE decode speed scales with active params (3B), not total weights,
-  # so the bigger quant is essentially free in tok/s. --parallel 4
-  # -c 262144 gives four sticky 64K slots for prefix-cache reuse across
-  # project conversations.
+  # so the bigger quant is essentially free in tok/s.
+  #
+  # Sized for coexistence with minimax-m27-iq4: -c 131072 --parallel 4
+  # gives four sticky 32K slots at ~54GB live, fitting alongside iq4
+  # (~135GB) inside the 192GB budget. The other (uncensored) chat-tier
+  # entries keep larger contexts because they're picked manually and
+  # the user can unload the code slot first if needed.
   - name: qwen3.6-flash
     file: Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
     group: chat
@@ -41,7 +48,7 @@ ai_models:
     # subdirectory to avoid name collisions when multiple Unsloth
     # multimodal models live in the same /models/ root.
     args: >-
-      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --mmproj /models/Qwen3.6-35B-A3B/mmproj-F16.gguf
       --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
@@ -74,15 +81,22 @@ ai_models:
       - "qwen3.6:35b-a3b-uncensored"
       - "qwen3.6-uncensored"
 
-  # Quality everyday driver — Qwen3.6 27B dense with multi-token
-  # prediction. Currently ~160 tok/s at Q4 on Blackwell, multimodal,
-  # 256K context. Bumped to Q6_K_XL once the second Blackwell arrived:
-  # for dense models token decode reads all weights, so the bigger
-  # quant costs ~20% in tok/s (~130 tok/s expected) but gives a real
-  # quality bump that's worth it for the "quality" daily driver slot.
-  # Q8 would be ~half the throughput — too steep for this dense tier.
-  # --parallel 4 -c 262144 gives four sticky 64K slots, same as
-  # qwen3.6-flash, so prefix-cache reuse works across project threads.
+  # Quality everyday driver and the default openclaw chat model. Qwen3.6
+  # 27B dense with multi-token prediction. Currently ~160 tok/s at Q4 on
+  # Blackwell, multimodal, 256K native context. Bumped to Q6_K_XL once
+  # the second Blackwell arrived: for dense models token decode reads
+  # all weights, so the bigger quant costs ~20% in tok/s (~130 tok/s
+  # expected) but gives a real quality bump that's worth it for the
+  # "quality" daily driver slot. Q8 would be ~half the throughput — too
+  # steep for this dense tier.
+  #
+  # Sized for coexistence with minimax-m27-iq4 in the code group:
+  # -c 131072 --parallel 2 gives two sticky 64K slots and ~36GB live,
+  # fitting comfortably alongside iq4 (~135GB) under the 192GB budget.
+  # When the code slot is empty (mode 3 / idle / vacation) there's
+  # plenty of unused VRAM, but qwen3.6 stays at 128K total context;
+  # add a second entry with a larger -c later if that pinches.
+  #
   # MTP flags require llama.cpp from 2026-05-16 or newer; `docker pull
   # ghcr.io/mostlygeek/llama-swap:cuda` before first deploy to ensure
   # the bundled llama-server is recent enough.
@@ -96,7 +110,7 @@ ai_models:
     # a generic filename, so it lives in a per-model subdirectory to
     # avoid colliding with the other Unsloth mmproj files in /models/.
     args: >-
-      -ngl 999 -c 262144 --parallel 4 --flash-attn on
+      -ngl 999 -c 131072 --parallel 2 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --mmproj /models/Qwen3.6-27B/mmproj-F16.gguf
       --spec-type draft-mtp --spec-draft-n-max 6
@@ -183,14 +197,16 @@ ai_models:
 
   # OpenAI's open-weight 120B MoE (~5.1B active per token). At Unsloth's
   # UD-Q6_K_XL it lands ~95GB on disk; with --parallel 4 -c 131072 (four
-  # sticky 32K slots) the live footprint is ~125GB, well inside the 192GB
-  # dual-Blackwell budget. Bumped from Q4_K_XL once the second card
-  # arrived. Split GGUF; verify the shard count after download — Unsloth
+  # sticky 32K slots) the live footprint is ~125GB. Lives in code-heavy
+  # so loading it kicks the chat group out of VRAM. Use as the heavy
+  # reasoning alternative to minimax-m27-q4 when you want a different
+  # lineage's take on the same hard problem.
+  # Split GGUF; verify the shard count after download — Unsloth
   # typically ships 120B at this quant as 2 or 3 shards, adjust the file
   # path below if needed.
   - name: gpt-oss
     file: UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf
-    group: chat
+    group: code-heavy
     args: >-
       -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -198,81 +214,48 @@ ai_models:
     aliases:
       - "gpt-oss:120b"
 
-  # 229B / 10B-active MoE. With 2x RTX Pro 6000 (192GB total VRAM, one
-  # 600W workstation + one 300W Max-Q) we have room for higher-quality
-  # quants, full-fidelity q8_0 KV, and parallel slots. llama.cpp auto-
-  # splits layers across both GPUs; the Max-Q is slightly slower per
-  # layer but close on memory bandwidth, so default auto-split is fine
-  # until profiling says otherwise (then tune via --tensor-split).
+  # 229B / 10B-active MoE, primary heavy-reasoning / coding model.
+  # Two entries serve two different modes (see ai_model_groups below):
   #
-  # Three entries during the quant A/B: pick the winner via opencode's
-  # model name. All three share identical inference params so the only
-  # variable is weights quant. --parallel 4 -c 327680 gives four sticky
-  # 80K slots (~320K total KV pool), which fits 3-4 active project
-  # conversations plus an occasional guest without trampling each
-  # other's prefix cache. 80K was picked so Q4_K_XL (~118GB model +
-  # ~59GB KV at q8_0 + overhead = ~185GB) fits inside 192GB with a
-  # ~7GB margin; bigger slots would OOM the Q4 candidate during the
-  # A/B test. Once a quant winner is picked, this can grow (IQ4_XS
-  # comfortably allows 96K+ slots, IQ3_S allows 128K).
+  # - minimax-m27-iq4 (code group): sized for coexistence with a chat
+  #   model so an opencode session and an openclaw DM can run
+  #   simultaneously. -c 196608 --parallel 3 gives three sticky 64K
+  #   slots; live ~135GB, leaving ~54GB chat-tier headroom under the
+  #   192GB total budget (enough for qwen3.6 dense Q6 ~36GB live or
+  #   gemma-e4b ~12GB).
+  # - minimax-m27-q4 (code-heavy group, exclusive: true): top-quality
+  #   minimax-tier for solo coding. Loading this kicks the chat group
+  #   out of VRAM. -c 262144 --parallel 4 gives four sticky 64K slots
+  #   at ~185GB live, ~7GB margin.
+  #
+  # llama.cpp auto-splits layers across both GPUs; the Max-Q is slightly
+  # slower per layer but close on memory bandwidth, so default auto-split
+  # is fine until profiling says otherwise (then tune via --tensor-split).
   # Sampling pinned to MiniMax's recommended values; --jinja is required
   # for the chat template + tool-call handling to work correctly.
-  - name: minimax-m27
-    # Current default: IQ3_S (~80GB). Kept while A/B testing the higher
-    # quants below; once a winner is chosen, point this entry at the
-    # winning file and delete the others (plus the orphaned GGUFs).
-    file: MiniMax-M2.7-UD-IQ3_S-00001-of-00003.gguf
-    group: chat
+  #
+  # The earlier IQ3_S entry was dropped after the three-mode design
+  # landed; iq4 covers the coexistence slot at higher quality, q4 covers
+  # solo at top quality, and IQ3 had no remaining role.
+  - name: minimax-m27-iq4
+    # Files live under the UD-IQ4_XS/ subdirectory inside /models;
+    # Unsloth ships this quant as a 4-shard split GGUF.
+    file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
+    group: code
     args: >-
-      -ngl 999 -c 327680 --parallel 4 --flash-attn on
+      -ngl 999 -c 196608 --parallel 3 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
       --temp 1.0 --top-p 0.95 --top-k 40
       --jinja --log-verbosity 1
     aliases:
       - "minimax:m27"
-      - "minimax-m27-iq3"
+      - "minimax-m27"
 
-  # Quant A/B candidate 1: UD-IQ4_XS (~95-100GB). I-quants use an
-  # importance matrix to allocate bits where the model cares most;
-  # better quality per byte than legacy K-quants but slightly slower to
-  # decode. Cheapest meaningful quality step up from IQ3_S.
-  - name: minimax-m27-iq4
-    # Files live under the UD-IQ4_XS/ subdirectory inside /models, matching
-    # the per-quant directory layout used for the other quant candidates.
-    # Unsloth ships this quant as a 4-shard split GGUF; verify after
-    # download.
-    file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
-    group: chat
-    args: >-
-      -ngl 999 -c 327680 --parallel 4 --flash-attn on
-      --cache-type-k q8_0 --cache-type-v q8_0
-      --temp 1.0 --top-p 0.95 --top-k 40
-      --jinja --log-verbosity 1
-    aliases:
-      - "minimax:m27-iq4"
-
-  # Quant A/B candidate 2: UD-Q4_K_XL (~115-120GB). Unsloth's premium
-  # 4-bit: K-quant baseline with selective higher-precision tensors on
-  # the layers the imatrix flags as most sensitive. Faster decode than
-  # IQ4_XS, modestly larger.
-  #
-  # Context is intentionally 64K-per-slot here (-c 262144 --parallel 4)
-  # instead of the 80K-per-slot the iq3/iq4 entries above use. At 80K
-  # per slot Q4_K_XL was hitting an illegal-memory-access during MoE
-  # routing warmup: ~118GB weights + ~58GB KV + scratch crossed the
-  # 192GB-per-pair ceiling once activation / expert-routing scratch
-  # was factored in (the crash surfaced in ggml_cuda_op_topk_moe on
-  # device 1, the Max-Q card). Dropping to 64K-per-slot (~47GB KV)
-  # leaves ~17GB margin and the model boots cleanly. Breaks "identical
-  # args" with the lighter A/B candidates, but the alternative is a
-  # model that doesn't load at all.
   - name: minimax-m27-q4
-    # Files live under the UD-Q4_K_XL/ subdirectory inside /models (shared
-    # with the gpt-oss Q4_K_XL files until that model is bumped to Q6).
-    # Unsloth ships this quant as a 4-shard split GGUF; verify after
-    # download.
+    # Files live under the UD-Q4_K_XL/ subdirectory inside /models;
+    # Unsloth ships this quant as a 4-shard split GGUF.
     file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
-    group: chat
+    group: code-heavy
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -281,10 +264,10 @@ ai_models:
     aliases:
       - "minimax:m27-q4"
 
-  # nomic-embed lived here under llama-swap; embeddings are now served
-  # by the dedicated TEI container at :11435 (see tei_* below). Reranker
-  # stays in llama-swap because reranker volume is low and TEI would be
-  # one more service for marginal gain.
+  # nomic-embed lived here under llama-swap; the OpenWebUI RAG embedding
+  # stays on the dedicated TEI container at :11435 (see tei_* below).
+  # Reranker is also in llama-swap because reranker volume is low and
+  # TEI would be one more service for marginal gain.
   - name: bge-reranker
     file: bge-reranker-v2-m3-Q8_0.gguf
     group: aux
@@ -292,6 +275,48 @@ ai_models:
     ttl: 300
     aliases:
       - "bge-reranker-v2-m3"
+
+  # Embedding models, swap-loaded via llama-swap so only one is resident
+  # at a time. The `embed` group below is swap: true, so requesting any
+  # of these unloads whichever was previously active. RAG-style flows
+  # that need a chat model + embedding can run concurrently because
+  # exclusive: false lets the embed and chat groups coexist.
+  #
+  # Pooling differs by lineage:
+  #   - bge-m3 is XLM-RoBERTa style (encoder) -> --pooling cls
+  #   - Qwen3-Embedding is Qwen3-decoder based -> --pooling last
+  # Get this wrong and the model returns junk vectors without erroring,
+  # so leave the per-model --pooling flags alone unless you've checked
+  # the model card.
+  - name: bge-m3
+    file: bge-m3-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling cls
+      -c 8192 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "bge-m3:567m"
+
+  - name: qwen3-embed-0_6b
+    file: Qwen3-Embedding-0.6B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:0.6b"
+
+  - name: qwen3-embed-4b
+    file: Qwen3-Embedding-4B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:4b"
 
   # CPU-resident small model used as opencode's `small_model` for context
   # compaction / summarization. -ngl 0 keeps it off the GPU because the
@@ -321,18 +346,45 @@ ai_models:
 # VRAM) take ~2 min, well worth avoiding for a few extra watts.
 ai_model_default_ttl: 7200
 
-# llama-swap groups. Without these, every model lingers in VRAM until
-# its TTL expires, so switching between two big models OOMs the GPU
-# (e.g. loading minimax-m27 ~79GB while gpt-oss ~70GB is still resident
-# on a 96GB card). The `chat` group has swap: true so only one chat
-# model is resident at a time; exclusive: false lets the reranker
-# coexist. The `aux` group is persistent: true + swap: false so the
-# reranker stays loaded across chat-model swaps (OpenWebUI's RAG path
-# hits chat + reranker on the same request).
+# llama-swap groups. Three usage modes the catalog supports:
+#
+# - mode 1 (heavy coding, solo): a model in `code-heavy` loads and the
+#   group's exclusive: true policy evicts everything in `chat`/`code`.
+#   minimax-m27-q4 and gpt-oss live here. ~185GB live each, no room
+#   for a coresident chat model.
+# - mode 2 (code + chat coexistence): minimax-m27-iq4 in `code` + a
+#   coexistence-sized chat model (qwen3.6 dense, qwen3.6-flash) in
+#   `chat`. Both groups are swap: true + exclusive: false, so each
+#   group holds one model and the two coexist. ~135GB code + ~36GB
+#   chat = ~171GB, ~18GB headroom.
+# - mode 3 (idle / vacation, chat alone): only a chat-group model is
+#   loaded. Same per-model config as mode 2 (no auto-resize for solo);
+#   add a wider-context variant later if 128K-per-chat-session pinches.
+#
+# aux is persistent: true so the reranker stays loaded across chat
+# swaps (OpenWebUI's RAG path needs chat + reranker on the same
+# request). cpu keeps the CPU-resident compaction model warm.
+# embed swaps between bge-m3 / Qwen3-embed entries.
 ai_model_groups:
+  # Conversational tier: chat, openclaw DMs, quick tasks. Only one
+  # resident at a time; coexists with code so a heavy coding model can
+  # be loaded alongside.
   chat:
     swap: true
     exclusive: false
+  # Primary heavy reasoning / coding (coexistence-sized). Designed to
+  # share VRAM with the chat group. minimax-m27-iq4 is the typical
+  # occupant.
+  code:
+    swap: true
+    exclusive: false
+  # Top-tier code / reasoning that needs most of VRAM. exclusive: true
+  # evicts the chat group on load. Use these when you want maximum
+  # quality and accept that any chat model coresident gets unloaded.
+  # minimax-m27-q4 and gpt-oss live here.
+  code-heavy:
+    swap: true
+    exclusive: true
   aux:
     swap: false
     exclusive: false
@@ -344,6 +396,14 @@ ai_model_groups:
     swap: false
     exclusive: false
     persistent: true
+  # Embedding models: only one resident at a time (swap: true) but the
+  # group coexists with chat (exclusive: false) so RAG-style flows can
+  # have an embed model + a chat model loaded concurrently. The 4B
+  # Qwen3 embed is the largest entry (~5GB at Q8); the rest are under
+  # 1GB so cold-load tax on swap is small.
+  embed:
+    swap: true
+    exclusive: false
 
 # Whisper STT (speaches, formerly faster-whisper-server)
 # https://github.com/speaches-ai/speaches
@@ -390,22 +450,34 @@ playwright_port: 3000
 # Text Embeddings Inference (TEI) from HuggingFace
 # https://github.com/huggingface/text-embeddings-inference
 # OpenAI-compatible: POST /v1/embeddings
-# Single-model server (one container per model). Cached under a named
-# volume so the model only downloads once.
+# Single-model server (one container per model). For OpenWebUI RAG we
+# want one model always resident (no swap cold-load on every query), so
+# TEI handles that and llama-swap handles the swappable embed group
+# for project experimentation.
 tei_image: ghcr.io/huggingface/text-embeddings-inference:cuda-latest
 tei_port: 11435
-# Pinned to the same model that the (now-retired) nomic-embed entry in
-# llama-swap served, so OpenWebUI and any other consumer can swap in
-# place without re-embedding. Swap for BAAI/bge-large-en-v1.5 or
-# Qwen/Qwen3-Embedding-8B if you want top-of-MTEB at higher cost.
-tei_model_id: nomic-ai/nomic-embed-text-v1.5
-# Pinned revision: the 2026-04-07 "v5 Transformers (#57)" commit on main
-# adds an `n_positions` field whose serde alias collides with the existing
-# `max_position_embeddings`, so TEI rejects the config as a duplicate
-# field. This commit is the one immediately before that change. Bump (or
-# remove the --revision flag) once upstream fixes the alias collision.
-tei_model_revision: e5cf08aadaa33385f5990def41f7a23405aec398
+# Switched from nomic-ai/nomic-embed-text-v1.5 (2024-02, English-only,
+# 768-dim, was pinned to revision e5cf08aa... to dodge a TEI serde-alias
+# bug on newer commits) to Qwen/Qwen3-Embedding-0.6B (1024-dim,
+# multilingual, top-of-MTEB at this size). The OpenWebUI corpus is
+# small enough that the one-time re-embed is cheap. tei_model_id is now
+# a container-local path; the host models directory is bind-mounted
+# read-only into the container at /models (see compose.yaml.j2).
+tei_model_id: /models/Qwen3-Embedding-0.6B
 # Inference batch sizing. Defaults are conservative; bump if you serve
 # heavy ingestion workloads (e.g. Karakeep bulk re-embed).
 tei_max_concurrent_requests: 512
 tei_max_batch_tokens: 16384
+
+# Second TEI container for jinaai/jina-embeddings-v3. This one is kept
+# resident (no llama-swap equivalent) because jina-v3's task-specific
+# LoRA adapters and custom_st.py pooling don't have a clean GGUF, so
+# llama.cpp can't serve it. Disk weights live at
+# {{ config_base }}/models/jina-embeddings-v3 (mounted into the
+# container at /models read-only). Costs ~1.1GB resident VRAM; the
+# tradeoff for keeping jina-v3 available alongside the swap-group
+# Qwen3 / bge-m3 embedders.
+tei_jina_port: 11436
+tei_jina_model_path: /models/jina-embeddings-v3
+tei_jina_max_concurrent_requests: 256
+tei_jina_max_batch_tokens: 8192

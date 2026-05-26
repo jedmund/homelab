@@ -16,6 +16,7 @@ ddclient_atelier_subdomains:
   - bl.atelier.house
   - box.atelier.house
   - chat.atelier.house
+  - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
   - files.atelier.house
@@ -38,7 +39,7 @@ ddclient_atelier_subdomains:
   - n8n.atelier.house
   - netdata.atelier.house
   - notes.atelier.house
-  - obsidian-sync.atelier.house
+  - obsidian.sync.atelier.house
   - ov.atelier.house
   - photos.atelier.house
   - pi.atelier.house
@@ -47,6 +48,7 @@ ddclient_atelier_subdomains:
   - rom.atelier.house
   - rss.atelier.house
   - scrobble.atelier.house
+  - search.atelier.house
   - sl.atelier.house
   - so.atelier.house
   - sorter.atelier.house
@@ -116,9 +118,6 @@ line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
 # line_admin_emails (comma-separated admin email list) - defined in vault
 line_admin_emails: "{{ vault_line_admin_emails }}"
-line_forgejo_key: atelier
-line_forgejo_base_url: "https://git.{{ traefik_domain }}"
-line_forgejo_label: "Atelier"
 
 # AdGuard settings
 adguard_port_http: 80
@@ -132,4 +131,5 @@ adguard_dns_bind_ip: "{{ ansible_host }}"
 # Sourced from inventory so the IPs are only ever defined in one place.
 mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
+mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
 dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"
