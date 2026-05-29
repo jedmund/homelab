@@ -14,6 +14,16 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
     - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/hist"
 
+# feederhub's distroless image runs as uid 65532; the data dir
+# needs to belong to that uid so the SQLite DB can be opened.
+- name: Create feederhub data directory
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/feederhub"
+    state: directory
+    owner: "{{ feederhub_data_uid }}"
+    group: "{{ feederhub_data_gid }}"
+    mode: '0750'
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
@@ -31,6 +41,7 @@
   loop:
     - n8n
     - n8n-db
+    - feederhub
   no_log: true
   notify: Restart {{ stack_name }} stack
 
