@@ -101,6 +101,26 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  # feederhub — see roles/utilities/defaults/main.yml for the
+  # `network_mode: host` rationale.  No traefik labels: routing is
+  # handled by the file provider in
+  # roles/infra_gateway/templates/traefik/dynamic/services-mini.yml.j2
+  # (search for `feederhub` there).
+  feederhub:
+    container_name: feederhub
+    image: "{{ feederhub_image }}:{{ feederhub_image_tag }}"
+    restart: {{ restart_policy }}
+    network_mode: host
+    env_file:
+      - ./env/feederhub.env
+    volumes:
+      - ./config/feederhub:/data
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   n8n-data:
     external: true
