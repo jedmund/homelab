@@ -163,6 +163,8 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
+    ports:
+      - "{{ paseo_relay_port }}:{{ paseo_relay_port }}"
     environment:
       - LOG_FORMAT=json
     labels:
