@@ -62,6 +62,7 @@ firewall_ports_development:
   - { port: 2222, proto: tcp, comment: "GitLab SSH" }
   - { port: 5678, proto: tcp, comment: "n8n" }
   - { port: 8080, proto: tcp, comment: "Open WebUI" }
+  - { port: 8411, proto: tcp, comment: "Paseo relay" }
 
 # Productivity
 firewall_ports_productivity:
