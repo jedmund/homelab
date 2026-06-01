@@ -147,6 +147,12 @@ paseo_relay_port: 8411
 vane_image: itzcrazykns1337/vane:latest
 vane_domain: vane.atelier.house
 vane_port: 3000
+# Point Vane at max's SearXNG (same instance Odysseus and OpenWebUI use)
+# instead of the bundled one in the Vane image. The bundled one will
+# still start (we can't disable it without patching the upstream
+# entrypoint) but Vane reads SEARXNG_API_URL and goes to max, so the
+# bundled instance is dead weight rather than a working dependency.
+vane_searxng_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}"
 
 # Odysseus (https://github.com/pewdiepie-archdaemon/odysseus)
 # Self-hosted ChatGPT-style workspace with chat, agents, deep research,

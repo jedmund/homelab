@@ -191,6 +191,10 @@ services:
       - proxy
     volumes:
       - vane-data:/home/vane/data
+    environment:
+      # Override the bundled SearXNG (localhost:8080 inside the Vane
+      # container) and route Vane's search to max's shared instance.
+      - SEARXNG_API_URL={{ vane_searxng_url }}
     labels:
       traefik.enable: "true"
       traefik.http.routers.vane.rule: "Host(`{{ vane_domain }}`)"
