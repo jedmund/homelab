@@ -1,0 +1,13 @@
+---
+# Validate the rendered compose file parses cleanly. Every model
+# service has `profiles:` set so the default project has no services
+# to bring up; `docker compose config` is the right shape of check
+# here (it parses the file and resolves vars/profiles without
+# starting anything). To actually apply a flag change to a running
+# model:
+#   docker compose -p {{ stack_name }} --profile <model> up -d --force-recreate
+- name: Validate {{ stack_name }} compose file
+  ansible.builtin.command:
+    cmd: docker compose -p {{ stack_name }} config --quiet
+    chdir: "{{ config_base }}"
+  changed_when: false

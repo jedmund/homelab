@@ -1,0 +1,85 @@
+---
+# Stack identity
+stack_name: vllm
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# vLLM is the working DeepSeek V4 Flash slot on max. SGLang's
+# matching image (lavd/sglang-d4f-b12x:5-24) trips a huggingface_hub
+# strict dataclass validator on the NVFP4 quant's `kv_lora_rank: null`
+# config field, which the dsv4 attention backend doesn't actually
+# need but the loader still enforces. lavd's vLLM build doesn't go
+# through that code path because it loads the FP8 base from HF Hub
+# directly, so this is the path that has actually run for days at a
+# time on this box.
+vllm_image: lavd/vllm:jasl-dsv4-5-21-13.2
+
+# /dev/shm sizing for the vLLM container. Multi-GPU TP and the dsv4
+# fused MoE both push intermediate state through tmpfs; 32 GB matches
+# the docker run command that we know works.
+vllm_default_shm_size: "32gb"
+
+# Reuse the existing on-host caches so the ~235 GB HF Hub download is
+# not repeated. Layered exactly the way the working docker run set up:
+#   ~/.cache/deepseek      -> /root/.cache         (vllm + flashinfer
+#                                                   build artifacts)
+#   ~/.cache/huggingface   -> /root/.cache/huggingface (model weights)
+# The second mount nests inside the first; docker handles the overlay.
+vllm_cache_root: "/home/{{ ansible_user }}/.cache/deepseek"
+vllm_hf_cache_dir: "/home/{{ ansible_user }}/.cache/huggingface"
+
+# Manual lifecycle: each model is a compose service gated behind a
+# profile, so `docker compose up` (and the ansible deploy) creates
+# nothing by default. Bring a model up:
+#   docker compose --profile deepseek-v4-flash up -d
+# Stop it to hand VRAM back to llama-swap:
+#   docker compose --profile deepseek-v4-flash down
+
+# Env applied to every vLLM container.
+vllm_common_env: {}
+
+vllm_models:
+  # DeepSeek V4 Flash via vLLM. This is the configuration the user ran
+  # by hand for several days; encoded here verbatim so the compose
+  # output matches the known-good docker run command.
+  #
+  # The model name (first positional arg) is an HF Hub identifier;
+  # vLLM downloads weights on first run into the mounted HF cache.
+  # Weights are already present at the cache path, so the container
+  # only re-validates the snapshot rather than re-downloading.
+  - name: deepseek-v4-flash
+    host_port: 11437
+    container_port: 8000
+    shm_size: "32gb"
+    cuda_visible_devices: "0,1"
+    extra_env:
+      HOME: /root
+      HF_HOME: /root/.cache/huggingface
+      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
+      TORCH_CUDA_ARCH_LIST: "12.0"
+      # Profiler estimator over-counts cuda graph memory on the dsv4
+      # build and trips the gpu-memory-utilization guard; disable it
+      # to match the working docker run.
+      VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
+    args:
+      - deepseek-ai/DeepSeek-V4-Flash
+      - --language-model-only
+      - --served-model-name=DeepSeek-V4-Flash
+      - --tokenizer-mode=deepseek_v4
+      - --tool-call-parser=deepseek_v4
+      - --enable-auto-tool-choice
+      - --reasoning-parser=deepseek_v4
+      - --reasoning-config
+      - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
+      - --tensor-parallel-size=2
+      - --kv-cache-dtype=fp8_ds_mla
+      - --gpu-memory-utilization=0.96
+      - --max-num-batched-tokens=8192
+      - --enable-prefix-caching
+      - --max-num-seqs=2
+      - --speculative-config
+      - '{"method":"mtp","num_speculative_tokens":3}'
+      - --default-chat-template-kwargs
+      - '{"thinking": true, "reasoning_effort": "high"}'
+      - --no-enable-flashinfer-autotune
+      - --host=0.0.0.0
+      - --port=8000

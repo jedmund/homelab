@@ -15,16 +15,19 @@
     - "{{ config_base }}/config/searxng"
     - "{{ config_base }}/models"
 
-# In shared mode llama-swap claims GPUs 0,1,2; any running SGLang
-# containers (pinned to 0,1 via the sglang role) would contend for the
-# Max-Q pair. Take them down before bringing the ai stack up. Safe to
-# run even when no sglang stack exists.
-- name: Tear down SGLang stack when ai_gpu_mode is shared
+# In shared mode llama-swap claims GPUs 0,1,2; any running vLLM (or
+# SGLang) containers pinned to 0,1 would contend for the Max-Q pair.
+# Take both down before bringing the ai stack up. Safe to run even
+# when neither stack exists (failed_when: false).
+- name: Tear down split-mode inference stacks when ai_gpu_mode is shared
   ansible.builtin.command:
-    cmd: docker compose -p sglang down --remove-orphans
-  register: _sglang_down
-  changed_when: "'Removing' in _sglang_down.stderr or 'Stopping' in _sglang_down.stderr"
+    cmd: "docker compose -p {{ item }} down --remove-orphans"
+  register: _split_down
+  changed_when: "'Removing' in _split_down.stderr or 'Stopping' in _split_down.stderr"
   failed_when: false
+  loop:
+    - vllm
+    - sglang
   when: ai_gpu_mode == 'shared'
 
 - name: Deploy compose file
