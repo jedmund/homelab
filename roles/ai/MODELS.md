@@ -5,44 +5,62 @@ served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
 list in `roles/ai/defaults/main.yml` references each file by name; keep this
 document and that list in sync when adding or removing a model.
 
-Hardware budget: 2x NVIDIA RTX Pro 6000 Blackwell, 192 GB VRAM total (one
-600 W workstation card + one 300 W Max-Q). llama.cpp splits layers across
-both GPUs via its default auto-balance; the Max-Q is slightly slower per
-layer but close on memory bandwidth, so layer-split without an explicit
-`--tensor-split` is the working configuration until profiling says
-otherwise. Sizes below are rough on-disk numbers for the quant chosen; live
-VRAM is usually a bit higher once KV cache is allocated.
+Hardware budget after the 2026-06-01 rebuild: 3x NVIDIA RTX Pro 6000
+Blackwell, 288 GB VRAM total. Two are Max-Q Workstation Edition (300 W,
+indices 0 and 1); one is full Workstation Edition (600 W, index 2). All
+three are bandwidth-comparable enough that llama.cpp's default layer-split
+works in shared mode without an explicit `--tensor-split`; if profiling
+shows the 600 W card under-utilised, tune via `--tensor-split 1,1,1.1`.
+Sizes below are rough on-disk numbers for the quant chosen; live VRAM is
+usually a bit higher once KV cache is allocated.
 
-## Modes
+## GPU allocation modes
 
-The catalog is organised around three usage modes, expressed via the
-`chat`, `code`, and `code-heavy` llama-swap groups in `defaults/main.yml`:
+llama-swap and SGLang share the same three cards via a deploy-time toggle.
+The `ai_gpu_mode` variable in `roles/ai/defaults/main.yml` controls the
+split:
 
-| Mode | Active | Group occupancy | VRAM |
+| Mode | llama-swap GPUs | SGLang GPUs | When to pick |
 |---|---|---|---|
-| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true, evicts chat + code) | ~185 GB / ~125 GB live |
-| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` (both swap: true, exclusive: false) | ~135 GB code + ~36-54 GB chat |
-| 3: idle / chat alone | any chat model | `chat` only | ~36-75 GB live |
+| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent DeepSeek + llama-swap. Smaller llama-swap catalogue (no minimax-q4 / gpt-oss / minimax-iq4). |
+| `shared` | indices 0,1,2 (288 GB) | none (SGLang torn down) | Heavy llama-swap workloads needing the big models; DeepSeek is off. |
 
-Mode 2 is the day-to-day default: an opencode session against minimax-iq4
-plus an openclaw DM via qwen3.6 (dense Q6 MTP). Mode 1 is for hard
-problems where you want the highest-quality minimax / gpt-oss and accept
-that openclaw chat will cold-load when needed. Mode 3 is vacation / weekend
-mode where there's no active coding workload.
+Switch via `make deploy-ai-split` or `make deploy-ai-shared`. Switching
+restarts the llama-swap container (drops resident models; next request
+pays the cold-load tax) and, in shared mode, runs `docker compose -p
+sglang down` so the Max-Q pair isn't contended. SGLang model load on
+V4 Flash is several minutes either way, so treat the toggle as a
+deliberate mode change, not a hot swap.
 
-Two chat models are sized for coexistence with the code group:
+## llama-swap usage modes (within a given GPU mode)
+
+The catalog is organised around three usage modes via the `chat`, `code`,
+and `code-heavy` llama-swap groups. In `ai_gpu_mode: shared` all three
+modes are available; in `split` mode only the chat group is loadable
+(the `code` and `code-heavy` entries are filtered out of the rendered
+`llama-swap.yaml` via their `requires_mode: shared` flag).
+
+| Usage mode | Active | Group occupancy | VRAM live | Available in |
+|---|---|---|---|---|
+| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true) | ~185 GB / ~125 GB | shared |
+| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` | ~135 GB + ~36-54 GB | shared |
+| 3: chat alone | any chat model | `chat` only | ~36-75 GB | split + shared |
+
+In split mode, only mode 3 is reachable (single 96 GB card). The two
+chat models sized for coexistence with the code group still apply in
+shared mode:
 
 - `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
   Default openclaw model.
 - `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
-  Openclaw's vision route lands here automatically, so it has to fit
-  alongside the code group.
+  Openclaw's vision route lands here automatically.
 
 The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
 `gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
-larger contexts because they're picked manually; loading one while
-minimax-iq4 is resident may OOM. Unload the code slot first if you need
-one of these.
+larger contexts because they're picked manually; in shared mode loading
+one while minimax-iq4 is resident may OOM (unload the code slot first).
+In split mode the chat group has the WS card to itself, so all of them
+fit individually.
 
 ## Installed models
 
@@ -324,7 +342,7 @@ embedding is on TEI (see Embeddings section below).
   evict it whenever a chat model swaps in. CPU placement sidesteps both,
   and the `cpu` group keeps the llama-server process warm so compaction
   skips the model-load tax on top of slow CPU prompt processing.
-- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 5900X with
+- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 9955WX with
   `--threads 12 --threads-batch 12`. Expect ~200 tok/s prompt processing on
   long inputs, so a 100k-token compaction lands in the 5-8 minute range.
 - **Notes**: Not for interactive chat: its `name`/`alias` is intentionally

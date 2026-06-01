@@ -15,6 +15,18 @@
     - "{{ config_base }}/config/searxng"
     - "{{ config_base }}/models"
 
+# In shared mode llama-swap claims GPUs 0,1,2; any running SGLang
+# containers (pinned to 0,1 via the sglang role) would contend for the
+# Max-Q pair. Take them down before bringing the ai stack up. Safe to
+# run even when no sglang stack exists.
+- name: Tear down SGLang stack when ai_gpu_mode is shared
+  ansible.builtin.command:
+    cmd: docker compose -p sglang down --remove-orphans
+  register: _sglang_down
+  changed_when: "'Removing' in _sglang_down.stderr or 'Stopping' in _sglang_down.stderr"
+  failed_when: false
+  when: ai_gpu_mode == 'shared'
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2

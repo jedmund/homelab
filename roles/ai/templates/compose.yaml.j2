@@ -16,7 +16,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
@@ -45,7 +45,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/health"]
@@ -95,7 +95,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]
@@ -133,7 +133,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]

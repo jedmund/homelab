@@ -121,9 +121,21 @@ deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
 
-deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
+deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max; uses default ai_gpu_mode
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
+
+deploy-ai-split: ## Deploy AI stack in split mode (llama-swap on GPU 2, SGLang reserves 0,1)
+	@echo "$(BLUE)Deploying AI stack in split mode (llama-swap on GPU 2)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG) -e ai_gpu_mode=split
+
+deploy-ai-shared: ## Deploy AI stack in shared mode (llama-swap on all 3 GPUs, SGLang torn down)
+	@echo "$(BLUE)Deploying AI stack in shared mode (llama-swap on all 3 GPUs)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG) -e ai_gpu_mode=shared
+
+deploy-sglang: ## Deploy SGLang stack on max (compose rendered; bring models up via --profile)
+	@echo "$(BLUE)Deploying SGLang stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sglang.yml $(VAULT_FLAG)
 
 deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"

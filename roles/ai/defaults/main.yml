@@ -3,6 +3,30 @@
 stack_name: ai
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# GPU allocation mode (max has 3x Pro 6000 Blackwell after the 2026-06-01
+# rebuild: indices 0,1 are Max-Q 300W, index 2 is the full 600W WS).
+#
+#   split  - llama-swap pinned to GPU 2; the Max-Q pair (0,1) reserved for
+#            SGLang/DeepSeek. Concurrent operation. Single-card 96 GB budget
+#            for llama-swap, so code-heavy models are not loadable in this
+#            mode (see requires_mode flag on individual ai_models entries).
+#   shared - llama-swap pinned to all 3 cards (288 GB). SGLang is brought
+#            down at deploy time to avoid GPU contention. Use when you need
+#            minimax-m27-q4 / gpt-oss / minimax-m27-iq4 and don't need
+#            DeepSeek running at the same time.
+#
+# Override per environment via -e ai_gpu_mode=shared on ansible-playbook
+# (or the make deploy-ai-shared / deploy-ai-split shortcuts).
+ai_gpu_mode: split
+
+# Concrete device_ids passed through the nvidia docker runtime per mode.
+# These map to nvidia-smi indices (see inventory/hosts.yml). Sourced via
+# ai_gpu_devices[ai_gpu_mode] inside templates so the compose file picks
+# the right pinning automatically.
+ai_gpu_devices:
+  split: ["2"]
+  shared: ["0", "1", "2"]
+
 # llama-swap settings
 # https://github.com/mostlygeek/llama-swap
 llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
@@ -207,6 +231,8 @@ ai_models:
   - name: gpt-oss
     file: UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf
     group: code-heavy
+    # Needs all 3 cards; ~125 GB live overflows the WS-only 96 GB budget.
+    requires_mode: shared
     args: >-
       -ngl 999 -c 131072 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -242,6 +268,8 @@ ai_models:
     # Unsloth ships this quant as a 4-shard split GGUF.
     file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
     group: code
+    # ~135 GB live; needs all 3 cards.
+    requires_mode: shared
     args: >-
       -ngl 999 -c 196608 --parallel 3 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -256,6 +284,8 @@ ai_models:
     # Unsloth ships this quant as a 4-shard split GGUF.
     file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
     group: code-heavy
+    # ~185 GB live; needs all 3 cards.
+    requires_mode: shared
     args: >-
       -ngl 999 -c 262144 --parallel 4 --flash-attn on
       --cache-type-k q8_0 --cache-type-v q8_0
@@ -322,7 +352,7 @@ ai_models:
   # compaction / summarization. -ngl 0 keeps it off the GPU because the
   # larger chat models fill most of available VRAM; the `cpu` group below
   # is persistent: true so the llama-server process stays warm and
-  # compaction calls skip the cold-load tax. 5900X handles a 4B Q4_K_M in
+  # compaction calls skip the cold-load tax. The 9955WX handles a 4B Q4_K_M in
   # RAM (~2.5GB resident) with no impact on GPU workloads.
   - name: qwen3-small
     file: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
