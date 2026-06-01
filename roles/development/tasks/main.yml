@@ -110,8 +110,8 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
     # Odysseus has no published image; build it from the cloned source
-    # on first deploy. `missing` skips the rebuild when the image
-    # already exists locally; bump odysseus_repo_version (or rm the
-    # image) to force a rebuild.
-    build: missing
+    # on first deploy. `policy` uses docker compose's own build policy
+    # (build on first `up` when the local image is missing). Bump
+    # odysseus_repo_version (or remove the image) to force a rebuild.
+    build: policy
   register: compose_result
