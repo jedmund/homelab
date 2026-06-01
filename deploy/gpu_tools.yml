@@ -1,0 +1,8 @@
+---
+- name: Install GPU host utility scripts
+  hosts: ai
+  become: true
+  gather_facts: false
+
+  roles:
+    - gpu_tools

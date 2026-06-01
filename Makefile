@@ -121,9 +121,25 @@ deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
 
-deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
+deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max; uses default ai_gpu_mode
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
+
+deploy-ai-split: ## Deploy AI stack in split mode and bring SGLang DeepSeek V4 Flash up on GPUs 0,1
+	@echo "$(BLUE)Deploying AI stack in split mode + starting SGLang...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
+
+deploy-ai-shared: ## Deploy AI stack in shared mode (llama-swap on all 3 GPUs, split stacks torn down)
+	@echo "$(BLUE)Deploying AI stack in shared mode (llama-swap on all 3 GPUs)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG) -e ai_gpu_mode=shared
+
+deploy-vllm: ## Deploy vLLM stack on max (compose rendered; bring DeepSeek up via --profile)
+	@echo "$(BLUE)Deploying vLLM stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/vllm.yml $(VAULT_FLAG)
+
+deploy-sglang: ## Deploy SGLang stack on max (parked: DSV4 NVFP4 fails strict-config load; see roles/sglang/README.md)
+	@echo "$(BLUE)Deploying SGLang stack (parked, see role README)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sglang.yml $(VAULT_FLAG)
 
 deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"

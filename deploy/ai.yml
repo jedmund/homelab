@@ -4,4 +4,5 @@
   become: yes
 
   roles:
+    - gpu_tools
     - ai

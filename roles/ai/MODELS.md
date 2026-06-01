@@ -5,48 +5,66 @@ served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
 list in `roles/ai/defaults/main.yml` references each file by name; keep this
 document and that list in sync when adding or removing a model.
 
-Hardware budget: 2x NVIDIA RTX Pro 6000 Blackwell, 192 GB VRAM total (one
-600 W workstation card + one 300 W Max-Q). llama.cpp splits layers across
-both GPUs via its default auto-balance; the Max-Q is slightly slower per
-layer but close on memory bandwidth, so layer-split without an explicit
-`--tensor-split` is the working configuration until profiling says
-otherwise. Sizes below are rough on-disk numbers for the quant chosen; live
-VRAM is usually a bit higher once KV cache is allocated.
+Hardware budget after the 2026-06-01 rebuild: 3x NVIDIA RTX Pro 6000
+Blackwell, 288 GB VRAM total. Two are Max-Q Workstation Edition (300 W,
+indices 0 and 1); one is full Workstation Edition (600 W, index 2). All
+three are bandwidth-comparable enough that llama.cpp's default layer-split
+works in shared mode without an explicit `--tensor-split`; if profiling
+shows the 600 W card under-utilised, tune via `--tensor-split 1,1,1.1`.
+Sizes below are rough on-disk numbers for the quant chosen; live VRAM is
+usually a bit higher once KV cache is allocated.
 
-## Modes
+## GPU allocation modes
 
-The catalog is organised around three usage modes, expressed via the
-`chat`, `code`, and `code-heavy` llama-swap groups in `defaults/main.yml`:
+llama-swap and SGLang share the same three cards via a deploy-time toggle.
+The `ai_gpu_mode` variable in `roles/ai/defaults/main.yml` controls the
+split:
 
-| Mode | Active | Group occupancy | VRAM |
+| Mode | llama-swap GPUs | SGLang GPUs | When to pick |
 |---|---|---|---|
-| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true, evicts chat + code) | ~185 GB / ~125 GB live |
-| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` (both swap: true, exclusive: false) | ~135 GB code + ~36-54 GB chat |
-| 3: idle / chat alone | any chat model | `chat` only | ~36-75 GB live |
+| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent DeepSeek + llama-swap. Smaller llama-swap catalogue (no minimax-q4 / gpt-oss / minimax-iq4). |
+| `shared` | indices 0,1,2 (288 GB) | none (SGLang torn down) | Heavy llama-swap workloads needing the big models; DeepSeek is off. |
 
-Mode 2 is the day-to-day default: an opencode session against minimax-iq4
-plus an openclaw DM via qwen3.6 (dense Q6 MTP). Mode 1 is for hard
-problems where you want the highest-quality minimax / gpt-oss and accept
-that openclaw chat will cold-load when needed. Mode 3 is vacation / weekend
-mode where there's no active coding workload.
+Switch via `make deploy-ai-split` or `make deploy-ai-shared`. Switching
+restarts the llama-swap container (drops resident models; next request
+pays the cold-load tax) and, in shared mode, runs `docker compose -p
+sglang down` so the Max-Q pair isn't contended. SGLang model load on
+V4 Flash is several minutes either way, so treat the toggle as a
+deliberate mode change, not a hot swap.
 
-Two chat models are sized for coexistence with the code group:
+## llama-swap usage modes (within a given GPU mode)
+
+The catalog is organised around three usage modes via the `chat`, `code`,
+and `code-heavy` llama-swap groups. In `ai_gpu_mode: shared` all three
+modes are available; in `split` mode only the chat group is loadable
+(the `code` and `code-heavy` entries are filtered out of the rendered
+`llama-swap.yaml` via their `requires_mode: shared` flag).
+
+| Usage mode | Active | Group occupancy | VRAM live | Available in |
+|---|---|---|---|---|
+| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true) | ~185 GB / ~125 GB | shared |
+| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` | ~135 GB + ~36-54 GB | shared |
+| 3: chat alone | any chat model | `chat` only | ~36-75 GB | split + shared |
+
+In split mode, only mode 3 is reachable (single 96 GB card). The two
+chat models sized for coexistence with the code group still apply in
+shared mode:
 
 - `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
   Default openclaw model.
 - `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
-  Openclaw's vision route lands here automatically, so it has to fit
-  alongside the code group.
+  Openclaw's vision route lands here automatically.
 
 The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
 `gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
-larger contexts because they're picked manually; loading one while
-minimax-iq4 is resident may OOM. Unload the code slot first if you need
-one of these.
+larger contexts because they're picked manually; in shared mode loading
+one while minimax-iq4 is resident may OOM (unload the code slot first).
+In split mode the chat group has the WS card to itself, so all of them
+fit individually.
 
 ## Installed models
 
-### qwen3.6-flash — daily driver, fastest
+### qwen3.6-flash: daily driver, fastest
 
 - **Files**:
   - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf` (top-level)
@@ -72,7 +90,7 @@ one of these.
   variant instead. `--mmproj` wires up vision; without it text-only
   inference still works but image inputs are dropped.
 
-### qwen3.6-flash-uncensored — abliterated variant of the MoE flash model
+### qwen3.6-flash-uncensored: abliterated variant of the MoE flash model
 
 - **Files**:
   - Weights: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
@@ -99,7 +117,7 @@ one of these.
   weights and mmproj must be present before llama-server boots, or it
   fails to start.
 
-### qwen3.6 — daily driver, quality
+### qwen3.6: daily driver, quality
 
 - **Files**:
   - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (top-level; unsloth puts the
@@ -129,7 +147,7 @@ one of these.
   vision; image inputs require the mmproj file to be present alongside
   the weights.
 
-### gemma4 — different lineage from Qwen
+### gemma4: different lineage from Qwen
 
 - **Files**:
   - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf` (top-level)
@@ -150,7 +168,7 @@ one of these.
   Gemma 4's image input format follows the standard llama-server
   vision protocol.
 
-### gemma4-uncensored — abliterated MoE Gemma 4
+### gemma4-uncensored: abliterated MoE Gemma 4
 
 - **Files**:
   - Weights: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
@@ -172,7 +190,7 @@ one of these.
   vision; image inputs require the mmproj file to be present alongside
   the weights before llama-server boots.
 
-### gemma-e4b-uncensored — small dense Gemma 4 (abliterated)
+### gemma-e4b-uncensored: small dense Gemma 4 (abliterated)
 
 - **Files**:
   - Weights: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
@@ -196,7 +214,7 @@ one of these.
   up vision; image inputs require the mmproj file alongside the
   weights before llama-server boots.
 
-### qwen3-coder — coding specialist
+### qwen3-coder: coding specialist
 
 - **File**: `Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf`
 - **Source**: `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` (switched from
@@ -213,7 +231,7 @@ one of these.
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
 
-### gpt-oss — different-lineage check against Qwen/Gemma
+### gpt-oss: different-lineage check against Qwen/Gemma
 
 - **File**: `UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf`
   (organised under a per-quant subdirectory; verify the actual shard
@@ -234,7 +252,7 @@ one of these.
   parallel-slot treatment as minimax-m27 so cross-lineage comparison
   benefits from prefix-cache stickiness across project conversations.
 
-### minimax-m27 — big-brain for hard problems
+### minimax-m27: big-brain for hard problems
 
 Two entries, one per usage mode (see "Modes" section below for the full
 picture). The earlier IQ3_S entry was dropped after the three-mode design
@@ -270,7 +288,7 @@ solo at top quality, so IQ3 had no remaining role.
   tool-call handling. Sampling values pinned per MiniMax's
   recommendations.
 
-### bge-reranker — RAG reranker
+### bge-reranker: RAG reranker
 
 - **File**: `bge-reranker-v2-m3-Q8_0.gguf`
 - **Source**: `gpustack/bge-reranker-v2-m3-GGUF`
@@ -279,7 +297,7 @@ solo at top quality, so IQ3 had no remaining role.
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
 
-### embedding models (swap group) — for project experimentation
+### embedding models (swap group): for project experimentation
 
 Three GGUF embedding models served via llama-swap under the `embed` group
 (`swap: true, exclusive: false`). Only one is resident at a time, but the
@@ -308,10 +326,10 @@ embedding is on TEI (see Embeddings section below).
   is decoder-style (`--pooling last`). Wrong pooling silently returns junk
   vectors with no error. The `args` in `ai_models` are already set
   correctly per model; don't crosswire them.
-- **TTL**: 300s per entry — embedding workloads tend to be bursty so the
+- **TTL**: 300s per entry: embedding workloads tend to be bursty so the
   short TTL releases VRAM quickly between sessions.
 
-### qwen3-small — CPU-resident compaction model
+### qwen3-small: CPU-resident compaction model
 
 - **File**: `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
 - **Source**: `unsloth/Qwen3-4B-Instruct-2507-GGUF`
@@ -324,7 +342,7 @@ embedding is on TEI (see Embeddings section below).
   evict it whenever a chat model swaps in. CPU placement sidesteps both,
   and the `cpu` group keeps the llama-server process warm so compaction
   skips the model-load tax on top of slow CPU prompt processing.
-- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 5900X with
+- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 9955WX with
   `--threads 12 --threads-batch 12`. Expect ~200 tok/s prompt processing on
   long inputs, so a 100k-token compaction lands in the 5-8 minute range.
 - **Notes**: Not for interactive chat: its `name`/`alias` is intentionally
@@ -337,7 +355,7 @@ embedding is on TEI (see Embeddings section below).
 
 Voice input is served by the `whisper` container (speaches), not llama-swap.
 The model lives in the `whisper-cache` named volume. Unlike TEI, speaches
-does **not** lazy-download on first transcription — without a pre-pull,
+does **not** lazy-download on first transcription: without a pre-pull,
 the first request 404s with "Model '...' is not installed locally" and
 OpenWebUI shows "Server Connection Error". The `Pre-pull whisper default
 model` task in `tasks/main.yml` handles this idempotently on every deploy
@@ -360,7 +378,7 @@ swap-loaded embedding models used in project experimentation, see the
 "embedding models (swap group)" section above; those go through llama-swap
 on `:11434`.
 
-### tei — OpenWebUI RAG embedding (always-on)
+### tei: OpenWebUI RAG embedding (always-on)
 
 - **Current model**: `Qwen/Qwen3-Embedding-0.6B` (1024-dim, multilingual,
   top-of-MTEB at this size). Read directly from local disk at
@@ -382,7 +400,7 @@ on `:11434`.
   (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
   ~7.6 GB resident.
 
-### tei-jina — jinaai/jina-embeddings-v3 (always-on)
+### tei-jina: jinaai/jina-embeddings-v3 (always-on)
 
 - **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
   task-conditioned via LoRA adapters). Read from local disk at

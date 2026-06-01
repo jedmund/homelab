@@ -1,0 +1,7 @@
+---
+- name: Deploy vLLM stack
+  hosts: ai
+  become: yes
+
+  roles:
+    - vllm

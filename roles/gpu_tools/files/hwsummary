@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Comprehensive hardware summary in nvidia-smi table style.
+
+Each section renders as a bordered table. The GPU section delegates to
+nvidia-smi directly so the formatting matches its native output.
+"""
+
+import datetime
+import json
+import re
+import shutil
+import socket
+import subprocess
+import sys
+
+
+def run(cmd, check=False):
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if check and r.returncode != 0:
+        return ""
+    return r.stdout
+
+
+def have(bin_name):
+    return shutil.which(bin_name) is not None
+
+
+def side_by_side(*blocks, gap="  "):
+    """Render multi-line strings side by side, padding each to its own width."""
+    lines = [b.splitlines() for b in blocks]
+    height = max(len(l) for l in lines)
+    widths = [max((len(s) for s in l), default=0) for l in lines]
+    out = []
+    for i in range(height):
+        cells = []
+        for j, l in enumerate(lines):
+            cells.append((l[i] if i < len(l) else "").ljust(widths[j]))
+        out.append(gap.join(cells).rstrip())
+    return "\n".join(out)
+
+
+def render_table(title, headers, rows, min_width=None):
+    if not rows:
+        rows = [["(none)"] + [""] * (len(headers) - 1)]
+    widths = [
+        max(len(str(c)) for c in [h] + [r[i] for r in rows])
+        for i, h in enumerate(headers)
+    ]
+    natural = sum(widths) + 3 * len(widths) + 1
+    target = max(natural, len(title) + 4, min_width or 0)
+    if target > natural:
+        widths[-1] += target - natural
+    line_width = sum(widths) + 3 * len(widths) + 1
+
+    def hline(ch="-"):
+        return "+" + "+".join(ch * (w + 2) for w in widths) + "+"
+
+    def row_line(cells):
+        return (
+            "| "
+            + " | ".join(str(c).ljust(w) for c, w in zip(cells, widths))
+            + " |"
+        )
+
+    lines = [
+        "+" + "-" * (line_width - 2) + "+",
+        "| " + title.ljust(line_width - 4) + " |",
+        hline("-"),
+        row_line(headers),
+        hline("="),
+    ]
+    lines.extend(row_line(r) for r in rows)
+    lines.append(hline("-"))
+    return "\n".join(lines)
+
+
+def block_width(block):
+    return max((len(l) for l in block.splitlines()), default=0)
+
+
+def pad_block(block, width):
+    lines = block.splitlines()
+    return "\n".join(l.ljust(width) for l in lines)
+
+
+def section_system(min_width=None):
+    hostname = socket.gethostname()
+    kernel = run("uname -r").strip()
+    distro = ""
+    for line in run("cat /etc/os-release").splitlines():
+        if line.startswith("PRETTY_NAME="):
+            distro = line.split("=", 1)[1].strip().strip('"')
+    uptime = run("uptime -p").strip().replace("up ", "")
+    load = run("cut -d' ' -f1-3 /proc/loadavg").strip()
+    rows = [
+        ["Hostname", hostname],
+        ["Kernel", kernel],
+        ["Distro", distro],
+        ["Uptime", uptime],
+        ["Load avg", load],
+    ]
+    return render_table("System", ["Field", "Value"], rows, min_width=min_width)
+
+
+def section_board(min_width=None):
+    def dmi(field):
+        return run(f"sudo -n dmidecode -s {field} 2>/dev/null").strip()
+
+    rows = [
+        ["Manufacturer", dmi("baseboard-manufacturer")],
+        ["Product", dmi("baseboard-product-name")],
+        ["BIOS vendor", dmi("bios-vendor")],
+        ["BIOS version", dmi("bios-version")],
+        ["BIOS date", dmi("bios-release-date")],
+    ]
+    if not any(r[1] for r in rows):
+        rows = [["(needs sudo for dmidecode)", ""]]
+    return render_table("Motherboard / BIOS", ["Field", "Value"], rows, min_width=min_width)
+
+
+def section_cpu(min_width=None):
+    info = {}
+    for line in run("lscpu").splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            info[k.strip()] = v.strip()
+    rows = [
+        ["Model", info.get("Model name", "")],
+        ["Sockets", info.get("Socket(s)", "")],
+        ["Cores/socket", info.get("Core(s) per socket", "")],
+        ["Threads/core", info.get("Thread(s) per core", "")],
+        ["CPUs total", info.get("CPU(s)", "")],
+        ["Max MHz", info.get("CPU max MHz", "")],
+        ["Min MHz", info.get("CPU min MHz", "")],
+        ["L3 cache", info.get("L3 cache", "")],
+        ["Virtualization", info.get("Virtualization", "")],
+    ]
+    return render_table("CPU", ["Field", "Value"], rows, min_width=min_width)
+
+
+def section_memory_totals(min_width=None):
+    free = run("free -h").splitlines()
+    rows = []
+    if len(free) >= 2:
+        cols = free[1].split()
+        rows.append(["Total", cols[1] if len(cols) > 1 else ""])
+        rows.append(["Used", cols[2] if len(cols) > 2 else ""])
+        rows.append(["Free", cols[3] if len(cols) > 3 else ""])
+        rows.append(["Available", cols[6] if len(cols) > 6 else ""])
+    return render_table("Memory", ["Field", "Value"], rows, min_width=min_width)
+
+
+def section_memory_dimms(min_width=None):
+    dmi = run("sudo -n dmidecode -t memory 2>/dev/null")
+    dimms = []
+    block = {}
+    for line in dmi.splitlines():
+        line = line.strip()
+        if line.startswith("Memory Device"):
+            if block.get("Size") and block.get("Size") != "No Module Installed":
+                dimms.append(block)
+            block = {}
+        elif ":" in line:
+            k, v = line.split(":", 1)
+            block[k.strip()] = v.strip()
+    if block.get("Size") and block.get("Size") != "No Module Installed":
+        dimms.append(block)
+
+    if not dimms:
+        return ""
+    rows = [
+        [
+            d.get("Bank Locator", "") or d.get("Locator", ""),
+            d.get("Size", ""),
+            d.get("Type", ""),
+            d.get("Speed", ""),
+            d.get("Configured Memory Speed", d.get("Configured Voltage", "")),
+            d.get("Manufacturer", ""),
+            d.get("Part Number", ""),
+        ]
+        for d in dimms
+    ]
+    headers = ["Slot", "Size", "Type", "Speed", "Configured", "Mfr", "Part"]
+    return render_table("Memory DIMMs", headers, rows, min_width=min_width)
+
+
+def section_disks(min_width=None):
+    out = run("lsblk -d -b -J -o NAME,SIZE,MODEL,SERIAL,ROTA,TYPE,TRAN")
+    rows = []
+    try:
+        data = json.loads(out) if out.strip() else {"blockdevices": []}
+    except json.JSONDecodeError:
+        data = {"blockdevices": []}
+    for d in data.get("blockdevices", []):
+        if d.get("type") != "disk":
+            continue
+        size = d.get("size") or 0
+        size_h = human_bytes(int(size)) if isinstance(size, (int, str)) and str(size).isdigit() else str(size)
+        rota = d.get("rota")
+        kind = "HDD" if rota in (True, "1", 1) else "SSD"
+        rows.append([
+            f"/dev/{d.get('name', '')}",
+            size_h,
+            kind,
+            (d.get("tran") or "").upper(),
+            d.get("model") or "",
+            d.get("serial") or "",
+        ])
+    return render_table(
+        "Disks", ["Device", "Size", "Kind", "Bus", "Model", "Serial"], rows, min_width=min_width
+    )
+
+
+def human_bytes(n):
+    for unit in ["B", "K", "M", "G", "T", "P"]:
+        if n < 1024:
+            return f"{n:.1f}{unit}"
+        n /= 1024
+    return f"{n:.1f}E"
+
+
+def section_network(min_width=None):
+    rows = []
+    out = run("ip -br link")
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        iface, state, mac = parts[0], parts[1], parts[2]
+        if iface == "lo" or iface.startswith(("veth", "br-", "docker")):
+            continue
+        speed = run(f"cat /sys/class/net/{iface}/speed 2>/dev/null").strip()
+        speed_h = f"{speed} Mb/s" if speed and speed != "-1" else ""
+        rows.append([iface, state, speed_h, mac])
+    return render_table(
+        "Network (physical)", ["Interface", "State", "Speed", "MAC"], rows, min_width=min_width
+    )
+
+
+def section_gpu():
+    if not have("nvidia-smi"):
+        return render_table("GPUs", ["Status"], [["nvidia-smi not found"]])
+    out = run("nvidia-smi").rstrip()
+    return out or render_table("GPUs", ["Status"], [["nvidia-smi returned nothing"]])
+
+
+def safe(fn, **kwargs):
+    try:
+        return fn(**kwargs)
+    except Exception as e:
+        print(f"[section {fn.__name__} failed: {e}]", file=sys.stderr)
+        return ""
+
+
+GAP = "  "
+
+
+def render_pair(left_fn, right_fn, target):
+    left = safe(left_fn)
+    lw = block_width(left)
+    right_min = target - lw - len(GAP)
+    right = safe(right_fn, min_width=right_min)
+    return side_by_side(left, right, gap=GAP)
+
+
+def main():
+    print(f"hwsummary  {socket.gethostname()}  {datetime.datetime.now().isoformat(timespec='seconds')}")
+    print()
+    gpu_block = safe(section_gpu)
+    target = block_width(gpu_block)
+    print(render_pair(section_system, section_board, target))
+    print()
+    print(render_pair(section_cpu, section_memory_totals, target))
+    print()
+    for fn in [section_memory_dimms, section_disks, section_network]:
+        out = safe(fn, min_width=target)
+        if out:
+            print(out)
+            print()
+    if gpu_block:
+        print(gpu_block)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,167 @@
+---
+# Stack identity
+stack_name: sglang
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# SGLang is the SM120-blessed inference engine for models llama.cpp
+# can't serve (novel attention, large MoEs that need vLLM/SGLang scale).
+# voipmonitor's image is the general-purpose default; bundles the SM120
+# patches, the b12x fused MoE kernel, and the NCCL graph file at
+# /etc/nccl_graph_opt.xml. Individual model entries can override with
+# an `image:` field when a model needs a specialised build (e.g.
+# lavd/sglang-d4f-b12x for DeepSeek V4 Flash, which needs the dsv4
+# attention backend that mainline sglang hasn't merged yet).
+sglang_image: voipmonitor/sglang:cu130
+
+# Default tmpfs size for SGLang containers. Multi-GPU tensor parallel
+# needs plenty of shared memory for NCCL; the b12x kernels also push a
+# lot of intermediate state through /dev/shm. Per-model entries can
+# override via `shm_size:`. The community DSV4 config bumps this to
+# 32gb, which is the largest we've seen called out.
+sglang_default_shm_size: "8gb"
+
+# Manual lifecycle: each model is a compose service gated behind a
+# profile, so `docker compose up` (and the ansible deploy) creates
+# nothing by default. Bring a model up:
+#   docker compose --profile deepseek-v4-flash up -d
+# Stop it to hand VRAM back to llama-swap:
+#   docker compose --profile deepseek-v4-flash down
+# This is deliberate: the heavy NVFP4 models eat most of the 192 GB
+# budget, and we want explicit control over which side (SGLang or
+# llama-swap) owns VRAM at any given moment.
+
+# Env applied to every SGLang container. Kept intentionally minimal:
+# the voipmonitor SM120 FAQ recommends a wider tuning set (NCCL_GRAPH_FILE,
+# NCCL_MIN_NCHANNELS, NCCL_ALLOC_P2P_NET_LL_BUFFERS, SAFETENSORS_FAST_GPU)
+# that breaks SGLang on the lavd b12x image (some of those vars trip the
+# pynccl init path; NCCL_GRAPH_FILE points at a file lavd does not bake
+# in). Per-model `extra_env` can opt back in where needed.
+#   - SGLANG_ENABLE_*_GEMM=0: DeepGemm crashes on SM120; both knobs must
+#     be off regardless of image.
+#   - NCCL_P2P_LEVEL=SYS: working default for the dual-Blackwell PCIe
+#     layout (no NVLink, no InfiniBand).
+#   - NCCL_IB_DISABLE=1: no IB on this box; saves a useless plugin load.
+#   - OMP_NUM_THREADS=8: matches the lavd community config.
+sglang_common_env:
+  NCCL_P2P_LEVEL: SYS
+  NCCL_IB_DISABLE: "1"
+  OMP_NUM_THREADS: "8"
+  SGLANG_ENABLE_JIT_DEEPGEMM: "0"
+  SGLANG_ENABLE_DEEP_GEMM: "0"
+
+# Model catalogue. Weights live on the host at
+# {{ config_base }}/models/{{ host_subdir }}/ and are bind-mounted into
+# the container at /models read-only. Download out of band; see
+# roles/sglang/README.md for hf-hub pull commands.
+sglang_models:
+  # DeepSeek V4 Flash: 284B / 13B-active MoE with hybrid CSA + HCA
+  # attention. llama.cpp can't serve this yet (novel attention is the
+  # whole reason we stood up SGLang). NVFP4 lands ~140 GB on disk and
+  # the model splits cleanly across both Blackwells with --tp 2.
+  #
+  # Quant pick: canada-quant's MTP-bearing variant. SGLang's NEXTN
+  # speculative decoding needs the MTP draft head baked into the
+  # checkpoint; the no-MTP variants from RedHatAI/kylesayrs would give
+  # up the single-user decode speedup that's the main reason we
+  # preferred SGLang over vLLM for this slot.
+  #
+  # KV cache bf16 (not fp8) is mandatory on SM120 for this attention
+  # class: fp8 produces garbled output or stops after one token.
+  # b12x fused MoE kernel is fastest at concurrency 1-2 (the actual
+  # workload here); flashinfer attention avoids the long-context
+  # slowdown the FAQ flags for the triton backend.
+  - name: deepseek-v4-flash
+    # Specialised image: voipmonitor's general build doesn't include
+    # the `dsv4` attention backend that V4 Flash's CSA + HCA needs.
+    # luke's b12x fork bakes it in (and the deepseekv4 tool / reasoning
+    # parsers). Tag is date-coded; bump when a new image lands with
+    # the A16 MoE kernel fix (see warning below).
+    image: lavd/sglang-d4f-b12x:5-24
+    # Switched from canada-quant to RedHatAI: canada-quant's checkpoint
+    # is missing a quant scheme entry for `self_attn.wqkv_a` (the MQA
+    # Q+K+V tensor) and packs MoE experts in BF16 instead of NVFP4,
+    # both of which lavd's sglang trips on at model load. RedHatAI is
+    # a more established quant shop and the no-MTP variant matches the
+    # commented-out speculative flags below (we can't use MTP until the
+    # A16 MoE accuracy bug is fixed upstream anyway).
+    host_subdir: DeepSeek-V4-Flash-NVFP4-FP8
+    container_port: 8000
+    host_port: 11437
+    # Match the community DSV4 compose: b12x kernels push significant
+    # intermediate state through tmpfs.
+    shm_size: "32gb"
+    # Constrain the container to the two cards on this box. Not strictly
+    # required (max has only 2 GPUs anyway) but matches the community
+    # config and removes any GPU-enumeration ambiguity NCCL might hit.
+    cuda_visible_devices: "0,1"
+    # Per-model env from luke's working compose. All of these are
+    # specific to the lavd image's DSV4 build, not generic SGLang.
+    #   CUTE_DSL_ARCH=sm_120a            Blackwell-A target for cute-dsl
+    #                                    kernels.
+    #   SGLANG_OPT_USE_TILELANG_MHC_*    disable the tile-lang MHC pre/
+    #                                    post passes that interact badly
+    #                                    with the current build.
+    #   SGLANG_OPT_FP8_WO_A_GEMM=1       weight-only FP8 A-GEMM path
+    #                                    for the non-MoE layers.
+    #   SGLANG_DEFAULT_THINKING=1        enable V4 Flash's reasoning
+    #                                    mode by default.
+    #   SGLANG_DSV4_REASONING_EFFORT     high|medium|low; high gets
+    #                                    longer thinking traces, matches
+    #                                    the upstream "Think Max" mode.
+    extra_env:
+      CUTE_DSL_ARCH: sm_120a
+      SGLANG_OPT_USE_TILELANG_MHC_PRE: "0"
+      SGLANG_OPT_USE_TILELANG_MHC_POST: "0"
+      SGLANG_OPT_FP8_WO_A_GEMM: "1"
+      SGLANG_DEFAULT_THINKING: "1"
+      SGLANG_DSV4_REASONING_EFFORT: high
+    # WARNING (as of 2026-05-24): the current b12x push has a confirmed
+    # A16 MoE kernel accuracy bug. Outputs may be subtly wrong; fix is
+    # incoming upstream. This is also why MTP / speculative decoding is
+    # disabled below: the community working config commented those out
+    # because they expose the bug more aggressively. Re-enable
+    # speculative-* flags once a newer lavd image tag lands with the
+    # fix. Until then, treat V4 Flash output as experimental and don't
+    # use for anything where accuracy matters.
+    #
+    # Flag-by-flag notes:
+    #   --tool-call-parser=deepseekv4    V4-specific tool format parser.
+    #   --reasoning-parser=deepseek-v4   V4's thinking block format.
+    #   --attention-backend=dsv4         The CSA + HCA implementation.
+    #                                    Only exists in this image.
+    #   --moe-runner-backend=b12x        b12x fused MoE expert kernel.
+    #   --fp8-gemm-backend=b12x          b12x FP8 GEMM for non-MoE.
+    #   --fp4-gemm-backend=b12x          b12x FP4 GEMM for MoE experts.
+    #   --moe-a2a-backend=none           disables all-to-all; we're TP
+    #                                    not EP so a2a isn't used.
+    #   --enable-pcie-oneshot-allreduce  PCIe-friendly allreduce path
+    #                                    (no NVLink on this box).
+    #   --mem-fraction-static=0.93       higher than the GLM-5 default
+    #                                    because the NVFP4+FP8 weights
+    #                                    plus 64-batch CUDA graphs need
+    #                                    ~190 GB live; 0.93 of 192 GB
+    #                                    leaves enough margin.
+    #   --max-running-requests=16        community config's setting; we
+    #                                    don't need higher concurrency.
+    #   --ep=1                           expert-parallel size 1 (TP
+    #                                    handles the split instead).
+    args:
+      - --model-path=/models/DeepSeek-V4-Flash-NVFP4-FP8
+      - --served-model-name=deepseek-v4-flash
+      - --tool-call-parser=deepseekv4
+      - --reasoning-parser=deepseek-v4
+      - --trust-remote-code
+      - --mem-fraction-static=0.93
+      - --attention-backend=dsv4
+      - --moe-runner-backend=b12x
+      - --fp8-gemm-backend=b12x
+      - --fp4-gemm-backend=b12x
+      - --moe-a2a-backend=none
+      - --enable-pcie-oneshot-allreduce
+      - --chunked-prefill-size=4096
+      - --tp-size=2
+      - --ep=1
+      - --max-running-requests=16
+      - --cuda-graph-max-bs=64
+      - --host=0.0.0.0
+      - --port=8000

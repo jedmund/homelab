@@ -1,9 +1,17 @@
 # {{ ansible_managed }}
+# Mode-filtered: ai_gpu_mode={{ ai_gpu_mode }}. Models with requires_mode
+# set to anything other than the current mode are excluded so that
+# llama-swap's /v1/models endpoint only advertises models that actually
+# fit on the GPUs claimed by this deploy (see roles/ai/defaults/main.yml).
+{% set ai_models_active = ai_models | selectattr('requires_mode', 'undefined') | list
+                        + ai_models | selectattr('requires_mode', 'defined')
+                                    | selectattr('requires_mode', 'equalto', ai_gpu_mode)
+                                    | list %}
 healthCheckTimeout: {{ llama_swap_health_check_timeout }}
 logLevel: {{ llama_swap_log_level }}
 
 models:
-{% for model in ai_models %}
+{% for model in ai_models_active %}
   {{ model.name }}:
     cmd: llama-server --port ${PORT} --model /models/{{ model.file }} {{ model.args | trim }}
     ttl: {{ model.ttl | default(ai_model_default_ttl) }}
@@ -25,7 +33,7 @@ groups:
     persistent: {{ 'true' if opts.persistent else 'false' }}
 {% endif %}
     members:
-{% for m in ai_models if m.group | default(none) == group_name %}
+{% for m in ai_models_active if m.group | default(none) == group_name %}
       - {{ m.name }}
 {% endfor %}
 {% endfor %}

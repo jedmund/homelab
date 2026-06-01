@@ -1,0 +1,11 @@
+---
+- name: Install GPU host utility scripts to /usr/local/bin
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - hwsummary
+    - gpu-burn
