@@ -2,5 +2,13 @@
 - name: Deploy Paseo daemon (macOS)
   hosts: mac-mini
   become: false
+  gather_facts: yes
+  # macOS SSH sessions don't source ~/.zprofile, so the Homebrew prefix
+  # (where brew, node, npm, and the paseo CLI live) isn't on PATH. Pin
+  # it explicitly for every task in the play. /opt/homebrew is Apple
+  # Silicon, /usr/local is Intel; harmless to list both.
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
   roles:
     - paseo_daemon

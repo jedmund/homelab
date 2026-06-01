@@ -7,7 +7,9 @@
   <string>{{ paseo_launchd_label }}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>{{ paseo_node_bin }}/paseo</string>
+    <string>{{ paseo_brew_prefix }}/bin/paseo</string>
+    <string>start</string>
+    <string>--foreground</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
