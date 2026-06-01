@@ -45,12 +45,12 @@ llama_swap_health_check_timeout: 300
 # llama-server backend; aliases let OpenWebUI/Ollama clients reach them
 # under familiar names.
 ai_models:
-  # Fast everyday driver — Qwen3.6 35B total / 3B active per token MoE.
+  # Fast everyday driver: Qwen3.6 35B total / 3B active per token MoE.
   # ~240 tok/s on Blackwell. Multimodal. Also the openclaw vision model:
   # image-bearing turns get routed here automatically via openclaw's
   # agents.defaults.imageModel, so it needs to load cleanly while a
   # code-tier model is resident in VRAM. Using the non-MTP variant
-  # because MTP barely moves MoE (~1.15x) — the dense models below get
+  # because MTP barely moves MoE (~1.15x); the dense models below get
   # the real MTP win, this one just keeps the simpler config and saves
   # ~1GB VRAM. Bumped to Q8_K_XL once the second Blackwell arrived:
   # MoE decode speed scales with active params (3B), not total weights,
@@ -111,7 +111,7 @@ ai_models:
   # the second Blackwell arrived: for dense models token decode reads
   # all weights, so the bigger quant costs ~20% in tok/s (~130 tok/s
   # expected) but gives a real quality bump that's worth it for the
-  # "quality" daily driver slot. Q8 would be ~half the throughput — too
+  # "quality" daily driver slot. Q8 would be ~half the throughput; too
   # steep for this dense tier.
   #
   # Sized for coexistence with minimax-m27-iq4 in the code group:
@@ -143,7 +143,7 @@ ai_models:
     aliases:
       - "qwen3.6:27b"
 
-  # Different lineage from Qwen — Google's top-of-Arena open dense
+  # Different lineage from Qwen: Google's top-of-Arena open dense
   # model. Multimodal (text+image), 256K context. Sampling per Google's
   # recommended values; no MTP variant available upstream. Bumped to
   # Q6_K_XL alongside qwen3.6 once the second Blackwell arrived (same
@@ -225,9 +225,9 @@ ai_models:
   # so loading it kicks the chat group out of VRAM. Use as the heavy
   # reasoning alternative to minimax-m27-q4 when you want a different
   # lineage's take on the same hard problem.
-  # Split GGUF; verify the shard count after download — Unsloth
-  # typically ships 120B at this quant as 2 or 3 shards, adjust the file
-  # path below if needed.
+  # Split GGUF; verify the shard count after download. Unsloth typically
+  # ships 120B at this quant as 2 or 3 shards; adjust the file path below
+  # if needed.
   - name: gpt-oss
     file: UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf
     group: code-heavy
@@ -468,7 +468,7 @@ searxng_secret_key: ""
 
 # Playwright remote-browser server for OpenWebUI's web scraper. Without
 # this, OpenWebUI falls back to the LangChain WebBaseLoader (plain
-# httpx), which most modern sites block — the symptom is "No sources
+# httpx), which most modern sites block: the symptom is "No sources
 # found" after a successful web search because every fetch returned 0
 # bytes. The Microsoft Playwright image must match the Playwright
 # version pinned in OpenWebUI's backend/requirements.txt; bump
