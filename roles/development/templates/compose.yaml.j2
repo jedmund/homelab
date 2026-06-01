@@ -228,10 +228,21 @@ services:
       # rather than on max).
       - "host.docker.internal:host-gateway"
     environment:
-      # Tinyauth fronts the route; turn off Odysseus's own local-account
-      # auth so it does not double-prompt. We would swap to OIDC if
-      # Odysseus supported it (see feedback_native_oidc_preferred).
-      - AUTH_ENABLED=false
+      # Odysseus's own login is on. Tinyauth in front is the network
+      # gate; Odysseus's session is the per-user gate. Setting
+      # AUTH_ENABLED=false isn't a true bypass: the UI still surfaces a
+      # login page when users exist, and several endpoints (email,
+      # research) 401 without a user context. Cheaper to accept the
+      # double-login until we add native OIDC (see
+      # [[project-vane-oidc-fork-followup]]).
+      - AUTH_ENABLED=true
+      # Mark the session cookie Secure. Default is false, which a
+      # browser will drop on an HTTPS page (Traefik terminates TLS
+      # in front) and the login becomes a redirect loop:
+      # POST /login -> 200 + cookie -> browser drops -> next page has
+      # no session -> /login again. Required for any deployment that
+      # isn't plain HTTP localhost.
+      - SECURE_COOKIES=true
       # Reuse max's SearXNG (the ai-stack one) instead of a per-stack copy.
       - SEARXNG_INSTANCE={{ odysseus_searxng_url }}
       - CHROMADB_HOST={{ odysseus_chromadb_host }}
