@@ -172,6 +172,10 @@ services:
       traefik.http.routers.paseo-relay.rule: "Host(`{{ paseo_relay_domain }}`)"
       traefik.http.routers.paseo-relay.entrypoints: "websecure"
       traefik.http.routers.paseo-relay.tls.certresolver: "letsencrypt"
+      # paseo-relay is WebSocket-only; HTTP/2 ALPN breaks Upgrade.
+      # Force HTTP/1.1 ALPN so Electron / iOS / browser clients
+      # fall back to HTTP/1.1 and the WS handshake succeeds.
+      traefik.http.routers.paseo-relay.tls.options: "http1only@file"
       traefik.http.services.paseo-relay.loadbalancer.server.port: "{{ paseo_relay_port }}"
     logging:
       driver: {{ logging_driver }}
