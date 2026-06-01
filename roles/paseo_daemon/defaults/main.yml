@@ -24,10 +24,12 @@ paseo_launchd_plist: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ paseo_launc
 paseo_log_dir: "{{ ansible_user_dir }}/Library/Logs"
 
 # Relay coordinates. The daemon talks to paseo-relay on nuc-mini's LAN
-# IP using plain WS (TLS is terminated by Traefik for public clients,
-# not for the daemon's own egress). publicEndpoint is what the relay
-# advertises to clients via the QR code, so it must be the externally
-# reachable Traefik hostname.
+# IP using plain WS because Traefik terminates TLS for public clients on
+# 443 and proxies plaintext to the container's 8411; the daemon hits
+# 8411 directly so it must NOT speak TLS to that port.
+# publicEndpoint is what the relay advertises to remote clients via the
+# QR code: the externally reachable Traefik hostname, which is TLS.
 paseo_relay_endpoint: "{{ hostvars['nuc-mini'].ansible_host }}:8411"
+paseo_relay_use_tls: false
 paseo_relay_public_endpoint: "paseo.relay.atelier.house:443"
-paseo_relay_use_tls: true
+paseo_relay_public_use_tls: true
