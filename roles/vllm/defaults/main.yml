@@ -35,7 +35,13 @@ vllm_hf_cache_dir: "/home/{{ ansible_user }}/.cache/huggingface"
 #   docker compose --profile deepseek-v4-flash down
 
 # Env applied to every vLLM container.
-vllm_common_env: {}
+#   CUDA_DEVICE_ORDER=PCI_BUS_ID  vLLM warns on this box because the
+#     three Pro 6000 cards are heterogeneous (2x Max-Q 300 W + 1x full
+#     WS 600 W); CUDA's default order is by performance, which can
+#     reshuffle device indices. Pinning to PCI_BUS_ID makes
+#     CUDA_VISIBLE_DEVICES=0,1 deterministically mean the Max-Q pair.
+vllm_common_env:
+  CUDA_DEVICE_ORDER: "PCI_BUS_ID"
 
 vllm_models:
   # DeepSeek V4 Flash via vLLM. This is the configuration the user ran
