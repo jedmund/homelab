@@ -64,7 +64,7 @@ fit individually.
 
 ## Installed models
 
-### qwen3.6-flash — daily driver, fastest
+### qwen3.6-flash: daily driver, fastest
 
 - **Files**:
   - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf` (top-level)
@@ -90,7 +90,7 @@ fit individually.
   variant instead. `--mmproj` wires up vision; without it text-only
   inference still works but image inputs are dropped.
 
-### qwen3.6-flash-uncensored — abliterated variant of the MoE flash model
+### qwen3.6-flash-uncensored: abliterated variant of the MoE flash model
 
 - **Files**:
   - Weights: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
@@ -117,7 +117,7 @@ fit individually.
   weights and mmproj must be present before llama-server boots, or it
   fails to start.
 
-### qwen3.6 — daily driver, quality
+### qwen3.6: daily driver, quality
 
 - **Files**:
   - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (top-level; unsloth puts the
@@ -147,7 +147,7 @@ fit individually.
   vision; image inputs require the mmproj file to be present alongside
   the weights.
 
-### gemma4 — different lineage from Qwen
+### gemma4: different lineage from Qwen
 
 - **Files**:
   - Weights: `gemma-4-31B-it-UD-Q6_K_XL.gguf` (top-level)
@@ -168,7 +168,7 @@ fit individually.
   Gemma 4's image input format follows the standard llama-server
   vision protocol.
 
-### gemma4-uncensored — abliterated MoE Gemma 4
+### gemma4-uncensored: abliterated MoE Gemma 4
 
 - **Files**:
   - Weights: `Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced-Q8_K_P.gguf`
@@ -190,7 +190,7 @@ fit individually.
   vision; image inputs require the mmproj file to be present alongside
   the weights before llama-server boots.
 
-### gemma-e4b-uncensored — small dense Gemma 4 (abliterated)
+### gemma-e4b-uncensored: small dense Gemma 4 (abliterated)
 
 - **Files**:
   - Weights: `Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
@@ -214,7 +214,7 @@ fit individually.
   up vision; image inputs require the mmproj file alongside the
   weights before llama-server boots.
 
-### qwen3-coder — coding specialist
+### qwen3-coder: coding specialist
 
 - **File**: `Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf`
 - **Source**: `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` (switched from
@@ -231,7 +231,7 @@ fit individually.
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
 
-### gpt-oss — different-lineage check against Qwen/Gemma
+### gpt-oss: different-lineage check against Qwen/Gemma
 
 - **File**: `UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf`
   (organised under a per-quant subdirectory; verify the actual shard
@@ -252,7 +252,7 @@ fit individually.
   parallel-slot treatment as minimax-m27 so cross-lineage comparison
   benefits from prefix-cache stickiness across project conversations.
 
-### minimax-m27 — big-brain for hard problems
+### minimax-m27: big-brain for hard problems
 
 Two entries, one per usage mode (see "Modes" section below for the full
 picture). The earlier IQ3_S entry was dropped after the three-mode design
@@ -288,7 +288,7 @@ solo at top quality, so IQ3 had no remaining role.
   tool-call handling. Sampling values pinned per MiniMax's
   recommendations.
 
-### bge-reranker — RAG reranker
+### bge-reranker: RAG reranker
 
 - **File**: `bge-reranker-v2-m3-Q8_0.gguf`
 - **Source**: `gpustack/bge-reranker-v2-m3-GGUF`
@@ -297,7 +297,7 @@ solo at top quality, so IQ3 had no remaining role.
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
 
-### embedding models (swap group) — for project experimentation
+### embedding models (swap group): for project experimentation
 
 Three GGUF embedding models served via llama-swap under the `embed` group
 (`swap: true, exclusive: false`). Only one is resident at a time, but the
@@ -326,10 +326,10 @@ embedding is on TEI (see Embeddings section below).
   is decoder-style (`--pooling last`). Wrong pooling silently returns junk
   vectors with no error. The `args` in `ai_models` are already set
   correctly per model; don't crosswire them.
-- **TTL**: 300s per entry — embedding workloads tend to be bursty so the
+- **TTL**: 300s per entry: embedding workloads tend to be bursty so the
   short TTL releases VRAM quickly between sessions.
 
-### qwen3-small — CPU-resident compaction model
+### qwen3-small: CPU-resident compaction model
 
 - **File**: `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
 - **Source**: `unsloth/Qwen3-4B-Instruct-2507-GGUF`
@@ -355,7 +355,7 @@ embedding is on TEI (see Embeddings section below).
 
 Voice input is served by the `whisper` container (speaches), not llama-swap.
 The model lives in the `whisper-cache` named volume. Unlike TEI, speaches
-does **not** lazy-download on first transcription — without a pre-pull,
+does **not** lazy-download on first transcription: without a pre-pull,
 the first request 404s with "Model '...' is not installed locally" and
 OpenWebUI shows "Server Connection Error". The `Pre-pull whisper default
 model` task in `tasks/main.yml` handles this idempotently on every deploy
@@ -378,7 +378,7 @@ swap-loaded embedding models used in project experimentation, see the
 "embedding models (swap group)" section above; those go through llama-swap
 on `:11434`.
 
-### tei — OpenWebUI RAG embedding (always-on)
+### tei: OpenWebUI RAG embedding (always-on)
 
 - **Current model**: `Qwen/Qwen3-Embedding-0.6B` (1024-dim, multilingual,
   top-of-MTEB at this size). Read directly from local disk at
@@ -400,7 +400,7 @@ on `:11434`.
   (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
   ~7.6 GB resident.
 
-### tei-jina — jinaai/jina-embeddings-v3 (always-on)
+### tei-jina: jinaai/jina-embeddings-v3 (always-on)
 
 - **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
   task-conditioned via LoRA adapters). Read from local disk at
