@@ -95,6 +95,10 @@ services:
       tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.searxng.config.domain: "search.{{ traefik_domain }}"
       tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
+      tinyauth.apps.vane.config.domain: "vane.{{ traefik_domain }}"
+      tinyauth.apps.vane.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.odysseus.config.domain: "odysseus.{{ traefik_domain }}"
+      tinyauth.apps.odysseus.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:

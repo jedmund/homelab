@@ -17,6 +17,24 @@
     - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner"
     - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner/config"
     - "{{ docker_base_path }}/{{ stack_name }}/renovate"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus/data"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus/data/ssh"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus/data/huggingface"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus/data/local"
+    - "{{ docker_base_path }}/{{ stack_name }}/odysseus/logs"
+
+# Odysseus has no published image; clone the repo so docker compose
+# can build it in-place. `force: false` means we don't overwrite local
+# tweaks: bump odysseus_repo_version and run again to update.
+- name: Clone Odysseus source for in-place build
+  ansible.builtin.git:
+    repo: "{{ odysseus_repo_url }}"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/odysseus-src"
+    version: "{{ odysseus_repo_version }}"
+    force: false
+    update: true
+  notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
   template:
@@ -91,4 +109,9 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    # Odysseus has no published image; build it from the cloned source
+    # on first deploy. `missing` skips the rebuild when the image
+    # already exists locally; bump odysseus_repo_version (or rm the
+    # image) to force a rebuild.
+    build: missing
   register: compose_result
