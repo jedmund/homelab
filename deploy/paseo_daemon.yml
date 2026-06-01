@@ -1,0 +1,6 @@
+---
+- name: Deploy Paseo daemon (macOS)
+  hosts: mac-mini
+  become: false
+  roles:
+    - paseo_daemon
