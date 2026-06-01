@@ -76,6 +76,7 @@
   tags: [matrix]
 
 # AI stack (targets the `ai` group — currently `max` only)
+# Includes gpu_tools role (hwsummary, gpu-burn helpers in /usr/local/bin)
 - import_playbook: ai.yml
   tags: [ai]
 
