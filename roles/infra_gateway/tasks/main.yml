@@ -111,6 +111,42 @@
     mode: '0600'
   notify: Restart {{ stack_name }} stack
 
+# ddclient with protocol=cloudflare can update existing A records but
+# cannot create them. Adding a new entry to ddclient_atelier_subdomains
+# is silently ignored on Cloudflare until somebody clicks through the
+# dashboard to stub the record. This task bootstraps any missing record
+# with the current WAN IP so ddclient can take over maintenance on the
+# next tick. solo: true keeps it idempotent; ddclient will overwrite
+# the value on its own schedule if the IP changes.
+- name: Detect current WAN IP for Cloudflare bootstrap
+  ansible.builtin.uri:
+    url: https://api.ipify.org?format=json
+    return_content: true
+  register: _wan_ip_lookup
+  delegate_to: localhost
+  become: false
+  run_once: true
+  changed_when: false
+
+- name: Bootstrap missing Cloudflare A records for atelier subdomains
+  # ddclient's vault holds the Global API Key + email pair (the cloudflare
+  # protocol's legacy auth), so we use the same here. api_token (Bearer)
+  # would be cleaner but would require provisioning a new credential.
+  community.general.cloudflare_dns:
+    account_api_key: "{{ ddclient_cloudflare_api_token }}"
+    account_email: "{{ ddclient_cloudflare_email }}"
+    zone: "{{ ddclient_atelier_zone }}"
+    record: "{{ item if item == ddclient_atelier_zone else item | regex_replace('\\.' ~ ddclient_atelier_zone ~ '$', '') }}"
+    type: A
+    value: "{{ _wan_ip_lookup.json.ip }}"
+    proxied: false
+    solo: true
+    state: present
+  loop: "{{ ddclient_atelier_subdomains }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
 - name: Pull latest line source
   ansible.builtin.git:
     repo: "{{ line_repo }}"

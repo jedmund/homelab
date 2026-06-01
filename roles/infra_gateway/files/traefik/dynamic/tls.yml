@@ -10,6 +10,15 @@ tls:
         - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
         - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
         - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    # WebSocket-only services: clients negotiate HTTP/2 via ALPN by
+    # default, but HTTP/2 doesn't support the Upgrade: websocket
+    # handshake (RFC 6455 is HTTP/1.1 only; RFC 8441 Extended CONNECT
+    # is still rare in clients). Constrain ALPN to http/1.1 for these
+    # routers so clients fall back to HTTP/1.1 and the upgrade succeeds.
+    http1only:
+      minVersion: VersionTLS12
+      alpnProtocols:
+        - http/1.1
 
 http:
   serversTransports:
