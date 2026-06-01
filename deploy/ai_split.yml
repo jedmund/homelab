@@ -1,0 +1,27 @@
+---
+# Split-mode AI workflow: llama-swap on GPU 2 plus SGLang holding GPUs 0,1.
+# Invoke with `-e ai_gpu_mode=split` (see Makefile deploy-ai-split).
+#
+# Order matters:
+#   1. ai.yml deploys llama-swap with the split-mode GPU device list.
+#   2. sglang.yml renders the SGLang compose at /opt/docker/sglang.
+#   3. The trailing play starts the configured SGLang model profile.
+- import_playbook: ai.yml
+- import_playbook: sglang.yml
+
+- name: Start configured SGLang model profile
+  hosts: ai
+  become: true
+  gather_facts: false
+  vars:
+    sglang_split_profile: "{{ ai_split_sglang_profile | default('deepseek-v4-flash') }}"
+  tasks:
+    - name: Start SGLang {{ sglang_split_profile }} profile
+      ansible.builtin.command:
+        cmd: "docker compose --profile {{ sglang_split_profile }} up -d"
+        chdir: "/opt/docker/sglang"
+      register: _sglang_up
+      changed_when: >-
+        'Started' in (_sglang_up.stderr | default(''))
+        or 'Creating' in (_sglang_up.stderr | default(''))
+        or 'Created' in (_sglang_up.stderr | default(''))
