@@ -1,0 +1,6 @@
+---
+# Petlibro stack — see roles/petlibro/defaults/main.yml for the full list of
+# tunable variables. This file is for overrides specific to this deployment.
+#
+# (None yet; defaults are appropriate. Add domain/Traefik labels here if you
+# want to expose the go2rtc WebUI externally.)

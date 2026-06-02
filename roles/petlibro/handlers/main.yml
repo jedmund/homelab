@@ -1,0 +1,15 @@
+---
+- name: Restart {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    remove_orphans: true
+    recreate: always
+
+- name: Rebuild and restart {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    remove_orphans: true
+    recreate: always
+    build: always

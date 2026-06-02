@@ -1,0 +1,57 @@
+---
+# Stack identity
+stack_name: petlibro
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# ---------------------------------------------------------------------------
+# catbro-server (mock Petlibro cloud + embedded go2rtc) — github bobobo1618
+#
+# The repo gets cloned into <config_base>/src on the NUC and a multi-stage
+# Dockerfile builds it into a single binary container image. Pin to a git ref
+# so deployments are reproducible; bump it deliberately.
+# ---------------------------------------------------------------------------
+catbro_repo_url: "https://github.com/bobobo1618/catbro-server.git"
+# Upstream's default branch (vibe-coded, no tagged releases as of writing).
+# Pin to a specific commit SHA when something works so future deploys don't drift.
+catbro_repo_ref: "master"
+catbro_image_tag: "local/catbro-server:latest"
+
+# ---------------------------------------------------------------------------
+# Mosquitto MQTT broker (anonymous, local-only)
+# Feeders connect here after the DNS rewrite. HA on NUC8 also connects here.
+# ---------------------------------------------------------------------------
+mosquitto_image: eclipse-mosquitto:2
+
+# Host port mappings (LAN-exposed; no auth — protect via firewall + VLAN scope)
+petlibro_mqtt_host_port: 1883
+petlibro_go2rtc_api_host_port: 1984     # WebUI/HTTP API
+petlibro_go2rtc_rtsp_host_port: 8554    # RTSP for HA camera entities
+petlibro_go2rtc_webrtc_host_port: 8555  # WebRTC (TCP)
+
+# ---------------------------------------------------------------------------
+# catbro-server runtime config
+# ---------------------------------------------------------------------------
+# Topic prefix that feeders use. Don't change unless Petlibro firmware does.
+petlibro_topic_prefix: "dl/PLAF203"
+# Bridge mode = act as the Petlibro cloud
+petlibro_mode: "bridge"
+# HA MQTT autodiscovery prefix (must match HA's "discovery_prefix")
+petlibro_ha_discovery_prefix: "homeassistant"
+# IANA timezone — controls the offset catbro reports to feeders for scheduling
+petlibro_timezone: "America/Los_Angeles"
+
+# Subnets where feeders live (for TUTK UID discovery via go2rtc petlibro://)
+petlibro_subnets:
+  - "192.168.20.0/24"
+
+# Per-feeder configuration. Each entry produces:
+#   - one creds.toml block (binds device_sn -> tutk_uid)
+#   - one go2rtc stream named "petlibro_<friendly_name>" -> petlibro://<uid>
+#   - one Home Assistant camera entity (auto-discovered via MQTT)
+petlibro_feeders:
+  - device_sn: "AF03013D11C574RN1"
+    tutk_uid: "JNGT5PBUAF61NKVS111A"
+    friendly_name: "left_feeder"
+  - device_sn: "AF0301374F9901C5B"
+    tutk_uid: "HFEY837GWWHWC27U111A"
+    friendly_name: "right_feeder"
