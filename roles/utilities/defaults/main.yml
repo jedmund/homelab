@@ -75,7 +75,7 @@ max_server_ip: "{{ hostvars['max'].ansible_host }}"
 # Fork adds PocketID OIDC and full multi-user data scoping; see umbrella
 # PR jedmund/Vane#5.
 vane_repo_url: https://github.com/jedmund/Vane.git
-vane_repo_version: master
+vane_repo_version: ai/admin-providers-epic
 vane_domain: vane.atelier.house
 vane_port: 3000
 # Reuse max's SearXNG so the bundled instance in Vane's image becomes
@@ -102,3 +102,5 @@ vane_session_secret: "{{ vault_vane_session_secret | default('') }}"
 # server-side expiry on every authenticated request and the cookie is
 # re-emitted with a fresh Max-Age so the browser tracks server state.
 vane_session_ttl_seconds: "604800"
+# Public-facing origin used by the app for canonical URLs / redirects.
+vane_app_origin: "https://{{ vane_domain }}"

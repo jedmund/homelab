@@ -159,6 +159,7 @@ services:
       # Min 16 chars enforced by the app; the fork errors at boot if shorter.
       - SESSION_SECRET={{ vane_session_secret }}
       - SESSION_TTL_SECONDS={{ vane_session_ttl_seconds }}
+      - APP_ORIGIN={{ vane_app_origin }}
     labels:
       # Native OIDC handles auth; no tinyauth middleware on this route.
       traefik.enable: "true"
