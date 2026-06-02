@@ -121,6 +121,57 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  vane:
+    container_name: vane
+    build:
+      context: ./vane-src
+      args:
+        # Next.js bakes CSP at build time; passing OIDC_ISSUER_URL as a
+        # build-arg ensures the IdP host lands in connect-src / form-action.
+        # If the Vane Dockerfile does not yet declare ARG OIDC_ISSUER_URL,
+        # this is harmless (build-arg is ignored) but the server logs
+        # "OIDC_ISSUER_URL not set; CSP connect-src/form-action will not
+        # include an IdP origin" on startup. OIDC still works because the
+        # PocketID round-trip is 302 redirects, not browser fetches.
+        OIDC_ISSUER_URL: "{{ vane_oidc_issuer_url }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - vane-data:/home/vane/data
+    environment:
+      # Vane's entrypoint runs `node server.js` (Next.js standalone)
+      # rather than `next start`, which means NODE_ENV is unset by
+      # default. Our session cookie's Secure attribute is gated on
+      # NODE_ENV=production; without it the cookie ships without
+      # Secure and some browsers reject it on HTTPS pages.
+      - NODE_ENV=production
+      # Reuse max's SearXNG instead of the bundled one in Vane's image.
+      - SEARXNG_API_URL={{ vane_searxng_url }}
+      # OIDC against PocketID; redirect URI must match what is registered
+      # in PocketID admin.
+      - OIDC_ISSUER_URL={{ vane_oidc_issuer_url }}
+      - OIDC_CLIENT_ID={{ vane_oidc_client_id }}
+      - OIDC_CLIENT_SECRET={{ vane_oidc_client_secret }}
+      - OIDC_SCOPES={{ vane_oidc_scopes }}
+      - OIDC_REDIRECT_URI={{ vane_oidc_redirect_uri }}
+      # Signs the state cookie HMAC and seeds session-token randomness.
+      # Min 16 chars enforced by the app; the fork errors at boot if shorter.
+      - SESSION_SECRET={{ vane_session_secret }}
+      - SESSION_TTL_SECONDS={{ vane_session_ttl_seconds }}
+    labels:
+      # Native OIDC handles auth; no tinyauth middleware on this route.
+      traefik.enable: "true"
+      traefik.http.routers.vane.rule: "Host(`{{ vane_domain }}`)"
+      traefik.http.routers.vane.entrypoints: "websecure"
+      traefik.http.routers.vane.tls.certresolver: "letsencrypt"
+      traefik.http.services.vane.loadbalancer.server.port: "{{ vane_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   n8n-data:
     external: true
@@ -138,6 +189,7 @@ volumes:
     external: true
   games:
     external: true
+  vane-data:
 
 networks:
   proxy:

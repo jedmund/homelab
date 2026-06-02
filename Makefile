@@ -117,6 +117,10 @@ deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
+deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty, feederhub, Vane)
+	@echo "$(BLUE)Deploying utilities stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/utilities.yml $(VAULT_FLAG)
+
 deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)

@@ -61,3 +61,44 @@ feederhub_host_port: 18080
 # by that uid for the SQLite DB to land.
 feederhub_data_uid: 65532
 feederhub_data_gid: 65532
+
+# Server IPs (sourced from inventory so the value lives in one place).
+# Vane needs max's address for SearXNG.
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+
+# Vane (https://github.com/ItzCrazyKns/Vane, jedmund/Vane fork with OIDC)
+# Self-hosted Perplexity-style AI answering engine. Lives in the utilities
+# stack because it is a search/research tool, not a developer tool.
+#
+# Built in place from the jedmund/Vane fork: ansible clones the repo to
+# /opt/docker/utilities/vane-src and docker compose builds the image.
+# Fork adds PocketID OIDC and full multi-user data scoping; see umbrella
+# PR jedmund/Vane#5.
+vane_repo_url: https://github.com/jedmund/Vane.git
+vane_repo_version: master
+vane_domain: vane.atelier.house
+vane_port: 3000
+# Reuse max's SearXNG so the bundled instance in Vane's image becomes
+# dead weight. Same instance Odysseus and OpenWebUI use.
+vane_searxng_url: "http://{{ max_server_ip }}:{{ vane_searxng_port }}"
+vane_searxng_port: 8889
+
+# OIDC env (PocketID). client_id, client_secret, and session_secret come
+# from vault; empty defaults let templating succeed before the vault is
+# populated, but the OIDC flow will fail loud with 503 oidc_unavailable
+# until they are set.
+#
+# Required vault entries (add via `make edit-vault`):
+#   vault_vane_oidc_client_id
+#   vault_vane_oidc_client_secret
+#   vault_vane_session_secret  (32+ chars; signs the state cookie HMAC)
+vane_oidc_issuer_url: "https://id.atelier.house"
+vane_oidc_scopes: "openid email profile"
+vane_oidc_redirect_uri: "https://{{ vane_domain }}/api/auth/callback"
+vane_oidc_client_id: "{{ vault_vane_oidc_client_id | default('') }}"
+vane_oidc_client_secret: "{{ vault_vane_oidc_client_secret | default('') }}"
+vane_session_secret: "{{ vault_vane_session_secret | default('') }}"
+# Default 7-day session TTL. Tunable per deploy; proxy.ts slides the
+# server-side expiry on every authenticated request and the cookie is
+# re-emitted with a fresh Max-Age so the browser tracks server state.
+vane_session_ttl_seconds: "604800"
