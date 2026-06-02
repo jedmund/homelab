@@ -136,3 +136,60 @@ open_webui_rag_embedding_model: Qwen3-Embedding-0.6B
 paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.5.0
 paseo_relay_domain: paseo.relay.atelier.house
 paseo_relay_port: 8411
+
+# Vane (https://github.com/ItzCrazyKns/Vane)
+# Self-hosted Perplexity-style AI answering engine: chats against the
+# llama-swap / vLLM endpoints on max with SearXNG-backed web search.
+# Upstream has no auth (their roadmap calls it out as todo), so we sit
+# it behind tinyauth via the Traefik middleware. See
+# [[project-vane-oidc-fork-followup]] for the plan to add native OIDC
+# in a fork once the rafaelfiguereod-stack login PR lands.
+vane_image: itzcrazykns1337/vane:latest
+vane_domain: vane.atelier.house
+vane_port: 3000
+# Point Vane at max's SearXNG (same instance Odysseus and OpenWebUI use)
+# instead of the bundled one in the Vane image. The bundled one will
+# still start (we can't disable it without patching the upstream
+# entrypoint) but Vane reads SEARXNG_API_URL and goes to max, so the
+# bundled instance is dead weight rather than a working dependency.
+vane_searxng_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}"
+
+# Odysseus (https://github.com/pewdiepie-archdaemon/odysseus)
+# Self-hosted ChatGPT-style workspace with chat, agents, deep research,
+# email triage, calendar sync, document editing. Upstream has its own
+# local-account auth; we disable it (AUTH_ENABLED=false) and let
+# tinyauth be the only gate. Image is built in-place because upstream
+# does not publish one; the repo is cloned to
+# {{ config_base }}/odysseus-src and docker compose builds from there.
+odysseus_repo_url: https://github.com/pewdiepie-archdaemon/odysseus.git
+odysseus_repo_version: main
+odysseus_domain: odysseus.atelier.house
+odysseus_port: 7000
+# Reuse max's SearXNG instance (also used by OpenWebUI and the ai stack)
+# instead of running a per-stack SearXNG. ChromaDB and ntfy are
+# bundled below because each Odysseus install wants its own.
+odysseus_searxng_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}"
+
+# ChromaDB bundled with Odysseus. Vector store for Odysseus's memory /
+# RAG features. Kept on the internal `backend` network so it is only
+# reachable from Odysseus, never exposed to Traefik.
+odysseus_chromadb_image: chromadb/chroma:latest
+odysseus_chromadb_host: odysseus-chromadb
+odysseus_chromadb_port: 8000
+
+# ntfy bundled with Odysseus. Push-notification backend the upstream
+# compose ships with; left unexposed (localhost-only on the host)
+# matching the upstream default. Odysseus reaches it by container
+# name when configured in its UI; flip to a Traefik route later if
+# you want phone push.
+odysseus_ntfy_image: binwiederhier/ntfy
+odysseus_ntfy_base_url: "http://localhost:8091"
+
+# Odysseus's entrypoint drops to PUID:PGID before running uvicorn and
+# chowns its bind-mounted data dirs to match. Override these only if
+# the host user that should own ./odysseus/data isn't uid 1000.
+# (Note: the stack-wide `puid`/`pgid` in group_vars/compute_servers
+# are the LinuxServer.io media-service uid/gid, which is the wrong
+# answer here.)
+odysseus_puid: 1000
+odysseus_pgid: 1000

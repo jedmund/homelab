@@ -183,9 +183,127 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  vane:
+    container_name: vane
+    image: {{ vane_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - vane-data:/home/vane/data
+    environment:
+      # Override the bundled SearXNG (localhost:8080 inside the Vane
+      # container) and route Vane's search to max's shared instance.
+      - SEARXNG_API_URL={{ vane_searxng_url }}
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.vane.rule: "Host(`{{ vane_domain }}`)"
+      traefik.http.routers.vane.entrypoints: "websecure"
+      traefik.http.routers.vane.tls.certresolver: "letsencrypt"
+      traefik.http.routers.vane.middlewares: "tinyauth@file"
+      traefik.http.services.vane.loadbalancer.server.port: "{{ vane_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  odysseus:
+    container_name: odysseus
+    build:
+      context: ./odysseus-src
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - ./odysseus/data:/app/data
+      - ./odysseus/logs:/app/logs
+      - ./odysseus/data/ssh:/app/.ssh
+      - ./odysseus/data/huggingface:/app/.cache/huggingface
+      - ./odysseus/data/local:/app/.local
+    extra_hosts:
+      # Lets the container reach local services on the docker host
+      # (useful if you ever run a model server on nuc-mini itself
+      # rather than on max).
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Odysseus's own login is on. Tinyauth in front is the network
+      # gate; Odysseus's session is the per-user gate. Setting
+      # AUTH_ENABLED=false isn't a true bypass: the UI still surfaces a
+      # login page when users exist, and several endpoints (email,
+      # research) 401 without a user context. Cheaper to accept the
+      # double-login until we add native OIDC (see
+      # [[project-vane-oidc-fork-followup]]).
+      - AUTH_ENABLED=true
+      # Mark the session cookie Secure. Default is false, which a
+      # browser will drop on an HTTPS page (Traefik terminates TLS
+      # in front) and the login becomes a redirect loop:
+      # POST /login -> 200 + cookie -> browser drops -> next page has
+      # no session -> /login again. Required for any deployment that
+      # isn't plain HTTP localhost.
+      - SECURE_COOKIES=true
+      # Reuse max's SearXNG (the ai-stack one) instead of a per-stack copy.
+      - SEARXNG_INSTANCE={{ odysseus_searxng_url }}
+      - CHROMADB_HOST={{ odysseus_chromadb_host }}
+      - CHROMADB_PORT={{ odysseus_chromadb_port }}
+      - PUID={{ odysseus_puid }}
+      - PGID={{ odysseus_pgid }}
+    depends_on:
+      odysseus-chromadb:
+        condition: service_started
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.odysseus.rule: "Host(`{{ odysseus_domain }}`)"
+      traefik.http.routers.odysseus.entrypoints: "websecure"
+      traefik.http.routers.odysseus.tls.certresolver: "letsencrypt"
+      traefik.http.routers.odysseus.middlewares: "tinyauth@file"
+      traefik.http.services.odysseus.loadbalancer.server.port: "{{ odysseus_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  odysseus-chromadb:
+    container_name: odysseus-chromadb
+    image: {{ odysseus_chromadb_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - odysseus-chromadb-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=FALSE
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  odysseus-ntfy:
+    container_name: odysseus-ntfy
+    image: {{ odysseus_ntfy_image }}
+    restart: {{ restart_policy }}
+    command: serve
+    networks:
+      - backend
+    volumes:
+      - odysseus-ntfy-cache:/var/cache/ntfy
+    environment:
+      - NTFY_BASE_URL={{ odysseus_ntfy_base_url }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   open-webui-data:
     external: true
+  vane-data:
+  odysseus-chromadb-data:
+  odysseus-ntfy-cache:
 
 networks:
   proxy:
