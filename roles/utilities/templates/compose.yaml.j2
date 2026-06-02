@@ -140,6 +140,12 @@ services:
     volumes:
       - vane-data:/home/vane/data
     environment:
+      # Vane's entrypoint runs `node server.js` (Next.js standalone)
+      # rather than `next start`, which means NODE_ENV is unset by
+      # default. Our session cookie's Secure attribute is gated on
+      # NODE_ENV=production; without it the cookie ships without
+      # Secure and some browsers reject it on HTTPS pages.
+      - NODE_ENV=production
       # Reuse max's SearXNG instead of the bundled one in Vane's image.
       - SEARXNG_API_URL={{ vane_searxng_url }}
       # OIDC against PocketID; redirect URI must match what is registered
