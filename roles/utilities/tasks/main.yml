@@ -85,5 +85,5 @@
     # the in-place Vane build. Remove the image (or bump
     # vane_repo_version then `docker compose build --no-cache vane`)
     # to force a rebuild on subsequent deploys.
-    build: policy
+    build: always
   register: compose_result
