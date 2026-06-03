@@ -76,11 +76,12 @@
 
 - name: Build Vane image when source changes
   when: vane_git.changed
-  community.docker.docker_compose_v2:
-    project_src: "{{ docker_base_path }}/{{ stack_name }}"
-    build: always
-    services:
-      - vane
+  args:
+    chdir: "{{ docker_base_path }}/{{ stack_name }}"
+  register: vane_build
+  changed_when: true
+  ansible.builtin.command:
+    cmd: docker compose build --progress plain vane
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
