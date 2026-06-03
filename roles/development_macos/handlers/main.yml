@@ -1,0 +1,5 @@
+---
+- name: Restart gitlab-runner
+  ansible.builtin.command: gitlab-runner restart
+  become: false
+  changed_when: true

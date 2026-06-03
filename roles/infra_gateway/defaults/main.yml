@@ -15,13 +15,14 @@ ddclient_atelier_subdomains:
   - auth.atelier.house
   - bl.atelier.house
   - box.atelier.house
+  - cat.atelier.house
   - chat.atelier.house
+  - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
-  - glance.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - idea.atelier.house
@@ -35,11 +36,13 @@ ddclient_atelier_subdomains:
   - matrix-auth.atelier.house
   - matrix-rtc.atelier.house
   - mc.atelier.house
+  - models.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
   - notes.atelier.house
-  - obsidian-sync.atelier.house
+  - obsidian.sync.atelier.house
   - ov.atelier.house
+  - paseo.relay.atelier.house
   - photos.atelier.house
   - pi.atelier.house
   - ra.atelier.house
@@ -47,9 +50,10 @@ ddclient_atelier_subdomains:
   - rom.atelier.house
   - rss.atelier.house
   - scrobble.atelier.house
+  - search.atelier.house
   - sl.atelier.house
   - so.atelier.house
-  - sorter.atelier.house
+  - music.sort.atelier.house
   - speed.atelier.house
   - strudel.atelier.house
   - track.atelier.house
@@ -93,13 +97,17 @@ tinyauth_pocketid_user_info_url: "{{ pocketid_app_url }}/api/oidc/userinfo"
 tinyauth_pocketid_redirect_url: "{{ tinyauth_app_url }}/api/oauth/callback/pocketid"
 tinyauth_pocketid_scopes: "openid email profile groups"
 # TinyAuth access control
-tinyauth_allowed_user: "justin@jedmund.com"
+# tinyauth_allowed_user (single primary admin email) - defined in vault
+tinyauth_allowed_user: "{{ vault_tinyauth_allowed_user }}"
+# Shared atelier allowlist (comma-separated for tinyauth.apps.*.users.allow
+# labels). Only referenced by apps that explicitly opt in, e.g. the
+# llama-swap web UI for a partner/collaborator. All other apps continue to
+# reference tinyauth_allowed_user directly and remain single-user.
+# tinyauth_atelier_users (comma-separated email list) - defined in vault
+tinyauth_atelier_users: "{{ vault_tinyauth_atelier_users }}"
 
 # OpenSpeedTest settings
 openspeedtest_port: 3000
-
-# Glance settings
-glance_port: 8080
 
 # Line settings
 line_port: 5180
@@ -110,17 +118,20 @@ line_backup_dir: /data/backups
 line_app_url: "https://{{ traefik_domain }}"
 line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
-line_admin_emails: "justin@jedmund.com"
-line_forgejo_key: atelier
-line_forgejo_base_url: "https://git.{{ traefik_domain }}"
-line_forgejo_label: "Atelier"
+# line_admin_emails (comma-separated admin email list) - defined in vault
+line_admin_emails: "{{ vault_line_admin_emails }}"
 
 # AdGuard settings
 adguard_port_http: 80
 adguard_port_setup: 3000
 adguard_port_dns_tcp: 53
 adguard_port_dns_udp: 53
+# Bind DNS to the host LAN IP so it coexists with libvirt's dnsmasq on 192.168.122.1
+adguard_dns_bind_ip: "{{ ansible_host }}"
 
-# Server IPs for Traefik dynamic configs
-mini_server_ip: 192.168.1.6
-max_server_ip: 192.168.1.245
+# Server IPs for Traefik dynamic configs.
+# Sourced from inventory so the IPs are only ever defined in one place.
+mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
+dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"

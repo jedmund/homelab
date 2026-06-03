@@ -1,0 +1,95 @@
+---
+# dokploy: bootstrap Dokploy inside the VM, then own the bits the
+# install script leaves manual: image swap to the fork, Traefik
+# DNS-01 (Cloudflare) static config, and the dokploy-traefik
+# container's CF_DNS_API_TOKEN env. Idempotent: re-runs skip the
+# install step and re-apply the rest.
+
+- name: Check whether Dokploy is already installed
+  stat:
+    path: "{{ dokploy_config_dir }}"
+  register: dokploy_present
+
+- name: Fetch Dokploy install script
+  get_url:
+    url: "{{ dokploy_install_url }}"
+    dest: "{{ dokploy_install_script_path }}"
+    mode: '0700'
+    owner: root
+    group: root
+  when: not dokploy_present.stat.exists
+
+- name: Run Dokploy install script
+  command: bash {{ dokploy_install_script_path }}
+  environment:
+    DOKPLOY_VERSION: "{{ dokploy_version }}"
+  when: not dokploy_present.stat.exists
+  # Installs Docker if missing, initializes Swarm with the VM's private
+  # IP as advertise-addr, creates the dokploy-network overlay, deploys
+  # dokploy-postgres, dokploy-redis, dokploy, and dokploy-traefik. The
+  # script is deliberately not idempotent so we gate it on dokploy_present.
+
+- name: Swap dokploy service image and apply env vars
+  command: >
+    docker service update
+    --image {{ dokploy_image }}
+    --env-add DOKPLOY_ENABLE_SELF_HOSTED_SSO={{ dokploy_enable_sso | string | lower }}
+    --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }}
+    --force
+    dokploy
+  changed_when: true
+  # `--force` is the standard way to redeploy a service even when the
+  # image tag is unchanged (e.g. when canary moves to a new sha). The
+  # update is rolling; Swarm handles the transition. --env-add is
+  # idempotent: re-applying the same env vars is a no-op.
+
+- name: Template Traefik static config (DNS-01 via Cloudflare)
+  template:
+    src: traefik.yml.j2
+    dest: "{{ dokploy_traefik_config_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: dokploy_traefik_config
+
+- name: Reconcile dokploy-traefik container with Cloudflare token in env
+  community.docker.docker_container:
+    name: "{{ dokploy_traefik_container }}"
+    image: "{{ dokploy_traefik_image }}"
+    state: started
+    restart_policy: always
+    recreate: "{{ dokploy_traefik_config.changed }}"
+    env:
+      CF_DNS_API_TOKEN: "{{ dokploy_cloudflare_token }}"
+    volumes:
+      - "{{ dokploy_traefik_config_path }}:/etc/traefik/traefik.yml"
+      - "{{ dokploy_config_dir }}/traefik/dynamic:/etc/dokploy/traefik/dynamic"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    published_ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    networks:
+      - name: dokploy-network
+    comparisons:
+      env: strict
+      networks: allow_more_present
+  no_log: true
+
+- name: Print bootstrap URL
+  debug:
+    msg: |
+      Dokploy is up. Finish setup in the browser:
+        http://{{ ansible_host }}:3000
+
+      Post-deploy tasks:
+        1. Create the initial admin user.
+        2. Configure PocketID OIDC under Settings.
+        3. In Web Server, set Server Domain (e.g. deploy.atelier.house)
+           and pick Let's Encrypt as the certificate provider. The
+           Traefik resolver is already configured for Cloudflare
+           DNS-01, so the cert issues without exposing HTTP-01 to
+           the internet.
+        4. Add Cloudflare A records:
+             deploy.atelier.house  -> {{ ansible_host }}
+             *.apps.atelier.house  -> {{ ansible_host }}

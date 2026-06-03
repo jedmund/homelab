@@ -1,0 +1,35 @@
+---
+# Paseo daemon (native macOS install on mac-mini). The daemon is what the
+# Paseo mobile/desktop client talks to; it brokers Claude Code / agent
+# sessions over the LAN directly and over the public internet via the
+# self-hosted paseo-relay (development stack on nuc-mini). Repos and dev
+# tooling live on mac-mini so coding from a coffee shop just resumes the
+# same shell the home Mac would see.
+
+stack_name: paseo_daemon
+
+# Node runtime. Reuse the same brew formula openclaw pins so a single
+# node@24 install services both daemons.
+paseo_node_formula: node@24
+
+# State directory (PASEO_HOME). Holds pairing tokens, agent state, etc.
+# Persisted across daemon restarts so paired devices stay paired.
+paseo_home: "{{ ansible_user_dir }}/.paseo"
+
+# LaunchAgent label + plist destination. User-mode agent (not system)
+# because the daemon needs the login keychain, the user's PATH, and
+# whatever dev tooling lives under ~ on this Mac.
+paseo_launchd_label: house.atelier.paseo
+paseo_launchd_plist: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ paseo_launchd_label }}.plist"
+paseo_log_dir: "{{ ansible_user_dir }}/Library/Logs"
+
+# Relay coordinates. The daemon talks to paseo-relay on nuc-mini's LAN
+# IP using plain WS because Traefik terminates TLS for public clients on
+# 443 and proxies plaintext to the container's 8411; the daemon hits
+# 8411 directly so it must NOT speak TLS to that port.
+# publicEndpoint is what the relay advertises to remote clients via the
+# QR code: the externally reachable Traefik hostname, which is TLS.
+paseo_relay_endpoint: "{{ hostvars['nuc-mini'].ansible_host }}:8411"
+paseo_relay_use_tls: false
+paseo_relay_public_endpoint: "paseo.relay.atelier.house:443"
+paseo_relay_public_use_tls: true

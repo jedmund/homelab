@@ -28,13 +28,38 @@ borg_compression: zstd,3
 # Source paths to back up (read-only mounted into container at same path)
 borg_source_paths:
   - /opt/docker
+  # Dokploy VM qcow2 dumps produced nightly by /usr/local/sbin/dokploy-vm-backup
+  # (dokploy_host role). The VM is shut down before each dump so the
+  # image is application-consistent on first boot from a restore.
+  - /var/backup/dokploy
+
+# Named docker volumes that aren't under /opt/docker (i.e. stacks using
+# internal compose volumes rather than bind mounts). Mounted read-only
+# into the borgmatic container at `path` and added to source_directories
+# so their contents are captured. SQLite files inside these volumes also
+# need an entry in dump-sqlite.sh.j2 for a consistent snapshot.
+#
+# Volume names follow docker compose's project_volume convention; check
+# `docker volume ls` on the host if in doubt.
+borg_named_volumes:
+  - volume: media-consumption_karakeep-data
+    path: /karakeep-data
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
 # backup itself: avoid recursive snapshot of the borgmatic config dir
+# gitlab: live DB/cache files are unsafe to copy mid-write; the dump
+#   produced by the gitlab-backup cron (development role) under
+#   data/backups is the consistent restore artifact for those subsystems.
+#   The rest of /opt/docker/development/gitlab (config, git-data, uploads,
+#   registry blobs) is safe to copy live and stays in the archive.
 borg_exclude_patterns:
   - /opt/docker/musicbrainz
   - /opt/docker/backup
+  - /opt/docker/development/gitlab/data/postgresql
+  - /opt/docker/development/gitlab/data/redis
+  - /opt/docker/development/gitlab/data/prometheus
+  - /opt/docker/development/gitlab/logs
 
 # Integrity checks
 borg_check_repository_frequency: 1 week
@@ -59,7 +84,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, forgejo, blinko, draftboard, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, draftboard, miniflux, romm
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -72,9 +97,10 @@ borg_networks:
 #   mas_db_password
 #   n8n_db_password
 #   miniflux_db_password
-#   forgejo_db_password
 #   blinko_db_password
 #   draftboard_db_password
+#   dawarich_db_password
+#   ideon_db_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   couchdb_user, couchdb_password
@@ -98,12 +124,14 @@ n8n_db_name: n8n
 n8n_db_user: n8n
 miniflux_db_name: miniflux
 miniflux_db_user: miniflux
-forgejo_db_name: forgejo
-forgejo_db_user: forgejo
 blinko_db_name: blinko
 blinko_db_user: blinko
 draftboard_db_name: draftboard
 draftboard_db_user: draftboard
+dawarich_db_name: dawarich_production
+dawarich_db_username: dawarich
+ideon_db_name: ideon
+ideon_db_user: ideon
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
 # period at https://healthchecks.io and put its ping URL in the vault.

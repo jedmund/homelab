@@ -1,0 +1,92 @@
+---
+# Paseo daemon (native macOS install on mac-mini).
+# After this role lands the daemon is running but unpaired. To pair a
+# device, ssh to mac-mini and `paseo pair`; show the QR to the phone.
+# Pairing tokens persist in {{ paseo_home }} so subsequent restarts
+# (boot, plist reload) keep the same paired devices.
+
+- name: Check for Homebrew (Apple Silicon prefix)
+  ansible.builtin.stat:
+    path: /opt/homebrew/bin/brew
+  register: _brew_apple_silicon
+
+- name: Check for Homebrew (Intel prefix)
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: _brew_intel
+
+- name: Bootstrap Homebrew if missing
+  ansible.builtin.shell: |
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  environment:
+    NONINTERACTIVE: "1"
+  when:
+    - not _brew_apple_silicon.stat.exists
+    - not _brew_intel.stat.exists
+
+- name: Resolve Homebrew prefix
+  ansible.builtin.command: brew --prefix
+  register: _paseo_brew_prefix
+  changed_when: false
+
+- name: Pin Homebrew prefix as a fact
+  ansible.builtin.set_fact:
+    paseo_brew_prefix: "{{ _paseo_brew_prefix.stdout }}"
+
+- name: Install Node {{ paseo_node_formula }} via Homebrew
+  community.general.homebrew:
+    name: "{{ paseo_node_formula }}"
+    state: present
+
+- name: Resolve {{ paseo_node_formula }} bin path
+  ansible.builtin.command: "brew --prefix {{ paseo_node_formula }}"
+  register: _paseo_node_prefix
+  changed_when: false
+
+- name: Pin Node bin directory as a fact
+  ansible.builtin.set_fact:
+    paseo_node_bin: "{{ _paseo_node_prefix.stdout }}/bin"
+
+- name: Install Paseo CLI globally via npm
+  community.general.npm:
+    name: "@getpaseo/cli"
+    state: latest
+    global: true
+    executable: "{{ paseo_node_bin }}/npm"
+  notify: Reload paseo LaunchAgent
+
+- name: Ensure Paseo state directory exists
+  ansible.builtin.file:
+    path: "{{ paseo_home }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure LaunchAgents directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/Library/LaunchAgents"
+    state: directory
+    mode: '0755'
+
+- name: Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ paseo_log_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Template Paseo LaunchAgent plist
+  ansible.builtin.template:
+    src: launchd.plist.j2
+    dest: "{{ paseo_launchd_plist }}"
+    mode: '0644'
+  notify: Reload paseo LaunchAgent
+
+- name: Ensure Paseo LaunchAgent is loaded
+  # bootstrap is idempotent only if the label isn't already loaded, so
+  # we check first. The handler above re-bootstraps on config change.
+  ansible.builtin.shell: |
+    if ! launchctl print gui/$(id -u)/{{ paseo_launchd_label }} >/dev/null 2>&1; then
+      launchctl bootstrap gui/$(id -u) {{ paseo_launchd_plist }}
+      echo "loaded"
+    fi
+  register: _paseo_launchd_state
+  changed_when: "'loaded' in _paseo_launchd_state.stdout"

@@ -63,7 +63,17 @@
   copy:
     content: |
       {
-        "dns": {{ docker_dns_servers | to_json }}
+        "dns": {{ docker_dns_servers | to_json }},
+        "builder": {
+          "gc": {
+            "enabled": true,
+            "defaultKeepStorage": "{{ docker_builder_gc_keep_storage }}",
+            "policy": [
+              { "keepStorage": "{{ docker_builder_gc_prune_storage }}", "filter": ["unused-for={{ docker_builder_gc_unused_for }}"] },
+              { "keepStorage": "{{ docker_builder_gc_keep_storage }}", "all": true }
+            ]
+          }
+        }
       }
     dest: /etc/docker/daemon.json
     owner: root
@@ -127,3 +137,15 @@
     name: docker
     state: started
     enabled: yes
+
+- name: Schedule weekly Docker prune
+  ansible.builtin.cron:
+    name: docker-prune
+    user: root
+    job: >-
+      docker ps -aq --filter exited=0 | xargs -r docker rm >> /var/log/docker-prune.log 2>&1 &&
+      docker image prune -f >> /var/log/docker-prune.log 2>&1 &&
+      docker volume prune -f >> /var/log/docker-prune.log 2>&1
+    weekday: "{{ docker_prune_cron_weekday }}"
+    hour: "{{ docker_prune_cron_hour }}"
+    minute: "{{ docker_prune_cron_minute }}"

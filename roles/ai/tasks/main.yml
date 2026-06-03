@@ -1,0 +1,92 @@
+---
+# AI Stack - llama-swap (OpenAI-compatible proxy in front of llama.cpp).
+# Models are downloaded out of band into {{ config_base }}/models; see
+# roles/ai/README.md for the model URLs and pull commands.
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/config/searxng"
+    - "{{ config_base }}/models"
+
+# In shared mode llama-swap claims GPUs 0,1,2; any running vLLM (or
+# SGLang) containers pinned to 0,1 would contend for the Max-Q pair.
+# Take both down before bringing the ai stack up. Safe to run even
+# when neither stack exists (failed_when: false).
+- name: Tear down split-mode inference stacks when ai_gpu_mode is shared
+  ansible.builtin.command:
+    cmd: "docker compose -p {{ item }} down --remove-orphans"
+  register: _split_down
+  changed_when: "'Removing' in _split_down.stderr or 'Stopping' in _split_down.stderr"
+  failed_when: false
+  loop:
+    - vllm
+    - sglang
+  when: ai_gpu_mode == 'shared'
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy llama-swap config
+  template:
+    src: config/llama-swap.yaml.j2
+    dest: "{{ config_base }}/config/llama-swap.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy SearXNG settings
+  template:
+    src: config/searxng/settings.yml.j2
+    dest: "{{ config_base }}/config/searxng/settings.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0640'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+
+# Speaches (whisper) doesn't lazy-download on first transcription. Without
+# a pre-pull, the first /v1/audio/transcriptions request 404s with
+# "Model '...' is not installed locally", which OpenWebUI surfaces as
+# "Server Connection Error" with no useful detail. The model lives in
+# the ai_whisper-cache volume, so the POST is only real work on first
+# deploy (or after the volume is wiped).
+- name: Wait for whisper to accept requests
+  ansible.builtin.uri:
+    url: "http://localhost:{{ whisper_port }}/health"
+    status_code: 200
+  register: _whisper_health
+  until: _whisper_health.status == 200
+  retries: 30
+  delay: 2
+
+- name: Check whether the whisper default model is already installed
+  ansible.builtin.uri:
+    url: "http://localhost:{{ whisper_port }}/v1/models/{{ whisper_default_model }}"
+    status_code: [200, 404]
+  register: _whisper_model_check
+
+- name: Pre-pull whisper default model
+  ansible.builtin.uri:
+    url: "http://localhost:{{ whisper_port }}/v1/models/{{ whisper_default_model }}"
+    method: POST
+    status_code: [200, 201]
+    timeout: 600
+  when: _whisper_model_check.status == 404

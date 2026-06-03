@@ -1,0 +1,211 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  llama-swap:
+    image: {{ llama_swap_image }}
+    container_name: llama-swap
+    restart: {{ restart_policy }}
+    ports:
+      - {{ llama_swap_port }}:8080
+    volumes:
+      - ./config/llama-swap.yaml:/app/config.yaml
+      - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  whisper:
+    image: {{ whisper_image }}
+    container_name: whisper
+    restart: {{ restart_policy }}
+    ports:
+      - {{ whisper_port }}:8000
+    volumes:
+      - whisper-cache:/home/ubuntu/.cache/huggingface
+    environment:
+      - WHISPER__MODEL={{ whisper_default_model }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kokoro:
+    image: {{ kokoro_image }}
+    container_name: kokoro
+    restart: {{ restart_policy }}
+    ports:
+      - {{ kokoro_port }}:8880
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8880/v1/audio/voices"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  tei:
+    image: {{ tei_image }}
+    container_name: tei
+    restart: {{ restart_policy }}
+    ports:
+      - {{ tei_port }}:80
+    volumes:
+      - tei-cache:/data
+      - ./models:/models:ro
+    command:
+      - --model-id={{ tei_model_id }}
+      - --max-concurrent-requests={{ tei_max_concurrent_requests }}
+      - --max-batch-tokens={{ tei_max_batch_tokens }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # Second TEI container for jinaai/jina-embeddings-v3. Reads the model
+  # directly from the host models directory (bind-mounted read-only)
+  # rather than pulling from HF Hub, because the user already downloaded
+  # the snapshot and the model isn't cleanly GGUFable for llama-swap
+  # (custom_st.py pooling + task-specific LoRA adapters). One TEI
+  # container per model is TEI's design constraint.
+  tei-jina:
+    image: {{ tei_image }}
+    container_name: tei-jina
+    restart: {{ restart_policy }}
+    ports:
+      - {{ tei_jina_port }}:80
+    volumes:
+      - tei-cache:/data
+      - ./models:/models:ro
+    command:
+      - --model-id={{ tei_jina_model_path }}
+      - --max-concurrent-requests={{ tei_jina_max_concurrent_requests }}
+      - --max-batch-tokens={{ tei_jina_max_batch_tokens }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:80/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  playwright:
+    image: {{ playwright_image }}
+    container_name: playwright
+    restart: {{ restart_policy }}
+    # `command:` (not entrypoint) because the image's default entrypoint
+    # already sets up node; we just point it at run-server. Version in
+    # the npx invocation must match the image tag to avoid a Playwright
+    # client/server protocol mismatch.
+    command: ["npx", "-y", "playwright@{{ playwright_version }}", "run-server", "--port", "3000", "--host", "0.0.0.0"]
+    ports:
+      - {{ playwright_port }}:3000
+    healthcheck:
+      # No HTTP health endpoint; the server only speaks WebSocket. A TCP
+      # probe via /dev/tcp confirms the port is bound.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/3000'"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  searxng:
+    image: {{ searxng_image }}
+    container_name: searxng
+    restart: {{ restart_policy }}
+    ports:
+      - {{ searxng_port }}:8080
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL={{ searxng_base_url }}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      # Container starts as root with no USER directive; the entrypoint
+      # chowns /etc/searxng to searxng (977) but never drops privileges,
+      # so granian ends up running as root. Without DAC_OVERRIDE root
+      # cannot read the 0640 settings.yml owned by uid 977 (matches the
+      # upstream searxng-docker compose).
+      - DAC_OVERRIDE
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  whisper-cache:
+  tei-cache:

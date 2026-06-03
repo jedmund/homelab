@@ -1,0 +1,6 @@
+---
+- name: Deploy petlibro stack (catbro-server + Mosquitto)
+  hosts: petlibro
+  become: yes
+  roles:
+    - petlibro

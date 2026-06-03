@@ -1,0 +1,128 @@
+---
+# Openclaw runs natively on macOS (mac-mini) so it can access iMessage,
+# Spark Desktop's MCP, Apple Notes/Calendar/Reminders, etc. Not Docker.
+
+# Stack identity
+stack_name: openclaw
+
+# Node runtime (installed via Homebrew). Openclaw recommends Node 24.
+openclaw_node_formula: node@24
+
+# Gateway listen port (Openclaw default)
+openclaw_port: 18789
+
+# Config directory and file (JSON5)
+# Path is relative to the SSH user's home (resolved at runtime via
+# ansible_user_dir so the role doesn't hardcode /Users/justin).
+openclaw_config_dir: "{{ ansible_user_dir }}/.openclaw"
+openclaw_config_file: "{{ openclaw_config_dir }}/openclaw.json"
+
+# Sandbox mode: off | non-main | all
+# Per deploy decision: this is a personal mac with no sensitive files
+# beyond the user's, so we trust exec on the host and skip the Docker
+# sandbox overhead (Docker on macOS runs in a Linux VM).
+openclaw_sandbox_mode: "off"
+
+# Model backend: point at llama-swap on max over the LAN.
+# llama_swap_port (11434) is duplicated from roles/ai/defaults/main.yml
+# because the ai role's vars aren't in scope from this role.
+openclaw_local_llm_base_url: "http://{{ hostvars['max'].ansible_host }}:11434/v1"
+# Default is qwen3.6-flash-uncensored (35B-A3B MoE abliterated, ~10 bpw)
+# so personal DMs don't trip refusal training on benign-but-edge prompts.
+# Sized at -c 262144 --parallel 4 (~75 GB live) in the ai role. Vision-
+# bearing DMs route to the same model via openclaw_local_llm_vision_model
+# below so the censorship policy is consistent across modalities.
+openclaw_local_llm_default_model: "qwen3.6-flash-uncensored"
+# Vision-capable model. Openclaw's agents.defaults.imageModel routes
+# image-bearing turns to this model automatically (see
+# https://docs.openclaw.ai/gateway/config-agents). Pinned to the same
+# uncensored model as the text default so images don't get a different
+# refusal policy than text in the same DM.
+openclaw_local_llm_vision_model: qwen3.6-flash-uncensored
+
+# Custom (non-bundled) providers must declare which models they expose,
+# or openclaw rejects the config at startup. Each entry maps to a model
+# object in openclaw.json under models.providers.local.models[]. Fields:
+#   id            llama-swap model name (must match roles/ai/defaults).
+#   name          display label for Openclaw's model picker.
+#   input         ["text"] or ["text", "image"] for multimodal.
+#   contextWindow per-slot context (varies by model; see args in ai role).
+#   maxTokens     generation cap per response.
+# All other fields (cost, reasoning) are emitted as zeros/false by the
+# template since these are local models with no per-token pricing.
+#
+# Only chat-tier models are exposed here. Code-group models served by
+# llama-swap (qwen3-coder and friends) live in their own swap group and
+# aren't useful from openclaw, so they're omitted from the picker.
+openclaw_local_llm_models:
+  - id: qwen3.6-flash-uncensored
+    name: "Qwen3.6 Flash 35B-A3B Uncensored (multimodal)"
+    input: ["text", "image"]
+    # Matches -c 262144 --parallel 4 in the ai role: four sticky 64K slots.
+    contextWindow: 65536
+    maxTokens: 8192
+  - id: qwen3.6
+    name: "Qwen3.6 27B Dense MTP (multimodal)"
+    input: ["text", "image"]
+    # Matches -c 131072 --parallel 2 in the ai role: two sticky 64K slots.
+    contextWindow: 65536
+    maxTokens: 8192
+  - id: qwen3.6-flash
+    name: "Qwen3.6 Flash 35B-A3B (multimodal)"
+    input: ["text", "image"]
+    # Matches -c 131072 --parallel 4 in the ai role: four sticky 32K slots.
+    contextWindow: 32768
+    maxTokens: 8192
+
+# Discord channel. Configured for personal use: DMs from a single user
+# only, no server (guild) traffic, no voice. The Discord bot itself must
+# be created out of band at the Discord Developer Portal; the user/app
+# IDs and bot token come from vault (see roles/openclaw/README.md for
+# the full bring-up). Set openclaw_discord_enabled: false to skip the
+# channel block (config still validates without Discord).
+#
+# Required vault entries when enabled:
+#   vault_openclaw_discord_bot_token       bot token from the Bot tab
+#   vault_openclaw_discord_user_id         your Discord user ID (snowflake)
+#   vault_openclaw_discord_application_id  application/client ID (startup hint)
+openclaw_discord_enabled: true
+openclaw_discord_bot_token: "{{ vault_openclaw_discord_bot_token }}"
+openclaw_discord_user_id: "{{ vault_openclaw_discord_user_id }}"
+openclaw_discord_application_id: "{{ vault_openclaw_discord_application_id }}"
+
+# Google Places API key for the `goplaces` skill (Google Maps lookups).
+# Get a key at console.cloud.google.com (enable the Places API, then
+# create an API key and restrict it to Places API). The env var is
+# loaded by the gateway daemon at startup; the openclaw skill picks it
+# up automatically. Set openclaw_goplaces_enabled: false to omit the
+# var (useful if the skill is disabled or the brew binary isn't
+# installed yet).
+#
+# Required vault entry when enabled:
+#   vault_openclaw_google_places_api_key   Places API key (treat as secret)
+openclaw_goplaces_enabled: true
+openclaw_google_places_api_key: "{{ vault_openclaw_google_places_api_key }}"
+
+# Local HTTP proxy (tinyproxy) for openclaw's web_fetch tool.
+#
+# Openclaw's web_fetch ships with a hard SSRF guard that blocks any URL
+# whose hostname resolves to a private/internal IP (the guard lives in
+# /opt/homebrew/lib/node_modules/openclaw/dist/fetch-guard.js). The
+# tools.web.fetch.ssrfPolicy schema only accepts narrow opt-ins for
+# fake-IP proxy ranges; no hostname allowlist field exists for that
+# tool. To let openclaw reach LAN services like rss.atelier.house we
+# route fetches through a loopback-only tinyproxy. With
+# useTrustedEnvProxy: true + HTTPS_PROXY set in the daemon env,
+# openclaw skips its own DNS lookup and "resolves to private IP" check
+# because the proxy is the one resolving DNS. Public URLs still work
+# (the proxy forwards them). Endpoints we already talk to directly
+# (llama-swap, TEI, SearXNG on max) are in NO_PROXY so the hot path
+# bypasses the proxy entirely.
+openclaw_proxy_enabled: true
+# Tinyproxy listens on 127.0.0.1 only; this is the port.
+openclaw_proxy_port: 8888
+# Comma-separated hostname/IP list that bypasses the proxy. Defaults
+# exclude loopback and max (LLM + embeddings + SearXNG endpoints
+# openclaw already reaches directly). Add other LAN IPs here if you
+# want them to skip the proxy hop.
+openclaw_proxy_no_proxy: "localhost,127.0.0.1,::1,{{ hostvars['max'].ansible_host }}"

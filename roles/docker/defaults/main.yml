@@ -7,3 +7,17 @@ docker_users:
 docker_dns_servers:
   - "1.1.1.1"
   - "1.0.0.1"
+
+# Builder GC: cap build cache size to prevent unbounded disk growth.
+# policy[0] aggressively evicts cache unused for 2 weeks down to the prune
+# threshold; policy[1] enforces the hard cap. Override per-host if builds
+# are larger (e.g. vane at ~13 GB/build may need a higher cap).
+docker_builder_gc_keep_storage: "20GB"
+docker_builder_gc_prune_storage: "10GB"
+docker_builder_gc_unused_for: "336h"
+
+# Weekly docker system + volume prune to clear stopped containers,
+# dangling images, and orphaned volumes (e.g. CI runner caches).
+docker_prune_cron_weekday: "0"
+docker_prune_cron_hour: "3"
+docker_prune_cron_minute: "0"

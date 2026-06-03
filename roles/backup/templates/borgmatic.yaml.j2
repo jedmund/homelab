@@ -10,6 +10,9 @@ source_directories:
 {% for path in borg_source_paths %}
     - {{ path }}
 {% endfor %}
+{% for vol in borg_named_volumes %}
+    - {{ vol.path }}
+{% endfor %}
     - {{ borg_dumps_container_path }}
 
 repositories:
@@ -64,10 +67,6 @@ postgresql_databases:
       hostname: miniflux-db
       username: {{ miniflux_db_user }}
       password: "{{ miniflux_db_password }}"
-    - name: {{ forgejo_db_name }}
-      hostname: forgejo_postgres
-      username: {{ forgejo_db_user }}
-      password: "{{ forgejo_db_password }}"
     - name: {{ blinko_db_name }}
       hostname: blinko_postgres
       username: {{ blinko_db_user }}
@@ -76,6 +75,14 @@ postgresql_databases:
       hostname: draftboard_postgres
       username: {{ draftboard_db_user }}
       password: "{{ draftboard_db_password }}"
+    - name: {{ dawarich_db_name }}
+      hostname: dawarich_postgres
+      username: {{ dawarich_db_username }}
+      password: "{{ dawarich_db_password }}"
+    - name: {{ ideon_db_name }}
+      hostname: ideon_postgres
+      username: {{ ideon_db_user }}
+      password: "{{ ideon_db_password }}"
 
 # Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
 # what's set on the container; mysqldump needs LOCK TABLES which the romm

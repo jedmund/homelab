@@ -1,0 +1,8 @@
+---
+- name: Deploy AI stack
+  hosts: ai
+  become: yes
+
+  roles:
+    - gpu_tools
+    - ai

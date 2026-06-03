@@ -19,7 +19,8 @@
           10. Productivity
           11. Social
           12. Matrix
-          13. Backup
+          13. AI (max only)
+          14. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -42,6 +43,10 @@
 - import_playbook: media_consumption.yml
   tags: [media, media_consumption]
 
+# Reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
+- import_playbook: reading.yml
+  tags: [reading]
+
 # Content stack
 - import_playbook: content_management.yml
   tags: [content, content_management]
@@ -49,6 +54,14 @@
 # Development stack
 - import_playbook: development.yml
   tags: [dev, development]
+
+# Development (macOS) stack - GitLab Runner on mac-mini for iOS builds
+- import_playbook: development_macos.yml
+  tags: [dev, development_macos]
+
+# Paseo daemon (native macOS install on mac-mini)
+- import_playbook: paseo_daemon.yml
+  tags: [dev, paseo_daemon]
 
 # Utilities stack
 - import_playbook: utilities.yml
@@ -65,6 +78,15 @@
 # Matrix stack
 - import_playbook: matrix.yml
   tags: [matrix]
+
+# AI stack (targets the `ai` group — currently `max` only)
+# Includes gpu_tools role (hwsummary, gpu-burn helpers in /usr/local/bin)
+- import_playbook: ai.yml
+  tags: [ai]
+
+# Openclaw (targets the `openclaw` group, currently `mac-mini` only)
+- import_playbook: openclaw.yml
+  tags: [openclaw]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

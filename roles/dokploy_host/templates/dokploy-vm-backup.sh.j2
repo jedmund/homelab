@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Nightly application-consistent qcow2 dump of the Dokploy VM. Shuts
+# the guest down cleanly, copies and compresses the disk image,
+# restarts the guest, prunes archives older than
+# {{ vm_backup_keep_days }} days. Borgmatic picks up the dump via its
+# /var/backup/dokploy source path.
+set -euo pipefail
+
+virsh shutdown {{ vm_name }} || true
+for _ in $(seq 1 60); do
+    state=$(virsh domstate {{ vm_name }} 2>/dev/null || echo unknown)
+    [ "$state" = "shut off" ] && break
+    sleep 1
+done
+
+stamp=$(date +%F)
+qemu-img convert -O qcow2 -c {{ vm_disk_path }} {{ vm_backup_dir }}/{{ vm_name }}-${stamp}.qcow2
+
+virsh start {{ vm_name }}
+
+find {{ vm_backup_dir }} -name '{{ vm_name }}-*.qcow2' -mtime +{{ vm_backup_keep_days }} -delete

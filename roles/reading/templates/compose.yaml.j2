@@ -1,0 +1,231 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    ports:
+      - {{ miniflux_port }}:8080
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./data/miniflux-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ miniflux_db_user }}"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./backups/miniflux:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U {{ miniflux_db_user }} {{ miniflux_db_name }} > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        ls -t /backup/miniflux_backup_*.sql | tail -n +{{ miniflux_backup_retention_days + 1 }} | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ reactflux_port }}:2000
+    depends_on:
+      miniflux:
+        condition: service_healthy
+    environment:
+      - TZ={{ timezone }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  fivefilters:
+    image: heussd/fivefilters-full-text-rss:latest
+    container_name: fivefilters
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    ports:
+      - {{ fivefilters_port }}:80
+    environment:
+      - FTR_ADMIN_PASSWORD={{ fivefilters_admin_password }}
+    volumes:
+      - fivefilters-cache:/var/www/html/cache
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  karakeep:
+    container_name: karakeep_web
+    image: ghcr.io/karakeep-app/karakeep:release
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    volumes:
+      - karakeep-data:/data
+    ports:
+      - {{ karakeep_port }}:3000
+    env_file:
+      - ./env/karakeep.env
+    depends_on:
+      - karakeep-chrome
+      - karakeep-meilisearch
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  karakeep-chrome:
+    container_name: karakeep_chrome
+    image: gcr.io/zenika-hub/alpine-chrome:123
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  karakeep-meilisearch:
+    container_name: karakeep_meilisearch
+    image: getmeili/meilisearch:v1.13.3
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/karakeep.env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - karakeep-meilisearch:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kavita:
+    image: jvmilazz0/kavita:nightly
+    container_name: kavita
+    networks:
+      - shared
+    environment:
+      - TZ={{ timezone }}
+    volumes:
+      - ./config/kavita:/kavita/config
+      - comics:/manga
+    ports:
+      - {{ kavita_port }}:5000
+    restart: {{ restart_policy }}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5000"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  karakeep-data:
+  karakeep-meilisearch:
+  fivefilters-cache:
+
+  comics:
+    external: true
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

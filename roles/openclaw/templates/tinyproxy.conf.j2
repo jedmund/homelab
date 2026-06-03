@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+# Tinyproxy config managed by the openclaw role. Loopback-only HTTP
+# proxy so openclaw's web_fetch tool can reach LAN-resolving hostnames
+# (the SSRF guard in openclaw's fetch path skips the "resolves to
+# private IP" check when HTTPS_PROXY is set, because the proxy is the
+# one doing DNS). See roles/openclaw/tasks/tinyproxy.yml and the
+# openclaw_proxy_* vars in defaults/main.yml.
+
+# User / Group are intentionally NOT set: brew services starts
+# tinyproxy as the SSH user (not root), so setuid to "nobody" either
+# no-ops or fails. Running as the user is fine for a loopback proxy.
+
+# Network: bind loopback only and only accept loopback clients.
+Listen 127.0.0.1
+Port {{ openclaw_proxy_port }}
+Allow 127.0.0.1
+Allow ::1
+
+# Standard operational defaults pulled from the brew package.
+Timeout 600
+MaxClients 100
+ViaProxyName "tinyproxy"
+
+# CONNECT method ports — 443 is required for HTTPS targets, 563 is
+# the historical NNTPS port the upstream default keeps around.
+ConnectPort 443
+ConnectPort 563
+
+# Logging: separate file under the brew prefix so it survives upgrades.
+LogLevel Info
+LogFile "{{ openclaw_brew_prefix }}/var/log/tinyproxy/tinyproxy.log"
+
+# Asset files shipped by the brew package. The /opt/homebrew/share
+# path is a brew-maintained symlink to the current Cellar version, so
+# it survives `brew upgrade tinyproxy`.
+DefaultErrorFile "{{ openclaw_brew_prefix }}/share/tinyproxy/default.html"
+StatFile "{{ openclaw_brew_prefix }}/share/tinyproxy/stats.html"

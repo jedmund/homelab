@@ -1,0 +1,7 @@
+---
+- name: Reload paseo LaunchAgent
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u) {{ paseo_launchd_plist }} 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) {{ paseo_launchd_plist }}
+  become: false
+  changed_when: true

@@ -1,0 +1,58 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+{% for m in vllm_models %}
+  {{ m.name }}:
+    image: {{ m.image | default(vllm_image) }}
+    container_name: {{ m.name }}
+    # Manual lifecycle: don't auto-restart heavy models. Profiles gate
+    # startup so `docker compose up` with no --profile starts nothing.
+    restart: "no"
+    profiles: ["{{ m.name }}", "all"]
+    ports:
+      - {{ m.host_port }}:{{ m.container_port }}
+    volumes:
+      # Bind-mount the existing on-host caches so the ~235 GB HF Hub
+      # download is reused across compose recreates. The HF cache is
+      # mounted second so it overlays the broader /root/.cache mount.
+      - {{ vllm_cache_root }}:/root/.cache
+      - {{ vllm_hf_cache_dir }}:/root/.cache/huggingface
+      - /dev/shm:/dev/shm
+    ipc: host
+    shm_size: {{ m.shm_size | default(vllm_default_shm_size) }}
+    ulimits:
+      memlock: -1
+      stack: 67108864
+      nofile: 1048576
+    environment:
+{% for k, v in vllm_common_env.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+{% for k, v in (m.extra_env | default({})).items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+{% if m.cuda_visible_devices is defined %}
+      CUDA_VISIBLE_DEVICES: "{{ m.cuda_visible_devices }}"
+{% endif %}
+    # Match the working docker run: `--gpus all` plus
+    # CUDA_VISIBLE_DEVICES for the actual selection. The newer
+    # deploy.resources.reservations syntax has bitten us with NCCL on
+    # this image family before; keep the legacy field.
+    gpus: all
+    # The lavd vllm image's ENTRYPOINT already invokes `vllm serve`,
+    # so we pass args via `command:` (positional model id first, then
+    # flags). Matches the known-good docker run argv order.
+    command:
+{% for arg in m.args %}
+      - {{ arg | to_json }}
+{% endfor %}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:{{ m.container_port }}/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      # Cold-load tax for DSV4 from cache -> VRAM is ~60-90s on this
+      # box plus a JIT compile pass; 180s gives margin.
+      start_period: 180s
+{% endfor %}

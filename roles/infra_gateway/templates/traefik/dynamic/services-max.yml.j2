@@ -9,8 +9,48 @@ http:
         - websecure
       tls:
         certResolver: letsencrypt
+    # llama-swap web UI - models.{{ traefik_domain }}
+    # Port 11434 matches llama_swap_port in roles/ai/defaults/main.yml;
+    # kept hardcoded here because the ai role's variables are not in scope
+    # from infra_gateway. TinyAuth gates the browser UI; OpenAI-compatible
+    # API clients (opencode etc.) still reach llama-swap directly via the
+    # LAN port on max:11434 without going through Traefik.
+    llamaswap:
+      rule: "Host(`models.{{ traefik_domain }}`)"
+      service: llamaswap
+      middlewares:
+        - tinyauth@file
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # SearXNG web UI - search.{{ traefik_domain }}
+    # Port 8889 matches searxng_port in roles/ai/defaults/main.yml; same
+    # cross-role hardcoding caveat as llamaswap above. TinyAuth-gated so
+    # the instance isn't reachable from the open internet (would otherwise
+    # get rate-limited / banned by upstream engines). LAN clients on the
+    # same network as max (e.g. OpenClaw on the mac-mini) still hit
+    # http://max:8889 directly without Traefik.
+    searxng:
+      rule: "Host(`search.{{ traefik_domain }}`)"
+      service: searxng
+      middlewares:
+        - tinyauth@file
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
   services:
     minecraft:
       loadBalancer:
         servers:
           - url: "http://{{ max_server_ip }}:8100"
+    llamaswap:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:11434"
+    searxng:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:8889"

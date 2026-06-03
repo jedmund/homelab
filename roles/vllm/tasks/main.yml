@@ -1,0 +1,35 @@
+---
+# vLLM stack - the working DeepSeek V4 Flash slot. lavd's vllm image
+# loads weights from HF Hub on first run; the existing on-host HF cache
+# is bind-mounted in so the ~140 GB download is reused.
+
+- name: Create {{ stack_name }} directory
+  file:
+    path: "{{ config_base }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Ensure vLLM cache dirs exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ vllm_cache_root }}"
+    - "{{ vllm_hf_cache_dir }}"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Validate {{ stack_name }} compose file
+
+# No `docker_compose_v2: state: present` task here on purpose. Every
+# model service is gated behind a compose profile, so even an
+# unconditional `docker compose up` would start nothing. Bringing a
+# model up is an explicit operator action; see deploy/ai_split.yml
+# for the split-mode workflow that starts the default profile.

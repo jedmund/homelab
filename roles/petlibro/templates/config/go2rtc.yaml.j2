@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+#
+# Base go2rtc config consumed by the embedded server inside catbro-server.
+# catbro adds streams dynamically when feeders report their UIDs via MQTT —
+# this file just provides server defaults (ports + log level).
+#
+# Streams will appear as petlibro_<friendly_name> based on the --go2rtc-name
+# args in the compose command.
+
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+
+log:
+  level: info
+  api: warn
+  rtsp: warn
+  exec: warn
+
+# No static streams — catbro adds them at runtime when a feeder UID is learned.
+streams: {}

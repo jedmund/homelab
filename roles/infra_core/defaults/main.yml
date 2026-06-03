@@ -3,6 +3,16 @@
 stack_name: infra-core
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# Ansible and Komodo division of labor
+#   Ansible writes /opt/docker/<stack>/compose.yaml + env files from vault,
+#   and runs `docker compose up` via community.docker.docker_compose_v2.
+#   Komodo (below) observes the same files via files_on_host + the /opt/docker
+#   read-only mount on Periphery, and may redeploy on demand against the
+#   already-rendered compose. Nothing else writes to /opt/docker: no UI file
+#   editing, no Komodo-side git clone, no auto-update. Stacks must NOT set
+#   auto_update or poll_for_updates, since that would pull image tags behind
+#   Ansible's pinned versions.
+
 # Komodo settings
 komodo_image_tag: latest
 periphery_root_directory: /etc/komodo

@@ -89,6 +89,12 @@ services:
       tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ traefik_domain }}"
       tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.llamaswap.config.domain: "models.{{ traefik_domain }}"
+      tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
+      tinyauth.apps.openclaw.config.domain: "claw.{{ traefik_domain }}"
+      tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.searxng.config.domain: "search.{{ traefik_domain }}"
+      tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
     logging:
       driver: {{ logging_driver }}
       options:
@@ -130,34 +136,12 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  glance:
-    container_name: glance
-    image: glanceapp/glance
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-      - shared
-    volumes:
-      - ./config/glance:/app/config
-      - ./assets:/app/assets
-    env_file: ./env/glance.env
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.glance.rule: "Host(`glance.{{ traefik_domain }}`)"
-      traefik.http.routers.glance.entrypoints: "websecure"
-      traefik.http.routers.glance.tls.certresolver: "letsencrypt"
-      traefik.http.services.glance.loadbalancer.server.port: "{{ glance_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
   line:
     container_name: line
     build:
       context: {{ line_source_path }}
       dockerfile: deploy/Dockerfile
+    image: {{ stack_name }}/line:local
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -183,8 +167,8 @@ services:
     networks:
       - proxy
     ports:
-      - "{{ adguard_port_dns_tcp }}:53/tcp"
-      - "{{ adguard_port_dns_udp }}:53/udp"
+      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_tcp }}:53/tcp"
+      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_udp }}:53/udp"
       - "{{ adguard_port_setup }}:3000/tcp"
     volumes:
       - ./config/adguard/work:/opt/adguardhome/work
