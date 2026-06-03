@@ -7,7 +7,7 @@
 #   - DNS rewrite for mqtt.us.petlibro.com -> this host (UDM/AdGuard)
 #   - Power-cycle feeders after first deploy so they re-resolve DNS
 
-- name: Create {{ stack_name }} directories
+- name: Create {{ stack_name }} base directories
   file:
     path: "{{ item }}"
     state: directory
@@ -18,8 +18,20 @@
     - "{{ config_base }}/config"
     - "{{ config_base }}/config/mosquitto"
     - "{{ config_base }}/data/mosquitto"
+
+# Catbro-specific directories — only need to exist when the catbro
+# service is actually being deployed.  Skipping these when disabled
+# avoids cloning a ~30MB git repo + leaving a stale build dir around.
+- name: Create catbro source + data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
     - "{{ config_base }}/data/catbro"
     - "{{ config_base }}/src"
+  when: petlibro_catbro_enabled | default(false)
 
 - name: Clone catbro-server source
   ansible.builtin.git:
@@ -29,6 +41,7 @@
     force: true        # discard local changes; this is a build dir
     recursive: true    # embedded go2rtc may use submodules
   register: catbro_git
+  when: petlibro_catbro_enabled | default(false)
   notify: Rebuild and restart {{ stack_name }} stack
 
 - name: Deploy Dockerfile
@@ -37,6 +50,7 @@
     dest: "{{ config_base }}/Dockerfile.catbro"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  when: petlibro_catbro_enabled | default(false)
   notify: Rebuild and restart {{ stack_name }} stack
 
 - name: Deploy compose file
@@ -61,6 +75,7 @@
     dest: "{{ config_base }}/data/catbro/creds.toml"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  when: petlibro_catbro_enabled | default(false)
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy go2rtc config
@@ -69,16 +84,22 @@
     dest: "{{ config_base }}/data/catbro/go2rtc.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  when: petlibro_catbro_enabled | default(false)
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
     state: present
+    # remove_orphans removes the catbro container when the flag flips
+    # back to false — without it the stale container would keep running
+    # holding :8554 + :8555 hostage from feederhub.
     remove_orphans: true
-    # Force a rebuild when the catbro source changed; otherwise defer to the
-    # compose file (where catbro has `pull_policy: build`, so docker compose
-    # will build the image if it's missing and skip rebuilds when it's not).
-    build: "{{ 'always' if catbro_git.changed else 'policy' }}"
+    # Force a rebuild when the catbro source changed; otherwise defer to
+    # the compose file (where catbro has `pull_policy: build`, so docker
+    # compose will build the image if it's missing and skip rebuilds when
+    # it's not).  catbro_git is only registered when the clone task ran,
+    # so default it to a never-changed shape when the flag is off.
+    build: "{{ 'always' if (catbro_git.changed | default(false)) else 'policy' }}"
     pull: policy
   register: compose_result
