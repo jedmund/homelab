@@ -1,0 +1,84 @@
+---
+# Petlibro stack: catbro-server (Rust + embedded go2rtc) replaces Petlibro's
+# cloud entirely. Feeders DNS-redirected to this host's MQTT broker; their
+# video streams emerge as RTSP for Home Assistant to consume.
+#
+# Manual prerequisites (see roles/petlibro/README.md):
+#   - DNS rewrite for mqtt.us.petlibro.com -> this host (UDM/AdGuard)
+#   - Power-cycle feeders after first deploy so they re-resolve DNS
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/config/mosquitto"
+    - "{{ config_base }}/data/mosquitto"
+    - "{{ config_base }}/data/catbro"
+    - "{{ config_base }}/src"
+
+- name: Clone catbro-server source
+  ansible.builtin.git:
+    repo: "{{ catbro_repo_url }}"
+    dest: "{{ config_base }}/src"
+    version: "{{ catbro_repo_ref }}"
+    force: true        # discard local changes; this is a build dir
+    recursive: true    # embedded go2rtc may use submodules
+  register: catbro_git
+  notify: Rebuild and restart {{ stack_name }} stack
+
+- name: Deploy Dockerfile
+  template:
+    src: Dockerfile.catbro.j2
+    dest: "{{ config_base }}/Dockerfile.catbro"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Rebuild and restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy mosquitto config
+  template:
+    src: config/mosquitto.conf.j2
+    dest: "{{ config_base }}/config/mosquitto/mosquitto.conf"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy catbro creds.toml
+  template:
+    src: config/creds.toml.j2
+    dest: "{{ config_base }}/data/catbro/creds.toml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy go2rtc config
+  template:
+    src: config/go2rtc.yaml.j2
+    dest: "{{ config_base }}/data/catbro/go2rtc.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    # Force a rebuild when the catbro source changed; otherwise defer to the
+    # compose file (where catbro has `pull_policy: build`, so docker compose
+    # will build the image if it's missing and skip rebuilds when it's not).
+    build: "{{ 'always' if catbro_git.changed else 'policy' }}"
+    pull: policy
+  register: compose_result

@@ -154,9 +154,9 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Album Sort - sorter.{{ traefik_domain }}
+    # Album Sort - music.sort.{{ traefik_domain }}
     album-sort:
-      rule: "Host(`sorter.{{ traefik_domain }}`)"
+      rule: "Host(`music.sort.{{ traefik_domain }}`)"
       service: album-sort
       entryPoints:
         - websecure
@@ -294,6 +294,15 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Dawarich - where.{{ traefik_domain }}
+    dawarich:
+      rule: "Host(`where.{{ traefik_domain }}`)"
+      service: dawarich
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
     # RomM - rom.{{ traefik_domain }}
     romm:
       rule: "Host(`rom.{{ traefik_domain }}`)"
@@ -376,6 +385,35 @@ http:
     copyparty:
       rule: "Host(`files.{{ traefik_domain }}`)"
       service: copyparty
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
+    # feederhub - cat.{{ traefik_domain }}.  Runs with
+    # network_mode: host (see roles/utilities/defaults/main.yml for
+    # why), so we route by file provider + IP rather than docker
+    # provider labels.  LAN-only homelab today — no tinyauth
+    # middleware until the auth posture firms up.
+    feederhub:
+      rule: "Host(`cat.{{ traefik_domain }}`)"
+      service: feederhub
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # ========== AI ==========
+
+    # Openclaw Control UI - claw.{{ traefik_domain }}
+    # Service runs natively on mac-mini (LaunchAgent) so it can reach
+    # iMessage, Spark Desktop's MCP, and the Apple-app MCPs. See
+    # roles/openclaw/README.md.
+    openclaw:
+      rule: "Host(`claw.{{ traefik_domain }}`)"
+      service: openclaw
       entryPoints:
         - websecure
       middlewares:
@@ -501,6 +539,11 @@ http:
         servers:
           - url: "http://{{ mini_server_ip }}:3100"
 
+    dawarich:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:3030"
+
     romm:
       loadBalancer:
         servers:
@@ -552,11 +595,27 @@ http:
         servers:
           - url: "http://copyparty:3923"
 
+    # feederhub (host-networked on nuc-mini).  Port 18080 also
+    # declared as feederhub_host_port in roles/utilities/defaults
+    # — hardcoded here because the infra_gateway role doesn't pull
+    # in utilities' defaults.  Mirrors how sonarr/radarr/etc. do it
+    # above.
+    feederhub:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:18080"
+
     # Monitoring (host-level Netdata service)
     netdata:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:19999"
+
+    # AI (native macOS service on mac-mini)
+    openclaw:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mac_mini_ip }}:18789"
 
   middlewares:
     yardsale-strip-images:
@@ -567,3 +626,33 @@ http:
     yardsale-add-bucket:
       addPrefix:
         prefix: "/yardsale"
+
+# ========== TCP passthrough to Dokploy VM ==========
+# Dokploy runs in a KVM VM at {{ dokploy_vm_ip }} with its own bundled
+# Traefik. nuc-mini's Traefik forwards the raw TLS stream by SNI so
+# Dokploy's Traefik terminates TLS with its own Let's Encrypt cert.
+# LAN clients reach the VM directly via UniFi DNS; WAN clients land
+# here via the existing 80/443 port forward. Same Let's Encrypt cert
+# either way. Avoids Cloudflare's CDN restrictions on streaming media
+# since the byte stream is end-to-end between client and Dokploy.
+tcp:
+  routers:
+    dokploy-passthrough:
+      entryPoints:
+        - websecure
+      # HostSNI does not accept label-level wildcards (`*.apps.foo` is
+      # not interpreted as one-label wildcard, only the bare `*` is a
+      # catch-all). HostSNIRegexp uses Go regex, so we match any
+      # subdomain depth under apps.atelier.house. This covers both
+      # flat (test.apps.atelier.house) and Vercel-style
+      # (pr-42.album-sort.apps.atelier.house) preview hostnames.
+      rule: "HostSNI(`dokploy.{{ traefik_domain }}`) || HostSNIRegexp(`^.+\\.apps\\.atelier\\.house$`)"
+      tls:
+        passthrough: true
+      service: dokploy-vm
+
+  services:
+    dokploy-vm:
+      loadBalancer:
+        servers:
+          - address: "{{ dokploy_vm_ip }}:443"

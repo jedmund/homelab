@@ -1,0 +1,6 @@
+---
+- name: Deploy development (macOS) stack
+  hosts: mac-mini
+  become: false
+  roles:
+    - development_macos

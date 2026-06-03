@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- {{ ansible_managed }} -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{ paseo_launchd_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ paseo_brew_prefix }}/bin/paseo</string>
+    <string>start</string>
+    <string>--foreground</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{ paseo_node_bin }}:{{ paseo_brew_prefix }}/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>{{ ansible_user_dir }}</string>
+    <key>PASEO_HOME</key>
+    <string>{{ paseo_home }}</string>
+    <key>PASEO_RELAY_ENABLED</key>
+    <string>true</string>
+    <key>PASEO_RELAY_ENDPOINT</key>
+    <string>{{ paseo_relay_endpoint }}</string>
+    <key>PASEO_RELAY_PUBLIC_ENDPOINT</key>
+    <string>{{ paseo_relay_public_endpoint }}</string>
+    <key>PASEO_RELAY_USE_TLS</key>
+    <string>{{ paseo_relay_use_tls | string | lower }}</string>
+    <key>PASEO_RELAY_PUBLIC_USE_TLS</key>
+    <string>{{ paseo_relay_public_use_tls | string | lower }}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>{{ paseo_log_dir }}/paseo.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{ paseo_log_dir }}/paseo.err.log</string>
+</dict>
+</plist>

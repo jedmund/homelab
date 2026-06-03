@@ -28,6 +28,7 @@ shopt -u nullglob
 # spaces are fine since each array entry is a separately-quoted string.
 SQLITE_FILES=(
     "/opt/docker/infra-gateway/config/pocketid/data/pocket-id.db"
+    "/opt/docker/infra-gateway/config/line/data/line.db"
     "/opt/docker/content-management/config/papra/db/db.sqlite"
     "/opt/docker/content-management/config/homebox/homebox.db"
     "/opt/docker/content-management/album-sort-data/album-sort.db"
@@ -42,6 +43,10 @@ SQLITE_FILES=(
     "/opt/docker/media-consumption/config/tunarr/db.db"
     "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
     "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.blobs.db"
+    # Karakeep stores its SQLite at /data/db.db inside the karakeep-data
+    # named volume, mounted ro into the borgmatic container at
+    # /karakeep-data (see borg_named_volumes in roles/backup/defaults).
+    "/karakeep-data/db.db"
 )
 
 FAILED=()
@@ -53,6 +58,7 @@ for src in "${SQLITE_FILES[@]}"; do
         continue
     fi
     rel="${src#/opt/docker/}"
+    rel="${rel#/}"
     dest="${DUMP_DIR}/${rel//\//_}"
     echo "dump-sqlite: ${src} -> ${dest}"
     # /opt/docker is mounted :ro into this container, so SQLite can't create

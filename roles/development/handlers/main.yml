@@ -5,3 +5,9 @@
     state: present
     remove_orphans: true
     recreate: always
+
+- name: Reconfigure GitLab if running
+  community.docker.docker_container_exec:
+    container: gitlab
+    command: gitlab-ctl reconfigure
+  failed_when: false

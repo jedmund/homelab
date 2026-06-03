@@ -14,6 +14,16 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
     - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/hist"
 
+# feederhub's distroless image runs as uid 65532; the data dir
+# needs to belong to that uid so the SQLite DB can be opened.
+- name: Create feederhub data directory
+  file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/feederhub"
+    state: directory
+    owner: "{{ feederhub_data_uid }}"
+    group: "{{ feederhub_data_gid }}"
+    mode: '0750'
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
@@ -31,6 +41,7 @@
   loop:
     - n8n
     - n8n-db
+    - feederhub
   no_log: true
   notify: Restart {{ stack_name }} stack
 
@@ -51,10 +62,24 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
+# Vane is pulled from the GitLab container registry (built by CI in
+# jedmund/Vane). The deploy step below runs `pull: always` by default
+# (see group_vars/compute_servers/docker.yml) so bumping vane_image_tag
+# is sufficient to roll forward.
+- name: Authenticate with Vane image registry
+  community.docker.docker_login:
+    registry_url: "{{ vane_registry_url }}"
+    username: "{{ vane_registry_username }}"
+    password: "{{ vane_registry_password }}"
+    reauthorize: true
+  when: vane_registry_username | length > 0 and vane_registry_password | length > 0
+  no_log: true
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    build: policy
   register: compose_result

@@ -77,3 +77,61 @@
   user:
     name: "{{ ansible_user }}"
     shell: /bin/zsh
+
+# GitHub CLI (gh)
+- name: Add GitHub CLI GPG key
+  apt_key:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    keyring: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    state: present
+
+- name: Add GitHub CLI repository
+  apt_repository:
+    repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    state: present
+    filename: github-cli
+
+- name: Install GitHub CLI
+  apt:
+    name: gh
+    state: present
+    update_cache: yes
+
+# GitLab CLI (glab). Installed from the official .deb on GitLab
+# releases rather than packages.gitlab.com — the latter stopped
+# publishing a `Release` file for Ubuntu noble, breaking apt.
+# Bump glab_version when a new release is wanted; check:
+#   https://gitlab.com/gitlab-org/cli/-/releases
+- name: Install GitLab CLI (glab) from official .deb
+  vars:
+    glab_version: "1.99.0"
+    glab_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+  block:
+    - name: Download glab .deb
+      ansible.builtin.get_url:
+        url: "https://gitlab.com/gitlab-org/cli/-/releases/v{{ glab_version }}/downloads/glab_{{ glab_version }}_linux_{{ glab_arch }}.deb"
+        dest: "/tmp/glab_{{ glab_version }}_{{ glab_arch }}.deb"
+        mode: '0644'
+
+    - name: Install glab from .deb
+      ansible.builtin.apt:
+        deb: "/tmp/glab_{{ glab_version }}_{{ glab_arch }}.deb"
+        state: present
+
+# HuggingFace CLI (hf) via pipx
+- name: Install pipx
+  apt:
+    name: pipx
+    state: present
+
+- name: Install HuggingFace CLI via pipx
+  become_user: "{{ ansible_user }}"
+  command: pipx install "huggingface_hub[cli]"
+  args:
+    creates: "/home/{{ ansible_user }}/.local/bin/hf"
+
+- name: Ensure pipx bin dir is on PATH
+  become_user: "{{ ansible_user }}"
+  command: pipx ensurepath
+  register: pipx_ensurepath
+  changed_when: "'added to' in pipx_ensurepath.stdout or 'Success' in pipx_ensurepath.stdout"

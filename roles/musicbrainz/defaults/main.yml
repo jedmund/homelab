@@ -21,11 +21,21 @@ musicbrainz_web_port: 5000
 musicbrainz_postgres_version: 18
 musicbrainz_solr_version: 4.1.0
 
-# Compose overlay set: default + replication-token + replication-cron + our local overlay
-musicbrainz_compose_files:
+# Source compose files (upstream default + replication-token + replication-cron
+# + our local overlay). These are merged at deploy time into a single
+# self-contained file at `musicbrainz_merged_compose_path` because Komodo's
+# stack parser concatenates service definitions across compose files instead
+# of merging them by name, which leaves the stack permanently flagged as
+# `unhealthy` (expected 10 services, only 6 actually run). Both Ansible's
+# compose deploy and Komodo's file_paths reference only the merged file, so
+# they agree on what's deployed. See roles/musicbrainz/README.md.
+musicbrainz_source_compose_files:
   - docker-compose.yml
   - compose/replication-token.yml
   - compose/replication-cron.yml
   - local/compose/atelier.yml
+
+# Merged compose path (written by `docker compose config` on the host).
+musicbrainz_merged_compose_path: local/compose.merged.yml
 
 # musicbrainz_replication_token - defined in vault

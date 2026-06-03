@@ -1,3 +1,9 @@
 ---
 # Docker base path
 docker_base_path: /opt/docker
+
+# Default image pull policy for docker_compose_v2 deploys across all roles.
+# "always" checks the registry on every deploy so :latest and other mutable
+# tags actually update; individual roles can still override per-deploy with
+# -e docker_pull_policy=missing if a one-off freeze is needed.
+docker_pull_policy: always

@@ -1,0 +1,49 @@
+---
+# Local HTTP proxy for openclaw's web_fetch tool. The proxy is
+# loopback-only (Listen 127.0.0.1 + Allow 127.0.0.1) and exists solely
+# so openclaw can fetch LAN-resolving URLs without tripping the SSRF
+# guard. See defaults/main.yml for the design rationale.
+
+- name: Install tinyproxy via Homebrew
+  community.general.homebrew:
+    name: tinyproxy
+    state: present
+
+- name: Resolve Homebrew prefix
+  ansible.builtin.command: brew --prefix
+  register: _openclaw_brew_prefix
+  changed_when: false
+
+- name: Pin Homebrew prefix as a fact for downstream templating
+  ansible.builtin.set_fact:
+    openclaw_brew_prefix: "{{ _openclaw_brew_prefix.stdout }}"
+
+- name: Ensure tinyproxy log directory exists
+  ansible.builtin.file:
+    path: "{{ openclaw_brew_prefix }}/var/log/tinyproxy"
+    state: directory
+    mode: '0755'
+
+- name: Template tinyproxy config
+  # Overwrites the brew-shipped default. `brew upgrade tinyproxy` will
+  # replace the file on package upgrade; the next ansible run re-renders
+  # it from this template. backup: true keeps the previous version
+  # around in case the package format changes mid-flight.
+  ansible.builtin.template:
+    src: tinyproxy.conf.j2
+    dest: "{{ openclaw_brew_prefix }}/etc/tinyproxy/tinyproxy.conf"
+    mode: '0644'
+    backup: true
+  notify: Restart tinyproxy
+
+- name: Ensure tinyproxy is running and registered with launchd
+  # brew services creates ~/Library/LaunchAgents/homebrew.mxcl.tinyproxy.plist
+  # and loads it. `started` is idempotent: no-op when already running.
+  # Note: tinyproxy needs macOS Local Network permission to reach LAN
+  # IPs (System Settings -> Privacy & Security -> Local Network ->
+  # tinyproxy). The first connection attempt registers the daemon with
+  # the privacy DB so it appears in the toggle list; approval is a
+  # one-time GUI step that no ansible task can perform.
+  community.general.homebrew_services:
+    name: tinyproxy
+    state: present

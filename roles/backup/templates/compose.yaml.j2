@@ -7,6 +7,7 @@ services:
     build:
       context: ./build
       dockerfile: Dockerfile
+    image: {{ stack_name }}/borgmatic:local
     restart: {{ restart_policy }}
     env_file:
       - ./env/borgmatic.env
@@ -22,6 +23,9 @@ services:
       - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}
 {% for path in borg_source_paths %}
       - {{ path }}:{{ path }}:ro
+{% endfor %}
+{% for vol in borg_named_volumes %}
+      - {{ vol.volume }}:{{ vol.path }}:ro
 {% endfor %}
     logging:
       driver: {{ logging_driver }}
@@ -57,6 +61,11 @@ services:
 
 volumes:
   borg-ui-data:
+{% for vol in borg_named_volumes %}
+  {{ vol.volume }}:
+    name: {{ vol.volume }}
+    external: true
+{% endfor %}
 
 networks:
 {% for net in borg_networks %}

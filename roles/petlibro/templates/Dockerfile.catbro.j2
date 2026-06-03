@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+# Multi-stage build for catbro-server (Rust binary that statically links an
+# embedded go2rtc Go library via build.rs / cgo c-archive). Heavy first build
+# (~5-10 min); subsequent builds are layer-cached.
+
+# Rust 1.85+ is required because catbro's transitive deps (indexmap 2.14+)
+# use Cargo's edition2024 feature, stabilized in Rust 1.85.
+ARG RUST_VERSION=1.86
+ARG GO_VERSION=1.23
+
+# Pull the official Go toolchain only to copy the installation tree into the
+# rust-build stage. Avoids depending on go.dev/dl URLs (which require the full
+# major.minor.patch and 404 otherwise).
+FROM golang:${GO_VERSION}-bookworm AS go-toolchain
+
+FROM rust:${RUST_VERSION}-bookworm AS rust-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config build-essential ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}" \
+    GOROOT="/usr/local/go"
+
+WORKDIR /build
+COPY src/ ./
+RUN cargo build --release --locked
+# Package is named petli_mock_cloud; rename to catbro-server for the runtime
+RUN cp target/release/petli_mock_cloud /tmp/catbro-server
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=rust-build /tmp/catbro-server /usr/local/bin/catbro-server
+WORKDIR /data
+ENTRYPOINT ["/usr/local/bin/catbro-server"]

@@ -13,5 +13,7 @@
       internal: true
     - name: "{{ shared_network }}"
       driver: bridge
+    - name: "{{ cibuild_network }}"
+      driver: bridge
     - name: vpn-network
       driver: bridge

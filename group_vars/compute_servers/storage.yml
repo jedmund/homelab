@@ -93,13 +93,6 @@ nfs_volumes:
       o: "{{ nfs_base_opts_games }}"
 
   # Development/Files
-  - name: forgejo-data
-    driver: local
-    driver_opts:
-      type: nfs
-      device: ":{{ nfs_base_path }}/Files/.data/Forgejo"
-      o: "{{ nfs_base_opts }}"
-
   - name: papra-documents
     driver: local
     driver_opts:

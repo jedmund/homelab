@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Run gpu-burn in a CUDA container against one GPU or all of them.
+# Usage: gpu-burn <index|all> [duration_seconds]
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $(basename "$0") <gpu_index|all> [duration_seconds]" >&2
+  exit 1
+fi
+
+target="$1"
+duration="${2:-1200}"
+image="nvidia/cuda:13.0.0-devel-ubuntu24.04"
+compute="120"
+
+if [[ "$target" == "all" ]]; then
+  gpu_arg="all"
+elif [[ "$target" =~ ^[0-9]+$ ]]; then
+  gpu_arg="\"device=${target}\""
+else
+  echo "Error: GPU target must be an integer or 'all', got '${target}'" >&2
+  exit 1
+fi
+
+exec docker run --rm --gpus "${gpu_arg}" "${image}" bash -c "
+  apt-get update -qq && apt-get install -y -qq git make &&
+  git clone -q https://github.com/wilicc/gpu-burn &&
+  cd gpu-burn &&
+  make COMPUTE=${compute} &&
+  ./gpu_burn ${duration}
+"
