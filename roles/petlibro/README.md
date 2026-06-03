@@ -1,25 +1,54 @@
 # petlibro
 
-Mock Petlibro cloud + TUTK video streaming for PLAF203 (and similar) feeders.
-Replaces both Petlibro's MQTT cloud and TUTK Kalay's video plane with local
-implementations. Feeders never reach the internet.
+Local Mosquitto broker for PLAF203 feeders, plus an opt-in catbro-server
+container for protocol research.
 
-Runs on `nuc-mini` (NUC15). Home Assistant on NUC8 connects to it over MQTT and
-RTSP.
+Runs on `nuc-mini` (NUC15). Home Assistant on NUC8 connects to it over MQTT.
 
 ## What this deploys
 
-Two containers in one Docker compose stack at `/opt/docker/petlibro/`:
+By default, **one container** at `/opt/docker/petlibro/`:
 
 - **mosquitto** — Eclipse Mosquitto 2.x, anonymous, listening on `1883`. Both
   feeders (via DNS rewrite) and HA-on-NUC8 connect here.
-- **catbro** — Built locally from
-  [bobobo1618/catbro-server](https://github.com/bobobo1618/catbro-server)
-  (Rust + embedded
-  [bobobo1618/go2rtc](https://github.com/bobobo1618/go2rtc) Go fork). Acts as
-  the Petlibro MQTT cloud; embeds go2rtc with the
-  `pkg/tutk/` reimplementation that speaks PLAF203 video directly. Exposes RTSP
-  on `8554` and a WebUI on `1984`.
+
+The live MQTT bridge + video plane that catbro used to provide is now handled
+by **feederhub** (`roles/utilities`).  Catbro is deployed only when the
+`petlibro_catbro_enabled` flag is on — see "Enabling catbro" below.
+
+### catbro-server (opt-in, default off)
+
+When enabled, adds a second container built locally from
+[bobobo1618/catbro-server](https://github.com/bobobo1618/catbro-server)
+(Rust + embedded
+[bobobo1618/go2rtc](https://github.com/bobobo1618/go2rtc) Go fork). Acts as
+the Petlibro MQTT cloud; embeds go2rtc with the `pkg/tutk/`
+reimplementation that speaks PLAF203 video directly. Exposes RTSP on `8554`
+and a WebUI on `1984`.
+
+Catbro's remaining purpose post-feederhub is **protocol research**: its
+`--mode record` writes every observed MQTT frame to a JSONL log file, which
+is how we found `DEVICE_LOG_REPORT_EVENT` carries the Kalay UID, the real
+`MANUAL_FEEDING_SERVICE` cmd, etc.  Enable for capture sessions, then disable
+so it stops fighting feederhub for `:8554` / `:8555` / `:1984`.
+
+### Enabling catbro
+
+Set `petlibro_catbro_enabled: true` (group/host vars or `-e`) and re-run the
+playbook:
+
+```bash
+ansible-playbook deploy/petlibro.yml -e petlibro_catbro_enabled=true
+```
+
+To disable again (the usual state):
+
+```bash
+ansible-playbook deploy/petlibro.yml -e petlibro_catbro_enabled=false
+```
+
+The `remove_orphans: true` flag on the compose task tears down the running
+catbro container when the flag flips back to false.
 
 Ports exposed on NUC15:
 

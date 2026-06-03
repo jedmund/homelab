@@ -24,6 +24,7 @@ services:
         max-size: {{ logging_max_size | default('10m') }}
         max-file: {{ logging_max_file | default('3') }}
 
+{% if petlibro_catbro_enabled | default(false) %}
   catbro:
     container_name: petlibro-catbro
     image: {{ catbro_image_tag }}
@@ -39,7 +40,11 @@ services:
       mosquitto:
         condition: service_healthy
     ports:
-      # go2rtc ports — exposed on LAN so HA on NUC8 can pull RTSP streams
+      # go2rtc ports — exposed on LAN so HA on NUC8 can pull RTSP streams.
+      # When feederhub is also running on this host, BOTH stacks want 8554
+      # (RTSP) + 8555 (WebRTC TCP) + 1984 (HTTP).  That's why catbro is
+      # opt-in: enable for capture sessions, disable for normal operation
+      # so feederhub owns the video plane uncontested.
       - "{{ petlibro_go2rtc_api_host_port }}:1984"     # WebUI/HTTP API
       - "{{ petlibro_go2rtc_rtsp_host_port }}:8554"    # RTSP
       - "{{ petlibro_go2rtc_webrtc_host_port }}:8555"  # WebRTC TCP
@@ -83,3 +88,4 @@ services:
       options:
         max-size: {{ logging_max_size | default('10m') }}
         max-file: {{ logging_max_file | default('3') }}
+{% endif %}
