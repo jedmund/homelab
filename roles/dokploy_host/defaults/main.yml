@@ -34,9 +34,9 @@ vm_os_variant: ubuntu24.04
 
 # Host bridge
 bridge_iface: br0
-# Active physical NIC on nuc-mini (confirmed via `ip link`). nuc-mini has
-# two onboard ports (enp46s0 and enp86s0); only enp46s0 is cabled.
-bridge_phys_iface: enp46s0
+# Active physical NIC on nuc-mini (confirmed via `ip link`). Aquantia 10GbE
+# Thunderbolt NIC at PCI 0000:05:00.0; enp87s0 is the onboard port (no cable).
+bridge_phys_iface: enp5s0
 
 # SSH key for cloud-init authorized_keys (uses the same key Ansible uses)
 vm_authorized_key_lookup: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
