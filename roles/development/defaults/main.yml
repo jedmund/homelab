@@ -51,6 +51,16 @@ gitlab_runner_url: "http://gitlab"
 # vault. Empty default lets the first deploy render config.toml without
 # failing; runner will log auth errors until the token is populated.
 gitlab_runner_auth_token: ""
+# Job containers spawned by the runner inherit the cibuild docker
+# network, whose embedded resolver (127.0.0.11) has no upstream that
+# knows *.atelier.house — public DNS doesn't carry those records and
+# AdGuard isn't reachable from the bridge. Pin the registry / git host
+# names to nuc-mini's LAN IP so kaniko (and any future CI job that hits
+# the GitLab registry) resolves them locally via /etc/hosts. Traffic
+# then hairpins out to Traefik on the host, same path the browser uses.
+gitlab_runner_extra_hosts:
+  - "{{ gitlab_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+  - "{{ gitlab_registry_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
 
 # Renovate settings
 renovate_image: renovate/renovate:39
