@@ -61,10 +61,6 @@ homebox_oidc_button_text: "Sign in with PocketID"
 homebox_oidc_auto_redirect: "false"
 homebox_oidc_verify_email: "false"
 
-# SongKong settings
-songkong_image: songkong/songkong:latest
-songkong_port: 4567
-
 # Album Sort (in-house app, built from source)
 album_sort_repo: ssh://git@git.atelier.house:2222/jedmund/album-sort.git
 album_sort_version: main

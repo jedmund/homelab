@@ -100,7 +100,6 @@ borg_networks:
 #   blinko_db_password
 #   draftboard_db_password
 #   dawarich_db_password
-#   ideon_db_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   couchdb_user, couchdb_password
@@ -130,8 +129,6 @@ draftboard_db_name: draftboard
 draftboard_db_user: draftboard
 dawarich_db_name: dawarich_production
 dawarich_db_username: dawarich
-ideon_db_name: ideon
-ideon_db_user: ideon
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
 # period at https://healthchecks.io and put its ping URL in the vault.

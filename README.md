@@ -28,10 +28,10 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line (in-house), PocketID, TinyAuth
 │   ├── media_acquisition/# Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Gluetun, slskd, Album Sort (in-house)
 │   ├── media_consumption/# Plex, Miniflux, Kavita, Romm, Karakeep, Stash, Tunarr
-│   ├── content_management/ # Immich, Papra, Homebox, SongKong
+│   ├── content_management/ # Immich, Papra, Homebox, Dawarich
 │   ├── development/      # GitLab, GitLab Runner, Renovate, Open WebUI
 │   ├── utilities/        # n8n, ChangeDetection, Copyparty
-│   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard, Ideon
+│   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard
 │   ├── social/           # Mastodon
 │   └── matrix/           # Synapse, MAS, Element, LiveKit
 └── Makefile              # Deployment commands
@@ -111,7 +111,7 @@ Shared secrets used by multiple stacks.
 
 | Variable | Description |
 |----------|-------------|
-| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Ideon) |
+| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Dawarich) |
 
 ### group_vars/infra_core/vault.yml
 
@@ -242,10 +242,6 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | Variable | Description |
 |----------|-------------|
 | `blinko_db_password` | Blinko PostgreSQL password |
-| `ideon_secret_key` | Ideon app secret (32+ char random, e.g. `openssl rand -hex 32`) |
-| `ideon_db_password` | Ideon PostgreSQL password |
-
-Ideon's SMTP password reuses the shared `sendgrid_api_key` (see `group_vars/compute_servers/vault.yml`). OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
 ### group_vars/development/vault.yml
 

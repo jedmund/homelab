@@ -1,5 +1,5 @@
 ---
-# Content Management Stack - Immich, Papra, SongKong
+# Content Management Stack - Immich, Papra, Homebox, Album Sort, Beets, Dawarich
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -66,5 +66,9 @@
     state: present
     remove_orphans: true
     build: always
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    # pull: policy (not the global docker_pull_policy) so docker compose honors
+    # the per-service pull_policy. album-sort/beets use `pull_policy: build`
+    # (local-only tags); a command-line --pull always would override that and
+    # fail with "pull access denied".
+    pull: policy
   register: compose_result

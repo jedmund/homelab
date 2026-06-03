@@ -55,7 +55,6 @@ firewall_ports_media_consumption:
 firewall_ports_content_management:
   - { port: 2283, proto: tcp, comment: "Immich" }
   - { port: 8787, proto: tcp, comment: "Papra" }
-  - { port: 4567, proto: tcp, comment: "SongKong" }
 
 # Development
 firewall_ports_development:
