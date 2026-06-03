@@ -76,7 +76,7 @@ max_server_ip: "{{ hostvars['max'].ansible_host }}"
 # on the project default branch. Fork adds PocketID OIDC and full
 # multi-user data scoping; see umbrella PR jedmund/Vane#5.
 vane_image: registry.atelier.house/jedmund/vane
-vane_image_tag: feat-model-select-and-defaults
+vane_image_tag: main
 # Registry auth for pulling the private image. Populate the vault entries
 # with a GitLab deploy token scoped to `read_registry`:
 #   vault_vane_registry_username  (e.g. gitlab+deploy-token-N)
