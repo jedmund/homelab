@@ -63,18 +63,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  songkong:
-    container_name: songkong
-    image: {{ songkong_image }}
-    restart: {{ restart_policy }}
-    ports:
-      - "{{ songkong_port }}:4567"
-    volumes:
-      - songkong-config:/songkong
-      - music:/music
-    environment:
-      - TZ={{ timezone }}
-
   homebox:
     container_name: homebox
     image: {{ homebox_image }}
@@ -295,7 +283,6 @@ volumes:
     external: true
     name: immich-pgdata
   model-cache:
-  songkong-config:
 
   photos:
     external: true

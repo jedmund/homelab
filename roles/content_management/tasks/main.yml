@@ -1,5 +1,5 @@
 ---
-# Content Management Stack - Immich, Papra, SongKong
+# Content Management Stack - Immich, Papra, Homebox, Album Sort, Beets, Dawarich
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories

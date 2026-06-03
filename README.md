@@ -28,7 +28,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line (in-house), PocketID, TinyAuth
 │   ├── media_acquisition/# Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Gluetun, slskd, Album Sort (in-house)
 │   ├── media_consumption/# Plex, Miniflux, Kavita, Romm, Karakeep, Stash, Tunarr
-│   ├── content_management/ # Immich, Papra, Homebox, SongKong
+│   ├── content_management/ # Immich, Papra, Homebox, Dawarich
 │   ├── development/      # GitLab, GitLab Runner, Renovate, Open WebUI
 │   ├── utilities/        # n8n, ChangeDetection, Copyparty
 │   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard, Ideon
