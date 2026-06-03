@@ -80,10 +80,17 @@ firewall_ports_matrix:
   - { port: "50100:50200", proto: udp, comment: "LiveKit media relay" }
 
 # Infrastructure
+#
+# Port entries support an optional `src` field that scopes the rule to a
+# specific source CIDR.  Used for feederhub: the only consumer is Traefik
+# (in a Docker bridge) so there's no reason to expose 18080 to the LAN —
+# `src: 172.16.0.0/12` covers every Docker bridge subnet on the host
+# while keeping the port closed to anything outside the docker namespace.
 firewall_ports_infrastructure:
   - { port: 9120, proto: tcp, comment: "Komodo" }
   - { port: 3000, proto: tcp, comment: "AdGuard setup / TinyAuth" }
   - { port: 1411, proto: tcp, comment: "PocketID" }
+  - { port: 18080, proto: tcp, src: "172.16.0.0/12", comment: "feederhub API (Docker bridges only)" }
 
 # Downloads (BitTorrent)
 firewall_ports_downloads:

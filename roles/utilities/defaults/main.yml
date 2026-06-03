@@ -54,7 +54,7 @@ copyparty_port: 3923
 # provider (services-mini.yml) since the docker provider can't see
 # host-networked containers.
 feederhub_image: ghcr.io/jedmund/feederhub
-feederhub_image_tag: phase4-cameras
+feederhub_image_tag: phase5-complete
 feederhub_domain: cat.atelier.house
 feederhub_host_port: 18080
 # Distroless `nonroot` is uid 65532; the data dir must be writable

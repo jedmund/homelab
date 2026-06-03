@@ -22,6 +22,10 @@
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
+    # Optional src scopes the rule to a specific CIDR — used to keep
+    # ports closed to the public LAN while still letting same-host
+    # Docker bridges (and only Docker bridges) reach the service.
+    src: "{{ item.src | default(omit) }}"
     comment: "{{ item.comment }}"
   loop: "{{ firewall_ports_all }}"
   when: firewall_enabled | bool

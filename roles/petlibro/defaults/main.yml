@@ -6,10 +6,16 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # ---------------------------------------------------------------------------
 # catbro-server (mock Petlibro cloud + embedded go2rtc) — github bobobo1618
 #
-# The repo gets cloned into <config_base>/src on the NUC and a multi-stage
-# Dockerfile builds it into a single binary container image. Pin to a git ref
-# so deployments are reproducible; bump it deliberately.
+# Disabled by default since feederhub (roles/utilities) now handles the live
+# MQTT bridge + video plane.  Catbro's only remaining purpose is protocol
+# research — flip this to true for capture sessions, then back to false so it
+# stops fighting feederhub for :8554 (RTSP) and :1984/8555.
+#
+# When enabled the repo gets cloned into <config_base>/src on the NUC and a
+# multi-stage Dockerfile builds it into a single binary container image.  Pin
+# to a git ref so capture sessions are reproducible; bump it deliberately.
 # ---------------------------------------------------------------------------
+petlibro_catbro_enabled: false
 catbro_repo_url: "https://github.com/bobobo1618/catbro-server.git"
 # Upstream's default branch (vibe-coded, no tagged releases as of writing).
 # Pin to a specific commit SHA when something works so future deploys don't drift.
