@@ -62,27 +62,18 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
-# Vane has no published image of our fork; clone the repo so docker
-# compose can build it in-place. force: false keeps any local tweaks;
-# bump vane_repo_version to pull a new revision on the next deploy.
-- name: Clone Vane source for in-place build
-  register: vane_git
-  ansible.builtin.git:
-    repo: "{{ vane_repo_url }}"
-    dest: "{{ docker_base_path }}/{{ stack_name }}/vane-src"
-    version: "{{ vane_repo_version }}"
-    force: false
-    update: true
-
-- name: Build Vane image when source changes
-  when: vane_git.changed
-  args:
-    chdir: "{{ docker_base_path }}/{{ stack_name }}"
-  register: vane_build
-  changed_when: true
-  ansible.builtin.command:
-    cmd: docker compose build --progress plain vane
-  notify: Restart {{ stack_name }} stack
+# Vane is pulled from the GitLab container registry (built by CI in
+# jedmund/Vane). The deploy step below runs `pull: always` by default
+# (see group_vars/compute_servers/docker.yml) so bumping vane_image_tag
+# is sufficient to roll forward.
+- name: Authenticate with Vane image registry
+  community.docker.docker_login:
+    registry_url: "{{ vane_registry_url }}"
+    username: "{{ vane_registry_username }}"
+    password: "{{ vane_registry_password }}"
+    reauthorize: true
+  when: vane_registry_username | length > 0 and vane_registry_password | length > 0
+  no_log: true
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:

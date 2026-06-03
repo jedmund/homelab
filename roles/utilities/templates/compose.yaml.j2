@@ -123,17 +123,10 @@ services:
 
   vane:
     container_name: vane
-    build:
-      context: ./vane-src
-      args:
-        # Next.js bakes CSP at build time; passing OIDC_ISSUER_URL as a
-        # build-arg ensures the IdP host lands in connect-src / form-action.
-        # If the Vane Dockerfile does not yet declare ARG OIDC_ISSUER_URL,
-        # this is harmless (build-arg is ignored) but the server logs
-        # "OIDC_ISSUER_URL not set; CSP connect-src/form-action will not
-        # include an IdP origin" on startup. OIDC still works because the
-        # PocketID round-trip is 302 redirects, not browser fetches.
-        OIDC_ISSUER_URL: "{{ vane_oidc_issuer_url }}"
+    # Built in GitLab CI from jedmund/Vane; this homelab pulls the image
+    # rather than building from source. Pin via vane_image_tag; bump that
+    # to roll forward (or use :latest once main is the deploy target).
+    image: "{{ vane_image }}:{{ vane_image_tag }}"
     restart: {{ restart_policy }}
     networks:
       - proxy

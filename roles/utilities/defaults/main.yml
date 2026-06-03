@@ -70,12 +70,20 @@ max_server_ip: "{{ hostvars['max'].ansible_host }}"
 # Self-hosted Perplexity-style AI answering engine. Lives in the utilities
 # stack because it is a search/research tool, not a developer tool.
 #
-# Built in place from the jedmund/Vane fork: ansible clones the repo to
-# /opt/docker/utilities/vane-src and docker compose builds the image.
-# Fork adds PocketID OIDC and full multi-user data scoping; see umbrella
-# PR jedmund/Vane#5.
-vane_repo_url: ssh://git@git.atelier.house:2222/jedmund/Vane.git
-vane_repo_version: feat/model-select-and-defaults
+# Image is built by GitLab CI in jedmund/Vane and pushed to the project
+# container registry; this playbook pulls by tag. Bump vane_image_tag to
+# roll forward. Available tags: <short-sha>, <branch-slug>, and `latest`
+# on the project default branch. Fork adds PocketID OIDC and full
+# multi-user data scoping; see umbrella PR jedmund/Vane#5.
+vane_image: registry.atelier.house/jedmund/vane
+vane_image_tag: feat-model-select-and-defaults
+# Registry auth for pulling the private image. Populate the vault entries
+# with a GitLab deploy token scoped to `read_registry`:
+#   vault_vane_registry_username  (e.g. gitlab+deploy-token-N)
+#   vault_vane_registry_password
+vane_registry_url: https://registry.atelier.house
+vane_registry_username: "{{ vault_vane_registry_username | default('') }}"
+vane_registry_password: "{{ vault_vane_registry_password | default('') }}"
 vane_domain: vane.atelier.house
 vane_port: 3000
 # Reuse max's SearXNG so the bundled instance in Vane's image becomes
