@@ -51,14 +51,14 @@ chat models sized for coexistence with the code group still apply in
 shared mode:
 
 - `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
-  Default openclaw model.
 - `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
-  Openclaw's vision route lands here automatically.
 
 The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
 `gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
 larger contexts because they're picked manually; in shared mode loading
 one while minimax-iq4 is resident may OOM (unload the code slot first).
+`qwen3.6-flash-uncensored` is openclaw's default chat and vision model,
+so in shared mode an openclaw DM will evict any resident code slot.
 In split mode the chat group has the WS card to itself, so all of them
 fit individually.
 
@@ -76,15 +76,13 @@ fit individually.
   - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-35B-A3B/`
 - **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
-  Blackwell, multimodal. Also the openclaw vision model: image-bearing
-  DMs route here automatically via `agents.defaults.imageModel`, so it
-  has to load cleanly while the code group is occupied. Bumped to
-  Q8_K_XL once the second Blackwell arrived: MoE token decode reads
-  only active params, so Q8 costs effectively nothing in throughput
-  while giving a real weights-quality bump.
+  Blackwell, multimodal. Bumped to Q8_K_XL once the second Blackwell
+  arrived: MoE token decode reads only active params, so Q8 costs
+  effectively nothing in throughput while giving a real weights-quality
+  bump.
 - **VRAM**: ~37 GB on disk; ~54 GB live with `--parallel 4 -c 131072`
-  (four sticky 32K slots, q8_0 KV). Sized so the openclaw vision route
-  fits alongside `minimax-m27-iq4` (~135 GB) in coexistence mode 2.
+  (four sticky 32K slots, q8_0 KV). Sized to fit alongside
+  `minimax-m27-iq4` (~135 GB) in coexistence mode 2.
 - **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
   (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
   variant instead. `--mmproj` wires up vision; without it text-only
@@ -102,9 +100,11 @@ fit individually.
 - **Why**: Abliterated (refusal-vector-removed) build of the same base
   model as `qwen3.6-flash`, kept at the same fidelity tier (~10 bpw) so
   quality comparisons against the non-abliterated sibling stay clean.
-  Keep both entries resident in the catalogue so requests can pick per
-  use case; `swap: true` means only one is in VRAM at a time, so the
-  cost is disk-only (~44 GB).
+  Default openclaw chat and vision model: image-bearing DMs route here
+  automatically via `agents.defaults.imageModel`, so text and image
+  turns share the same refusal policy. Keep both flash entries resident
+  in the catalogue so requests can pick per use case; `swap: true` means
+  only one is in VRAM at a time, so the cost is disk-only (~44 GB).
 - **VRAM**: ~44 GB on disk; ~75 GB live with `--parallel 4 -c 262144`
   (four sticky 64K slots, q8_0 KV). Same shape as `qwen3.6-flash`.
 - **Notes**: "Q8_K_P" is HauhauCS's analog of Unsloth's UD-Q8_K_XL:
@@ -129,11 +129,11 @@ fit individually.
   - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-27B/`
 - **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
-  Blackwell, multimodal. Default openclaw chat model. Bumped to Q6_K_XL
-  once the second Blackwell arrived: for dense models token decode reads
-  all weights, so the bigger quant costs ~20% throughput (~130 tok/s
-  expected) but gives a meaningful quality bump. Q8 would halve
-  throughput, too steep for this tier.
+  Blackwell, multimodal. Bumped to Q6_K_XL once the second Blackwell
+  arrived: for dense models token decode reads all weights, so the
+  bigger quant costs ~20% throughput (~130 tok/s expected) but gives a
+  meaningful quality bump. Q8 would halve throughput, too steep for
+  this tier.
 - **VRAM**: ~22 GB on disk; ~36 GB live with `--parallel 2 -c 131072`
   (two sticky 64K slots, q8_0 KV). Sized for coexistence with
   `minimax-m27-iq4` (~135 GB) in mode 2; total ~171 GB, ~18 GB headroom.

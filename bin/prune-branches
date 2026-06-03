@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# prune-branches - list (and optionally delete) stale local + remote branches.
+#
+# Stale means:
+#   - Local branch whose upstream is gone (deleted on the remote)
+#   - Local branch fully merged into the main branch
+#   - Remote branch fully merged into origin/main
+#
+# Always preserved: main, master, the current branch, HEAD.
+#
+# Usage:
+#   bin/prune-branches              # dry run, just list
+#   bin/prune-branches --apply      # actually delete
+#   bin/prune-branches --main foo   # use a different base branch
+#   bin/prune-branches --remote up  # use a different remote (default: origin)
+#
+set -euo pipefail
+
+APPLY=0
+MAIN_BRANCH="main"
+REMOTE="origin"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --apply) APPLY=1; shift ;;
+    --main) MAIN_BRANCH="$2"; shift 2 ;;
+    --remote) REMOTE="$2"; shift 2 ;;
+    -h|--help)
+      sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) echo "unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+
+cd "$(git rev-parse --show-toplevel)"
+current=$(git symbolic-ref --quiet --short HEAD || echo "")
+
+echo "==> Fetching and pruning $REMOTE"
+git fetch --prune "$REMOTE"
+
+# Build a regex of names we will never touch.
+protected_re="^(${MAIN_BRANCH}|master|HEAD)$"
+remote_protected_re="^${REMOTE}/(${MAIN_BRANCH}|master|HEAD)$"
+
+# 1. Local branches whose upstream is gone.
+gone_local=$(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads \
+  | awk '$2 == "[gone]" {print $1}' \
+  | { grep -vxE "$protected_re" || true; } \
+  | { [[ -n "$current" ]] && grep -vxF "$current" || cat; })
+
+# 2. Local branches merged into MAIN_BRANCH (excluding gone set to avoid dupes).
+merged_local=$(git branch --merged "$MAIN_BRANCH" --format='%(refname:short)' \
+  | { grep -vxE "$protected_re" || true; } \
+  | { [[ -n "$current" ]] && grep -vxF "$current" || cat; })
+
+# 3. Remote branches on REMOTE merged into REMOTE/MAIN_BRANCH.
+merged_remote=$(git branch -r --merged "$REMOTE/$MAIN_BRANCH" --format='%(refname:short)' \
+  | { grep "^${REMOTE}/" || true; } \
+  | { grep -vxE "$remote_protected_re" || true; })
+
+print_set() {
+  local label="$1"; shift
+  local body="$*"
+  echo
+  echo "==> $label"
+  if [[ -z "${body// }" ]]; then
+    echo "   (none)"
+  else
+    echo "$body" | sed 's/^/   /'
+  fi
+}
+
+print_set "Local branches with upstream gone" "$gone_local"
+print_set "Local branches merged into $MAIN_BRANCH" "$merged_local"
+print_set "Remote branches merged into $REMOTE/$MAIN_BRANCH" "$merged_remote"
+
+if [[ "$APPLY" -ne 1 ]]; then
+  echo
+  echo "Dry run. Re-run with --apply to delete."
+  exit 0
+fi
+
+echo
+echo "==> Applying deletions"
+
+# Union of local sets, deduped.
+local_to_delete=$(printf "%s\n%s\n" "$gone_local" "$merged_local" | awk 'NF && !seen[$0]++')
+
+if [[ -n "$local_to_delete" ]]; then
+  while IFS= read -r b; do
+    [[ -z "$b" ]] && continue
+    echo "   git branch -d $b"
+    # -d refuses to drop unmerged branches; that's the safety we want.
+    git branch -d "$b" || echo "      (skipped; not fully merged, use -D manually if intended)"
+  done <<<"$local_to_delete"
+else
+  echo "   (no local branches to delete)"
+fi
+
+if [[ -n "$merged_remote" ]]; then
+  while IFS= read -r ref; do
+    [[ -z "$ref" ]] && continue
+    branch="${ref#${REMOTE}/}"
+    echo "   git push $REMOTE --delete $branch"
+    git push "$REMOTE" --delete "$branch"
+  done <<<"$merged_remote"
+else
+  echo "   (no remote branches to delete)"
+fi
+
+echo
+echo "Done."

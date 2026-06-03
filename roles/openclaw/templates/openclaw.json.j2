@@ -12,13 +12,12 @@
   // the mac-mini doesn't hold sensitive files that warrant the VM
   // overhead Docker Desktop / OrbStack imposes on macOS.
   //
-  // model:      text-only turns. Default is the coexistence-sized
-  //             qwen3.6 (chat group on llama-swap) so an opencode
-  //             session on minimax-iq4 can run alongside openclaw.
+  // model:      text-only turns. Default pins to the abliterated flash
+  //             variant so personal DMs don't trip refusal training.
   // imageModel: turns carrying an image auto-route here (per Openclaw's
-  //             gateway/config-agents docs), so vision pays the
-  //             swap-within-chat-group tax only when an attachment
-  //             actually arrives.
+  //             gateway/config-agents docs); pinned to the same model
+  //             as `model` so the censorship policy is consistent across
+  //             text and image turns.
   agents: {
     defaults: {
       sandbox: {

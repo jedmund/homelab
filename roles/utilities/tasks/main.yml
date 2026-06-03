@@ -66,12 +66,21 @@
 # compose can build it in-place. force: false keeps any local tweaks;
 # bump vane_repo_version to pull a new revision on the next deploy.
 - name: Clone Vane source for in-place build
+  register: vane_git
   ansible.builtin.git:
     repo: "{{ vane_repo_url }}"
     dest: "{{ docker_base_path }}/{{ stack_name }}/vane-src"
     version: "{{ vane_repo_version }}"
     force: false
     update: true
+
+- name: Build Vane image when source changes
+  when: vane_git.changed
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    build: always
+    services:
+      - vane
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
@@ -80,10 +89,5 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
-    # `policy` lets docker compose decide: build any service with a
-    # build: directive when the local image is missing. Required for
-    # the in-place Vane build. Remove the image (or bump
-    # vane_repo_version then `docker compose build --no-cache vane`)
-    # to force a rebuild on subsequent deploys.
-    build: always
+    build: policy
   register: compose_result

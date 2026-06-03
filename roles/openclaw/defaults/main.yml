@@ -27,24 +27,18 @@ openclaw_sandbox_mode: "off"
 # llama_swap_port (11434) is duplicated from roles/ai/defaults/main.yml
 # because the ai role's vars aren't in scope from this role.
 openclaw_local_llm_base_url: "http://{{ hostvars['max'].ansible_host }}:11434/v1"
-# Default is qwen3.6 (27B dense Q6 MTP) to align with the ai role's
-# mode-2 coexistence design (see roles/ai/MODELS.md "Modes"). qwen3.6
-# is sized at -c 131072 --parallel 2 (~36 GB live) to coexist with
-# minimax-m27-iq4 in the code group, so an opencode session and an
-# openclaw DM can run simultaneously. The previous default
-# (minimax-m27-q4) now lives in the code-heavy group with
-# exclusive: true and would evict openclaw chat on load, so it's no
-# longer the right default. Vision-bearing DMs route automatically
-# to qwen3.6-flash via openclaw_local_llm_vision_model below; that
-# entry is also coexistence-sized so the route doesn't OOM when the
-# code group is occupied.
-openclaw_local_llm_default_model: "qwen3.6"
+# Default is qwen3.6-flash-uncensored (35B-A3B MoE abliterated, ~10 bpw)
+# so personal DMs don't trip refusal training on benign-but-edge prompts.
+# Sized at -c 262144 --parallel 4 (~75 GB live) in the ai role. Vision-
+# bearing DMs route to the same model via openclaw_local_llm_vision_model
+# below so the censorship policy is consistent across modalities.
+openclaw_local_llm_default_model: "qwen3.6-flash-uncensored"
 # Vision-capable model. Openclaw's agents.defaults.imageModel routes
 # image-bearing turns to this model automatically (see
-# https://docs.openclaw.ai/gateway/config-agents) so text-only chatter
-# stays on qwen3.6 and only a turn with an actual attachment pays the
-# swap-within-chat-group tax.
-openclaw_local_llm_vision_model: qwen3.6-flash
+# https://docs.openclaw.ai/gateway/config-agents). Pinned to the same
+# uncensored model as the text default so images don't get a different
+# refusal policy than text in the same DM.
+openclaw_local_llm_vision_model: qwen3.6-flash-uncensored
 
 # Custom (non-bundled) providers must declare which models they expose,
 # or openclaw rejects the config at startup. Each entry maps to a model
@@ -57,10 +51,16 @@ openclaw_local_llm_vision_model: qwen3.6-flash
 # All other fields (cost, reasoning) are emitted as zeros/false by the
 # template since these are local models with no per-token pricing.
 #
-# Only chat-tier models are exposed here: minimax variants and gpt-oss
-# live in code/code-heavy groups and aren't appropriate to call from
-# openclaw (would evict the chat slot, defeating coexistence).
+# Only chat-tier models are exposed here. Code-group models served by
+# llama-swap (qwen3-coder and friends) live in their own swap group and
+# aren't useful from openclaw, so they're omitted from the picker.
 openclaw_local_llm_models:
+  - id: qwen3.6-flash-uncensored
+    name: "Qwen3.6 Flash 35B-A3B Uncensored (multimodal)"
+    input: ["text", "image"]
+    # Matches -c 262144 --parallel 4 in the ai role: four sticky 64K slots.
+    contextWindow: 65536
+    maxTokens: 8192
   - id: qwen3.6
     name: "Qwen3.6 27B Dense MTP (multimodal)"
     input: ["text", "image"]

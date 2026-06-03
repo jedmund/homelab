@@ -74,8 +74,8 @@ max_server_ip: "{{ hostvars['max'].ansible_host }}"
 # /opt/docker/utilities/vane-src and docker compose builds the image.
 # Fork adds PocketID OIDC and full multi-user data scoping; see umbrella
 # PR jedmund/Vane#5.
-vane_repo_url: https://github.com/jedmund/Vane.git
-vane_repo_version: ai/admin-providers-epic
+vane_repo_url: ssh://git@git.atelier.house:2222/jedmund/Vane.git
+vane_repo_version: feat/model-select-and-defaults
 vane_domain: vane.atelier.house
 vane_port: 3000
 # Reuse max's SearXNG so the bundled instance in Vane's image becomes
