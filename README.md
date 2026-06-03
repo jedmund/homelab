@@ -6,38 +6,88 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 
 ```
 .
-├── deploy/               # Stack deployment playbooks
-│   ├── all.yml
-│   ├── prerequisites.yml
-│   ├── infra_core.yml
-│   ├── infra_gateway.yml
-│   ├── media_acquisition.yml
-│   ├── media_consumption.yml
-│   ├── content_management.yml
-│   ├── development.yml
-│   ├── productivity.yml
+├── deploy/        # One playbook per stack (deploy/all.yml runs everything)
 │   └── group_vars -> ../group_vars  # Symlink for variable resolution
-├── group_vars/           # Host group variables and vault files
-├── inventory/            # Host inventory
-├── roles/                # Ansible roles
-│   ├── docker/           # Docker installation and configuration
-│   ├── docker-volumes/   # Persistent volume management
-│   ├── firewall/         # UFW firewall rules
-│   ├── networks/         # Docker network configuration
-│   ├── infra_core/       # Komodo deployment platform
-│   ├── infra_gateway/    # Traefik, AdGuard, Glance, Line (in-house), PocketID, TinyAuth
-│   ├── media_acquisition/# Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Gluetun, slskd, Album Sort (in-house)
-│   ├── media_consumption/# Plex, Miniflux, Kavita, Romm, Karakeep, Stash, Tunarr
-│   ├── content_management/ # Immich, Papra, Homebox, Dawarich
-│   ├── development/      # GitLab, GitLab Runner, Renovate, Open WebUI
-│   ├── utilities/        # n8n, ChangeDetection, Copyparty
-│   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard
-│   ├── social/           # Mastodon
-│   └── matrix/           # Synapse, MAS, Element, LiveKit
-└── Makefile              # Deployment commands
+├── group_vars/    # Host group variables and vault files
+├── inventory/     # Host inventory (hosts.yml)
+├── roles/         # One role per stack; see the roster below
+├── CONVENTIONS.md # How services are wired up and how to add a new one
+└── Makefile       # Deployment commands
 ```
 
 > **Note:** The `deploy/group_vars` symlink exists because Ansible resolves `group_vars/` relative to the playbook location. Without it, playbooks in `deploy/` wouldn't find variables defined in the root `group_vars/`.
+
+Each stack is its own Ansible role under `roles/`, deployed by the matching
+`deploy/<role>.yml` playbook to the host group of the same name in
+`inventory/hosts.yml`. Before adding or changing a service, read
+[CONVENTIONS.md](CONVENTIONS.md).
+
+### Role roster
+
+In-house (self-developed) services are tagged `[in-house]`; see
+[CONVENTIONS.md](CONVENTIONS.md) for how those are built and pulled.
+
+**Base / prerequisites (compute_servers)**
+| Role | What it sets up |
+|------|-----------------|
+| `prerequisites` | DNS fallback, passwordless sudo, shell env |
+| `docker` | Docker engine + runtime |
+| `networks` | proxy / backend / shared / cibuild / vpn Docker networks |
+| `docker-volumes` | NFS-backed Docker volumes (`nfs_volumes`) |
+| `firewall` | UFW rules grouped by service |
+| `security` | SSH hardening |
+| `monitoring` | Netdata (nuc-mini parent, others children) |
+
+**Infrastructure (nuc-mini)**
+| Role | Services |
+|------|----------|
+| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, Line `[in-house]` |
+| `infra_core` | Komodo (Core + Periphery + MongoDB) |
+| `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
+
+**Media (nuc-mini)**
+| Role | Services |
+|------|----------|
+| `media_acquisition` | Prowlarr, Sonarr, Radarr, Lidarr, qBittorrent, Gluetun, slskd, Album Sort `[in-house]` |
+| `media_consumption` | Plex, Romm, Tunarr, Stash, Multi-Scrobbler, Kavita |
+| `reading` | Miniflux, Reactflux, FiveFilters, Karakeep |
+
+**Content and social (nuc-mini)**
+| Role | Services |
+|------|----------|
+| `content_management` | Immich, Papra, Homebox |
+| `social` | Mastodon (+ Postgres, Redis, streaming) |
+| `matrix` | Synapse, MAS (+ Postgres) |
+| `musicbrainz` | MusicBrainz mirror |
+
+**Productivity and utilities (nuc-mini)**
+| Role | Services |
+|------|----------|
+| `productivity` | Strudel `[in-house]`, Silverbullet, Blinko, CouchDB, Draftboard `[in-house]` |
+| `utilities` | n8n, ChangeDetection, Copyparty, feederhub `[in-house]`, Vane `[in-house]` |
+| `petlibro` | catbro `[in-house]`, Mosquitto |
+
+**Development (nuc-mini + mac-mini)**
+| Role | Services |
+|------|----------|
+| `development` | GitLab, GitLab Runner (Docker), Renovate, Open WebUI, Paseo relay |
+| `development_macos` | GitLab Runner (shell executor, iOS builds) |
+| `openclaw` | OpenClaw agent (native macOS) |
+| `paseo_daemon` | Paseo daemon (native macOS) |
+
+**AI / GPU (max)**
+| Role | Services |
+|------|----------|
+| `ai` | llama-swap, Whisper, Kokoro, TEI, SearXNG, Playwright |
+| `vllm` | DeepSeek V4 Flash (active serving path, port 11437) |
+| `sglang` | SGLang stack (parked; see `roles/sglang/README.md`) |
+| `gpu_tools` | hwsummary, gpu-burn helper scripts |
+
+**Other**
+| Role | Services |
+|------|----------|
+| `backup` | Borgmatic + Borg-UI (nightly Borg snapshots) |
+| `dokploy` | Dokploy bootstrap (runs inside the dokploy_host VM) |
 
 ## Prerequisites
 

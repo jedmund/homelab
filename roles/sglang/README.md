@@ -1,5 +1,12 @@
 # sglang
 
+> **PARKED (2026-06).** This role is not the live serving path for
+> DeepSeek V4 Flash. V4 Flash currently serves via the `roles/vllm` stack
+> on port `11437`, because SGLang's strict-config loader rejects the
+> NVFP4 quant. The role is kept intact for when that is fixed upstream;
+> until then nothing here is deployed by default. See `roles/vllm` for the
+> active config.
+
 SGLang-based inference stack on `max` for models llama.cpp can't serve
 (novel attention, large MoEs that need NVFP4 + tensor parallel). Runs
 alongside the `ai` role's llama-swap stack rather than replacing it.
