@@ -19,13 +19,17 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Indexed names (onvif0, onvif1, ...) keep us inside Linux's
+# IFNAMSIZ limit (15 chars).  The feeder a given index maps to is
+# documented by index order in feederhub_onvif_devices.
 {% for dev in feederhub_onvif_devices %}
-ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif-{{ dev.name }} address {{ dev.mac }} type macvlan mode bridge
-ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif-{{ dev.name }}
-ExecStart=/usr/sbin/ip link set onvif-{{ dev.name }} up
+# {{ dev.name }} → onvif{{ loop.index0 }} ({{ dev.mac }}, {{ dev.ip }})
+ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif{{ loop.index0 }} address {{ dev.mac }} type macvlan mode bridge
+ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif{{ loop.index0 }}
+ExecStart=/usr/sbin/ip link set onvif{{ loop.index0 }} up
 {% endfor %}
 {% for dev in feederhub_onvif_devices %}
-ExecStop=-/usr/sbin/ip link delete onvif-{{ dev.name }}
+ExecStop=-/usr/sbin/ip link delete onvif{{ loop.index0 }}
 {% endfor %}
 
 [Install]
