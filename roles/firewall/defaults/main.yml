@@ -15,6 +15,7 @@ firewall_group_downloads: true
 firewall_group_productivity: true
 firewall_group_social: true
 firewall_group_matrix: true
+firewall_group_feederhub: true
 
 # Base ports (SSH, HTTP, HTTPS)
 firewall_ports_base:
@@ -97,6 +98,21 @@ firewall_ports_downloads:
   - { port: 6881, proto: tcp, comment: "BitTorrent" }
   - { port: 6881, proto: udp, comment: "BitTorrent UDP" }
 
+# feederhub video plane + ONVIF.  These are the LAN-facing surfaces:
+#  * 8554/tcp — RTSP server (Protect pulls live streams via this; the
+#    main API at 18080 stays scoped to Docker bridges per the
+#    infrastructure rule above)
+#  * 8555/tcp + 8555/udp — WebRTC media (browser playback)
+#  * 3702/udp — WS-Discovery multicast for ONVIF (Protect's auto-
+#    adoption probes)
+#  * 80/tcp on the per-feeder ONVIF VIPs is already covered by the
+#    base "HTTP" rule
+firewall_ports_feederhub:
+  - { port: 8554, proto: tcp, comment: "feederhub RTSP" }
+  - { port: 8555, proto: tcp, comment: "feederhub WebRTC TCP" }
+  - { port: 8555, proto: udp, comment: "feederhub WebRTC UDP" }
+  - { port: 3702, proto: udp, comment: "feederhub WS-Discovery (ONVIF)" }
+
 # Consolidated port list - dynamically built from enabled groups
 firewall_ports_all: >-
   {{
@@ -111,5 +127,6 @@ firewall_ports_all: >-
     (firewall_ports_downloads if firewall_group_downloads else []) +
     (firewall_ports_productivity if firewall_group_productivity else []) +
     (firewall_ports_social if firewall_group_social else []) +
-    (firewall_ports_matrix if firewall_group_matrix else [])
+    (firewall_ports_matrix if firewall_group_matrix else []) +
+    (firewall_ports_feederhub if firewall_group_feederhub else [])
   }}
