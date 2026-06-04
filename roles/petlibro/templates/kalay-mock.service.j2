@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+[Unit]
+Description=kalay_mock — local Kalay master server for PLAF203 feeders
+Documentation=https://github.com/jedmund/petlibro
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ kalay_mock_user }}
+Group={{ kalay_mock_group }}
+WorkingDirectory={{ kalay_mock_dir }}
+ExecStartPre=/bin/mkdir -p {{ kalay_mock_dir }}/av-dump
+ExecStart=/usr/bin/python3 -u {{ kalay_mock_dir }}/mock_kalay.py \
+{% for port in kalay_mock_udp_ports %}
+  --port {{ port }} \
+{% endfor %}
+  --tcp-port {{ kalay_mock_tcp_port }} \
+  --av-dump-dir {{ kalay_mock_dir }}/av-dump \
+{% for feeder in petlibro_feeders %}
+  --seed-feeder {{ feeder.tutk_uid }}:{{ feeder.local_ip }}:{{ kalay_mock_udp_ports[0] }} \
+{% endfor %}
+  {{ kalay_mock_verbosity }}
+Restart=on-failure
+RestartSec=5s
+StandardOutput=append:{{ kalay_mock_dir }}/mock.log
+StandardError=append:{{ kalay_mock_dir }}/mock.log
+
+[Install]
+WantedBy=multi-user.target

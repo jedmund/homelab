@@ -13,3 +13,14 @@
     remove_orphans: true
     recreate: always
     build: always
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart kalay_mock
+  ansible.builtin.systemd:
+    name: kalay-mock.service
+    state: restarted
+  become: true
