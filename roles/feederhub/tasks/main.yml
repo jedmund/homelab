@@ -1,0 +1,69 @@
+---
+# Feederhub stack — local-first PetLibro PLAF203 control plane.  Image
+# is built by GitLab CI in jedmund/feederhub and pulled here; this role
+# does not build from source.
+#
+# Bootstrap ordering (one-time, manual):
+#   1. Populate vault entries — see roles/feederhub/defaults/main.yml.
+#   2. First `make deploy-feederhub` brings up the stack.
+#   3. Register a Komodo Stack resource named `feederhub` (the value
+#      of KOMODO_FEEDERHUB_STACK in CI) pointing at /opt/docker/feederhub
+#      with files_on_host=true so CI-triggered redeploys land on the
+#      same compose Ansible just rendered.
+#   4. Set CI variables in the jedmund/feederhub GitLab project:
+#        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
+#        KOMODO_FEEDERHUB_STACK=feederhub
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+# Feederhub's distroless image runs as uid 65532; the data dir must be
+# owned by that uid for the SQLite DB to land.
+- name: Create feederhub data directory
+  file:
+    path: "{{ config_base }}/config/feederhub"
+    state: directory
+    owner: "{{ feederhub_data_uid }}"
+    group: "{{ feederhub_data_gid }}"
+    mode: '0750'
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  template:
+    src: env/feederhub.env.j2
+    dest: "{{ config_base }}/env/feederhub.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Authenticate with feederhub image registry
+  community.docker.docker_login:
+    registry_url: "{{ feederhub_registry_url }}"
+    username: "{{ feederhub_registry_username }}"
+    password: "{{ feederhub_registry_password }}"
+    reauthorize: true
+  when: feederhub_registry_username | length > 0 and feederhub_registry_password | length > 0
+  no_log: true
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

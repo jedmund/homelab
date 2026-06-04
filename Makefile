@@ -117,13 +117,17 @@ deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
-deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty, feederhub)
+deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty)
 	@echo "$(BLUE)Deploying utilities stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/utilities.yml $(VAULT_FLAG)
 
 deploy-vane: ## Deploy Vane stack
 	@echo "$(BLUE)Deploying Vane stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/vane.yml $(VAULT_FLAG)
+
+deploy-feederhub: ## Deploy feederhub stack
+	@echo "$(BLUE)Deploying feederhub stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/feederhub.yml $(VAULT_FLAG)
 
 deploy-kizuna: ## Deploy Kizuna stack (kizuna-api + kizuna-app + worker + pg + redis + garage)
 	@echo "$(BLUE)Deploying Kizuna stack...$(NC)"

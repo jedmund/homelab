@@ -1,0 +1,50 @@
+---
+# Stack identity
+stack_name: feederhub
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Feederhub — local-first PetLibro PLAF203 control plane.  Built from
+# /Users/justin/Developer/PetLibro/feederhub; CI in that repo builds the
+# image, pushes it to registry.atelier.house/jedmund/feederhub, and calls
+# the Komodo API on successful main builds to redeploy this stack
+# (KOMODO_FEEDERHUB_STACK CI var must equal the Komodo Stack resource
+# name; "feederhub" is the convention here).  Bumping the tag by hand
+# still works for a forced roll-forward or rollback.
+#
+# `latest` is published only on the default branch, so it tracks main.
+# To pin a known-good sha for a deploy freeze, set the tag to the short
+# sha CI emitted.  Available tags: <short-sha>, <branch-slug>, `latest`.
+#
+# Host networking is intentional: WebRTC ICE candidates need to advertise
+# a LAN-reachable address, and the bundled go2rtc binds UDP on every
+# interface it can see.  MQTT points at 127.0.0.1:1883 — the host port
+# `petlibro-mosquitto` publishes — so there's no need to share a Compose
+# network with it either.  Traefik routes via the file provider
+# (services-mini.yml) since the docker provider can't see host-networked
+# containers.
+feederhub_image: registry.atelier.house/jedmund/feederhub
+feederhub_image_tag: latest
+
+# Registry auth.  Use a single GitLab deploy token scoped to
+# `read_registry` on jedmund/feederhub.
+#   vault_feederhub_registry_username  (e.g. gitlab+deploy-token-N)
+#   vault_feederhub_registry_password
+feederhub_registry_url: https://registry.atelier.house
+feederhub_registry_username: "{{ vault_feederhub_registry_username | default('') }}"
+feederhub_registry_password: "{{ vault_feederhub_registry_password | default('') }}"
+
+feederhub_domain: cat.atelier.house
+feederhub_host_port: 18080
+
+# Distroless `nonroot` is uid 65532; the data dir must be writable by
+# that uid for the SQLite DB to land.
+feederhub_data_uid: 65532
+feederhub_data_gid: 65532
+
+# TUTK + feeders inventory continue to come from the vault.  Keys
+# moved verbatim from group_vars/utilities/vault.yml when this role
+# was split out of utilities.
+feederhub_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
+feederhub_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
+feederhub_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
+feederhub_feeders: "{{ vault_feederhub_feeders | default('') }}"
