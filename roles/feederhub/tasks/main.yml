@@ -46,6 +46,25 @@
   when: feederhub_onvif_enabled | bool
   notify: Reload systemd-networkd
 
+# Lower the host's "privileged port" cutoff so feederhub's distroless
+# nonroot process can bind port 80 on its VIPs.  `cap_add` in compose
+# alone isn't sufficient — it adds to the container's permitted set
+# but not the ambient set, so the uid-65532 process still gets EACCES
+# on bind(0.0.0.0:80).  Setting ip_unprivileged_port_start=80
+# eliminates the privilege check for any port >= 80, which is what we
+# want here.  Host-wide change, but the only ports < 1024 that anyone
+# on the nuc binds are 80 (traefik), 443 (traefik), 22 (sshd) — all
+# already run with root.
+- name: Lower privileged-port cutoff so nonroot can bind :80
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_unprivileged_port_start
+    value: '80'
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/50-feederhub-unprivileged-ports.conf
+  when: feederhub_onvif_enabled | bool
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
