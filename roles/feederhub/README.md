@@ -56,9 +56,46 @@ vault_feederhub_feeders: "<device_id>:<uid>:<name>,<device_id>:<uid>:<name>"
 # Registry auth (GitLab deploy token scoped to read_registry).
 vault_feederhub_registry_username: gitlab+deploy-token-N
 vault_feederhub_registry_password: <token>
+
+# ONVIF — only required when feederhub_onvif_enabled is true.  These
+# are the credentials Protect prompts for during adoption.  Treat as
+# secrets: ONVIF is reachable on the LAN and grants access to the
+# RTSP streams.
+vault_feederhub_onvif_user: protect
+vault_feederhub_onvif_pass: <strong-password>
 ```
 
 Create with `make edit-vault FILE=group_vars/feederhub/vault.yml`.
+
+## Enabling ONVIF (Phase 8 — Protect adoption)
+
+Off by default.  To turn it on so Protect can discover and adopt the
+feeders as third-party cameras:
+
+1. `make edit-vault FILE=group_vars/feederhub/vault.yml` and add the two
+   `vault_feederhub_onvif_*` keys above.
+2. Flip `feederhub_onvif_enabled: true` in `roles/feederhub/defaults/main.yml`
+   (or in a host override).
+3. `make deploy-feederhub`.
+4. In UniFi Protect: Settings → System → toggle **Discover Third-Party
+   Cameras** ON.  Both feeders appear in the Devices list within ~30 s
+   with "Click to Adopt".  Enter the vault credentials and they adopt.
+
+Pre-Protect sanity from your laptop:
+
+```bash
+python3 -c "from onvif.discovery import discover; print(discover())"
+python3 -c "from onvif import ONVIFCamera; \
+  c = ONVIFCamera('192.168.1.6', 8580, 'protect', '<vault-pass>'); \
+  print(c.devicemgmt.GetDeviceInformation())"
+```
+
+Ports used (host networking — already covered):
+
+- `TCP 8580` + `TCP 8581` — one SOAP listener per configured feeder.
+- `UDP 3702` — WS-Discovery multicast.
+
+No extra container capabilities needed.
 
 ## Komodo Stack setup (one-time, manual)
 

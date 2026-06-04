@@ -48,3 +48,17 @@ feederhub_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
 feederhub_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
 feederhub_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
 feederhub_feeders: "{{ vault_feederhub_feeders | default('') }}"
+
+# ONVIF — Phase 8 of feederhub.  Profile-S responder so UniFi Protect
+# can adopt each configured feeder as a third-party camera; Protect
+# then handles all recording and the footage becomes training data for
+# the upcoming cat-ID classifier.  Disabled until the credentials are
+# set in the vault; the binary refuses to boot ENABLED=true without
+# USER+PASS.  PORT_BASE is the first SOAP port (default 8580); each
+# feeder gets PORT_BASE + its index.  ADVERTISE_HOST is the LAN
+# address Protect should reach us at (the nuc's LAN IP).
+feederhub_onvif_enabled: false
+feederhub_onvif_user: "{{ vault_feederhub_onvif_user | default('') }}"
+feederhub_onvif_pass: "{{ vault_feederhub_onvif_pass | default('') }}"
+feederhub_onvif_port_base: 8580
+feederhub_onvif_advertise_host: "192.168.1.6"
