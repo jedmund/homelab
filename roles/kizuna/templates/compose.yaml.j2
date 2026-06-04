@@ -1,0 +1,149 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  kizuna-api:
+    container_name: kizuna-api
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-garage:
+        condition: service_started
+    labels:
+      # SPA + API split: Traefik routes api.kizuna.fm here, and the
+      # SPA at kizuna.fm hits this origin directly (CORS allowlists
+      # the SPA origin server-side, see config/initializers/cors.rb).
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-api.rule: "Host(`{{ kizuna_api_domain }}`)"
+      traefik.http.routers.kizuna-api.entrypoints: "websecure"
+      traefik.http.routers.kizuna-api.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-api.loadbalancer.server.port: "{{ kizuna_api_internal_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-worker:
+    container_name: kizuna-worker
+    # Same image as the API.  CMD override → Sidekiq worker process;
+    # the docker-entrypoint skips db:prepare on this branch so it
+    # never races a migration against kizuna-api.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    command: ["bundle", "exec", "sidekiq"]
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/api.env
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_started
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-web:
+    container_name: kizuna-web
+    image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-web.rule: "Host(`{{ kizuna_web_domain }}`)"
+      traefik.http.routers.kizuna-web.entrypoints: "websecure"
+      traefik.http.routers.kizuna-web.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-web.loadbalancer.server.port: "{{ kizuna_web_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-postgres:
+    container_name: kizuna-postgres
+    image: {{ kizuna_postgres_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - kizuna-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/postgres.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kizuna-redis:
+    container_name: kizuna-redis
+    image: {{ kizuna_redis_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - kizuna-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kizuna-garage:
+    container_name: kizuna-garage
+    image: {{ kizuna_garage_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - ./config/garage/garage.toml:/etc/garage.toml:ro
+      - kizuna-garage-data:/var/lib/garage/data
+      - kizuna-garage-meta:/var/lib/garage/meta
+    env_file:
+      - ./env/garage.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  kizuna-pgdata:
+  kizuna-redis:
+  kizuna-garage-data:
+  kizuna-garage-meta:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

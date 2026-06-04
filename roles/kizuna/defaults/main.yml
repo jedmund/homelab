@@ -1,0 +1,98 @@
+---
+# Stack identity
+stack_name: kizuna
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Kizuna is built by GitLab CI in jedmund/kizuna-api and jedmund/kizuna-app
+# and pushed to the project container registries. This role pulls by tag —
+# CI also calls the Komodo API on successful main builds to redeploy this
+# stack (KOMODO_KIZUNA_STACK CI var must equal the Komodo Stack resource
+# name; "kizuna" is the convention here). Bumping these tags by hand still
+# works for a forced roll-forward or rollback.
+#
+# `latest` is published only on the default branch, so it tracks main. To
+# pin a known-good sha for a deploy freeze, set the tag to the short sha
+# CI emitted (e.g. "abc1234"). Available tags: <short-sha>, <branch-slug>,
+# `latest`.
+kizuna_api_image: registry.atelier.house/kizuna/kizuna-api
+kizuna_api_image_tag: latest
+kizuna_app_image: registry.atelier.house/kizuna/kizuna-app
+kizuna_app_image_tag: latest
+
+# Registry auth. Use a single GitLab deploy token scoped to
+# `read_registry` at the kizuna group level so one credential covers
+# both project registries.
+#   vault_kizuna_registry_username  (e.g. gitlab+deploy-token-N)
+#   vault_kizuna_registry_password
+kizuna_registry_url: https://registry.atelier.house
+kizuna_registry_username: "{{ vault_kizuna_registry_username | default('') }}"
+kizuna_registry_password: "{{ vault_kizuna_registry_password | default('') }}"
+
+# Public domains. CI bakes PUBLIC_KIZUNA_API_URL into the SPA bundle at
+# build time (see kizuna-app/.gitlab-ci.yml), so changing this here is
+# only half the story — also update the CI variable, then rebuild.
+kizuna_web_domain: kizuna.fm
+kizuna_api_domain: api.kizuna.fm
+kizuna_web_port: 80
+kizuna_api_port: 80
+kizuna_api_origin: "https://{{ kizuna_api_domain }}"
+kizuna_web_origin: "https://{{ kizuna_web_domain }}"
+
+# Container internals — the API listens on 80 inside the container (set
+# via the Dockerfile CMD: `bin/thrust bin/rails server -p 80`).
+kizuna_api_internal_port: 80
+
+# ---- Postgres (per-stack, matches the n8n pattern in utilities) ----
+# 16-pgvector because the API code uses pgvector for embeddings.
+kizuna_postgres_image: pgvector/pgvector:pg16
+kizuna_postgres_db: kizuna_api_production
+kizuna_postgres_user: kizuna
+kizuna_postgres_password: "{{ vault_kizuna_postgres_password | default('') }}"
+
+# ---- Redis ----
+kizuna_redis_image: redis:7-alpine
+
+# ---- Garage (S3) ----
+# Per-stack Garage instance. The dev rpc_secret in
+# kizuna-api/garage_config/garage.toml is for the local docker-compose
+# only; this template ships its own from the vault.
+kizuna_garage_image: dxflrs/garage:v2.3.0
+kizuna_garage_bucket: kizuna
+# Garage credentials. Generate with `garage key create` on first deploy
+# (see roles/kizuna/files/garage_bootstrap.sh) and store the output in
+# the vault; the API container reads these values straight from its env.
+kizuna_garage_access_key_id: "{{ vault_kizuna_garage_access_key_id | default('') }}"
+kizuna_garage_secret_access_key: "{{ vault_kizuna_garage_secret_access_key | default('') }}"
+# The rpc_secret seeds Garage's internal cluster-RPC HMAC. Even with a
+# single-node deploy Garage refuses to start without one; generate a
+# random 32-byte hex once with `openssl rand -hex 32` and store it.
+kizuna_garage_rpc_secret: "{{ vault_kizuna_garage_rpc_secret | default('') }}"
+# Garage admin token for the bootstrap script and any future ops calls.
+kizuna_garage_admin_token: "{{ vault_kizuna_garage_admin_token | default('') }}"
+kizuna_garage_metrics_token: "{{ vault_kizuna_garage_metrics_token | default('') }}"
+
+# ---- Rails secrets ----
+# `bin/rails secret` once; store in vault.
+kizuna_secret_key_base: "{{ vault_kizuna_secret_key_base | default('') }}"
+
+# ---- OIDC against PocketID ----
+# Same shape as the Vane role. Register a Kizuna client in PocketID's
+# admin UI (https://id.atelier.house) with the redirect URI below, then
+# populate the vault entries:
+#   vault_kizuna_oidc_client_id
+#   vault_kizuna_oidc_client_secret
+kizuna_oidc_issuer: https://id.atelier.house
+kizuna_oidc_client_id: "{{ vault_kizuna_oidc_client_id | default('') }}"
+kizuna_oidc_client_secret: "{{ vault_kizuna_oidc_client_secret | default('') }}"
+kizuna_oidc_redirect_uri: "{{ kizuna_api_origin }}/auth/pocketid/callback"
+
+# ---- CORS allowlist ----
+# Comma-separated list consumed by config/initializers/cors.rb; fail-
+# closed if empty.
+kizuna_allowed_origins: "{{ kizuna_web_origin }}"
+
+# ---- Cookie scope ----
+# Cookies are set on the parent domain so the SPA at kizuna.fm and the
+# API at api.kizuna.fm share session state. Leading dot is conventional
+# for parent-domain cookies.
+kizuna_session_cookie_domain: ".{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"

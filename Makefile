@@ -121,6 +121,10 @@ deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty, fe
 	@echo "$(BLUE)Deploying utilities stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/utilities.yml $(VAULT_FLAG)
 
+deploy-kizuna: ## Deploy Kizuna stack (kizuna-api + kizuna-app + worker + pg + redis + garage)
+	@echo "$(BLUE)Deploying Kizuna stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kizuna.yml $(VAULT_FLAG)
+
 deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
