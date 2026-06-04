@@ -20,12 +20,13 @@
           11. Paseo daemon
           12. Utilities
           13. Vane
-          14. Productivity
-          15. Social
-          16. Matrix
-          17. AI (max only)
-          18. Openclaw
-          19. Backup
+          14. Feederhub
+          15. Productivity
+          16. Social
+          17. Matrix
+          18. AI (max only)
+          19. Openclaw
+          20. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -75,6 +76,10 @@
 # Vane stack
 - import_playbook: vane.yml
   tags: [vane]
+
+# Feederhub stack
+- import_playbook: feederhub.yml
+  tags: [feederhub]
 
 # Productivity stack
 - import_playbook: productivity.yml

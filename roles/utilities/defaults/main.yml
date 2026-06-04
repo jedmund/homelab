@@ -41,23 +41,3 @@ copyparty_image: copyparty/ac
 copyparty_domain: files.atelier.house
 copyparty_port: 3923
 
-# feederhub — local-first PetLibro PLAF203 control plane.
-# Built from /Users/justin/Developer/PetLibro/feederhub; see that
-# repo's deploy/README.md for the image build + push workflow.
-#
-# Host networking is intentional (not the proxy/backend bridges the
-# rest of utilities use): WebRTC ICE candidates need to advertise a
-# LAN-reachable address, and the bundled go2rtc binds UDP on every
-# interface it can see.  MQTT points at 127.0.0.1:1883 — the host
-# port `petlibro-mosquitto` publishes — so there's no need to share
-# a Compose network with it either.  Traefik routes via the file
-# provider (services-mini.yml) since the docker provider can't see
-# host-networked containers.
-feederhub_image: ghcr.io/jedmund/feederhub
-feederhub_image_tag: phase5-complete
-feederhub_domain: cat.atelier.house
-feederhub_host_port: 18080
-# Distroless `nonroot` is uid 65532; the data dir must be writable
-# by that uid for the SQLite DB to land.
-feederhub_data_uid: 65532
-feederhub_data_gid: 65532
