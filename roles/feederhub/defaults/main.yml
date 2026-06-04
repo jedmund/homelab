@@ -50,18 +50,38 @@ feederhub_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
 feederhub_feeders: "{{ vault_feederhub_feeders | default('') }}"
 
 # ONVIF Profile-S responder.  Each feeder is exposed as an independent
-# ONVIF camera at its own LAN VIP on port 80 (Protect's manual-add UI
-# probes the default ONVIF port on whatever IP you type; no port field).
-# VIPs are added to br0 by the role's "ensure feederhub ONVIF VIPs"
-# task and persisted via a systemd-networkd drop-in (see tasks/main.yml).
-# Pick free addresses on the LAN; .180/.181 are the actual feeders and
-# .66 is the UNVR, so .184/.185 is a sensible default.
+# ONVIF camera at its own LAN VIP on port 80.
+#
+# The VIPs MUST live on macvlan child interfaces of br0 — not as alias
+# IPs on br0 itself — because UniFi Protect (and most other ONVIF
+# consumers) dedupe adopted cameras on the link-layer MAC obtained
+# via ARP, NOT on the MAC reported via SOAP GetNetworkInterfaces.
+# Alias IPs on br0 all ARP back with the bridge's real MAC, so a
+# second adoption replaces the first.  Macvlan children give each
+# VIP its own MAC, and Protect adopts both as distinct cameras.
+#
+# Each entry below maps a feeder name to its VIP + the synthesised
+# locally-administered MAC the macvlan child will advertise.  MACs
+# are arbitrary as long as they:
+#   * start with 02 (locally-administered + unicast),
+#   * are unique within the LAN,
+#   * are stable across reboots so Protect doesn't think the camera
+#     changed identity and re-adopt it.
 feederhub_onvif_enabled: true
 feederhub_onvif_user: "{{ vault_feederhub_onvif_user | default('') }}"
 feederhub_onvif_pass: "{{ vault_feederhub_onvif_pass | default('') }}"
 feederhub_onvif_port: 80
-feederhub_onvif_bind_ips:
-  - 192.168.1.184  # left_feeder
-  - 192.168.1.185  # right_feeder
+feederhub_onvif_devices:
+  - name: left_feeder
+    ip: 192.168.1.184
+    mac: "02:F1:CB:8A:74:01"
+  - name: right_feeder
+    ip: 192.168.1.185
+    mac: "02:F1:CB:8A:74:02"
 feederhub_onvif_bridge: br0
 feederhub_onvif_advertise_host: "192.168.1.6"
+
+# Backwards-compat: derived from the structured devices list above so
+# the env template can keep emitting a flat comma-separated bind IPs
+# string into the feederhub binary.
+feederhub_onvif_bind_ips: "{{ feederhub_onvif_devices | map(attribute='ip') | list }}"

@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Creates one macvlan child of {{ feederhub_onvif_bridge }} per feeder
+# ONVIF VIP.  Each child gets its own MAC (set per-feeder in
+# defaults/main.yml) so UniFi Protect's adoption flow doesn't dedupe
+# both feeders into one entry — Protect reads MACs via ARP at the
+# link layer, so synthesising distinct MACs is what makes two feeder
+# IPs adopted as two cameras.
+#
+# Idempotent: addresses + links that already exist are re-added with
+# `|| true` so a re-run after a reboot (where systemd-networkd has
+# already brought up the parent bridge but our oneshot hasn't yet
+# touched the children) doesn't fail.
+
+[Unit]
+Description=feederhub ONVIF VIPs (macvlan children of {{ feederhub_onvif_bridge }})
+After=network-online.target sys-subsystem-net-devices-{{ feederhub_onvif_bridge }}.device
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+{% for dev in feederhub_onvif_devices %}
+ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif-{{ dev.name }} address {{ dev.mac }} type macvlan mode bridge
+ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif-{{ dev.name }}
+ExecStart=/usr/sbin/ip link set onvif-{{ dev.name }} up
+{% endfor %}
+{% for dev in feederhub_onvif_devices %}
+ExecStop=-/usr/sbin/ip link delete onvif-{{ dev.name }}
+{% endfor %}
+
+[Install]
+WantedBy=multi-user.target
