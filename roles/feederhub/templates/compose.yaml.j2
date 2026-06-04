@@ -12,6 +12,12 @@ services:
     image: "{{ feederhub_image }}:{{ feederhub_image_tag }}"
     restart: {{ restart_policy }}
     network_mode: host
+    # Distroless `nonroot` (uid 65532) needs CAP_NET_BIND_SERVICE to
+    # bind the ONVIF SOAP listeners on port 80 (one per feeder VIP).
+    # Without it the binary boots fine on 8554/8555/18080 but
+    # ListenAndServe on :80 fails with "permission denied".
+    cap_add:
+      - NET_BIND_SERVICE
     env_file:
       - ./env/feederhub.env
     volumes:

@@ -14,6 +14,46 @@
 #        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
 #        KOMODO_FEEDERHUB_STACK=feederhub
 
+# ---- ONVIF LAN VIPs -----------------------------------------------
+# Each feeder is exposed as an independent ONVIF camera at its own
+# LAN VIP on port 80 (Protect's manual-add UI probes the default ONVIF
+# port on whatever IP you type — no port field).  Add the addresses to
+# the bridge directly for immediate effect, and persist via a
+# systemd-networkd drop-in so they survive reboots.
+
+- name: Ensure feederhub ONVIF VIPs are live on {{ feederhub_onvif_bridge }}
+  ansible.builtin.command:
+    cmd: "ip address add {{ item }}/24 dev {{ feederhub_onvif_bridge }}"
+  loop: "{{ feederhub_onvif_bind_ips }}"
+  register: vip_add
+  changed_when: vip_add.rc == 0
+  failed_when:
+    - vip_add.rc != 0
+    - "'File exists' not in vip_add.stderr"
+  when: feederhub_onvif_enabled | bool
+
+- name: Persist feederhub ONVIF VIPs in systemd-networkd
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/50-feederhub-onvif-vips.network
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # {{ ansible_managed }}
+      # Per-feeder ONVIF VIPs on {{ feederhub_onvif_bridge }}.  Matches
+      # the addresses added by the "Ensure feederhub ONVIF VIPs" task in
+      # roles/feederhub/tasks/main.yml — keep in sync with
+      # feederhub_onvif_bind_ips in defaults/main.yml.
+      [Match]
+      Name={{ feederhub_onvif_bridge }}
+
+      [Network]
+      {% for ip in feederhub_onvif_bind_ips %}
+      Address={{ ip }}/24
+      {% endfor %}
+  when: feederhub_onvif_enabled | bool
+  notify: Reload systemd-networkd
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
