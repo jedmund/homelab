@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+# Kizuna prod Garage config.  Mirrors the dev config in
+# kizuna-api/garage_config/garage.toml; differences are intentional:
+#   - rpc_secret comes from the vault (dev's secret is a published
+#     constant for the docker-compose; reusing it in prod would be a
+#     trivial RPC-spoof primitive).
+#   - admin / metrics tokens from the vault.
+#   - rpc_public_addr points at the container's address inside the
+#     backend network instead of 127.0.0.1.
+#   - root_domain not exposed (S3 web hosting unused).
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "sqlite"
+
+replication_factor = 1
+consistency_mode   = "consistent"
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "kizuna-garage:3901"
+rpc_secret      = "{{ kizuna_garage_rpc_secret }}"
+
+[s3_api]
+s3_region    = "garage"
+api_bind_addr = "[::]:3900"
+
+[k2v_api]
+api_bind_addr = "[::]:3904"
+
+[admin]
+api_bind_addr  = "[::]:3903"
+admin_token    = "{{ kizuna_garage_admin_token }}"
+metrics_token  = "{{ kizuna_garage_metrics_token }}"
