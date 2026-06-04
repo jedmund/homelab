@@ -19,6 +19,18 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Tighten ARP behaviour so each interface only answers ARP requests
+# for its own configured IP.  By default the Linux kernel answers
+# ARP for any locally-configured IP from any interface, which means
+# both macvlan children + the parent bridge would all answer ARP
+# for .184 and .185 — collapsing the per-MAC identity we're trying
+# to establish.  arp_ignore=1 + arp_announce=2 together give us
+# "interface-scoped ARP" semantics for the rest of the lifetime of
+# this systemd unit.
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.all.arp_ignore=1
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.all.arp_announce=2
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.default.arp_ignore=1
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.default.arp_announce=2
 # Indexed names (onvif0, onvif1, ...) keep us inside Linux's
 # IFNAMSIZ limit (15 chars).  The feeder a given index maps to is
 # documented by index order in feederhub_onvif_devices.
