@@ -27,9 +27,13 @@
   loop: "{{ feederhub_onvif_bind_ips }}"
   register: vip_add
   changed_when: vip_add.rc == 0
+  # rc == 2 + "Address already assigned" is the iproute2 idempotent
+  # case: the address is already on the bridge (re-run after the
+  # systemd-networkd drop-in brought it up at boot, or after a prior
+  # role run).  Treat as success.
   failed_when:
     - vip_add.rc != 0
-    - "'File exists' not in vip_add.stderr"
+    - "'already assigned' not in vip_add.stderr"
   when: feederhub_onvif_enabled | bool
 
 - name: Persist feederhub ONVIF VIPs in systemd-networkd
