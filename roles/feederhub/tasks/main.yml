@@ -36,9 +36,14 @@
     label: "{{ item.ip }}"
   register: vip_legacy_del
   changed_when: vip_legacy_del.rc == 0
+  # Tolerate the two flavours of "nothing to delete" iproute2
+  # returns depending on distro / kernel version:
+  #   * "Cannot assign requested address" — address isn't on the iface
+  #   * "Address not found" — same condition, different wording
   failed_when:
     - vip_legacy_del.rc != 0
     - "'Cannot assign requested address' not in vip_legacy_del.stderr"
+    - "'Address not found' not in vip_legacy_del.stderr"
   when: feederhub_onvif_enabled | bool
 
 - name: Install feederhub-onvif-vips systemd unit
