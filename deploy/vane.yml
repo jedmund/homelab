@@ -1,0 +1,6 @@
+---
+- name: Deploy Vane stack
+  hosts: vane
+  become: yes
+  roles:
+    - vane

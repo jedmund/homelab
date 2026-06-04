@@ -1,0 +1,72 @@
+---
+# Vane stack — standalone AI answering engine. Images are built in GitLab CI
+# and pulled here; this role does not build from source.
+#
+# Bootstrap ordering:
+#   1. Deploy utilities first so the old Vane service is removed while its
+#      Docker volume remains on disk.
+#   2. Deploy this role; it mounts the existing utilities_vane-data volume.
+#   3. Register a Komodo Stack resource named `vane` with files_on_host=true
+#      and project_src={{ config_base }} so CI-triggered redeploys target the
+#      same compose file Ansible renders.
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  template:
+    src: env/vane.env.j2
+    dest: "{{ config_base }}/env/vane.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Authenticate with Vane image registry
+  community.docker.docker_login:
+    registry_url: "{{ vane_registry_url }}"
+    username: "{{ vane_registry_username }}"
+    password: "{{ vane_registry_password }}"
+    reauthorize: true
+  when: vane_registry_username | length > 0 and vane_registry_password | length > 0
+  no_log: true
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result
+
+- name: Print post-deploy reminder
+  debug:
+    msg: |
+      {{ stack_name }} stack deployed.
+
+      If this is the first split deploy:
+        1. Verify the old utilities Vane container is gone:
+             docker ps --filter name=vane
+        2. Verify Vane mounted the preserved volume:
+             docker inspect vane --format '{{ "{{" }} range .Mounts {{ "}}" }}{{ "{{" }} .Name {{ "}}" }} -> {{ "{{" }} .Destination {{ "}}" }}{{ "{{" }} println {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
+        3. Register a Komodo Stack named "vane" (files_on_host=true,
+           project_src={{ config_base }}) so CI-triggered redeploys target
+           the same compose.
+        4. Set CI variables in the Vane GitLab project:
+             KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
+             KOMODO_VANE_STACK=vane
