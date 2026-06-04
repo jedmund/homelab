@@ -19,26 +19,35 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Tighten ARP behaviour so each interface only answers ARP requests
-# for its own configured IP.  By default the Linux kernel answers
-# ARP for any locally-configured IP from any interface, which means
-# both macvlan children + the parent bridge would all answer ARP
-# for .184 and .185 — collapsing the per-MAC identity we're trying
-# to establish.  arp_ignore=1 + arp_announce=2 together give us
-# "interface-scoped ARP" semantics for the rest of the lifetime of
-# this systemd unit.
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.all.arp_ignore=1
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.all.arp_announce=2
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.default.arp_ignore=1
-ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.default.arp_announce=2
+# Scope arp_ignore/announce to the specific interfaces involved
+# rather than `all`/`default` — touching the global defaults
+# changes source-IP selection for outbound traffic on every iface,
+# which broke feederhub's TUTK signaling (UDP to mock_kalay at
+# 192.168.1.6:10001).  Setting per-iface keeps host-wide defaults
+# intact; the kernel takes max(all, iface) anyway.
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.{{ feederhub_onvif_bridge }}.arp_ignore=1
+ExecStartPre=/usr/sbin/sysctl -w net.ipv4.conf.{{ feederhub_onvif_bridge }}.arp_announce=2
 # Indexed names (onvif0, onvif1, ...) keep us inside Linux's
 # IFNAMSIZ limit (15 chars).  The feeder a given index maps to is
 # documented by index order in feederhub_onvif_devices.
+#
+# `ip address add ... noprefixroute`: don't auto-install a
+# 192.168.1.0/24 route via this macvlan.  Without that flag, every
+# new macvlan + IP added another candidate "preferred source" for
+# outbound LAN traffic, and the kernel started picking onvif0 or
+# onvif1 over br0 for feederhub → mock_kalay UDP — at which point
+# the TUTK session source IP doesn't match what mock_kalay's
+# session state expects, and the dial times out.  With noprefixroute,
+# the macvlans accept ARP for their own IPs but don't compete for
+# outbound source selection — br0 stays the default for everything
+# under 192.168.1.0/24.
 {% for dev in feederhub_onvif_devices %}
 # {{ dev.name }} → onvif{{ loop.index0 }} ({{ dev.mac }}, {{ dev.ip }})
 ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif{{ loop.index0 }} address {{ dev.mac }} type macvlan mode bridge
-ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif{{ loop.index0 }}
+ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif{{ loop.index0 }} noprefixroute
 ExecStart=/usr/sbin/ip link set onvif{{ loop.index0 }} up
+ExecStart=/usr/sbin/sysctl -w net.ipv4.conf.onvif{{ loop.index0 }}.arp_ignore=1
+ExecStart=/usr/sbin/sysctl -w net.ipv4.conf.onvif{{ loop.index0 }}.arp_announce=2
 {% endfor %}
 {% for dev in feederhub_onvif_devices %}
 ExecStop=-/usr/sbin/ip link delete onvif{{ loop.index0 }}

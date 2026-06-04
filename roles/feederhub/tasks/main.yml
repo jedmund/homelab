@@ -61,6 +61,25 @@
     daemon_reload: true
   when: vip_unit.changed
 
+# Reset the global ARP sysctls in case a prior version of the unit set
+# them on `all`/`default` — those values stuck around after the unit
+# was reconfigured to scope ARP per-interface, and the residual `all=1`
+# was breaking feederhub's TUTK signaling source-IP selection.
+- name: Reset global ARP sysctls left over from prior ONVIF VIP service version
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/50-feederhub-arp-reset.conf
+  loop:
+    - { name: net.ipv4.conf.all.arp_ignore,     value: '0' }
+    - { name: net.ipv4.conf.all.arp_announce,   value: '0' }
+    - { name: net.ipv4.conf.default.arp_ignore, value: '0' }
+    - { name: net.ipv4.conf.default.arp_announce, value: '0' }
+  when: feederhub_onvif_enabled | bool
+
 - name: Enable + start feederhub-onvif-vips
   ansible.builtin.systemd:
     name: feederhub-onvif-vips.service
