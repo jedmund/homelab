@@ -10,8 +10,8 @@ services:
       - proxy
       - backend
     ports:
-      - "80:80"
-      - "443:443"
+      - "{{ traefik_bind_ip }}:80:80"
+      - "{{ traefik_bind_ip }}:443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
