@@ -33,24 +33,12 @@
   when: feederhub_onvif_enabled | bool
 
 - name: Persist feederhub ONVIF VIPs in systemd-networkd
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: networkd/feederhub-onvif-vips.network.j2
     dest: /etc/systemd/network/50-feederhub-onvif-vips.network
     owner: root
     group: root
     mode: '0644'
-    content: |
-      # {{ ansible_managed }}
-      # Per-feeder ONVIF VIPs on {{ feederhub_onvif_bridge }}.  Matches
-      # the addresses added by the "Ensure feederhub ONVIF VIPs" task in
-      # roles/feederhub/tasks/main.yml — keep in sync with
-      # feederhub_onvif_bind_ips in defaults/main.yml.
-      [Match]
-      Name={{ feederhub_onvif_bridge }}
-
-      [Network]
-      {% for ip in feederhub_onvif_bind_ips %}
-      Address={{ ip }}/24
-      {% endfor %}
   when: feederhub_onvif_enabled | bool
   notify: Reload systemd-networkd
 
