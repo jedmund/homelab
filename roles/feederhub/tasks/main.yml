@@ -14,37 +14,54 @@
 #        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
 #        KOMODO_FEEDERHUB_STACK=feederhub
 
-# ---- ONVIF LAN VIPs -----------------------------------------------
-# Each feeder is exposed as an independent ONVIF camera at its own
-# LAN VIP on port 80 (Protect's manual-add UI probes the default ONVIF
-# port on whatever IP you type — no port field).  Add the addresses to
-# the bridge directly for immediate effect, and persist via a
-# systemd-networkd drop-in so they survive reboots.
+# ---- ONVIF LAN VIPs on macvlan children ---------------------------
+# Each feeder is exposed as an independent ONVIF camera at its own LAN
+# VIP.  The VIPs MUST sit on macvlan child interfaces of br0 (each
+# with its own MAC) rather than as alias IPs on br0 itself — UniFi
+# Protect dedupes adopted cameras on the link-layer MAC obtained via
+# ARP, and alias IPs all ARP back with the bridge's real MAC, so a
+# second adoption silently replaces the first.
 
-- name: Ensure feederhub ONVIF VIPs are live on {{ feederhub_onvif_bridge }}
+- name: Remove legacy alias-IP systemd-networkd drop-in (superseded by macvlan)
+  ansible.builtin.file:
+    path: /etc/systemd/network/50-feederhub-onvif-vips.network
+    state: absent
+  notify: Reload systemd-networkd
+
+- name: Remove legacy alias IPs from {{ feederhub_onvif_bridge }} if present
   ansible.builtin.command:
-    cmd: "ip address add {{ item }}/24 dev {{ feederhub_onvif_bridge }}"
-  loop: "{{ feederhub_onvif_bind_ips }}"
-  register: vip_add
-  changed_when: vip_add.rc == 0
-  # rc == 2 + "Address already assigned" is the iproute2 idempotent
-  # case: the address is already on the bridge (re-run after the
-  # systemd-networkd drop-in brought it up at boot, or after a prior
-  # role run).  Treat as success.
+    cmd: "ip address del {{ item.ip }}/24 dev {{ feederhub_onvif_bridge }}"
+  loop: "{{ feederhub_onvif_devices }}"
+  loop_control:
+    label: "{{ item.ip }}"
+  register: vip_legacy_del
+  changed_when: vip_legacy_del.rc == 0
   failed_when:
-    - vip_add.rc != 0
-    - "'already assigned' not in vip_add.stderr"
+    - vip_legacy_del.rc != 0
+    - "'Cannot assign requested address' not in vip_legacy_del.stderr"
   when: feederhub_onvif_enabled | bool
 
-- name: Persist feederhub ONVIF VIPs in systemd-networkd
+- name: Install feederhub-onvif-vips systemd unit
   ansible.builtin.template:
-    src: networkd/feederhub-onvif-vips.network.j2
-    dest: /etc/systemd/network/50-feederhub-onvif-vips.network
+    src: systemd/feederhub-onvif-vips.service.j2
+    dest: /etc/systemd/system/feederhub-onvif-vips.service
     owner: root
     group: root
     mode: '0644'
   when: feederhub_onvif_enabled | bool
-  notify: Reload systemd-networkd
+  register: vip_unit
+
+- name: Reload systemd to pick up feederhub-onvif-vips.service
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: vip_unit.changed
+
+- name: Enable + start feederhub-onvif-vips
+  ansible.builtin.systemd:
+    name: feederhub-onvif-vips.service
+    enabled: true
+    state: restarted
+  when: feederhub_onvif_enabled | bool
 
 # Lower the host's "privileged port" cutoff so feederhub's distroless
 # nonroot process can bind port 80 on its VIPs.  `cap_add` in compose
