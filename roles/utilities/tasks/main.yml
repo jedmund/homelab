@@ -1,5 +1,5 @@
 ---
-# Utilities Stack - n8n, ChangeDetection.io, Copyparty
+# Utilities Stack - n8n, ChangeDetection.io, Copyparty, feederhub
 
 - name: Create {{ stack_name }} directories
   file:
@@ -61,19 +61,6 @@
     group: "{{ pgid }}"
     mode: '0644'
   notify: Restart {{ stack_name }} stack
-
-# Vane is pulled from the GitLab container registry (built by CI in
-# jedmund/Vane). The deploy step below runs `pull: always` by default
-# (see group_vars/compute_servers/docker.yml) so bumping vane_image_tag
-# is sufficient to roll forward.
-- name: Authenticate with Vane image registry
-  community.docker.docker_login:
-    registry_url: "{{ vane_registry_url }}"
-    username: "{{ vane_registry_username }}"
-    password: "{{ vane_registry_password }}"
-    reauthorize: true
-  when: vane_registry_username | length > 0 and vane_registry_password | length > 0
-  no_log: true
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
