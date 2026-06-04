@@ -1,20 +1,31 @@
 # petlibro
 
-Local Mosquitto broker for PLAF203 feeders, plus an opt-in catbro-server
+Local Mosquitto broker for PLAF203 feeders, a kalay_mock systemd unit that
+provides the local TUTK relay on `:10001`, plus an opt-in catbro-server
 container for protocol research.
 
 Runs on `nuc-mini` (NUC15). Home Assistant on NUC8 connects to it over MQTT.
 
+When something breaks, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) — has
+the dependency graph, diagnostic playbook, and the 2026-06-03 NVMe-swap
+postmortem.
+
 ## What this deploys
 
-By default, **one container** at `/opt/docker/petlibro/`:
+By default, **one container** at `/opt/docker/petlibro/` plus **one
+host-level systemd unit**:
 
-- **mosquitto** — Eclipse Mosquitto 2.x, anonymous, listening on `1883`. Both
-  feeders (via DNS rewrite) and HA-on-NUC8 connect here.
+- **mosquitto** (container) — Eclipse Mosquitto 2.x, anonymous, listening on
+  `1883`.  Both feeders (via DNS rewrite) and HA-on-NUC8 connect here.
+- **kalay_mock** (systemd unit) — Python re-implementation of the Kalay
+  master server.  Binds UDP `:10001` + `:10240` and TCP `:10080` on the host;
+  feederhub's `FEEDERHUB_TUTK_SERVER=192.168.1.6:10001` dials it for the
+  video plane.  Lives on the host (not in Docker) because it pre-dated the
+  containerised stack and the scripts have always run directly under Python.
 
-The live MQTT bridge + video plane that catbro used to provide is now handled
-by **feederhub** (`roles/utilities`).  Catbro is deployed only when the
-`petlibro_catbro_enabled` flag is on — see "Enabling catbro" below.
+The MQTT bridge / feeding-schedule plane is owned by **feederhub**
+(`roles/utilities`).  Catbro is opt-in for protocol-capture sessions; see
+"Enabling catbro" below.
 
 ### catbro-server (opt-in, default off)
 
@@ -52,12 +63,30 @@ catbro container when the flag flips back to false.
 
 Ports exposed on NUC15:
 
-| Port | Protocol | Purpose |
-|---|---|---|
-| 1883 | TCP | MQTT broker (feeders + HA both connect) |
-| 1984 | TCP | go2rtc WebUI / HTTP API |
-| 8554 | TCP | RTSP streams (HA cameras source from here) |
-| 8555 | TCP | WebRTC TCP fallback |
+| Port | Protocol | Owner | Purpose |
+|---|---|---|---|
+| 1883 | TCP | mosquitto | MQTT broker (feeders + HA both connect) |
+| 10001 | UDP | kalay_mock | Kalay master server (primary) |
+| 10240 | UDP | kalay_mock | Kalay master server (alt port used by some feeders) |
+| 10080 | TCP | kalay_mock | Kalay-over-TCP for AV streaming |
+| 1984 | TCP | catbro (opt-in) | go2rtc WebUI / HTTP API |
+| 8554 | TCP | catbro (opt-in) | RTSP streams (HA cameras source from here) |
+| 8555 | TCP | catbro (opt-in) | WebRTC TCP fallback |
+
+### kalay_mock
+
+Host systemd unit (`/etc/systemd/system/kalay-mock.service`) running
+`python3 mock_kalay.py` out of `/opt/kalay-mock/`.  Scripts live in
+`roles/petlibro/files/kalay-mock/` and are copied byte-for-byte from
+[`PetLibro/feeder-re/mock-kalay/`](https://github.com/jedmund/petlibro)
+— update there first, then resync via this role.
+
+Seed feeders for the registry come from `petlibro_feeders` (the same list
+that drives creds.toml + go2rtc); each entry needs a `local_ip` field so
+the mock can answer UID lookups before the feeder's first KEEPALIVE.
+
+Logs append to `/opt/kalay-mock/mock.log`; `journalctl -u kalay-mock` also
+works.  Verify with `sudo ss -ulnp | grep 10001` after deploy.
 
 ## Manual prerequisites (deliberately NOT automated)
 
@@ -65,8 +94,8 @@ Ports exposed on NUC15:
 
 In UDM / AdGuard / whatever DNS the IoT VLAN resolves through, override
 `mqtt.us.petlibro.com` to point at the NUC15 LAN IP (`192.168.1.6` at time of
-writing). Without this, feeders connect to the real Petlibro cloud and the
-local catbro never sees them.
+writing). Without this, feeders connect to the real Petlibro cloud and our
+local mosquitto + kalay_mock never see them.
 
 UDM controller path: Settings → Networks → iot.local → DHCP Settings → Custom
 DHCP options OR via the Site Manager DNS overrides. AdGuard alternative: add a
