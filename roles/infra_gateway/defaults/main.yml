@@ -75,6 +75,14 @@ traefik_log_level: INFO
 traefik_domain: atelier.house
 traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
 # Use staging for testing: "https://acme-staging-v02.api.letsencrypt.org/directory"
+#
+# Bind traefik to a specific host IP rather than 0.0.0.0 so other
+# host services (e.g. feederhub's per-feeder ONVIF VIPs at .184/.185)
+# can bind their own :80 listeners on alias IPs without colliding
+# with the docker-proxy wildcard bind that 0.0.0.0:80 would create.
+# Override per host in inventory or host_vars when needed; default
+# preserves the legacy any-iface behaviour.
+traefik_bind_ip: "0.0.0.0"
 
 # PocketID settings
 pocketid_port: 1411
