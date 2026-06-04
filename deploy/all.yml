@@ -13,14 +13,19 @@
           4. Media Acquisition
           5. MusicBrainz mirror
           6. Media Consumption
-          7. Content Management
-          8. Development
-          9. Utilities
-          10. Productivity
-          11. Social
-          12. Matrix
-          13. AI (max only)
-          14. Backup
+          7. Reading
+          8. Content Management
+          9. Development
+          10. Development macOS
+          11. Paseo daemon
+          12. Utilities
+          13. Vane
+          14. Productivity
+          15. Social
+          16. Matrix
+          17. AI (max only)
+          18. Openclaw
+          19. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -66,6 +71,10 @@
 # Utilities stack
 - import_playbook: utilities.yml
   tags: [utilities]
+
+# Vane stack
+- import_playbook: vane.yml
+  tags: [vane]
 
 # Productivity stack
 - import_playbook: productivity.yml
