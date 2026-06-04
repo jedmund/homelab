@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Per-feeder ONVIF VIPs on {{ feederhub_onvif_bridge }}.  Matches the
+# addresses added by the "Ensure feederhub ONVIF VIPs" task in
+# roles/feederhub/tasks/main.yml — keep in sync with
+# feederhub_onvif_bind_ips in defaults/main.yml.
+[Match]
+Name={{ feederhub_onvif_bridge }}
+
+[Network]
+{% for ip in feederhub_onvif_bind_ips %}
+Address={{ ip }}/24
+{% endfor %}

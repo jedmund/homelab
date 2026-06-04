@@ -48,3 +48,20 @@ feederhub_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
 feederhub_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
 feederhub_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
 feederhub_feeders: "{{ vault_feederhub_feeders | default('') }}"
+
+# ONVIF Profile-S responder.  Each feeder is exposed as an independent
+# ONVIF camera at its own LAN VIP on port 80 (Protect's manual-add UI
+# probes the default ONVIF port on whatever IP you type; no port field).
+# VIPs are added to br0 by the role's "ensure feederhub ONVIF VIPs"
+# task and persisted via a systemd-networkd drop-in (see tasks/main.yml).
+# Pick free addresses on the LAN; .180/.181 are the actual feeders and
+# .66 is the UNVR, so .184/.185 is a sensible default.
+feederhub_onvif_enabled: true
+feederhub_onvif_user: "{{ vault_feederhub_onvif_user | default('') }}"
+feederhub_onvif_pass: "{{ vault_feederhub_onvif_pass | default('') }}"
+feederhub_onvif_port: 80
+feederhub_onvif_bind_ips:
+  - 192.168.1.184  # left_feeder
+  - 192.168.1.185  # right_feeder
+feederhub_onvif_bridge: br0
+feederhub_onvif_advertise_host: "192.168.1.6"

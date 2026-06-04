@@ -14,6 +14,57 @@
 #        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
 #        KOMODO_FEEDERHUB_STACK=feederhub
 
+# ---- ONVIF LAN VIPs -----------------------------------------------
+# Each feeder is exposed as an independent ONVIF camera at its own
+# LAN VIP on port 80 (Protect's manual-add UI probes the default ONVIF
+# port on whatever IP you type — no port field).  Add the addresses to
+# the bridge directly for immediate effect, and persist via a
+# systemd-networkd drop-in so they survive reboots.
+
+- name: Ensure feederhub ONVIF VIPs are live on {{ feederhub_onvif_bridge }}
+  ansible.builtin.command:
+    cmd: "ip address add {{ item }}/24 dev {{ feederhub_onvif_bridge }}"
+  loop: "{{ feederhub_onvif_bind_ips }}"
+  register: vip_add
+  changed_when: vip_add.rc == 0
+  # rc == 2 + "Address already assigned" is the iproute2 idempotent
+  # case: the address is already on the bridge (re-run after the
+  # systemd-networkd drop-in brought it up at boot, or after a prior
+  # role run).  Treat as success.
+  failed_when:
+    - vip_add.rc != 0
+    - "'already assigned' not in vip_add.stderr"
+  when: feederhub_onvif_enabled | bool
+
+- name: Persist feederhub ONVIF VIPs in systemd-networkd
+  ansible.builtin.template:
+    src: networkd/feederhub-onvif-vips.network.j2
+    dest: /etc/systemd/network/50-feederhub-onvif-vips.network
+    owner: root
+    group: root
+    mode: '0644'
+  when: feederhub_onvif_enabled | bool
+  notify: Reload systemd-networkd
+
+# Lower the host's "privileged port" cutoff so feederhub's distroless
+# nonroot process can bind port 80 on its VIPs.  `cap_add` in compose
+# alone isn't sufficient — it adds to the container's permitted set
+# but not the ambient set, so the uid-65532 process still gets EACCES
+# on bind(0.0.0.0:80).  Setting ip_unprivileged_port_start=80
+# eliminates the privilege check for any port >= 80, which is what we
+# want here.  Host-wide change, but the only ports < 1024 that anyone
+# on the nuc binds are 80 (traefik), 443 (traefik), 22 (sshd) — all
+# already run with root.
+- name: Lower privileged-port cutoff so nonroot can bind :80
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_unprivileged_port_start
+    value: '80'
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/50-feederhub-unprivileged-ports.conf
+  when: feederhub_onvif_enabled | bool
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"

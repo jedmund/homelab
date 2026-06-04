@@ -5,3 +5,8 @@
     state: present
     remove_orphans: true
     recreate: always
+
+- name: Reload systemd-networkd
+  ansible.builtin.systemd:
+    name: systemd-networkd
+    state: reloaded
