@@ -87,6 +87,49 @@
   when: petlibro_catbro_enabled | default(false)
   notify: Restart {{ stack_name }} stack
 
+# ---------------------------------------------------------------------------
+# kalay_mock — host-level systemd unit, NOT a container.  See defaults.
+# ---------------------------------------------------------------------------
+- name: Create kalay_mock directory
+  ansible.builtin.file:
+    path: "{{ kalay_mock_dir }}"
+    state: directory
+    owner: "{{ kalay_mock_user }}"
+    group: "{{ kalay_mock_group }}"
+    mode: '0755'
+  become: true
+
+- name: Deploy kalay_mock scripts
+  ansible.builtin.copy:
+    src: "kalay-mock/{{ item }}"
+    dest: "{{ kalay_mock_dir }}/{{ item }}"
+    owner: "{{ kalay_mock_user }}"
+    group: "{{ kalay_mock_group }}"
+    mode: '0644'
+  become: true
+  loop:
+    - mock_kalay.py
+    - decrypt.py
+  notify: Restart kalay_mock
+
+- name: Install kalay_mock systemd unit
+  ansible.builtin.template:
+    src: kalay-mock.service.j2
+    dest: /etc/systemd/system/kalay-mock.service
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify:
+    - Reload systemd
+    - Restart kalay_mock
+
+- name: Enable kalay_mock at boot
+  ansible.builtin.systemd:
+    name: kalay-mock.service
+    enabled: true
+  become: true
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
