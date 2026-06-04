@@ -93,6 +93,5 @@ kizuna_allowed_origins: "{{ kizuna_web_origin }}"
 
 # ---- Cookie scope ----
 # Cookies are set on the parent domain so the SPA at kizuna.fm and the
-# API at api.kizuna.fm share session state. Leading dot is conventional
-# for parent-domain cookies.
-kizuna_session_cookie_domain: ".{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
+# API at api.kizuna.fm share session state.
+kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
