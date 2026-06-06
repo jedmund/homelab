@@ -1,0 +1,568 @@
+# Komodo Resource Sync declarations for Ansible-rendered compose stacks.
+# Ansible remains the source of truth for /opt/docker/<stack>/compose.yaml
+# and any env/config files. Komodo reads those host files and may redeploy
+# them on demand, but it should not clone stack repos or auto-update images.
+
+[[stack]]
+name = "infra-gateway"
+description = "Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, and Line"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/infra-gateway"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "infra-core"
+description = "Komodo Core, Periphery, and MongoDB"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/infra-core"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "gluetun"
+description = "Gluetun VPN gateway"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/gluetun"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "prowlarr"
+description = "Prowlarr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/prowlarr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "qbittorrent"
+description = "qBittorrent"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/qbittorrent"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "sonarr"
+description = "Sonarr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/sonarr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "radarr"
+description = "Radarr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/radarr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "lidarr"
+description = "Lidarr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/lidarr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "seerr"
+description = "Seerr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/seerr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "unpackerr"
+description = "Unpackerr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/unpackerr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "jdownloader"
+description = "JDownloader"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/jdownloader"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "pinchflat"
+description = "Pinchflat"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/pinchflat"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "slskd"
+description = "slskd"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/slskd"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "qui"
+description = "Qui"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/qui"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "musicbrainz"
+description = "MusicBrainz mirror"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/musicbrainz/upstream"
+file_paths = ["local/compose.merged.yml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "romm"
+description = "RomM"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/romm"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "plex"
+description = "Plex"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/plex"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "multi-scrobbler"
+description = "Multi-Scrobbler"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/multi-scrobbler"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "tunarr"
+description = "Tunarr"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/tunarr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "stash"
+description = "Stash"
+tags = ["homelab", "ansible", "nuc-mini", "media"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/stash"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "immich"
+description = "Immich"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/immich"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "papra"
+description = "Papra"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/papra"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "homebox"
+description = "Homebox"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/homebox"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "album-sort"
+description = "Album Sort"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/album-sort"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "dawarich"
+description = "Dawarich"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/dawarich"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "miniflux"
+description = "Miniflux, Reactflux, and FiveFilters"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/miniflux"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "karakeep"
+description = "Karakeep"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/karakeep"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "kavita"
+description = "Kavita"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/kavita"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "strudel"
+description = "Strudel"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/strudel"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "blinko"
+description = "Blinko"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/blinko"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "obsidian-livesync"
+description = "CouchDB backend for Obsidian LiveSync"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/obsidian-livesync"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "gitlab"
+description = "GitLab, GitLab Runner, and Renovate"
+tags = ["homelab", "ansible", "nuc-mini", "development"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/gitlab"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "open-webui"
+description = "Open WebUI"
+tags = ["homelab", "ansible", "nuc-mini", "development"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/open-webui"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "paseo-relay"
+description = "Paseo Relay"
+tags = ["homelab", "ansible", "nuc-mini", "development"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/paseo-relay"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "n8n"
+description = "n8n"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/n8n"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "changedetection"
+description = "ChangeDetection.io"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/changedetection"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "copyparty"
+description = "Copyparty"
+tags = ["homelab", "ansible", "nuc-mini", "product"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/copyparty"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vane"
+description = "Vane"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/vane"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "feederhub"
+description = "Feederhub"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/feederhub"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "kizuna"
+description = "Kizuna"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/kizuna"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "petlibro"
+description = "catbro and Mosquitto"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/petlibro"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "social"
+description = "Mastodon"
+tags = ["homelab", "ansible", "nuc-mini", "social"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/social"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "matrix"
+description = "Synapse and Matrix Authentication Service"
+tags = ["homelab", "ansible", "nuc-mini", "social"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/matrix"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "backup"
+description = "Borgmatic and Borg-UI"
+tags = ["homelab", "ansible", "nuc-mini", "backup"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/backup"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "ai"
+description = "llama-swap, Whisper, Kokoro, TEI, SearXNG, and Playwright"
+tags = ["homelab", "ansible", "max", "ai"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/ai"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vllm"
+description = "vLLM DeepSeek serving stack"
+tags = ["homelab", "ansible", "max", "ai", "profiled"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/vllm"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "sglang"
+description = "SGLang model serving stack"
+tags = ["homelab", "ansible", "max", "ai", "profiled"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/sglang"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
