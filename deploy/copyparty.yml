@@ -1,0 +1,6 @@
+---
+- name: Deploy copyparty stack
+  hosts: copyparty
+  become: true
+  roles:
+    - copyparty
