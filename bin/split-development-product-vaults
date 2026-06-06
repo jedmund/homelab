@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Split the old ignored development vault into ignored product vault files
+# used by deploy/migrate_development_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+development_vault="${DEVELOPMENT_VAULT:-group_vars/development/vault.yml}"
+
+if [ ! -f "$development_vault" ]; then
+    echo "missing $development_vault" >&2
+    exit 1
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-development-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$development_vault" > "$tmpdir/development.yml"
+
+FORCE="$force" ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+force = ENV.fetch("FORCE") == "true"
+
+def fetch_required(source, path, key)
+  raise "missing #{key} for #{path}" unless source.key?(key)
+
+  source.fetch(key)
+end
+
+files = {
+  "group_vars/gitlab/vault.yml" => {
+    "gitlab_initial_root_password" => fetch_required(
+      source,
+      "group_vars/gitlab/vault.yml",
+      "gitlab_initial_root_password"
+    ),
+    "gitlab_oidc_client_id" => fetch_required(
+      source,
+      "group_vars/gitlab/vault.yml",
+      "gitlab_oidc_client_id"
+    ),
+    "gitlab_oidc_client_secret" => fetch_required(
+      source,
+      "group_vars/gitlab/vault.yml",
+      "gitlab_oidc_client_secret"
+    ),
+    "gitlab_runner_auth_token" => fetch_required(
+      source,
+      "group_vars/gitlab/vault.yml",
+      "gitlab_runner_auth_token"
+    ),
+    "renovate_gitlab_token" => fetch_required(
+      source,
+      "group_vars/gitlab/vault.yml",
+      "renovate_gitlab_token"
+    )
+  },
+  "group_vars/open_webui/vault.yml" => {
+    "open_webui_secret_key" => fetch_required(
+      source,
+      "group_vars/open_webui/vault.yml",
+      "open_webui_secret_key"
+    ),
+    "open_webui_oauth_client_id" => fetch_required(
+      source,
+      "group_vars/open_webui/vault.yml",
+      "open_webui_oauth_client_id"
+    ),
+    "open_webui_oauth_client_secret" => fetch_required(
+      source,
+      "group_vars/open_webui/vault.yml",
+      "open_webui_oauth_client_secret"
+    )
+  }
+}
+
+if source.key?("renovate_github_token")
+  files["group_vars/gitlab/vault.yml"]["renovate_github_token"] =
+    source.fetch("renovate_github_token")
+end
+
+if source.key?("gitlab_runner_macos_auth_token")
+  files["group_vars/development_macos/vault.yml"] = {
+    "gitlab_runner_macos_auth_token" =>
+      source.fetch("gitlab_runner_macos_auth_token")
+  }
+end
+
+existing = files.keys.select { |path| File.exist?(path) }
+if !force && !existing.empty?
+  raise "#{existing.join(", ")} already exists; rerun with --force to replace generated product vaults"
+end
+
+files.each do |path, values|
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, YAML.dump(values))
+  File.chmod(0600, path)
+  puts path
+end
+' "$tmpdir/development.yml" > "$tmpdir/targets"
+
+targets=()
+while IFS= read -r target; do
+    [ -n "$target" ] && targets+=("$target")
+done < "$tmpdir/targets"
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted development product vaults:"
+printf "  %s\n" "${targets[@]}"
