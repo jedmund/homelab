@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# Split the old ignored content_management/reading vaults into the ignored
+# product vault files used by deploy/migrate_content_reading_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+content_vault="${CONTENT_MANAGEMENT_VAULT:-group_vars/content_management/vault.yml}"
+reading_vault="${READING_VAULT:-group_vars/reading/vault.yml}"
+
+if [ ! -f "$content_vault" ]; then
+    echo "missing $content_vault" >&2
+    exit 1
+fi
+
+if [ ! -f "$reading_vault" ]; then
+    echo "missing $reading_vault" >&2
+    exit 1
+fi
+
+targets=(
+    group_vars/immich/vault.yml
+    group_vars/papra/vault.yml
+    group_vars/homebox/vault.yml
+    group_vars/album_sort/vault.yml
+    group_vars/dawarich/vault.yml
+    group_vars/miniflux/vault.yml
+    group_vars/karakeep/vault.yml
+)
+
+if [ "$force" = false ]; then
+    for target in "${targets[@]}"; do
+        if [ -e "$target" ]; then
+            echo "$target already exists; rerun with --force to replace generated product vaults" >&2
+            exit 1
+        fi
+    done
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$content_vault" > "$tmpdir/content.yml"
+ansible-vault view "$reading_vault" > "$tmpdir/reading.yml"
+
+ruby -ryaml -rfileutils -e '
+content = YAML.load_file(ARGV[0])
+reading = YAML.load_file(ARGV[1])
+source = content.merge(reading)
+
+files = {
+  "group_vars/immich/vault.yml" => [
+    "immich_db_password"
+  ],
+  "group_vars/papra/vault.yml" => [
+    "papra_auth_secret",
+    "papra_oidc_client_id",
+    "papra_oidc_client_secret"
+  ],
+  "group_vars/homebox/vault.yml" => [
+    "homebox_oidc_client_id",
+    "homebox_oidc_client_secret"
+  ],
+  "group_vars/album_sort/vault.yml" => [
+    "album_sort_apple_music_team_id",
+    "album_sort_apple_music_key_id",
+    "album_sort_apple_music_private_key",
+    "album_sort_discogs_token",
+    "album_sort_kagi_api_key",
+    "album_sort_multi_scrobbler_token"
+  ],
+  "group_vars/dawarich/vault.yml" => [
+    "dawarich_db_password",
+    "dawarich_secret_key_base",
+    "dawarich_oidc_client_id",
+    "dawarich_oidc_client_secret"
+  ],
+  "group_vars/miniflux/vault.yml" => [
+    "miniflux_db_password",
+    "miniflux_admin_password",
+    "miniflux_oauth2_client_id",
+    "miniflux_oauth2_client_secret",
+    "fivefilters_admin_password"
+  ],
+  "group_vars/karakeep/vault.yml" => [
+    "karakeep_nextauth_secret",
+    "karakeep_meili_master_key",
+    "karakeep_oauth_client_id",
+    "karakeep_oauth_client_secret",
+    "karakeep_openai_api_key"
+  ]
+}
+
+files.each do |path, keys|
+  missing = keys.reject { |key| source.key?(key) }
+  unless missing.empty?
+    raise "missing keys for #{path}: #{missing.join(", ")}"
+  end
+
+  FileUtils.mkdir_p(File.dirname(path))
+  selected = keys.to_h { |key| [key, source.fetch(key)] }
+  File.write(path, YAML.dump(selected))
+  File.chmod(0600, path)
+end
+' "$tmpdir/content.yml" "$tmpdir/reading.yml"
+
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted product vaults:"
+printf "  %s\n" "${targets[@]}"
