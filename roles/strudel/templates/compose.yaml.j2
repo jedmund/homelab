@@ -8,6 +8,7 @@ services:
       context: ./config/strudel
       dockerfile: Dockerfile
     image: {{ strudel_image }}
+    pull_policy: build
     restart: {{ restart_policy }}
     networks:
       - proxy
