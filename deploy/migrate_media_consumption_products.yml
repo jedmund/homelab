@@ -1,0 +1,297 @@
+---
+- name: Migrate media consumption stack to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    media_consumption_split_migration_force: false
+    media_consumption_split_disable_legacy_compose: true
+    media_consumption_split_copy_image: alpine:3.20
+    media_consumption_split_legacy_path: "{{ docker_base_path }}/media-consumption"
+    media_consumption_split_target_roots:
+      - "{{ docker_base_path }}/romm"
+      - "{{ docker_base_path }}/plex"
+      - "{{ docker_base_path }}/multi-scrobbler"
+      - "{{ docker_base_path }}/tunarr"
+      - "{{ docker_base_path }}/stash"
+    media_consumption_split_bind_migrations:
+      - name: RomM config
+        src: "{{ docker_base_path }}/media-consumption/config/romm"
+        dest: "{{ docker_base_path }}/romm/config"
+      - name: Plex config
+        src: "{{ docker_base_path }}/media-consumption/config/plex"
+        dest: "{{ docker_base_path }}/plex/config"
+      - name: Multi-Scrobbler config
+        src: "{{ docker_base_path }}/media-consumption/config/multi-scrobbler"
+        dest: "{{ docker_base_path }}/multi-scrobbler/config"
+      - name: Tunarr config
+        src: "{{ docker_base_path }}/media-consumption/config/tunarr"
+        dest: "{{ docker_base_path }}/tunarr/config"
+      - name: Stash config
+        src: "{{ docker_base_path }}/media-consumption/config/stash"
+        dest: "{{ docker_base_path }}/stash/config"
+    media_consumption_split_volume_migrations:
+      - name: RomM MariaDB data
+        source: media-consumption_mysql_data
+        target: romm-mysql-data
+      - name: RomM resources
+        source: media-consumption_romm_resources
+        target: romm-resources
+      - name: RomM Redis data
+        source: media-consumption_romm_redis_data
+        target: romm-redis-data
+    media_consumption_split_required_vars:
+      - romm_db_password
+      - romm_db_root_password
+      - romm_auth_secret_key
+      - romm_oidc_client_id
+      - romm_oidc_client_secret
+      - multi_scrobbler_lze_token
+      - multi_scrobbler_plex_token
+      - multi_scrobbler_lastfm_api_key
+      - multi_scrobbler_lastfm_api_secret
+      - multi_scrobbler_mb_contact
+
+  tasks:
+    - name: Assert media consumption product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Create the product vault
+          files under group_vars/romm/vault.yml and
+          group_vars/multi_scrobbler/vault.yml before running migration.
+      loop: "{{ media_consumption_split_required_vars }}"
+
+    - name: Check legacy media consumption path
+      ansible.builtin.stat:
+        path: "{{ media_consumption_split_legacy_path }}"
+      register: _media_consumption_split_legacy_path
+
+    - name: Assert legacy media consumption path exists
+      ansible.builtin.assert:
+        that:
+          - _media_consumption_split_legacy_path.stat.exists
+          - _media_consumption_split_legacy_path.stat.isdir
+        fail_msg: >-
+          Legacy media consumption path {{ media_consumption_split_legacy_path }}
+          is missing; aborting migration.
+
+    - name: Check legacy media consumption compose file
+      ansible.builtin.stat:
+        path: "{{ media_consumption_split_legacy_path }}/compose.yaml"
+      register: _media_consumption_split_legacy_compose
+
+    - name: Check source bind paths
+      ansible.builtin.stat:
+        path: "{{ item.src }}"
+      loop: "{{ media_consumption_split_bind_migrations }}"
+      register: _media_consumption_split_bind_source_stats
+
+    - name: Assert source bind paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required source path {{ item.item.src }} for {{ item.item.name }} is missing."
+      loop: "{{ _media_consumption_split_bind_source_stats.results }}"
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ media_consumption_split_target_roots }}"
+      register: _media_consumption_split_target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _media_consumption_split_target_root_stats.results }}"
+      when:
+        - not media_consumption_split_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _media_consumption_split_target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e media_consumption_split_migration_force=true only if it is safe to replace migration output.
+      loop: "{{ _media_consumption_split_target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _media_consumption_split_docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        media_consumption_split_volume_names: "{{ _media_consumption_split_docker_volume_ls.stdout_lines }}"
+
+    - name: Assert required source Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item.source in media_consumption_split_volume_names
+        fail_msg: "Required source Docker volume {{ item.source }} for {{ item.name }} is missing."
+      loop: "{{ media_consumption_split_volume_migrations }}"
+
+    - name: Assert target Docker volumes do not already exist
+      ansible.builtin.assert:
+        that:
+          - media_consumption_split_migration_force | bool or item.target not in media_consumption_split_volume_names
+        fail_msg: >-
+          Target Docker volume {{ item.target }} already exists.
+          Re-run with -e media_consumption_split_migration_force=true only if it is safe to replace migration output.
+      loop: "{{ media_consumption_split_volume_migrations }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ media_consumption_split_target_roots }}"
+      when: media_consumption_split_migration_force | bool
+
+    - name: Remove existing target Docker volumes when forced
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - "{{ item.target }}"
+      loop: "{{ media_consumption_split_volume_migrations }}"
+      when:
+        - media_consumption_split_migration_force | bool
+        - item.target in media_consumption_split_volume_names
+      changed_when: true
+
+    - name: Stop legacy media consumption stack before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ media_consumption_split_legacy_path }}"
+      register: _media_consumption_split_stack_stop
+      when: _media_consumption_split_legacy_compose.stat.exists
+      changed_when: >-
+        'Stopped' in (_media_consumption_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_media_consumption_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_media_consumption_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_media_consumption_split_stack_stop.stderr | default(''))
+
+    - name: Create product bind destination directories
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop: "{{ media_consumption_split_bind_migrations }}"
+
+    - name: Create product auxiliary directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ docker_base_path }}/romm/env"
+        - "{{ docker_base_path }}/plex/transcode"
+        - "{{ docker_base_path }}/stash/env"
+
+    - name: Copy bind-mounted data into product paths
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ item.src }}/."
+          - "{{ item.dest }}"
+      loop: "{{ media_consumption_split_bind_migrations }}"
+      changed_when: true
+
+    - name: Create target Docker volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - create
+          - "{{ item.target }}"
+      loop: "{{ media_consumption_split_volume_migrations }}"
+      changed_when: item.target not in media_consumption_split_volume_names or media_consumption_split_migration_force | bool
+
+    - name: Copy Docker named volumes into explicit product volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - "{{ item.source }}:/from:ro"
+          - -v
+          - "{{ item.target }}:/to"
+          - "{{ media_consumption_split_copy_image }}"
+          - sh
+          - -c
+          - cd /from && cp -a . /to
+      loop: "{{ media_consumption_split_volume_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy media consumption stack down without deleting data
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ media_consumption_split_legacy_path }}"
+      when: _media_consumption_split_legacy_compose.stat.exists
+      changed_when: true
+
+    - name: Write legacy media consumption archive marker
+      ansible.builtin.copy:
+        dest: "{{ media_consumption_split_legacy_path }}/ARCHIVED_BY_ANSIBLE.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Archived legacy stack: media-consumption
+
+          This runtime directory is retained only for rollback after the media
+          consumption product stack split.
+
+          Do not deploy this directory as an active stack. The active product
+          stacks are:
+          - romm
+          - plex
+          - multi-scrobbler
+          - tunarr
+          - stash
+
+          If compose disabling is enabled, this playbook renames compose.yaml to
+          compose.yaml.archived. To roll back manually, stop the replacement
+          product stacks, rename compose.yaml.archived back to compose.yaml, and
+          run docker compose up -d from this directory.
+
+    - name: Disable legacy media consumption compose file
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ media_consumption_split_legacy_path }}/compose.yaml"
+          - "{{ media_consumption_split_legacy_path }}/compose.yaml.archived"
+      args:
+        creates: "{{ media_consumption_split_legacy_path }}/compose.yaml.archived"
+        removes: "{{ media_consumption_split_legacy_path }}/compose.yaml"
+      when: media_consumption_split_disable_legacy_compose | bool
+      changed_when: true
+
+- name: Deploy RomM product stack
+  import_playbook: romm.yml
+
+- name: Deploy Plex product stack
+  import_playbook: plex.yml
+
+- name: Deploy Multi-Scrobbler product stack
+  import_playbook: multi_scrobbler.yml
+
+- name: Deploy Tunarr product stack
+  import_playbook: tunarr.yml
+
+- name: Deploy Stash product stack
+  import_playbook: stash.yml
