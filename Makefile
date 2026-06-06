@@ -73,6 +73,19 @@ deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
 
+deploy-beszel: ## Deploy Beszel monitoring hub
+	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
+
+deploy-beszel-agents: ## Deploy Beszel agents on monitored machines
+	@echo "$(BLUE)Deploying Beszel agents...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
+
+deploy-monitoring: ## Deploy Beszel hub and agents
+	@echo "$(BLUE)Deploying monitoring stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
+
 ##@ Deployment - Media
 
 deploy-media: ## Deploy all media services

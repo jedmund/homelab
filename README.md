@@ -50,6 +50,12 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `infra_core` | Komodo (Core + Periphery + MongoDB) |
 | `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
 
+**Monitoring**
+| Role | Services |
+|------|----------|
+| `beszel` | Beszel hub (`nuc-mini`) |
+| `beszel_agent` | Beszel agents (`max`, `nuc-mini`, `mac-mini`) |
+
 **Product stacks (nuc-mini)**
 | Role | Services |
 |------|----------|
@@ -440,6 +446,17 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 |----------|-------------|
 | `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
 
+### group_vars/beszel_agents/vault.yml
+
+Beszel generates these values in the hub UI after the first hub deploy. Deploy
+the hub, create the first admin user, then create a universal token under
+`/settings/tokens` and copy the hub public key before deploying agents.
+
+| Variable | Description |
+|----------|-------------|
+| `vault_beszel_agent_key` | Hub public key shown by Beszel |
+| `vault_beszel_agent_token` | Universal token for agent WebSocket registration |
+
 ### group_vars/social/vault.yml
 
 | Variable | Description |
@@ -468,6 +485,8 @@ make deploy-all
 # Deploy specific stacks
 make deploy-infra-core
 make deploy-infra-gateway
+make deploy-beszel
+make deploy-beszel-agents
 make deploy-gluetun
 make deploy-prowlarr
 make deploy-qbittorrent
@@ -524,6 +543,16 @@ make deploy-migrate-media-acquisition-products
 # One-time migration from development to product stacks
 bin/split-development-product-vaults
 make deploy-migrate-development-products
+
+# First Beszel bootstrap:
+# 1. Land DNS/TinyAuth labels, then deploy the hub.
+# 2. Create the first Beszel admin user at https://beszel.atelier.house.
+# 3. Create a universal token and copy the hub public key into
+#    group_vars/beszel_agents/vault.yml.
+# 4. Deploy agents on max, nuc-mini, and mac-mini.
+make deploy-infra-gateway
+make deploy-beszel
+make deploy-beszel-agents
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites

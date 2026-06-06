@@ -28,6 +28,30 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "beszel"
+description = "Beszel monitoring hub"
+tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/beszel"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "beszel-agent-nuc-mini"
+description = "Beszel Docker agent on nuc-mini"
+tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/beszel-agent"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "gluetun"
 description = "Gluetun VPN gateway"
 tags = ["homelab", "ansible", "nuc-mini", "media"]
@@ -527,6 +551,18 @@ tags = ["homelab", "ansible", "nuc-mini", "backup"]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/backup"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "beszel-agent-max"
+description = "Beszel Docker agent on max"
+tags = ["homelab", "ansible", "max", "monitoring"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/beszel-agent"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false

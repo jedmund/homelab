@@ -13,6 +13,7 @@ ddclient_atelier_subdomains:
   - atelier.house
   - ai.atelier.house
   - auth.atelier.house
+  - beszel.atelier.house
   - bl.atelier.house
   - box.atelier.house
   - cat.atelier.house
