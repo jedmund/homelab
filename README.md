@@ -387,6 +387,9 @@ make deploy-karakeep
 bin/split-content-reading-product-vaults
 make deploy-migrate-content-reading-products
 
+# After verifying product stacks and backups, archive old runtime dirs
+make archive-legacy-content-reading-stacks
+
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
 

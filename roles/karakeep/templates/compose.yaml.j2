@@ -63,7 +63,7 @@ services:
     volumes:
       - karakeep-meilisearch:/meili_data
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7700/health | grep -q '\"status\":\"available\"'"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
