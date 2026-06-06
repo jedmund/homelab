@@ -1,0 +1,81 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  romm:
+    image: {{ romm_image }}
+    container_name: romm
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - romm-resources:/romm/resources
+      - romm-redis-data:/redis-data
+      - games:/romm/library
+      - games_assets:/romm/assets
+      - ./config:/romm/config
+    ports:
+      - {{ romm_port }}:8080
+    depends_on:
+      romm-db:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  romm-db:
+    image: {{ romm_db_image }}
+    container_name: romm-db
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/romm.env
+    volumes:
+      - romm-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  romm-mysql-data:
+    name: romm-mysql-data
+  romm-resources:
+    name: romm-resources
+  romm-redis-data:
+    name: romm-redis-data
+  games:
+    name: games
+    external: true
+  games_assets:
+    name: games_assets
+    external: true
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true
