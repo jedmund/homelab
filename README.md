@@ -49,7 +49,6 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | Role | Services |
 |------|----------|
 | `media_acquisition` | Prowlarr, Sonarr, Radarr, Lidarr, qBittorrent, Gluetun, slskd |
-| `media_consumption` | Plex, Romm, Tunarr, Stash, Multi-Scrobbler |
 
 **Product stacks (nuc-mini)**
 | Role | Services |
@@ -58,6 +57,11 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `papra` | Papra |
 | `homebox` | Homebox |
 | `album_sort` | Album Sort `[in-house]`, Beets |
+| `romm` | RomM, MariaDB |
+| `plex` | Plex |
+| `multi_scrobbler` | Multi-Scrobbler |
+| `tunarr` | Tunarr |
+| `stash` | Stash |
 | `dawarich` | Dawarich app, Sidekiq, Postgres, Redis, Photon |
 | `miniflux` | Miniflux, Postgres, backup helper, Reactflux, FiveFilters |
 | `karakeep` | Karakeep, Chrome, Meilisearch |
@@ -160,7 +164,7 @@ infra_gateway:
   hosts:
     my-server:
 
-media_consumption:
+romm:
   hosts:
     my-server:
 ```
@@ -253,23 +257,41 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
 
-### group_vars/media_consumption/vault.yml
+### group_vars/romm/vault.yml
 
 #### Romm
 
 | Variable | Description |
 |----------|-------------|
-| `romm_db_user` | MariaDB username |
 | `romm_db_password` | MariaDB password |
 | `romm_db_root_password` | MariaDB root password |
 | `romm_auth_secret_key` | Authentication secret key |
-| `romm_igdb_client_secret` | IGDB API client secret |
+| `romm_oidc_client_id` | OIDC client ID |
 | `romm_oidc_client_secret` | OIDC client secret |
+| `romm_db_user` | MariaDB username (optional override) |
+| `romm_igdb_client_id` | IGDB API client ID (optional) |
+| `romm_igdb_client_secret` | IGDB API client secret |
 | `romm_steamgriddb_api_key` | SteamGridDB API key |
 | `romm_mobygames_api_key` | MobyGames API key |
 | `romm_screenscraper_user` | ScreenScraper username |
 | `romm_screenscraper_password` | ScreenScraper password |
 | `romm_retroachievements_api_key` | RetroAchievements API key |
+
+### group_vars/multi_scrobbler/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `multi_scrobbler_lze_token` | ListenBrainz token for Album Sort |
+| `multi_scrobbler_plex_token` | Plex token |
+| `multi_scrobbler_lastfm_api_key` | Last.fm API key |
+| `multi_scrobbler_lastfm_api_secret` | Last.fm API secret |
+| `multi_scrobbler_mb_contact` | MusicBrainz contact string |
+
+### group_vars/plex/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `plex_claim` | Plex claim token (optional, usually only needed for first bootstrap) |
 
 ### group_vars/immich/vault.yml
 
@@ -399,7 +421,11 @@ make deploy-all
 make deploy-infra-core
 make deploy-infra-gateway
 make deploy-media-acquisition
-make deploy-media-consumption
+make deploy-romm
+make deploy-plex
+make deploy-multi-scrobbler
+make deploy-tunarr
+make deploy-stash
 make deploy-immich
 make deploy-miniflux
 make deploy-karakeep
@@ -424,6 +450,10 @@ make deploy-migrate-productivity-products
 # One-time migration from utilities to product stacks
 bin/split-utilities-product-vaults
 make deploy-migrate-utilities-products
+
+# One-time migration from media consumption to product stacks
+bin/split-media-consumption-product-vaults
+make deploy-migrate-media-consumption-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites

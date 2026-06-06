@@ -12,31 +12,35 @@
           3. Infrastructure Core (Komodo)
           4. Media Acquisition
           5. MusicBrainz mirror
-          6. Media Consumption
-          7. Immich
-          8. Papra
-          9. Homebox
-          10. Album Sort
-          11. Dawarich
-          12. Miniflux
-          13. Karakeep
-          14. Kavita
-          15. Strudel
-          16. Blinko
-          17. Obsidian LiveSync
-          18. Development
-          19. Development macOS
-          20. Paseo daemon
-          21. n8n
-          22. ChangeDetection
-          23. Copyparty
-          24. Vane
-          25. Feederhub
-          26. Social
-          27. Matrix
-          28. AI (max only)
-          29. Openclaw
-          30. Backup
+          6. RomM
+          7. Plex
+          8. Multi-Scrobbler
+          9. Tunarr
+          10. Stash
+          11. Immich
+          12. Papra
+          13. Homebox
+          14. Album Sort
+          15. Dawarich
+          16. Miniflux
+          17. Karakeep
+          18. Kavita
+          19. Strudel
+          20. Blinko
+          21. Obsidian LiveSync
+          22. Development
+          23. Development macOS
+          24. Paseo daemon
+          25. n8n
+          26. ChangeDetection
+          27. Copyparty
+          28. Vane
+          29. Feederhub
+          30. Social
+          31. Matrix
+          32. AI (max only)
+          33. Openclaw
+          34. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -56,8 +60,20 @@
 - import_playbook: musicbrainz.yml
   tags: [media, musicbrainz]
 
-- import_playbook: media_consumption.yml
-  tags: [media, media_consumption]
+- import_playbook: romm.yml
+  tags: [media, romm]
+
+- import_playbook: plex.yml
+  tags: [media, plex]
+
+- import_playbook: multi_scrobbler.yml
+  tags: [media, multi_scrobbler]
+
+- import_playbook: tunarr.yml
+  tags: [media, tunarr]
+
+- import_playbook: stash.yml
+  tags: [media, stash]
 
 # Product stacks
 - import_playbook: immich.yml
