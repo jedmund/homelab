@@ -7,8 +7,9 @@
     msg: >
       Skipping Beszel agent on {{ inventory_hostname }} because
       vault_beszel_agent_key and vault_beszel_agent_token are not configured.
-      Deploy the hub, create the first user, generate a universal token in
-      Beszel, add those vault values, then run deploy-beszel-agents.
+      Deploy the hub, create the first user, create a permanent universal token
+      in Beszel, copy the hub public key from the generated agent command, add
+      those vault values, then run deploy-beszel-agents.
   when: not beszel_agent_credentials_configured | bool
 
 - name: Stop Beszel agent setup when credentials are missing

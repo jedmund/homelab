@@ -448,14 +448,16 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 
 ### group_vars/beszel_agents/vault.yml
 
-Beszel generates these values in the hub UI after the first hub deploy. Deploy
-the hub, create the first admin user, then create a universal token under
-`/settings/tokens` and copy the hub public key before deploying agents.
+Beszel generates agent registration tokens in the hub UI after the first hub
+deploy. Deploy the hub, create the first admin user, then create or enable a
+permanent universal token under `/settings/tokens` before deploying agents.
+The token table shows the token; the public key is embedded in the generated
+agent command from the Add System flow or the token action menu.
 
 | Variable | Description |
 |----------|-------------|
-| `vault_beszel_agent_key` | Hub public key shown by Beszel |
-| `vault_beszel_agent_token` | Universal token for agent WebSocket registration |
+| `vault_beszel_agent_key` | Hub public key from Beszel's generated agent command |
+| `vault_beszel_agent_token` | Permanent universal token for agent WebSocket registration |
 
 ### group_vars/social/vault.yml
 
@@ -545,11 +547,17 @@ bin/split-development-product-vaults
 make deploy-migrate-development-products
 
 # First Beszel bootstrap:
-# 1. Land DNS/TinyAuth labels, then deploy the hub.
+# 1. Land DNS labels, then deploy the hub.
 # 2. Create the first Beszel admin user at https://beszel.atelier.house.
-# 3. Create a universal token and copy the hub public key into
-#    group_vars/beszel_agents/vault.yml.
-# 4. Deploy agents on max, nuc-mini, and mac-mini.
+# 3. Create a PocketID OAuth app with this redirect URL:
+#    https://beszel.atelier.house/api/oauth2-redirect
+# 4. In the Beszel superuser UI at https://beszel.atelier.house/_/,
+#    unhide collection controls, edit the users collection, enable OAuth2,
+#    add the PocketID OIDC provider, then hide collection controls again.
+# 5. Create or enable a permanent universal token. Save it as
+#    vault_beszel_agent_token, and save the KEY from Beszel's generated agent
+#    command as vault_beszel_agent_key in group_vars/beszel_agents/vault.yml.
+# 6. Deploy agents on max, nuc-mini, and mac-mini.
 make deploy-infra-gateway
 make deploy-beszel
 make deploy-beszel-agents
