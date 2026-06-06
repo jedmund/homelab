@@ -39,10 +39,10 @@ SQLITE_FILES=(
     "/opt/docker/media-acquisition/config/qui/qui.db"
     "/opt/docker/media-acquisition/config/pinchflat/db/pinchflat.db"
     "/opt/docker/kavita/config/kavita.db"
-    "/opt/docker/media-consumption/config/stash/stash-go.sqlite"
-    "/opt/docker/media-consumption/config/tunarr/db.db"
-    "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
-    "/opt/docker/media-consumption/config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.blobs.db"
+    "/opt/docker/stash/config/stash-go.sqlite"
+    "/opt/docker/tunarr/config/db.db"
+    "/opt/docker/plex/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
+    "/opt/docker/plex/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.blobs.db"
     # Karakeep stores its SQLite at /data/db.db inside the karakeep-data
     # named volume, mounted ro into the borgmatic container at
     # /karakeep-data (see borg_named_volumes in roles/backup/defaults).

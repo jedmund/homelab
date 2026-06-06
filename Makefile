@@ -75,7 +75,7 @@ deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 
 ##@ Deployment - Media
 
-deploy-media: ## Deploy all media services (acquisition + musicbrainz + consumption)
+deploy-media: ## Deploy all media services
 	@echo "$(BLUE)Deploying media stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags media
 
@@ -86,10 +86,6 @@ deploy-media-acquisition: ## Deploy media acquisition (Sonarr, Radarr, etc.)
 deploy-musicbrainz: ## Deploy MusicBrainz mirror
 	@echo "$(BLUE)Deploying MusicBrainz mirror...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/musicbrainz.yml $(VAULT_FLAG)
-
-deploy-media-consumption: ## Deploy media consumption (Plex, RomM, Tunarr, Stash, Multi-Scrobbler)
-	@echo "$(BLUE)Deploying media consumption...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG)
 
 ##@ Deployment - Product Stacks
 
@@ -108,6 +104,26 @@ deploy-homebox: ## Deploy Homebox
 deploy-album-sort: ## Deploy Album Sort
 	@echo "$(BLUE)Deploying Album Sort...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+
+deploy-romm: ## Deploy RomM
+	@echo "$(BLUE)Deploying RomM...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/romm.yml $(VAULT_FLAG)
+
+deploy-plex: ## Deploy Plex
+	@echo "$(BLUE)Deploying Plex...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/plex.yml $(VAULT_FLAG)
+
+deploy-multi-scrobbler: ## Deploy Multi-Scrobbler
+	@echo "$(BLUE)Deploying Multi-Scrobbler...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/multi_scrobbler.yml $(VAULT_FLAG)
+
+deploy-tunarr: ## Deploy Tunarr
+	@echo "$(BLUE)Deploying Tunarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/tunarr.yml $(VAULT_FLAG)
+
+deploy-stash: ## Deploy Stash
+	@echo "$(BLUE)Deploying Stash...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/stash.yml $(VAULT_FLAG)
 
 deploy-dawarich: ## Deploy Dawarich
 	@echo "$(BLUE)Deploying Dawarich...$(NC)"
@@ -160,6 +176,10 @@ deploy-migrate-productivity-products: ## One-time migration from productivity st
 deploy-migrate-utilities-products: ## One-time migration from utilities stack to product stacks
 	@echo "$(BLUE)Migrating utilities stack to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_utilities_products.yml $(VAULT_FLAG)
+
+deploy-migrate-media-consumption-products: ## One-time migration from media consumption stack to product stacks
+	@echo "$(BLUE)Migrating media consumption stack to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_consumption_products.yml $(VAULT_FLAG)
 
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
@@ -232,10 +252,6 @@ deploy-petlibro: ## Deploy Petlibro stack (catbro-server + Mosquitto on nuc-mini
 deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
-
-deploy-plex: ## Deploy only Plex
-	@echo "$(BLUE)Deploying Plex...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG) --tags plex
 
 deploy-sonarr: ## Deploy only Sonarr
 	@echo "$(BLUE)Deploying Sonarr...$(NC)"

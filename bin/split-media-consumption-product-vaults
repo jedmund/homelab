@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# Split the old ignored media_consumption vault into ignored product vault files
+# used by deploy/migrate_media_consumption_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+media_vault="${MEDIA_CONSUMPTION_VAULT:-group_vars/media_consumption/vault.yml}"
+
+if [ ! -f "$media_vault" ]; then
+    echo "missing $media_vault" >&2
+    exit 1
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-media-consumption-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$media_vault" > "$tmpdir/media_consumption.yml"
+
+FORCE="$force" ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+force = ENV.fetch("FORCE") == "true"
+
+def fetch_required(source, path, key)
+  raise "missing #{key} for #{path}" unless source.key?(key)
+
+  source.fetch(key)
+end
+
+files = {
+  "group_vars/romm/vault.yml" => {
+    "romm_db_password" => fetch_required(
+      source,
+      "group_vars/romm/vault.yml",
+      "romm_db_password"
+    ),
+    "romm_db_root_password" => fetch_required(
+      source,
+      "group_vars/romm/vault.yml",
+      "romm_db_root_password"
+    ),
+    "romm_auth_secret_key" => fetch_required(
+      source,
+      "group_vars/romm/vault.yml",
+      "romm_auth_secret_key"
+    ),
+    "romm_oidc_client_id" => fetch_required(
+      source,
+      "group_vars/romm/vault.yml",
+      "romm_oidc_client_id"
+    ),
+    "romm_oidc_client_secret" => fetch_required(
+      source,
+      "group_vars/romm/vault.yml",
+      "romm_oidc_client_secret"
+    )
+  },
+  "group_vars/multi_scrobbler/vault.yml" => {
+    "multi_scrobbler_lze_token" => fetch_required(
+      source,
+      "group_vars/multi_scrobbler/vault.yml",
+      "multi_scrobbler_lze_token"
+    ),
+    "multi_scrobbler_plex_token" => fetch_required(
+      source,
+      "group_vars/multi_scrobbler/vault.yml",
+      "multi_scrobbler_plex_token"
+    ),
+    "multi_scrobbler_lastfm_api_key" => fetch_required(
+      source,
+      "group_vars/multi_scrobbler/vault.yml",
+      "multi_scrobbler_lastfm_api_key"
+    ),
+    "multi_scrobbler_lastfm_api_secret" => fetch_required(
+      source,
+      "group_vars/multi_scrobbler/vault.yml",
+      "multi_scrobbler_lastfm_api_secret"
+    ),
+    "multi_scrobbler_mb_contact" => fetch_required(
+      source,
+      "group_vars/multi_scrobbler/vault.yml",
+      "multi_scrobbler_mb_contact"
+    )
+  }
+}
+
+[
+  "romm_db_user",
+  "romm_igdb_client_id",
+  "romm_igdb_client_secret",
+  "romm_steamgriddb_api_key",
+  "romm_mobygames_api_key",
+  "romm_screenscraper_user",
+  "romm_screenscraper_password",
+  "romm_retroachievements_api_key"
+].each do |key|
+  files["group_vars/romm/vault.yml"][key] = source.fetch(key) if source.key?(key)
+end
+
+if source.key?("plex_claim")
+  files["group_vars/plex/vault.yml"] = {
+    "plex_claim" => source.fetch("plex_claim")
+  }
+end
+
+existing = files.keys.select { |path| File.exist?(path) }
+if !force && !existing.empty?
+  raise "#{existing.join(", ")} already exists; rerun with --force to replace generated product vaults"
+end
+
+files.each do |path, values|
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, YAML.dump(values))
+  File.chmod(0600, path)
+  puts path
+end
+' "$tmpdir/media_consumption.yml" > "$tmpdir/targets"
+
+mapfile -t targets < "$tmpdir/targets"
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted media consumption product vaults:"
+printf "  %s\n" "${targets[@]}"

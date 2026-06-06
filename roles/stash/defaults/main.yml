@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: stash
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Stash settings
+stash_image: stashapp/stash:latest
+stash_port: 9999

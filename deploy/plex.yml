@@ -1,0 +1,6 @@
+---
+- name: Deploy Plex stack
+  hosts: plex
+  become: true
+  roles:
+    - plex

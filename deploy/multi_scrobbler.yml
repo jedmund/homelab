@@ -1,0 +1,6 @@
+---
+- name: Deploy Multi-Scrobbler stack
+  hosts: multi_scrobbler
+  become: true
+  roles:
+    - multi_scrobbler
