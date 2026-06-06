@@ -11,6 +11,26 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
 
+- name: Inspect existing {{ stack_name }} container
+  community.docker.docker_container_info:
+    name: qbittorrent
+  register: qbittorrent_container_info
+  failed_when: false
+  changed_when: false
+
+- name: Remove stale {{ stack_name }} lockfile when the app is stopped
+  become: true
+  ansible.builtin.file:
+    path: "{{ config_base }}/config/qBittorrent/lockfile"
+    state: absent
+  when: >-
+    not (
+      qbittorrent_container_info.exists | default(false)
+      and qbittorrent_container_info.container.State.Running | default(false)
+      and qbittorrent_container_info.container.State.Health.Status | default('') != 'unhealthy'
+    )
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy compose file
   ansible.builtin.template:
     src: compose.yaml.j2
