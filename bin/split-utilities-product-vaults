@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Split the old ignored utilities vault into ignored product vault files
+# used by deploy/migrate_utilities_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+utilities_vault="${UTILITIES_VAULT:-group_vars/utilities/vault.yml}"
+
+if [ ! -f "$utilities_vault" ]; then
+    echo "missing $utilities_vault" >&2
+    exit 1
+fi
+
+targets=(
+    group_vars/n8n/vault.yml
+)
+
+if [ "$force" = false ]; then
+    for target in "${targets[@]}"; do
+        if [ -e "$target" ]; then
+            echo "$target already exists; rerun with --force to replace generated product vaults" >&2
+            exit 1
+        fi
+    done
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-utilities-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$utilities_vault" > "$tmpdir/utilities.yml"
+
+ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+
+def fetch_required(source, path, key)
+  raise "missing #{key} for #{path}" unless source.key?(key)
+
+  source.fetch(key)
+end
+
+files = {
+  "group_vars/n8n/vault.yml" => {
+    "n8n_db_password" => fetch_required(
+      source,
+      "group_vars/n8n/vault.yml",
+      "n8n_db_password"
+    )
+  }
+}
+
+if source.key?("n8n_encryption_key")
+  files["group_vars/n8n/vault.yml"]["n8n_encryption_key"] =
+    source.fetch("n8n_encryption_key")
+end
+
+files.each do |path, values|
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, YAML.dump(values))
+  File.chmod(0600, path)
+end
+' "$tmpdir/utilities.yml"
+
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted utilities product vaults:"
+printf "  %s\n" "${targets[@]}"

@@ -1,0 +1,198 @@
+---
+- name: Migrate utilities stack to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    utilities_split_migration_force: false
+    utilities_split_disable_legacy_compose: true
+    utilities_split_legacy_path: "{{ docker_base_path }}/utilities"
+    utilities_split_target_roots:
+      - "{{ docker_base_path }}/n8n"
+      - "{{ docker_base_path }}/changedetection"
+      - "{{ docker_base_path }}/copyparty"
+    utilities_split_bind_migrations:
+      - name: ChangeDetection datastore
+        src: "{{ docker_base_path }}/utilities/config/changedetection"
+        dest: "{{ docker_base_path }}/changedetection/config"
+      - name: Copyparty config
+        src: "{{ docker_base_path }}/utilities/config/copyparty"
+        dest: "{{ docker_base_path }}/copyparty/config"
+    utilities_split_required_volumes:
+      - n8n-data
+      - n8n-pgdata
+    utilities_split_required_vars:
+      - n8n_db_password
+
+  tasks:
+    - name: Assert utility product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Create
+          group_vars/n8n/vault.yml before running migration.
+      loop: "{{ utilities_split_required_vars }}"
+
+    - name: Check legacy utilities path
+      ansible.builtin.stat:
+        path: "{{ utilities_split_legacy_path }}"
+      register: _utilities_split_legacy_path
+
+    - name: Assert legacy utilities path exists
+      ansible.builtin.assert:
+        that:
+          - _utilities_split_legacy_path.stat.exists
+          - _utilities_split_legacy_path.stat.isdir
+        fail_msg: "Legacy utilities path {{ utilities_split_legacy_path }} is missing; aborting migration."
+
+    - name: Check legacy utilities compose file
+      ansible.builtin.stat:
+        path: "{{ utilities_split_legacy_path }}/compose.yaml"
+      register: _utilities_split_legacy_compose
+
+    - name: Check source bind paths
+      ansible.builtin.stat:
+        path: "{{ item.src }}"
+      loop: "{{ utilities_split_bind_migrations }}"
+      register: _utilities_split_bind_source_stats
+
+    - name: Assert source bind paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required source path {{ item.item.src }} for {{ item.item.name }} is missing."
+      loop: "{{ _utilities_split_bind_source_stats.results }}"
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ utilities_split_target_roots }}"
+      register: _utilities_split_target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _utilities_split_target_root_stats.results }}"
+      when:
+        - not utilities_split_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _utilities_split_target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e utilities_split_migration_force=true only if it is safe to replace migration output.
+      loop: "{{ _utilities_split_target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _utilities_split_docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        utilities_split_volume_names: "{{ _utilities_split_docker_volume_ls.stdout_lines }}"
+
+    - name: Assert n8n Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item in utilities_split_volume_names
+        fail_msg: "Required n8n Docker volume {{ item }} is missing."
+      loop: "{{ utilities_split_required_volumes }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ utilities_split_target_roots }}"
+      when: utilities_split_migration_force | bool
+
+    - name: Stop legacy utilities stack before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ utilities_split_legacy_path }}"
+      register: _utilities_split_stack_stop
+      when: _utilities_split_legacy_compose.stat.exists
+      changed_when: >-
+        'Stopped' in (_utilities_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_utilities_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_utilities_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_utilities_split_stack_stop.stderr | default(''))
+
+    - name: Create product bind destination directories
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop: "{{ utilities_split_bind_migrations }}"
+
+    - name: Copy bind-mounted data into product paths
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ item.src }}/."
+          - "{{ item.dest }}"
+      loop: "{{ utilities_split_bind_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy utilities stack down without deleting data
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ utilities_split_legacy_path }}"
+      when: _utilities_split_legacy_compose.stat.exists
+      changed_when: true
+
+    - name: Write legacy utilities archive marker
+      ansible.builtin.copy:
+        dest: "{{ utilities_split_legacy_path }}/ARCHIVED_BY_ANSIBLE.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Archived legacy stack: utilities
+
+          This runtime directory is retained only for rollback after the
+          utilities product stack split.
+
+          Do not deploy this directory as an active stack. The active product
+          stacks are:
+          - n8n
+          - changedetection
+          - copyparty
+
+          If compose disabling is enabled, this playbook renames compose.yaml to
+          compose.yaml.archived. To roll back manually, stop the replacement
+          product stacks, rename compose.yaml.archived back to compose.yaml, and
+          run docker compose up -d from this directory.
+
+    - name: Disable legacy utilities compose file
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ utilities_split_legacy_path }}/compose.yaml"
+          - "{{ utilities_split_legacy_path }}/compose.yaml.archived"
+      args:
+        creates: "{{ utilities_split_legacy_path }}/compose.yaml.archived"
+        removes: "{{ utilities_split_legacy_path }}/compose.yaml"
+      when: utilities_split_disable_legacy_compose | bool
+      changed_when: true
+
+- name: Deploy n8n product stack
+  import_playbook: n8n.yml
+
+- name: Deploy ChangeDetection product stack
+  import_playbook: changedetection.yml
+
+- name: Deploy Copyparty product stack
+  import_playbook: copyparty.yml
