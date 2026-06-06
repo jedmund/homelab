@@ -1,0 +1,6 @@
+---
+- name: Deploy Beszel hub
+  hosts: beszel
+  become: true
+  roles:
+    - beszel

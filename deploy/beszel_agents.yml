@@ -1,0 +1,8 @@
+---
+- name: Deploy Beszel agents
+  hosts: beszel_agents
+  gather_facts: true
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  roles:
+    - beszel_agent
