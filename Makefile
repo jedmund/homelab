@@ -87,23 +87,49 @@ deploy-musicbrainz: ## Deploy MusicBrainz mirror
 	@echo "$(BLUE)Deploying MusicBrainz mirror...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/musicbrainz.yml $(VAULT_FLAG)
 
-deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
+deploy-media-consumption: ## Deploy media consumption (Plex, RomM, Tunarr, Stash, Multi-Scrobbler)
 	@echo "$(BLUE)Deploying media consumption...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG)
 
-deploy-reading: ## Deploy reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
-	@echo "$(BLUE)Deploying reading stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG)
+##@ Deployment - Product Stacks
 
-deploy-reading-check: ## Dry-run of reading stack deployment
-	@echo "$(BLUE)Checking reading deployment (dry-run)...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG) --check --diff
+deploy-immich: ## Deploy Immich
+	@echo "$(BLUE)Deploying Immich...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/immich.yml $(VAULT_FLAG)
 
-##@ Deployment - Future Stacks
+deploy-papra: ## Deploy Papra
+	@echo "$(BLUE)Deploying Papra...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/papra.yml $(VAULT_FLAG)
 
-deploy-content-management: ## Deploy content management stack
-	@echo "$(BLUE)Deploying content management...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/content_management.yml $(VAULT_FLAG)
+deploy-homebox: ## Deploy Homebox
+	@echo "$(BLUE)Deploying Homebox...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/homebox.yml $(VAULT_FLAG)
+
+deploy-album-sort: ## Deploy Album Sort
+	@echo "$(BLUE)Deploying Album Sort...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+
+deploy-dawarich: ## Deploy Dawarich
+	@echo "$(BLUE)Deploying Dawarich...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/dawarich.yml $(VAULT_FLAG)
+
+deploy-miniflux: ## Deploy Miniflux, Reactflux, and FiveFilters
+	@echo "$(BLUE)Deploying Miniflux...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/miniflux.yml $(VAULT_FLAG)
+
+deploy-karakeep: ## Deploy Karakeep
+	@echo "$(BLUE)Deploying Karakeep...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/karakeep.yml $(VAULT_FLAG)
+
+deploy-kavita: ## Deploy Kavita
+	@echo "$(BLUE)Deploying Kavita...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kavita.yml $(VAULT_FLAG)
+
+deploy-migrate-content-reading-products: ## One-time migration from thematic stacks to product stacks
+	@echo "$(BLUE)Migrating content/reading stacks to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_content_reading_products.yml $(VAULT_FLAG)
+
+##@ Deployment - Application Stacks
 
 deploy-dev: ## Deploy development stack
 	@echo "$(BLUE)Deploying development stack...$(NC)"

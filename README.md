@@ -48,14 +48,24 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Media (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `media_acquisition` | Prowlarr, Sonarr, Radarr, Lidarr, qBittorrent, Gluetun, slskd, Album Sort `[in-house]` |
-| `media_consumption` | Plex, Romm, Tunarr, Stash, Multi-Scrobbler, Kavita |
-| `reading` | Miniflux, Reactflux, FiveFilters, Karakeep |
+| `media_acquisition` | Prowlarr, Sonarr, Radarr, Lidarr, qBittorrent, Gluetun, slskd |
+| `media_consumption` | Plex, Romm, Tunarr, Stash, Multi-Scrobbler |
+
+**Product stacks (nuc-mini)**
+| Role | Services |
+|------|----------|
+| `immich` | Immich server, machine learning, Redis, Postgres |
+| `papra` | Papra |
+| `homebox` | Homebox |
+| `album_sort` | Album Sort `[in-house]`, Beets |
+| `dawarich` | Dawarich app, Sidekiq, Postgres, Redis, Photon |
+| `miniflux` | Miniflux, Postgres, backup helper, Reactflux, FiveFilters |
+| `karakeep` | Karakeep, Chrome, Meilisearch |
+| `kavita` | Kavita |
 
 **Content and social (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `content_management` | Immich, Papra, Homebox |
 | `social` | Mastodon (+ Postgres, Redis, streaming) |
 | `matrix` | Synapse, MAS (+ Postgres) |
 | `musicbrainz` | MusicBrainz mirror |
@@ -237,39 +247,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
 
-#### Album Sort (in-house)
-
-[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a GitLab clone (`album_sort_repo` in `roles/content_management/defaults/main.yml`).
-
-| Variable | Description |
-|----------|-------------|
-| `album_sort_apple_music_team_id` | Apple Music API team ID |
-| `album_sort_apple_music_key_id` | Apple Music API key ID |
-| `album_sort_apple_music_private_key` | Apple Music API private key |
-| `album_sort_discogs_token` | Discogs API token |
-| `album_sort_kagi_api_key` | Kagi API key |
-| `album_sort_lastfm_api_key` | Last.fm API key |
-| `album_sort_lastfm_api_secret` | Last.fm API secret |
-
 ### group_vars/media_consumption/vault.yml
-
-#### Miniflux
-
-| Variable | Description |
-|----------|-------------|
-| `miniflux_admin_username` | Admin username |
-| `miniflux_admin_password` | Admin password |
-| `miniflux_db_user` | PostgreSQL username |
-| `miniflux_db_password` | PostgreSQL password |
-
-#### Karakeep
-
-| Variable | Description |
-|----------|-------------|
-| `karakeep_meili_master_key` | Meilisearch master key |
-| `karakeep_nextauth_secret` | NextAuth session secret |
-| `karakeep_openai_api_key` | OpenAI API key (for AI features) |
-| `karakeep_oauth_client_secret` | OAuth client secret |
 
 #### Romm
 
@@ -286,6 +264,69 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `romm_screenscraper_user` | ScreenScraper username |
 | `romm_screenscraper_password` | ScreenScraper password |
 | `romm_retroachievements_api_key` | RetroAchievements API key |
+
+### group_vars/immich/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `immich_db_password` | Immich PostgreSQL password |
+
+### group_vars/papra/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `papra_auth_secret` | Papra authentication secret |
+| `papra_oidc_client_id` | Papra OIDC client ID |
+| `papra_oidc_client_secret` | Papra OIDC client secret |
+
+### group_vars/homebox/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `homebox_oidc_client_id` | Homebox OIDC client ID |
+| `homebox_oidc_client_secret` | Homebox OIDC client secret |
+
+### group_vars/album_sort/vault.yml
+
+[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a GitLab clone (`album_sort_repo` in `roles/album_sort/defaults/main.yml`).
+
+| Variable | Description |
+|----------|-------------|
+| `album_sort_apple_music_team_id` | Apple Music API team ID |
+| `album_sort_apple_music_key_id` | Apple Music API key ID |
+| `album_sort_apple_music_private_key` | Apple Music API private key |
+| `album_sort_discogs_token` | Discogs API token |
+| `album_sort_kagi_api_key` | Kagi API key |
+| `album_sort_multi_scrobbler_token` | Shared token for Multi-Scrobbler integration |
+
+### group_vars/dawarich/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `dawarich_db_password` | Dawarich PostgreSQL password |
+| `dawarich_secret_key_base` | Rails secret key base |
+| `dawarich_oidc_client_id` | Dawarich OIDC client ID |
+| `dawarich_oidc_client_secret` | Dawarich OIDC client secret |
+
+### group_vars/miniflux/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `miniflux_admin_password` | Admin password |
+| `miniflux_db_password` | PostgreSQL password |
+| `miniflux_oauth2_client_id` | Miniflux OIDC client ID |
+| `miniflux_oauth2_client_secret` | Miniflux OIDC client secret |
+| `fivefilters_admin_password` | FiveFilters admin password |
+
+### group_vars/karakeep/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `karakeep_meili_master_key` | Meilisearch master key |
+| `karakeep_nextauth_secret` | NextAuth session secret |
+| `karakeep_oauth_client_id` | Karakeep OIDC client ID |
+| `karakeep_oauth_client_secret` | Karakeep OIDC client secret |
+| `karakeep_openai_api_key` | OpenAI API key (for AI features) |
 
 ### group_vars/productivity/vault.yml
 
@@ -307,15 +348,6 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `open_webui_secret_key` | Open WebUI session secret |
 | `open_webui_oauth_client_id` | Open WebUI OAuth client ID |
 | `open_webui_oauth_client_secret` | Open WebUI OAuth client secret |
-
-### group_vars/content_management/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `immich_db_password` | Immich PostgreSQL password |
-| `papra_auth_secret` | Papra authentication secret |
-| `papra_oidc_client_id` | Papra OIDC client ID |
-| `papra_oidc_client_secret` | Papra OIDC client secret |
 
 ### group_vars/social/vault.yml
 
@@ -347,6 +379,12 @@ make deploy-infra-core
 make deploy-infra-gateway
 make deploy-media-acquisition
 make deploy-media-consumption
+make deploy-immich
+make deploy-miniflux
+make deploy-karakeep
+
+# One-time migration from old content/reading stacks to product stacks
+make deploy-migrate-content-reading-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
@@ -433,6 +471,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 |---------|-----------|----------|------|
 | Miniflux | `miniflux-db` | `miniflux` | `miniflux` |
 | Immich | `immich-database` | `immich` | `postgres` |
+| Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
 | n8n | `n8n-db` | `n8n` | `n8n` |
 | Blinko | `blinko-db` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
@@ -448,6 +487,7 @@ docker exec <container> pg_dump -U <user> <database> > backup.sql
 # Examples
 docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
 docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
+docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
 docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
 docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
@@ -490,7 +530,7 @@ docker exec -i romm-db mariadb -u romm-atelier -p<password> romm < romm_backup.s
 
 2. **Deploy stack on new machine** (creates fresh volumes):
    ```bash
-   ansible-playbook deploy/content_management.yml
+   ansible-playbook deploy/immich.yml
    ```
 
 3. **Restore on new machine:**

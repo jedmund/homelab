@@ -130,7 +130,7 @@ and `/opt/docker/backup` (avoid recursive snapshot).
 that use internal compose volumes rather than bind mounts. The volume is
 mounted read-only into the borgmatic container at a known path, added to
 `source_directories`, and any SQLite inside also gets a dump-sqlite
-entry. Currently: `media-consumption_karakeep-data` -> `/karakeep-data`
+entry. Currently: `karakeep-data` -> `/karakeep-data`
 (captures Karakeep's SQLite plus its asset/screenshot store).
 
 ## What's not covered yet

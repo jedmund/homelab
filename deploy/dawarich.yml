@@ -1,0 +1,6 @@
+---
+- name: Deploy dawarich stack
+  hosts: dawarich
+  become: true
+  roles:
+    - dawarich

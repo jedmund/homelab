@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  kavita:
+    image: jvmilazz0/kavita:nightly
+    container_name: kavita
+    networks:
+      - shared
+    environment:
+      - TZ={{ timezone }}
+    volumes:
+      - ./config:/kavita/config
+      - comics:/manga
+    ports:
+      - {{ kavita_port }}:5000
+    restart: {{ restart_policy }}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5000"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  comics:
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

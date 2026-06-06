@@ -1,0 +1,6 @@
+---
+- name: Deploy homebox stack
+  hosts: homebox
+  become: true
+  roles:
+    - homebox

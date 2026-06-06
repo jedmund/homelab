@@ -1,0 +1,7 @@
+---
+# Stack identity
+stack_name: kavita
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Kavita settings
+kavita_port: 5353

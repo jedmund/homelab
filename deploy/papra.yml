@@ -1,0 +1,6 @@
+---
+- name: Deploy papra stack
+  hosts: papra
+  become: true
+  roles:
+    - papra

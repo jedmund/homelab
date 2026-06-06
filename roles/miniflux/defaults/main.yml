@@ -1,0 +1,40 @@
+---
+# Stack identity
+stack_name: miniflux
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Miniflux settings
+miniflux_port: 8280
+miniflux_admin_username: admin
+miniflux_base_url: "https://rss.atelier.house"
+miniflux_db_user: miniflux
+miniflux_db_name: miniflux
+miniflux_database_url: "postgres://{{ miniflux_db_user }}:{{ miniflux_db_password }}@miniflux-db/{{ miniflux_db_name }}?sslmode=disable"
+miniflux_oauth2_provider: oidc
+miniflux_oauth2_oidc_provider_name: PocketID
+miniflux_oauth2_redirect_url: "{{ miniflux_base_url }}/oauth2/oidc/callback"
+miniflux_oauth2_oidc_discovery_endpoint: "https://id.atelier.house"
+miniflux_oauth2_user_creation: "1"
+miniflux_disable_local_auth: "false"
+miniflux_polling_frequency: "60"
+miniflux_batch_size: "100"
+miniflux_polling_parsing_error_limit: "3"
+miniflux_worker_pool_size: "5"
+miniflux_metrics_collector: "1"
+miniflux_metrics_allowed_networks: "127.0.0.1/8,::1/128,192.168.0.0/16"
+miniflux_backup_retention_days: 7
+miniflux_fetcher_allow_private_networks: "1"
+
+# Reactflux settings
+reactflux_port: 2000
+
+# FiveFilters Full-Text RSS settings
+# Internal-only port; Miniflux reaches the service on the shared docker
+# network as http://fivefilters/. The published port exists for LAN
+# admin access and ad-hoc curl testing.
+fivefilters_port: 8181
+
+# Secrets defined in vault:
+# miniflux_db_password, miniflux_admin_password
+# miniflux_oauth2_client_id, miniflux_oauth2_client_secret
+# fivefilters_admin_password
