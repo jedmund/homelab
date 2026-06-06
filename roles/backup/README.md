@@ -109,8 +109,8 @@ Should mirror the structure of `/var/backup/borg/`.
 
 **Native borgmatic hooks** (streamed dump, no temp files):
 
-- 9 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
-  Blinko, Draftboard, Dawarich
+- 8 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
+  Blinko, Dawarich
 - 1 MariaDB: RomM (via `mariadb_databases` hook, dumped as root)
 - 1 MongoDB: Komodo (admin database, full dump)
 

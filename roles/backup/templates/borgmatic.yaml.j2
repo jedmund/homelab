@@ -71,10 +71,6 @@ postgresql_databases:
       hostname: blinko_postgres
       username: {{ blinko_db_user }}
       password: "{{ blinko_db_password }}"
-    - name: {{ draftboard_db_name }}
-      hostname: draftboard_postgres
-      username: {{ draftboard_db_user }}
-      password: "{{ draftboard_db_password }}"
     - name: {{ dawarich_db_name }}
       hostname: dawarich_postgres
       username: {{ dawarich_db_username }}

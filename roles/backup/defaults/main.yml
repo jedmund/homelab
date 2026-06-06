@@ -84,13 +84,13 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, draftboard, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, miniflux, romm
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
 # DB credentials. Passwords (and a few non-secret values like
-# komodo_db_username, couchdb_user) come from each stack's vault, which
-# loads for every group nuc-mini is a member of:
+# komodo_db_username, obsidian_livesync_couchdb_user) come from each
+# stack's vault, which loads for every group nuc-mini is a member of:
 #   immich_db_password
 #   mastodon_db_password
 #   synapse_db_password
@@ -98,11 +98,10 @@ borg_networks:
 #   n8n_db_password
 #   miniflux_db_password
 #   blinko_db_password
-#   draftboard_db_password
 #   dawarich_db_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
-#   couchdb_user, couchdb_password
+#   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
 #
 # Non-secret DB names and usernames are defined in each stack's role
 # defaults (e.g. roles/immich/defaults/main.yml). Role
@@ -125,10 +124,9 @@ miniflux_db_name: miniflux
 miniflux_db_user: miniflux
 blinko_db_name: blinko
 blinko_db_user: blinko
-draftboard_db_name: draftboard
-draftboard_db_user: draftboard
 dawarich_db_name: dawarich_production
 dawarich_db_username: dawarich
+obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
 # period at https://healthchecks.io and put its ping URL in the vault.

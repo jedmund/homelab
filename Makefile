@@ -125,9 +125,25 @@ deploy-kavita: ## Deploy Kavita
 	@echo "$(BLUE)Deploying Kavita...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/kavita.yml $(VAULT_FLAG)
 
+deploy-strudel: ## Deploy Strudel
+	@echo "$(BLUE)Deploying Strudel...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/strudel.yml $(VAULT_FLAG)
+
+deploy-blinko: ## Deploy Blinko
+	@echo "$(BLUE)Deploying Blinko...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/blinko.yml $(VAULT_FLAG)
+
+deploy-obsidian-livesync: ## Deploy Obsidian LiveSync
+	@echo "$(BLUE)Deploying Obsidian LiveSync...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/obsidian_livesync.yml $(VAULT_FLAG)
+
 deploy-migrate-content-reading-products: ## One-time migration from thematic stacks to product stacks
 	@echo "$(BLUE)Migrating content/reading stacks to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_content_reading_products.yml $(VAULT_FLAG)
+
+deploy-migrate-productivity-products: ## One-time migration from productivity stack to product stacks
+	@echo "$(BLUE)Migrating productivity stack to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_productivity_products.yml $(VAULT_FLAG)
 
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
@@ -138,10 +154,6 @@ archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack
 deploy-dev: ## Deploy development stack
 	@echo "$(BLUE)Deploying development stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/development.yml $(VAULT_FLAG)
-
-deploy-productivity: ## Deploy productivity stack
-	@echo "$(BLUE)Deploying productivity stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/productivity.yml $(VAULT_FLAG)
 
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"

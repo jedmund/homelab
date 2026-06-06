@@ -21,18 +21,20 @@
           12. Miniflux
           13. Karakeep
           14. Kavita
-          15. Development
-          16. Development macOS
-          17. Paseo daemon
-          18. Utilities
-          19. Vane
-          20. Feederhub
-          21. Productivity
-          22. Social
-          23. Matrix
-          24. AI (max only)
-          25. Openclaw
-          26. Backup
+          15. Strudel
+          16. Blinko
+          17. Obsidian LiveSync
+          18. Development
+          19. Development macOS
+          20. Paseo daemon
+          21. Utilities
+          22. Vane
+          23. Feederhub
+          24. Social
+          25. Matrix
+          26. AI (max only)
+          27. Openclaw
+          28. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -80,6 +82,15 @@
 - import_playbook: kavita.yml
   tags: [kavita]
 
+- import_playbook: strudel.yml
+  tags: [strudel]
+
+- import_playbook: blinko.yml
+  tags: [blinko]
+
+- import_playbook: obsidian_livesync.yml
+  tags: [obsidian_livesync]
+
 # Development stack
 - import_playbook: development.yml
   tags: [dev, development]
@@ -103,10 +114,6 @@
 # Feederhub stack
 - import_playbook: feederhub.yml
   tags: [feederhub]
-
-# Productivity stack
-- import_playbook: productivity.yml
-  tags: [productivity]
 
 # Social stack
 - import_playbook: social.yml

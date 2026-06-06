@@ -34,7 +34,7 @@ VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS)
 
 # Auto-discover all *.yml playbooks in this directory (excluding all.yml,
 # which is the meta-playbook driven by the root Makefile's deploy-all).
-STACKS := $(filter-out all migrate_content_reading_products archive_legacy_content_reading_stacks,$(basename $(notdir $(wildcard *.yml))))
+STACKS := $(filter-out all migrate_content_reading_products migrate_productivity_products archive_legacy_content_reading_stacks,$(basename $(notdir $(wildcard *.yml))))
 
 help: ## Show this help and list available stacks
 	@printf "$(BLUE)Per-stack deployment$(NC)\n\n"

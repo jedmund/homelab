@@ -39,8 +39,7 @@ ddclient_atelier_subdomains:
   - models.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
-  - notes.atelier.house
-  - obsidian.sync.atelier.house
+  - obsidian-sync.atelier.house
   - ov.atelier.house
   - paseo.relay.atelier.house
   - photos.atelier.house
