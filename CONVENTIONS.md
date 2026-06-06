@@ -21,7 +21,7 @@ reference role and copy its shape.
 A container from a public registry (linuxserver, official upstream, a
 vendor's GHCR image) that we run as-is.
 
-Reference: **`roles/media_acquisition`**.
+Reference: **`roles/prowlarr`**.
 
 - Image and tag live in `defaults/main.yml` as `<svc>_image` and, where the
   tag is pinned, `<svc>_image_tag`. The compose template references the

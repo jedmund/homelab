@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  qbittorrent:
+    image: {{ qbittorrent_image }}
+    container_name: qbittorrent
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ qbittorrent_web_port }}:8080"
+      - "{{ qbittorrent_torrenting_port }}:{{ qbittorrent_torrenting_port }}/tcp"
+      - "{{ qbittorrent_torrenting_port }}:{{ qbittorrent_torrenting_port }}/udp"
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ ansible_user_uid | default(1000) }}
+      - PGID={{ ansible_user_gid | default(1000) }}
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT={{ qbittorrent_torrenting_port }}
+    volumes:
+      - ./config:/config
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

@@ -79,15 +79,59 @@ deploy-media: ## Deploy all media services
 	@echo "$(BLUE)Deploying media stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags media
 
-deploy-media-acquisition: ## Deploy media acquisition (Sonarr, Radarr, etc.)
-	@echo "$(BLUE)Deploying media acquisition...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG)
-
 deploy-musicbrainz: ## Deploy MusicBrainz mirror
 	@echo "$(BLUE)Deploying MusicBrainz mirror...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/musicbrainz.yml $(VAULT_FLAG)
 
 ##@ Deployment - Product Stacks
+
+deploy-gluetun: ## Deploy Gluetun
+	@echo "$(BLUE)Deploying Gluetun...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gluetun.yml $(VAULT_FLAG)
+
+deploy-prowlarr: ## Deploy Prowlarr
+	@echo "$(BLUE)Deploying Prowlarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/prowlarr.yml $(VAULT_FLAG)
+
+deploy-qbittorrent: ## Deploy qBittorrent
+	@echo "$(BLUE)Deploying qBittorrent...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/qbittorrent.yml $(VAULT_FLAG)
+
+deploy-sonarr: ## Deploy Sonarr
+	@echo "$(BLUE)Deploying Sonarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sonarr.yml $(VAULT_FLAG)
+
+deploy-radarr: ## Deploy Radarr
+	@echo "$(BLUE)Deploying Radarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/radarr.yml $(VAULT_FLAG)
+
+deploy-lidarr: ## Deploy Lidarr
+	@echo "$(BLUE)Deploying Lidarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/lidarr.yml $(VAULT_FLAG)
+
+deploy-seerr: ## Deploy Seerr
+	@echo "$(BLUE)Deploying Seerr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/seerr.yml $(VAULT_FLAG)
+
+deploy-unpackerr: ## Deploy Unpackerr
+	@echo "$(BLUE)Deploying Unpackerr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/unpackerr.yml $(VAULT_FLAG)
+
+deploy-jdownloader: ## Deploy JDownloader
+	@echo "$(BLUE)Deploying JDownloader...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/jdownloader.yml $(VAULT_FLAG)
+
+deploy-pinchflat: ## Deploy Pinchflat
+	@echo "$(BLUE)Deploying Pinchflat...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/pinchflat.yml $(VAULT_FLAG)
+
+deploy-slskd: ## Deploy slskd
+	@echo "$(BLUE)Deploying slskd...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/slskd.yml $(VAULT_FLAG)
+
+deploy-qui: ## Deploy Qui
+	@echo "$(BLUE)Deploying Qui...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/qui.yml $(VAULT_FLAG)
 
 deploy-immich: ## Deploy Immich
 	@echo "$(BLUE)Deploying Immich...$(NC)"
@@ -181,6 +225,10 @@ deploy-migrate-media-consumption-products: ## One-time migration from media cons
 	@echo "$(BLUE)Migrating media consumption stack to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_consumption_products.yml $(VAULT_FLAG)
 
+deploy-migrate-media-acquisition-products: ## One-time migration from media acquisition stack to product stacks
+	@echo "$(BLUE)Migrating media acquisition stack to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_acquisition_products.yml $(VAULT_FLAG)
+
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/archive_legacy_content_reading_stacks.yml $(VAULT_FLAG)
@@ -252,14 +300,6 @@ deploy-petlibro: ## Deploy Petlibro stack (catbro-server + Mosquitto on nuc-mini
 deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
-
-deploy-sonarr: ## Deploy only Sonarr
-	@echo "$(BLUE)Deploying Sonarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags sonarr
-
-deploy-radarr: ## Deploy only Radarr
-	@echo "$(BLUE)Deploying Radarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags radarr
 
 ##@ Testing & Validation
 

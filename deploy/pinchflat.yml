@@ -1,0 +1,6 @@
+---
+- name: Deploy pinchflat stack
+  hosts: pinchflat
+  become: true
+  roles:
+    - pinchflat

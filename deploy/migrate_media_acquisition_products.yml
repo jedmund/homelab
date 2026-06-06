@@ -1,0 +1,306 @@
+---
+- name: Migrate media acquisition stack to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    media_acquisition_split_migration_force: false
+    media_acquisition_split_disable_legacy_compose: true
+    media_acquisition_split_legacy_path: "{{ docker_base_path }}/media-acquisition"
+    media_acquisition_split_target_roots:
+      - "{{ docker_base_path }}/gluetun"
+      - "{{ docker_base_path }}/prowlarr"
+      - "{{ docker_base_path }}/qbittorrent"
+      - "{{ docker_base_path }}/sonarr"
+      - "{{ docker_base_path }}/radarr"
+      - "{{ docker_base_path }}/lidarr"
+      - "{{ docker_base_path }}/seerr"
+      - "{{ docker_base_path }}/unpackerr"
+      - "{{ docker_base_path }}/jdownloader"
+      - "{{ docker_base_path }}/pinchflat"
+      - "{{ docker_base_path }}/slskd"
+      - "{{ docker_base_path }}/qui"
+    media_acquisition_split_bind_migrations:
+      - name: Gluetun config
+        src: "{{ docker_base_path }}/media-acquisition/config/gluetun"
+        dest: "{{ docker_base_path }}/gluetun/config"
+      - name: Prowlarr config
+        src: "{{ docker_base_path }}/media-acquisition/config/prowlarr"
+        dest: "{{ docker_base_path }}/prowlarr/config"
+      - name: qBittorrent config
+        src: "{{ docker_base_path }}/media-acquisition/config/qbittorrent"
+        dest: "{{ docker_base_path }}/qbittorrent/config"
+      - name: Sonarr config
+        src: "{{ docker_base_path }}/media-acquisition/config/sonarr"
+        dest: "{{ docker_base_path }}/sonarr/config"
+      - name: Radarr config
+        src: "{{ docker_base_path }}/media-acquisition/config/radarr"
+        dest: "{{ docker_base_path }}/radarr/config"
+      - name: Lidarr config
+        src: "{{ docker_base_path }}/media-acquisition/config/lidarr"
+        dest: "{{ docker_base_path }}/lidarr/config"
+      - name: Seerr config
+        src: "{{ docker_base_path }}/media-acquisition/config/seerr"
+        dest: "{{ docker_base_path }}/seerr/config"
+      - name: Unpackerr config
+        src: "{{ docker_base_path }}/media-acquisition/config/unpackerr"
+        dest: "{{ docker_base_path }}/unpackerr/config"
+      - name: JDownloader config
+        src: "{{ docker_base_path }}/media-acquisition/config/jdownloader"
+        dest: "{{ docker_base_path }}/jdownloader/config"
+      - name: Pinchflat config
+        src: "{{ docker_base_path }}/media-acquisition/config/pinchflat"
+        dest: "{{ docker_base_path }}/pinchflat/config"
+      - name: slskd config
+        src: "{{ docker_base_path }}/media-acquisition/config/slskd"
+        dest: "{{ docker_base_path }}/slskd/config"
+      - name: Qui config
+        src: "{{ docker_base_path }}/media-acquisition/config/qui"
+        dest: "{{ docker_base_path }}/qui/config"
+    media_acquisition_split_required_volumes:
+      - downloads
+      - television
+      - anime
+      - movies
+      - music
+    media_acquisition_split_required_vars:
+      - gluetun_vpn_provider
+      - gluetun_vpn_type
+      - unpackerr_sonarr_api_key
+      - unpackerr_radarr_api_key
+      - unpackerr_lidarr_api_key
+      - slskd_slsk_username
+      - slskd_slsk_password
+      - slskd_web_username
+      - slskd_web_password
+      - qui_oidc_client_id
+      - qui_oidc_client_secret
+
+  tasks:
+    - name: Assert media acquisition product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Run
+          bin/split-media-acquisition-product-vaults before migration.
+      loop: "{{ media_acquisition_split_required_vars }}"
+
+    - name: Assert Gluetun credentials are available
+      ansible.builtin.assert:
+        that:
+          - >-
+            (
+              gluetun_openvpn_user is defined
+              and gluetun_openvpn_password is defined
+            )
+            or
+            (
+              gluetun_wireguard_private_key is defined
+              and gluetun_wireguard_addresses is defined
+            )
+        fail_msg: >-
+          Gluetun needs either gluetun_openvpn_user/gluetun_openvpn_password
+          or gluetun_wireguard_private_key/gluetun_wireguard_addresses.
+
+    - name: Check legacy media acquisition path
+      ansible.builtin.stat:
+        path: "{{ media_acquisition_split_legacy_path }}"
+      register: _media_acquisition_split_legacy_path
+
+    - name: Assert legacy media acquisition path exists
+      ansible.builtin.assert:
+        that:
+          - _media_acquisition_split_legacy_path.stat.exists
+          - _media_acquisition_split_legacy_path.stat.isdir
+        fail_msg: >-
+          Legacy media acquisition path {{ media_acquisition_split_legacy_path }}
+          is missing; aborting migration.
+
+    - name: Check legacy media acquisition compose file
+      ansible.builtin.stat:
+        path: "{{ media_acquisition_split_legacy_path }}/compose.yaml"
+      register: _media_acquisition_split_legacy_compose
+
+    - name: Check source bind paths
+      ansible.builtin.stat:
+        path: "{{ item.src }}"
+      loop: "{{ media_acquisition_split_bind_migrations }}"
+      register: _media_acquisition_split_bind_source_stats
+
+    - name: Assert source bind paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required source path {{ item.item.src }} for {{ item.item.name }} is missing."
+      loop: "{{ _media_acquisition_split_bind_source_stats.results }}"
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ media_acquisition_split_target_roots }}"
+      register: _media_acquisition_split_target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _media_acquisition_split_target_root_stats.results }}"
+      when:
+        - not media_acquisition_split_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _media_acquisition_split_target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e media_acquisition_split_migration_force=true only if it
+          is safe to replace migration output.
+      loop: "{{ _media_acquisition_split_target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _media_acquisition_split_docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        media_acquisition_split_volume_names: "{{ _media_acquisition_split_docker_volume_ls.stdout_lines }}"
+
+    - name: Assert required external Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item in media_acquisition_split_volume_names
+        fail_msg: "Required Docker volume {{ item }} is missing."
+      loop: "{{ media_acquisition_split_required_volumes }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ media_acquisition_split_target_roots }}"
+      when: media_acquisition_split_migration_force | bool
+
+    - name: Stop legacy media acquisition stack before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ media_acquisition_split_legacy_path }}"
+      register: _media_acquisition_split_stack_stop
+      when: _media_acquisition_split_legacy_compose.stat.exists
+      changed_when: >-
+        'Stopped' in (_media_acquisition_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_media_acquisition_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_media_acquisition_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_media_acquisition_split_stack_stop.stderr | default(''))
+
+    - name: Create product bind destination directories
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop: "{{ media_acquisition_split_bind_migrations }}"
+
+    - name: Copy bind-mounted data into product paths
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ item.src }}/."
+          - "{{ item.dest }}"
+      loop: "{{ media_acquisition_split_bind_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy media acquisition stack down without deleting data
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ media_acquisition_split_legacy_path }}"
+      when: _media_acquisition_split_legacy_compose.stat.exists
+      changed_when: true
+
+    - name: Write legacy media acquisition archive marker
+      ansible.builtin.copy:
+        dest: "{{ media_acquisition_split_legacy_path }}/ARCHIVED_BY_ANSIBLE.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Archived legacy stack: media-acquisition
+
+          This runtime directory is retained only for rollback after the media
+          acquisition product stack split.
+
+          Do not deploy this directory as an active stack. The active product
+          stacks are:
+          - gluetun
+          - prowlarr
+          - qbittorrent
+          - sonarr
+          - radarr
+          - lidarr
+          - seerr
+          - unpackerr
+          - jdownloader
+          - pinchflat
+          - slskd
+          - qui
+
+          If compose disabling is enabled, this playbook renames compose.yaml to
+          compose.yaml.archived. To roll back manually, stop the replacement
+          product stacks, rename compose.yaml.archived back to compose.yaml, and
+          run docker compose up -d from this directory.
+
+    - name: Disable legacy media acquisition compose file
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ media_acquisition_split_legacy_path }}/compose.yaml"
+          - "{{ media_acquisition_split_legacy_path }}/compose.yaml.archived"
+      args:
+        creates: "{{ media_acquisition_split_legacy_path }}/compose.yaml.archived"
+        removes: "{{ media_acquisition_split_legacy_path }}/compose.yaml"
+      when: media_acquisition_split_disable_legacy_compose | bool
+      changed_when: true
+
+- name: Deploy Gluetun product stack
+  import_playbook: gluetun.yml
+
+- name: Deploy Prowlarr product stack
+  import_playbook: prowlarr.yml
+
+- name: Deploy qBittorrent product stack
+  import_playbook: qbittorrent.yml
+
+- name: Deploy Sonarr product stack
+  import_playbook: sonarr.yml
+
+- name: Deploy Radarr product stack
+  import_playbook: radarr.yml
+
+- name: Deploy Lidarr product stack
+  import_playbook: lidarr.yml
+
+- name: Deploy Seerr product stack
+  import_playbook: seerr.yml
+
+- name: Deploy Unpackerr product stack
+  import_playbook: unpackerr.yml
+
+- name: Deploy JDownloader product stack
+  import_playbook: jdownloader.yml
+
+- name: Deploy Pinchflat product stack
+  import_playbook: pinchflat.yml
+
+- name: Deploy slskd product stack
+  import_playbook: slskd.yml
+
+- name: Deploy Qui product stack
+  import_playbook: qui.yml

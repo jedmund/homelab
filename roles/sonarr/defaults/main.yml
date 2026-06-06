@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: sonarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Sonarr settings
+sonarr_image: linuxserver/sonarr
+sonarr_port: 8989

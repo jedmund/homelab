@@ -1,0 +1,6 @@
+---
+- name: Deploy unpackerr stack
+  hosts: unpackerr
+  become: true
+  roles:
+    - unpackerr

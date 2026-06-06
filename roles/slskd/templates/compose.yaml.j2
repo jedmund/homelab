@@ -1,0 +1,48 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  slskd:
+    image: {{ slskd_image }}
+    container_name: slskd
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ slskd_web_port }}:5030"
+      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/tcp"
+      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/udp"
+    env_file:
+      - ./env/slskd.env
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ ansible_user_uid | default(1000) }}
+      - PGID={{ ansible_user_gid | default(1000) }}
+      - SLSKD_SLSK_LISTEN_PORT={{ slskd_listen_port }}
+    volumes:
+      - ./config:/app
+      - music:/music:ro
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5030/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  music:
+    name: music
+    external: true
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

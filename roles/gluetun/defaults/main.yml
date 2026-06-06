@@ -1,0 +1,7 @@
+---
+# Stack identity
+stack_name: gluetun
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Gluetun settings
+gluetun_image: qmcgaw/gluetun

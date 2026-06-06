@@ -1,0 +1,6 @@
+---
+- name: Deploy lidarr stack
+  hosts: lidarr
+  become: true
+  roles:
+    - lidarr
