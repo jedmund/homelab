@@ -1,0 +1,6 @@
+---
+- name: Deploy immich stack
+  hosts: immich
+  become: true
+  roles:
+    - immich

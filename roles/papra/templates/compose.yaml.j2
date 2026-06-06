@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  papra:
+    container_name: papra
+    image: {{ papra_image }}
+    restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
+    ports:
+      - "{{ papra_external_port }}:{{ papra_port }}"
+    volumes:
+      - ./config/papra:/app/app-data
+    env_file:
+      - ./env/papra.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  default:
+    name: {{ shared_network }}
+    external: true

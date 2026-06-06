@@ -1,0 +1,132 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  miniflux:
+    image: miniflux/miniflux:latest
+    container_name: miniflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    ports:
+      - {{ miniflux_port }}:8080
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    healthcheck:
+      test: ["CMD", "/usr/bin/miniflux", "-healthcheck", "auto"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db:
+    image: postgres:17-alpine
+    container_name: miniflux-db
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ miniflux_db_user }}"]
+      interval: 10s
+      start_period: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  miniflux-db-backup:
+    image: postgres:17-alpine
+    container_name: miniflux-db-backup
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    depends_on:
+      miniflux-db:
+        condition: service_healthy
+    env_file:
+      - ./env/miniflux.env
+    volumes:
+      - ./backups:/backup
+    entrypoint: |
+      sh -c 'while true; do
+        echo "Backing up Miniflux database..."
+        pg_dump -U {{ miniflux_db_user }} {{ miniflux_db_name }} > /backup/miniflux_backup_$$(date +%Y%m%d_%H%M%S).sql
+        ls -t /backup/miniflux_backup_*.sql | tail -n +{{ miniflux_backup_retention_days + 1 }} | xargs -r rm
+        echo "Backup complete. Sleeping for 24 hours..."
+        sleep 86400
+      done'
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  reactflux:
+    image: electh/reactflux:latest
+    container_name: reactflux
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ reactflux_port }}:2000
+    depends_on:
+      miniflux:
+        condition: service_healthy
+    environment:
+      - TZ={{ timezone }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  fivefilters:
+    image: heussd/fivefilters-full-text-rss:latest
+    container_name: fivefilters
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+      - backend
+    ports:
+      - {{ fivefilters_port }}:80
+    env_file:
+      - ./env/fivefilters.env
+    volumes:
+      - fivefilters-cache:/var/www/html/cache
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  fivefilters-cache:
+    name: miniflux-fivefilters-cache
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

@@ -1,0 +1,60 @@
+---
+# Stack identity
+stack_name: karakeep
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Karakeep settings
+karakeep_port: 3232
+karakeep_base_url: "https://keep.atelier.house"
+karakeep_data_dir: "/data"
+karakeep_max_asset_size_mb: "50"
+karakeep_db_wal_mode: "true"
+karakeep_disable_new_release_check: "false"
+karakeep_rate_limiting_enabled: "false"
+karakeep_search_num_workers: "1"
+karakeep_webhook_num_workers: "1"
+karakeep_asset_preprocessing_num_workers: "1"
+karakeep_rule_engine_num_workers: "1"
+karakeep_crawler_num_workers: "1"
+karakeep_inference_num_workers: "1"
+karakeep_meili_addr: "http://karakeep-meilisearch:7700"
+karakeep_disable_signups: "false"
+karakeep_disable_password_auth: "true"
+karakeep_email_verification_required: "false"
+karakeep_oauth_wellknown_url: "https://id.atelier.house/.well-known/openid-configuration"
+karakeep_oauth_scope: "openid email profile"
+karakeep_oauth_provider_name: "PocketID"
+karakeep_oauth_allow_dangerous_email_account_linking: "true"
+karakeep_oauth_timeout: "3500"
+karakeep_inference_text_model: "gpt-4o-mini"
+karakeep_inference_image_model: "gpt-4o-mini"
+karakeep_embedding_text_model: "text-embedding-3-small"
+karakeep_inference_context_length: "2048"
+karakeep_inference_max_output_tokens: "2048"
+karakeep_inference_lang: "english"
+karakeep_inference_job_timeout_sec: "30"
+karakeep_inference_enable_auto_tagging: "true"
+karakeep_inference_enable_auto_summarization: "false"
+karakeep_inference_output_schema: "structured"
+karakeep_browser_web_url: "http://karakeep-chrome:9222"
+karakeep_browser_connect_ondemand: "false"
+karakeep_crawler_download_banner_image: "true"
+karakeep_crawler_store_screenshot: "true"
+karakeep_crawler_full_page_screenshot: "false"
+karakeep_crawler_full_page_archive: "false"
+karakeep_crawler_enable_adblocker: "true"
+karakeep_crawler_job_timeout_sec: "60"
+karakeep_crawler_navigate_timeout_sec: "30"
+karakeep_crawler_screenshot_timeout_sec: "5"
+karakeep_crawler_video_download: "false"
+karakeep_crawler_video_download_max_size: "50"
+karakeep_crawler_video_download_timeout_sec: "600"
+karakeep_ocr_langs: "eng"
+karakeep_ocr_confidence_threshold: "50"
+karakeep_webhook_timeout_sec: "5"
+karakeep_webhook_retry_times: "3"
+
+# Secrets defined in vault:
+# karakeep_nextauth_secret, karakeep_meili_master_key
+# karakeep_oauth_client_id, karakeep_oauth_client_secret
+# karakeep_openai_api_key (optional)

@@ -1,0 +1,6 @@
+---
+- name: Deploy miniflux stack
+  hosts: miniflux
+  become: true
+  roles:
+    - miniflux
