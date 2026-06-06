@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Split the old ignored productivity vault into the ignored product vault files
+# used by deploy/migrate_productivity_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+productivity_vault="${PRODUCTIVITY_VAULT:-group_vars/productivity/vault.yml}"
+
+if [ ! -f "$productivity_vault" ]; then
+    echo "missing $productivity_vault" >&2
+    exit 1
+fi
+
+targets=(
+    group_vars/blinko/vault.yml
+    group_vars/obsidian_livesync/vault.yml
+)
+
+if [ "$force" = false ]; then
+    for target in "${targets[@]}"; do
+        if [ -e "$target" ]; then
+            echo "$target already exists; rerun with --force to replace generated product vaults" >&2
+            exit 1
+        fi
+    done
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-productivity-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$productivity_vault" > "$tmpdir/productivity.yml"
+
+ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+
+def fetch_required(source, path, *keys)
+  key = keys.find { |candidate| source.key?(candidate) }
+  raise "missing keys for #{path}: #{keys.join(" or ")}" unless key
+
+  source.fetch(key)
+end
+
+files = {
+  "group_vars/blinko/vault.yml" => {
+    "blinko_db_password" => fetch_required(
+      source,
+      "group_vars/blinko/vault.yml",
+      "blinko_db_password"
+    )
+  },
+  "group_vars/obsidian_livesync/vault.yml" => {
+    "obsidian_livesync_couchdb_user" => fetch_required(
+      source,
+      "group_vars/obsidian_livesync/vault.yml",
+      "obsidian_livesync_couchdb_user",
+      "couchdb_user"
+    ),
+    "obsidian_livesync_couchdb_password" => fetch_required(
+      source,
+      "group_vars/obsidian_livesync/vault.yml",
+      "obsidian_livesync_couchdb_password",
+      "couchdb_password"
+    )
+  }
+}
+
+if source.key?("blinko_nextauth_secret")
+  files["group_vars/blinko/vault.yml"]["blinko_nextauth_secret"] =
+    source.fetch("blinko_nextauth_secret")
+end
+
+files.each do |path, values|
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, YAML.dump(values))
+  File.chmod(0600, path)
+end
+' "$tmpdir/productivity.yml"
+
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted productivity product vaults:"
+printf "  %s\n" "${targets[@]}"

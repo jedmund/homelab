@@ -62,6 +62,9 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `miniflux` | Miniflux, Postgres, backup helper, Reactflux, FiveFilters |
 | `karakeep` | Karakeep, Chrome, Meilisearch |
 | `kavita` | Kavita |
+| `strudel` | Strudel `[in-house]` |
+| `blinko` | Blinko, Postgres |
+| `obsidian_livesync` | CouchDB backend for Obsidian LiveSync |
 
 **Content and social (nuc-mini)**
 | Role | Services |
@@ -70,11 +73,12 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `matrix` | Synapse, MAS (+ Postgres) |
 | `musicbrainz` | MusicBrainz mirror |
 
-**Productivity and utilities (nuc-mini)**
+**Utilities (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `productivity` | Strudel `[in-house]`, Silverbullet, Blinko, CouchDB, Draftboard `[in-house]` |
-| `utilities` | n8n, ChangeDetection, Copyparty, feederhub `[in-house]`, Vane `[in-house]` |
+| `utilities` | n8n, ChangeDetection, Copyparty |
+| `feederhub` | feederhub `[in-house]` |
+| `vane` | Vane `[in-house]` |
 | `petlibro` | catbro `[in-house]`, Mosquitto |
 
 **Development (nuc-mini + mac-mini)**
@@ -328,11 +332,19 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `karakeep_oauth_client_secret` | Karakeep OIDC client secret |
 | `karakeep_openai_api_key` | OpenAI API key (for AI features) |
 
-### group_vars/productivity/vault.yml
+### group_vars/blinko/vault.yml
 
 | Variable | Description |
 |----------|-------------|
 | `blinko_db_password` | Blinko PostgreSQL password |
+| `blinko_nextauth_secret` | Blinko NextAuth secret (optional) |
+
+### group_vars/obsidian_livesync/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `obsidian_livesync_couchdb_user` | CouchDB admin user |
+| `obsidian_livesync_couchdb_password` | CouchDB admin password |
 
 ### group_vars/development/vault.yml
 
@@ -382,6 +394,8 @@ make deploy-media-consumption
 make deploy-immich
 make deploy-miniflux
 make deploy-karakeep
+make deploy-blinko
+make deploy-obsidian-livesync
 
 # One-time migration from old content/reading stacks to product stacks
 bin/split-content-reading-product-vaults
@@ -389,6 +403,11 @@ make deploy-migrate-content-reading-products
 
 # After verifying product stacks and backups, archive old runtime dirs
 make archive-legacy-content-reading-stacks
+
+# One-time migration from productivity to product stacks
+# This removes empty Draftboard and SilverBullet runtime data.
+bin/split-productivity-product-vaults
+make deploy-migrate-productivity-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
@@ -477,7 +496,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Immich | `immich-database` | `immich` | `postgres` |
 | Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
 | n8n | `n8n-db` | `n8n` | `n8n` |
-| Blinko | `blinko-db` | `blinko` | `blinko` |
+| Blinko | `blinko_postgres` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
 
 GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/development/tasks/main.yml`.
@@ -493,7 +512,7 @@ docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
 docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
 docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
-docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
+docker exec blinko_postgres pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
 ```
 

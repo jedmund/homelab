@@ -12,7 +12,6 @@ firewall_group_product_stacks: true
 firewall_group_development: true
 firewall_group_infrastructure: true
 firewall_group_downloads: true
-firewall_group_productivity: true
 firewall_group_social: true
 firewall_group_matrix: true
 firewall_group_feederhub: true
@@ -70,12 +69,6 @@ firewall_ports_development:
   - { port: 8080, proto: tcp, comment: "Open WebUI" }
   - { port: 8411, proto: tcp, comment: "Paseo relay" }
 
-# Productivity
-firewall_ports_productivity:
-  - { port: 1111, proto: tcp, comment: "Blinko" }
-  - { port: 3001, proto: tcp, comment: "Silverbullet" }
-  - { port: 8800, proto: tcp, comment: "Strudel" }
-
 # Social
 firewall_ports_social:
   - { port: 3002, proto: tcp, comment: "Mastodon" }
@@ -131,7 +124,6 @@ firewall_ports_all: >-
     (firewall_ports_development if firewall_group_development else []) +
     (firewall_ports_infrastructure if firewall_group_infrastructure else []) +
     (firewall_ports_downloads if firewall_group_downloads else []) +
-    (firewall_ports_productivity if firewall_group_productivity else []) +
     (firewall_ports_social if firewall_group_social else []) +
     (firewall_ports_matrix if firewall_group_matrix else []) +
     (firewall_ports_feederhub if firewall_group_feederhub else [])

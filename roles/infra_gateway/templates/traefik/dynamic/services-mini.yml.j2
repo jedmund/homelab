@@ -217,29 +217,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # ========== Productivity ==========
-
-    # Silverbullet service worker bypass (no auth)
-    silverbullet-sw:
-      rule: "Host(`notes.{{ traefik_domain }}`) && Path(`/service_worker.js`)"
-      service: silverbullet
-      entryPoints:
-        - websecure
-      priority: 100
-      tls:
-        certResolver: letsencrypt
-
-    # Silverbullet - notes.{{ traefik_domain }}
-    silverbullet:
-      rule: "Host(`notes.{{ traefik_domain }}`)"
-      service: silverbullet
-      entryPoints:
-        - websecure
-      middlewares:
-        - tinyauth@file
-      tls:
-        certResolver: letsencrypt
-
     # Karakeep - keep.{{ traefik_domain }}
     karakeep:
       rule: "Host(`keep.{{ traefik_domain }}`)"
@@ -502,12 +479,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:5030"
-
-    # Productivity
-    silverbullet:
-      loadBalancer:
-        servers:
-          - url: "http://silverbullet:3000"
 
     karakeep:
       loadBalancer:

@@ -1,0 +1,221 @@
+---
+- name: Migrate productivity stack to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    productivity_split_migration_force: false
+    productivity_split_remove_legacy_root: true
+    productivity_split_remove_legacy_firewall_rules: true
+    productivity_split_copy_image: alpine:3.20
+    productivity_split_legacy_path: "{{ docker_base_path }}/productivity"
+    productivity_split_target_roots:
+      - "{{ docker_base_path }}/strudel"
+      - "{{ docker_base_path }}/blinko"
+      - "{{ docker_base_path }}/obsidian-livesync"
+    productivity_split_volume_migrations:
+      - name: Blinko app data
+        source: productivity_blinko-data
+        target: blinko-data
+      - name: Blinko Postgres data
+        source: productivity_blinko-pgdata
+        target: blinko-pgdata
+      - name: Obsidian LiveSync CouchDB data
+        source: productivity_couchdb-data
+        target: obsidian-livesync-data
+    productivity_split_removed_volumes:
+      - productivity_silverbullet-space
+      - productivity_draftboard-minio
+      - productivity_draftboard-pgdata
+    productivity_split_removed_firewall_ports:
+      - { port: "1111", proto: tcp }
+      - { port: "3001", proto: tcp }
+      - { port: "8800", proto: tcp }
+    productivity_split_required_vars:
+      - blinko_db_password
+      - obsidian_livesync_couchdb_user
+      - obsidian_livesync_couchdb_password
+
+  tasks:
+    - name: Assert productivity product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Create the product vault
+          files under group_vars/blinko/vault.yml and
+          group_vars/obsidian_livesync/vault.yml before running migration.
+      loop: "{{ productivity_split_required_vars }}"
+
+    - name: Check legacy productivity path
+      ansible.builtin.stat:
+        path: "{{ productivity_split_legacy_path }}"
+      register: _productivity_split_legacy_path
+
+    - name: Assert legacy productivity path exists
+      ansible.builtin.assert:
+        that:
+          - _productivity_split_legacy_path.stat.exists
+          - _productivity_split_legacy_path.stat.isdir
+        fail_msg: "Legacy productivity path {{ productivity_split_legacy_path }} is missing; aborting migration."
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ productivity_split_target_roots }}"
+      register: _productivity_split_target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _productivity_split_target_root_stats.results }}"
+      when:
+        - not productivity_split_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _productivity_split_target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e productivity_split_migration_force=true only if it is safe to replace migration output.
+      loop: "{{ _productivity_split_target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _productivity_split_docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        productivity_split_volume_names: "{{ _productivity_split_docker_volume_ls.stdout_lines }}"
+
+    - name: Assert required source Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item.source in productivity_split_volume_names
+        fail_msg: "Required source Docker volume {{ item.source }} for {{ item.name }} is missing."
+      loop: "{{ productivity_split_volume_migrations }}"
+
+    - name: Assert target Docker volumes do not already exist
+      ansible.builtin.assert:
+        that:
+          - productivity_split_migration_force | bool or item.target not in productivity_split_volume_names
+        fail_msg: >-
+          Target Docker volume {{ item.target }} already exists.
+          Re-run with -e productivity_split_migration_force=true only if it is safe to replace migration output.
+      loop: "{{ productivity_split_volume_migrations }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ productivity_split_target_roots }}"
+      when: productivity_split_migration_force | bool
+
+    - name: Remove existing target Docker volumes when forced
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - "{{ item.target }}"
+      loop: "{{ productivity_split_volume_migrations }}"
+      when:
+        - productivity_split_migration_force | bool
+        - item.target in productivity_split_volume_names
+      changed_when: true
+
+    - name: Stop legacy productivity stack before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ productivity_split_legacy_path }}"
+      register: _productivity_split_stack_stop
+      changed_when: >-
+        'Stopped' in (_productivity_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_productivity_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_productivity_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_productivity_split_stack_stop.stderr | default(''))
+
+    - name: Create target Docker volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - create
+          - "{{ item.target }}"
+      loop: "{{ productivity_split_volume_migrations }}"
+      changed_when: item.target not in productivity_split_volume_names or productivity_split_migration_force | bool
+
+    - name: Copy Docker named volumes into explicit product volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - "{{ item.source }}:/from:ro"
+          - -v
+          - "{{ item.target }}:/to"
+          - "{{ productivity_split_copy_image }}"
+          - sh
+          - -c
+          - cd /from && cp -a . /to
+      loop: "{{ productivity_split_volume_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy productivity stack down without deleting kept volumes
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ productivity_split_legacy_path }}"
+      changed_when: true
+
+    - name: Remove deleted-product Docker volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - "{{ item }}"
+      loop: "{{ productivity_split_removed_volumes }}"
+      when: item in productivity_split_volume_names
+      changed_when: true
+
+    - name: Remove legacy productivity direct firewall rules
+      ansible.builtin.command:
+        argv:
+          - ufw
+          - --force
+          - delete
+          - allow
+          - "{{ item.port }}/{{ item.proto }}"
+      loop: "{{ productivity_split_removed_firewall_ports }}"
+      when: productivity_split_remove_legacy_firewall_rules | bool
+      register: _productivity_split_removed_firewall_rule
+      failed_when: >-
+        _productivity_split_removed_firewall_rule.rc != 0
+        and 'Could not delete non-existent rule' not in
+        (_productivity_split_removed_firewall_rule.stderr | default(''))
+      changed_when: _productivity_split_removed_firewall_rule.rc == 0
+
+    - name: Remove legacy productivity runtime directory
+      ansible.builtin.file:
+        path: "{{ productivity_split_legacy_path }}"
+        state: absent
+      when: productivity_split_remove_legacy_root | bool
+
+- name: Deploy Strudel product stack
+  import_playbook: strudel.yml
+
+- name: Deploy Blinko product stack
+  import_playbook: blinko.yml
+
+- name: Deploy Obsidian LiveSync product stack
+  import_playbook: obsidian_livesync.yml

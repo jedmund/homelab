@@ -1,9 +1,8 @@
 ---
-# Productivity Stack - Strudel, Silverbullet, Blinko, CouchDB (LiveSync), Quartz, Draftboard
-# Uses docker_compose_v2 for container orchestration
+# Obsidian LiveSync product stack
 
 - name: Create {{ stack_name }} directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
@@ -12,20 +11,9 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/strudel"
-
-- name: Clone/update Draftboard repository
-  ansible.builtin.git:
-    repo: "{{ draftboard_repo }}"
-    dest: "{{ docker_base_path }}/{{ stack_name }}/config/draftboard"
-    version: "{{ draftboard_repo_branch }}"
-    force: true
-    accept_hostkey: true
-  become: false
-  notify: Restart {{ stack_name }} stack
 
 - name: Generate CouchDB config
-  template:
+  ansible.builtin.template:
     src: couchdb.ini.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/couchdb.ini"
     owner: "{{ ansible_user }}"
@@ -33,7 +21,7 @@
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
-  template:
+  ansible.builtin.template:
     src: compose.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
@@ -41,14 +29,13 @@
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
-  template:
+  ansible.builtin.template:
     src: "env/{{ item }}.env.j2"
     dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
     owner: "{{ ansible_user }}"
     mode: '0600'
   loop:
-    - blinko
-    - draftboard
+    - obsidian_livesync
   no_log: true
   notify: Restart {{ stack_name }} stack
 
