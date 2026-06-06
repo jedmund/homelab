@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Split the old ignored media_acquisition vault into ignored product vault files
+# used by deploy/migrate_media_acquisition_products.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+media_vault="${MEDIA_ACQUISITION_VAULT:-group_vars/media_acquisition/vault.yml}"
+
+if [ ! -f "$media_vault" ]; then
+    echo "missing $media_vault" >&2
+    exit 1
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-media-acquisition-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$media_vault" > "$tmpdir/media_acquisition.yml"
+
+FORCE="$force" ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+force = ENV.fetch("FORCE") == "true"
+
+def fetch_required(source, path, key)
+  raise "missing #{key} for #{path}" unless source.key?(key)
+
+  source.fetch(key)
+end
+
+files = {
+  "group_vars/gluetun/vault.yml" => {
+    "gluetun_vpn_provider" => fetch_required(
+      source,
+      "group_vars/gluetun/vault.yml",
+      "gluetun_vpn_provider"
+    ),
+    "gluetun_vpn_type" => fetch_required(
+      source,
+      "group_vars/gluetun/vault.yml",
+      "gluetun_vpn_type"
+    )
+  },
+  "group_vars/unpackerr/vault.yml" => {
+    "unpackerr_sonarr_api_key" => fetch_required(
+      source,
+      "group_vars/unpackerr/vault.yml",
+      "unpackerr_sonarr_api_key"
+    ),
+    "unpackerr_radarr_api_key" => fetch_required(
+      source,
+      "group_vars/unpackerr/vault.yml",
+      "unpackerr_radarr_api_key"
+    ),
+    "unpackerr_lidarr_api_key" => fetch_required(
+      source,
+      "group_vars/unpackerr/vault.yml",
+      "unpackerr_lidarr_api_key"
+    )
+  },
+  "group_vars/slskd/vault.yml" => {
+    "slskd_slsk_username" => fetch_required(
+      source,
+      "group_vars/slskd/vault.yml",
+      "slskd_slsk_username"
+    ),
+    "slskd_slsk_password" => fetch_required(
+      source,
+      "group_vars/slskd/vault.yml",
+      "slskd_slsk_password"
+    ),
+    "slskd_web_username" => fetch_required(
+      source,
+      "group_vars/slskd/vault.yml",
+      "slskd_web_username"
+    ),
+    "slskd_web_password" => fetch_required(
+      source,
+      "group_vars/slskd/vault.yml",
+      "slskd_web_password"
+    )
+  },
+  "group_vars/qui/vault.yml" => {
+    "qui_oidc_client_id" => fetch_required(
+      source,
+      "group_vars/qui/vault.yml",
+      "qui_oidc_client_id"
+    ),
+    "qui_oidc_client_secret" => fetch_required(
+      source,
+      "group_vars/qui/vault.yml",
+      "qui_oidc_client_secret"
+    )
+  }
+}
+
+openvpn_keys = %w[
+  gluetun_openvpn_user
+  gluetun_openvpn_password
+]
+wireguard_keys = %w[
+  gluetun_wireguard_private_key
+  gluetun_wireguard_addresses
+]
+
+has_openvpn = openvpn_keys.all? { |key| source.key?(key) }
+has_wireguard = wireguard_keys.all? { |key| source.key?(key) }
+unless has_openvpn || has_wireguard
+  raise "missing Gluetun credentials; expected OpenVPN or WireGuard keys"
+end
+
+openvpn_keys.each do |key|
+  files["group_vars/gluetun/vault.yml"][key] = source.fetch(key) if source.key?(key)
+end
+
+wireguard_keys.each do |key|
+  files["group_vars/gluetun/vault.yml"][key] = source.fetch(key) if source.key?(key)
+end
+
+[
+  "gluetun_server_countries",
+  "qui_oidc_enabled",
+  "qui_oidc_issuer",
+  "qui_oidc_redirect_url",
+  "qui_oidc_disable_built_in_login"
+].each do |key|
+  path = key.start_with?("qui_") ? "group_vars/qui/vault.yml" : "group_vars/gluetun/vault.yml"
+  files[path][key] = source.fetch(key) if source.key?(key)
+end
+
+existing = files.keys.select { |path| File.exist?(path) }
+if !force && !existing.empty?
+  raise "#{existing.join(", ")} already exists; rerun with --force to replace generated product vaults"
+end
+
+files.each do |path, values|
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, YAML.dump(values))
+  File.chmod(0600, path)
+  puts path
+end
+' "$tmpdir/media_acquisition.yml" > "$tmpdir/targets"
+
+targets=()
+while IFS= read -r target; do
+    [ -n "$target" ] && targets+=("$target")
+done < "$tmpdir/targets"
+ansible-vault encrypt "${targets[@]}"
+
+echo "Created encrypted media acquisition product vaults:"
+printf "  %s\n" "${targets[@]}"
