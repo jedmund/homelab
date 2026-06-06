@@ -42,7 +42,7 @@ feederhub_data_uid: 65532
 feederhub_data_gid: 65532
 
 # TUTK + feeders inventory continue to come from the vault.  Keys
-# moved verbatim from group_vars/utilities/vault.yml when this role
+# moved verbatim from the old utilities vault when this role
 # was split out of utilities.
 feederhub_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
 feederhub_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"

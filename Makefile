@@ -137,6 +137,18 @@ deploy-obsidian-livesync: ## Deploy Obsidian LiveSync
 	@echo "$(BLUE)Deploying Obsidian LiveSync...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/obsidian_livesync.yml $(VAULT_FLAG)
 
+deploy-n8n: ## Deploy n8n
+	@echo "$(BLUE)Deploying n8n...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/n8n.yml $(VAULT_FLAG)
+
+deploy-changedetection: ## Deploy ChangeDetection
+	@echo "$(BLUE)Deploying ChangeDetection...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/changedetection.yml $(VAULT_FLAG)
+
+deploy-copyparty: ## Deploy Copyparty
+	@echo "$(BLUE)Deploying Copyparty...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/copyparty.yml $(VAULT_FLAG)
+
 deploy-migrate-content-reading-products: ## One-time migration from thematic stacks to product stacks
 	@echo "$(BLUE)Migrating content/reading stacks to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_content_reading_products.yml $(VAULT_FLAG)
@@ -144,6 +156,10 @@ deploy-migrate-content-reading-products: ## One-time migration from thematic sta
 deploy-migrate-productivity-products: ## One-time migration from productivity stack to product stacks
 	@echo "$(BLUE)Migrating productivity stack to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_productivity_products.yml $(VAULT_FLAG)
+
+deploy-migrate-utilities-products: ## One-time migration from utilities stack to product stacks
+	@echo "$(BLUE)Migrating utilities stack to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_utilities_products.yml $(VAULT_FLAG)
 
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
@@ -158,10 +174,6 @@ deploy-dev: ## Deploy development stack
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
-
-deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty)
-	@echo "$(BLUE)Deploying utilities stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/utilities.yml $(VAULT_FLAG)
 
 deploy-vane: ## Deploy Vane stack
 	@echo "$(BLUE)Deploying Vane stack...$(NC)"

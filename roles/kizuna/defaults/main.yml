@@ -42,7 +42,7 @@ kizuna_web_origin: "https://{{ kizuna_web_domain }}"
 # via the Dockerfile CMD: `bin/thrust bin/rails server -p 80`).
 kizuna_api_internal_port: 80
 
-# ---- Postgres (per-stack, matches the n8n pattern in utilities) ----
+# ---- Postgres (per-stack, matches the n8n role pattern) ----
 # 16-pgvector because the API code uses pgvector for embeddings.
 kizuna_postgres_image: pgvector/pgvector:pg16
 kizuna_postgres_db: kizuna_api_production
