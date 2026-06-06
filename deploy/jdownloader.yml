@@ -1,0 +1,6 @@
+---
+- name: Deploy jdownloader stack
+  hosts: jdownloader
+  become: true
+  roles:
+    - jdownloader

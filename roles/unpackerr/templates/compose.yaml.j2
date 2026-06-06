@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  unpackerr:
+    image: {{ unpackerr_image }}
+    container_name: unpackerr
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    env_file:
+      - ./env/unpackerr.env
+    volumes:
+      - ./config:/config
+      - downloads:/downloads
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

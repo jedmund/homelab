@@ -1,0 +1,39 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  jdownloader:
+    image: {{ jdownloader_image }}
+    container_name: jdownloader
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ jdownloader_port }}:5800"
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ ansible_user_uid | default(1000) }}
+      - PGID={{ ansible_user_gid | default(1000) }}
+    volumes:
+      - ./config:/config
+      - downloads:/output
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5800"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

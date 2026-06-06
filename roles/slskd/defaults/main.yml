@@ -1,0 +1,10 @@
+---
+# Stack identity
+stack_name: slskd
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# slskd settings
+slskd_image: slskd/slskd:latest
+slskd_domain: sl.atelier.house
+slskd_web_port: 5030
+slskd_listen_port: 50300

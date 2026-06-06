@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  radarr:
+    image: {{ radarr_image }}
+    container_name: radarr
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ radarr_port }}:7878"
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ ansible_user_uid | default(1000) }}
+      - PGID={{ ansible_user_gid | default(1000) }}
+    volumes:
+      - ./config:/config
+      - movies:/movies
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:7878/ping"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  movies:
+    name: movies
+    external: true
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true
