@@ -14,6 +14,7 @@ services:
       APP_URL: "{{ beszel_app_url }}"
       CHECK_UPDATES: "{{ beszel_check_updates }}"
       CONTAINER_DETAILS: "{{ beszel_container_details }}"
+      DISABLE_PASSWORD_AUTH: "{{ beszel_disable_password_auth }}"
       USER_CREATION: "{{ beszel_user_creation }}"
     labels:
       traefik.enable: "true"
@@ -25,7 +26,6 @@ services:
       traefik.http.routers.beszel.rule: "Host(`{{ beszel_domain }}`)"
       traefik.http.routers.beszel.entrypoints: "websecure"
       traefik.http.routers.beszel.tls.certresolver: "letsencrypt"
-      traefik.http.routers.beszel.middlewares: "tinyauth@file"
       traefik.http.services.beszel.loadbalancer.server.port: "{{ beszel_port }}"
     healthcheck:
       test: ["CMD", "/beszel", "health", "--url", "http://localhost:{{ beszel_port }}"]

@@ -12,4 +12,5 @@ beszel_port: 8090
 # Keep the hub deterministic and avoid update checks from inside the container.
 beszel_check_updates: "false"
 beszel_container_details: "true"
-beszel_user_creation: "false"
+beszel_disable_password_auth: "true"
+beszel_user_creation: "true"
