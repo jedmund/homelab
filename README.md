@@ -10,6 +10,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   └── group_vars -> ../group_vars  # Symlink for variable resolution
 ├── group_vars/    # Host group variables and vault files
 ├── inventory/     # Host inventory (hosts.yml)
+├── komodo/        # Komodo Resource Sync declarations
 ├── roles/         # One role per stack; see the roster below
 ├── CONVENTIONS.md # How services are wired up and how to add a new one
 └── Makefile       # Deployment commands
@@ -21,6 +22,10 @@ Each stack is its own Ansible role under `roles/`, deployed by the matching
 `deploy/<role>.yml` playbook to the host group of the same name in
 `inventory/hosts.yml`. Before adding or changing a service, read
 [CONVENTIONS.md](CONVENTIONS.md).
+
+Komodo Stack resources are declared in [komodo/stacks.toml](komodo/stacks.toml)
+for Resource Sync. See [komodo/README.md](komodo/README.md) before applying
+the sync.
 
 ### Role roster
 
