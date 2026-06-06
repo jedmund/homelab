@@ -66,8 +66,44 @@
       - name: Immich ML model cache
         source: content-management_model-cache
         target: immich-model-cache
+    product_stack_required_vars:
+      - immich_db_password
+      - papra_auth_secret
+      - papra_oidc_client_id
+      - papra_oidc_client_secret
+      - homebox_oidc_client_id
+      - homebox_oidc_client_secret
+      - album_sort_apple_music_team_id
+      - album_sort_apple_music_key_id
+      - album_sort_apple_music_private_key
+      - album_sort_discogs_token
+      - album_sort_kagi_api_key
+      - album_sort_multi_scrobbler_token
+      - dawarich_db_password
+      - dawarich_secret_key_base
+      - dawarich_oidc_client_id
+      - dawarich_oidc_client_secret
+      - sendgrid_api_key
+      - miniflux_db_password
+      - miniflux_admin_password
+      - miniflux_oauth2_client_id
+      - miniflux_oauth2_client_secret
+      - fivefilters_admin_password
+      - karakeep_nextauth_secret
+      - karakeep_meili_master_key
+      - karakeep_oauth_client_id
+      - karakeep_oauth_client_secret
 
   tasks:
+    - name: Assert product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Create the product vault
+          files under group_vars/<product>/vault.yml before running migration.
+      loop: "{{ product_stack_required_vars }}"
+
     - name: Check legacy stack paths
       ansible.builtin.stat:
         path: "{{ item }}"
