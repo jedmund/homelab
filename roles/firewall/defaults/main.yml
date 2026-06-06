@@ -6,7 +6,7 @@ firewall_enabled: true
 firewall_group_base: true
 firewall_group_dns: true
 firewall_group_media_servers: true
-firewall_group_media_acquisition: true
+firewall_group_media_acquisition_products: true
 firewall_group_media_consumption: true
 firewall_group_product_stacks: true
 firewall_group_development: true
@@ -33,8 +33,8 @@ firewall_ports_media_servers:
   - { port: 32400, proto: tcp, comment: "Plex" }
   - { port: 8000, proto: tcp, comment: "Tunarr" }
 
-# Media acquisition (Servarr stack)
-firewall_ports_media_acquisition:
+# Media acquisition products
+firewall_ports_media_acquisition_products:
   - { port: 8989, proto: tcp, comment: "Sonarr" }
   - { port: 7878, proto: tcp, comment: "Radarr" }
   - { port: 8686, proto: tcp, comment: "Lidarr" }
@@ -118,7 +118,7 @@ firewall_ports_all: >-
     (firewall_ports_base if firewall_group_base else []) +
     (firewall_ports_dns if firewall_group_dns else []) +
     (firewall_ports_media_servers if firewall_group_media_servers else []) +
-    (firewall_ports_media_acquisition if firewall_group_media_acquisition else []) +
+    (firewall_ports_media_acquisition_products if firewall_group_media_acquisition_products else []) +
     (firewall_ports_media_consumption if firewall_group_media_consumption else []) +
     (firewall_ports_product_stacks if firewall_group_product_stacks else []) +
     (firewall_ports_development if firewall_group_development else []) +

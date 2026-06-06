@@ -45,14 +45,21 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `infra_core` | Komodo (Core + Periphery + MongoDB) |
 | `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
 
-**Media (nuc-mini)**
-| Role | Services |
-|------|----------|
-| `media_acquisition` | Prowlarr, Sonarr, Radarr, Lidarr, qBittorrent, Gluetun, slskd |
-
 **Product stacks (nuc-mini)**
 | Role | Services |
 |------|----------|
+| `gluetun` | Gluetun VPN gateway |
+| `prowlarr` | Prowlarr |
+| `qbittorrent` | qBittorrent |
+| `sonarr` | Sonarr |
+| `radarr` | Radarr |
+| `lidarr` | Lidarr |
+| `seerr` | Seerr |
+| `unpackerr` | Unpackerr |
+| `jdownloader` | JDownloader |
+| `pinchflat` | Pinchflat |
+| `slskd` | slskd |
+| `qui` | Qui |
 | `immich` | Immich server, machine learning, Redis, Postgres |
 | `papra` | Papra |
 | `homebox` | Homebox |
@@ -241,14 +248,21 @@ Shared secrets used by multiple stacks.
 
 Register the OIDC client manually in PocketID with redirect URI `https://atelier.house/auth/callback`, then drop the values into the vault.
 
-### group_vars/media_acquisition/vault.yml
+### group_vars/gluetun/vault.yml
 
 #### Gluetun
 
 | Variable | Description |
 |----------|-------------|
-| `gluetun_openvpn_user` | VPN username |
-| `gluetun_openvpn_password` | VPN password |
+| `gluetun_vpn_provider` | VPN provider |
+| `gluetun_vpn_type` | VPN type (`openvpn` or `wireguard`) |
+| `gluetun_openvpn_user` | OpenVPN username |
+| `gluetun_openvpn_password` | OpenVPN password |
+| `gluetun_wireguard_private_key` | WireGuard private key |
+| `gluetun_wireguard_addresses` | WireGuard address list |
+| `gluetun_server_countries` | Optional server country filter |
+
+### group_vars/unpackerr/vault.yml
 
 #### Unpackerr
 
@@ -256,6 +270,23 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 |----------|-------------|
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
+| `unpackerr_lidarr_api_key` | Lidarr API key |
+
+### group_vars/slskd/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `slskd_slsk_username` | Soulseek username |
+| `slskd_slsk_password` | Soulseek password |
+| `slskd_web_username` | slskd web UI username |
+| `slskd_web_password` | slskd web UI password |
+
+### group_vars/qui/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `qui_oidc_client_id` | OIDC client ID |
+| `qui_oidc_client_secret` | OIDC client secret |
 
 ### group_vars/romm/vault.yml
 
@@ -420,7 +451,18 @@ make deploy-all
 # Deploy specific stacks
 make deploy-infra-core
 make deploy-infra-gateway
-make deploy-media-acquisition
+make deploy-gluetun
+make deploy-prowlarr
+make deploy-qbittorrent
+make deploy-sonarr
+make deploy-radarr
+make deploy-lidarr
+make deploy-seerr
+make deploy-unpackerr
+make deploy-jdownloader
+make deploy-pinchflat
+make deploy-slskd
+make deploy-qui
 make deploy-romm
 make deploy-plex
 make deploy-multi-scrobbler
@@ -454,6 +496,10 @@ make deploy-migrate-utilities-products
 # One-time migration from media consumption to product stacks
 bin/split-media-consumption-product-vaults
 make deploy-migrate-media-consumption-products
+
+# One-time migration from media acquisition to product stacks
+bin/split-media-acquisition-product-vaults
+make deploy-migrate-media-acquisition-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites

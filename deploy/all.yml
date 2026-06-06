@@ -10,37 +10,48 @@
           1. Prerequisites (networks, volumes)
           2. Infrastructure Gateway (Traefik, PocketID)
           3. Infrastructure Core (Komodo)
-          4. Media Acquisition
-          5. MusicBrainz mirror
-          6. RomM
-          7. Plex
-          8. Multi-Scrobbler
-          9. Tunarr
-          10. Stash
-          11. Immich
-          12. Papra
-          13. Homebox
-          14. Album Sort
-          15. Dawarich
-          16. Miniflux
-          17. Karakeep
-          18. Kavita
-          19. Strudel
-          20. Blinko
-          21. Obsidian LiveSync
-          22. Development
-          23. Development macOS
-          24. Paseo daemon
-          25. n8n
-          26. ChangeDetection
-          27. Copyparty
-          28. Vane
-          29. Feederhub
-          30. Social
-          31. Matrix
-          32. AI (max only)
-          33. Openclaw
-          34. Backup
+          4. Gluetun
+          5. Prowlarr
+          6. qBittorrent
+          7. Sonarr
+          8. Radarr
+          9. Lidarr
+          10. Seerr
+          11. Unpackerr
+          12. JDownloader
+          13. Pinchflat
+          14. slskd
+          15. Qui
+          16. MusicBrainz mirror
+          17. RomM
+          18. Plex
+          19. Multi-Scrobbler
+          20. Tunarr
+          21. Stash
+          22. Immich
+          23. Papra
+          24. Homebox
+          25. Album Sort
+          26. Dawarich
+          27. Miniflux
+          28. Karakeep
+          29. Kavita
+          30. Strudel
+          31. Blinko
+          32. Obsidian LiveSync
+          33. Development
+          34. Development macOS
+          35. Paseo daemon
+          36. n8n
+          37. ChangeDetection
+          38. Copyparty
+          39. Vane
+          40. Feederhub
+          41. Social
+          42. Matrix
+          43. AI (max only)
+          44. Openclaw
+          45. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -54,8 +65,41 @@
   tags: [infra, infra_core]
 
 # Media stack
-- import_playbook: media_acquisition.yml
-  tags: [media, media_acquisition]
+- import_playbook: gluetun.yml
+  tags: [media, gluetun]
+
+- import_playbook: prowlarr.yml
+  tags: [media, prowlarr]
+
+- import_playbook: qbittorrent.yml
+  tags: [media, qbittorrent]
+
+- import_playbook: sonarr.yml
+  tags: [media, sonarr]
+
+- import_playbook: radarr.yml
+  tags: [media, radarr]
+
+- import_playbook: lidarr.yml
+  tags: [media, lidarr]
+
+- import_playbook: seerr.yml
+  tags: [media, seerr]
+
+- import_playbook: unpackerr.yml
+  tags: [media, unpackerr]
+
+- import_playbook: jdownloader.yml
+  tags: [media, jdownloader]
+
+- import_playbook: pinchflat.yml
+  tags: [media, pinchflat]
+
+- import_playbook: slskd.yml
+  tags: [media, slskd]
+
+- import_playbook: qui.yml
+  tags: [media, qui]
 
 - import_playbook: musicbrainz.yml
   tags: [media, musicbrainz]
