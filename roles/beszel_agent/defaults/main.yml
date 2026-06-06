@@ -5,7 +5,7 @@ beszel_agent_stack_name: beszel-agent
 beszel_agent_config_base: "{{ docker_base_path | default('/opt/docker') }}/{{ beszel_agent_stack_name }}"
 
 beszel_agent_hub_url: https://beszel.atelier.house
-beszel_agent_key: "{{ vault_beszel_agent_key | default('') }}"
+beszel_agent_key: ""
 beszel_agent_token: "{{ vault_beszel_agent_token | default('') }}"
 beszel_agent_system_name: "{{ inventory_hostname }}"
 beszel_agent_listen: "45876"
@@ -42,6 +42,5 @@ beszel_agent_extra_filesystems: []
 
 beszel_agent_credentials_configured: >-
   {{
-    (beszel_agent_key | string | length > 0)
-    and (beszel_agent_token | string | length > 0)
+    beszel_agent_token | string | length > 0
   }}
