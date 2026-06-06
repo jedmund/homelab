@@ -384,6 +384,7 @@ make deploy-miniflux
 make deploy-karakeep
 
 # One-time migration from old content/reading stacks to product stacks
+bin/split-content-reading-product-vaults
 make deploy-migrate-content-reading-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
