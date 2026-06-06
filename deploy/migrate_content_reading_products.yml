@@ -1,0 +1,279 @@
+---
+- name: Migrate content-management and reading stacks to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    product_stack_migration_force: false
+    product_stack_migration_copy_image: alpine:3.20
+    product_stack_legacy_paths:
+      - "{{ docker_base_path }}/content-management"
+      - "{{ docker_base_path }}/reading"
+    product_stack_target_roots:
+      - "{{ docker_base_path }}/immich"
+      - "{{ docker_base_path }}/papra"
+      - "{{ docker_base_path }}/homebox"
+      - "{{ docker_base_path }}/album-sort"
+      - "{{ docker_base_path }}/dawarich"
+      - "{{ docker_base_path }}/miniflux"
+      - "{{ docker_base_path }}/karakeep"
+      - "{{ docker_base_path }}/kavita"
+    product_stack_bind_migrations:
+      - name: Papra app data
+        src: "{{ docker_base_path }}/content-management/config/papra"
+        dest: "{{ docker_base_path }}/papra/config/papra"
+      - name: Homebox config
+        src: "{{ docker_base_path }}/content-management/config/homebox"
+        dest: "{{ docker_base_path }}/homebox/config/homebox"
+      - name: Album Sort data
+        src: "{{ docker_base_path }}/content-management/album-sort-data"
+        dest: "{{ docker_base_path }}/album-sort/data"
+      - name: Album Sort beets data
+        src: "{{ docker_base_path }}/content-management/album-sort-beets-data"
+        dest: "{{ docker_base_path }}/album-sort/beets-data"
+      - name: Miniflux database
+        src: "{{ docker_base_path }}/reading/data/miniflux-db"
+        dest: "{{ docker_base_path }}/miniflux/data/db"
+      - name: Miniflux backup dumps
+        src: "{{ docker_base_path }}/reading/backups/miniflux"
+        dest: "{{ docker_base_path }}/miniflux/backups"
+      - name: Kavita config
+        src: "{{ docker_base_path }}/reading/config/kavita"
+        dest: "{{ docker_base_path }}/kavita/config"
+    product_stack_base_volume_migrations:
+      - name: Dawarich Postgres data
+        source: content-management_dawarich-db-data
+        target: dawarich-db-data
+      - name: Dawarich shared data
+        source: content-management_dawarich-shared
+        target: dawarich-shared
+      - name: Dawarich public files
+        source: content-management_dawarich-public
+        target: dawarich-public
+      - name: Dawarich watched imports
+        source: content-management_dawarich-watched
+        target: dawarich-watched
+      - name: Dawarich storage
+        source: content-management_dawarich-storage
+        target: dawarich-storage
+      - name: Dawarich Photon data
+        source: content-management_dawarich-photon-data
+        target: dawarich-photon-data
+      - name: FiveFilters cache
+        source: reading_fivefilters-cache
+        target: miniflux-fivefilters-cache
+    product_stack_optional_volume_migrations:
+      - name: Immich ML model cache
+        source: content-management_model-cache
+        target: immich-model-cache
+
+  tasks:
+    - name: Check legacy stack paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ product_stack_legacy_paths }}"
+      register: _legacy_path_stats
+
+    - name: Assert legacy stack paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Legacy stack path {{ item.stat.path }} is missing; aborting product migration."
+      loop: "{{ _legacy_path_stats.results }}"
+
+    - name: Check source bind paths
+      ansible.builtin.stat:
+        path: "{{ item.src }}"
+      loop: "{{ product_stack_bind_migrations }}"
+      register: _bind_source_stats
+
+    - name: Assert source bind paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required source path {{ item.item.src }} for {{ item.item.name }} is missing."
+      loop: "{{ _bind_source_stats.results }}"
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ product_stack_target_roots }}"
+      register: _target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _target_root_stats.results }}"
+      when:
+        - not product_stack_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e product_stack_migration_force=true only if it is safe to replace product migration output.
+      loop: "{{ _target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        product_stack_volume_names: "{{ _docker_volume_ls.stdout_lines }}"
+
+    - name: Select Karakeep source volumes
+      ansible.builtin.set_fact:
+        product_stack_karakeep_data_source_volume: >-
+          {{ 'reading_karakeep-data'
+             if 'reading_karakeep-data' in product_stack_volume_names
+             else 'media-consumption_karakeep-data' }}
+        product_stack_karakeep_search_source_volume: >-
+          {{ 'reading_karakeep-meilisearch'
+             if 'reading_karakeep-meilisearch' in product_stack_volume_names
+             else 'media-consumption_karakeep-meilisearch' }}
+
+    - name: Build Docker volume migration map
+      ansible.builtin.set_fact:
+        product_stack_volume_migrations: >-
+          {{
+            product_stack_base_volume_migrations
+            + [
+                {
+                  'name': 'Karakeep data',
+                  'source': product_stack_karakeep_data_source_volume,
+                  'target': 'karakeep-data'
+                },
+                {
+                  'name': 'Karakeep Meilisearch data',
+                  'source': product_stack_karakeep_search_source_volume,
+                  'target': 'karakeep-meilisearch'
+                }
+              ]
+            + (
+                product_stack_optional_volume_migrations
+                | selectattr('source', 'in', product_stack_volume_names)
+                | list
+              )
+          }}
+
+    - name: Assert required source Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item.source in product_stack_volume_names
+        fail_msg: "Required source Docker volume {{ item.source }} for {{ item.name }} is missing."
+      loop: "{{ product_stack_volume_migrations }}"
+
+    - name: Assert target Docker volumes do not already exist
+      ansible.builtin.assert:
+        that:
+          - product_stack_migration_force | bool or item.target not in product_stack_volume_names
+        fail_msg: >-
+          Target Docker volume {{ item.target }} already exists.
+          Re-run with -e product_stack_migration_force=true only if it is safe to replace product migration output.
+      loop: "{{ product_stack_volume_migrations }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ product_stack_target_roots }}"
+      when: product_stack_migration_force | bool
+
+    - name: Remove existing target Docker volumes when forced
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - "{{ item.target }}"
+      loop: "{{ product_stack_volume_migrations }}"
+      when:
+        - product_stack_migration_force | bool
+        - item.target in product_stack_volume_names
+      changed_when: true
+
+    - name: Stop legacy stacks before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ product_stack_legacy_paths }}"
+      register: _legacy_stack_stop
+      changed_when: >-
+        'Stopped' in (_legacy_stack_stop.stdout | default(''))
+        or 'Stopping' in (_legacy_stack_stop.stdout | default(''))
+        or 'Stopped' in (_legacy_stack_stop.stderr | default(''))
+        or 'Stopping' in (_legacy_stack_stop.stderr | default(''))
+
+    - name: Create product bind destination directories
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop: "{{ product_stack_bind_migrations }}"
+
+    - name: Copy bind-mounted data into product paths
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ item.src }}/."
+          - "{{ item.dest }}/"
+      loop: "{{ product_stack_bind_migrations }}"
+      changed_when: true
+
+    - name: Create target Docker volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - create
+          - "{{ item.target }}"
+      loop: "{{ product_stack_volume_migrations }}"
+      changed_when: item.target not in product_stack_volume_names or product_stack_migration_force | bool
+
+    - name: Copy Docker named volumes into explicit product volumes
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - "{{ item.source }}:/from:ro"
+          - -v
+          - "{{ item.target }}:/to"
+          - "{{ product_stack_migration_copy_image }}"
+          - sh
+          - -c
+          - cd /from && cp -a . /to
+      loop: "{{ product_stack_volume_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy stacks down without deleting volumes
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ product_stack_legacy_paths }}"
+      changed_when: true
+
+- import_playbook: immich.yml
+- import_playbook: papra.yml
+- import_playbook: homebox.yml
+- import_playbook: album_sort.yml
+- import_playbook: dawarich.yml
+- import_playbook: miniflux.yml
+- import_playbook: karakeep.yml
+- import_playbook: kavita.yml
