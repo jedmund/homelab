@@ -1,0 +1,82 @@
+---
+- name: Archive legacy content-management and reading runtime stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    legacy_stack_archive_disable_compose: true
+    legacy_stack_archive_stacks:
+      - name: content-management
+        path: "{{ docker_base_path }}/content-management"
+        replacements:
+          - immich
+          - papra
+          - homebox
+          - album_sort
+          - dawarich
+      - name: reading
+        path: "{{ docker_base_path }}/reading"
+        replacements:
+          - miniflux
+          - karakeep
+          - kavita
+
+  tasks:
+    - name: Check legacy stack directories
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ legacy_stack_archive_stacks }}"
+      register: _legacy_stack_archive_dirs
+
+    - name: Check legacy compose files
+      ansible.builtin.stat:
+        path: "{{ item.path }}/compose.yaml"
+      loop: "{{ legacy_stack_archive_stacks }}"
+      register: _legacy_stack_archive_compose_files
+
+    - name: Bring legacy stacks down without deleting data
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ item.item.path }}"
+      loop: "{{ _legacy_stack_archive_compose_files.results }}"
+      when: item.stat.exists
+      changed_when: true
+
+    - name: Write legacy archive markers
+      ansible.builtin.copy:
+        dest: "{{ item.item.path }}/ARCHIVED_BY_ANSIBLE.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Archived legacy stack: {{ item.item.name }}
+
+          This runtime directory is retained only for rollback after the
+          content/reading product stack split.
+
+          Do not deploy this directory as an active stack. The active product
+          stacks are:
+          {% for replacement in item.item.replacements %}
+          - {{ replacement }}
+          {% endfor %}
+
+          If compose disabling is enabled, this playbook renames compose.yaml to
+          compose.yaml.archived. To roll back manually, stop the replacement
+          product stacks, rename compose.yaml.archived back to compose.yaml, and
+          run docker compose up -d from this directory.
+      loop: "{{ _legacy_stack_archive_dirs.results }}"
+      when:
+        - item.stat.exists
+        - item.stat.isdir
+
+    - name: Disable legacy compose files
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ item.path }}/compose.yaml"
+          - "{{ item.path }}/compose.yaml.archived"
+      args:
+        creates: "{{ item.path }}/compose.yaml.archived"
+        removes: "{{ item.path }}/compose.yaml"
+      loop: "{{ legacy_stack_archive_stacks }}"
+      when: legacy_stack_archive_disable_compose | bool
+      changed_when: true

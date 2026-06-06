@@ -129,6 +129,10 @@ deploy-migrate-content-reading-products: ## One-time migration from thematic sta
 	@echo "$(BLUE)Migrating content/reading stacks to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_content_reading_products.yml $(VAULT_FLAG)
 
+archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
+	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/archive_legacy_content_reading_stacks.yml $(VAULT_FLAG)
+
 ##@ Deployment - Application Stacks
 
 deploy-dev: ## Deploy development stack
