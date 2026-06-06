@@ -5,7 +5,8 @@ WORKDIR /app
 
 RUN apk add --no-cache git && corepack enable
 RUN git clone --depth 1 https://codeberg.org/uzu/strudel.git .
-RUN pnpm install && pnpm run build
+RUN pnpm install --config.dangerously-allow-all-builds=true \
+    && pnpm run build
 
 FROM nginx:alpine
 
