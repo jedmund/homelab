@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: paseo-relay
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Paseo relay settings
+paseo_relay_image: ghcr.io/zenghongtu/paseo-relay:0.5.0
+paseo_relay_domain: paseo.relay.atelier.house
+paseo_relay_port: 8411

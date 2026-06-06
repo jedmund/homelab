@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  paseo-relay:
+    container_name: paseo_relay
+    image: {{ paseo_relay_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    ports:
+      - "{{ paseo_relay_port }}:{{ paseo_relay_port }}"
+    environment:
+      - LOG_FORMAT=json
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.paseo-relay.rule: "Host(`{{ paseo_relay_domain }}`)"
+      traefik.http.routers.paseo-relay.entrypoints: "websecure"
+      traefik.http.routers.paseo-relay.tls.certresolver: "letsencrypt"
+      # paseo-relay is WebSocket-only; HTTP/2 ALPN breaks Upgrade.
+      # Force HTTP/1.1 ALPN so clients fall back to HTTP/1.1.
+      traefik.http.routers.paseo-relay.tls.options: "http1only@file"
+      traefik.http.services.paseo-relay.loadbalancer.server.port: "{{ paseo_relay_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
