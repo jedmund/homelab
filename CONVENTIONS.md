@@ -4,10 +4,12 @@ How services are wired up in this repo, and how to add a new one. The goal
 is that services of the same kind look the same, so a change to one reads
 like a change to any other.
 
-Every stack is a single Ansible role under `roles/<name>/`, deployed by
-`deploy/<name>.yml` to the host group `<name>` in `inventory/hosts.yml`. A
-role renders a `compose.yaml` (and any env/config files) onto the host at
+Every stack is a product-level Ansible role under `roles/<name>/`, deployed
+by `deploy/<name>.yml` to the host group `<name>` in `inventory/hosts.yml`.
+A role renders a `compose.yaml` (and any env/config files) onto the host at
 `/opt/docker/<stack_name>/` and brings it up with `community.docker.docker_compose_v2`.
+Companion containers that are part of one product, such as an app database,
+worker, browser, search engine, or cache, stay in that product role.
 
 ## Service categories
 
@@ -108,9 +110,10 @@ in this repo's Ansible vault.**
 
 Accepted exception: a handful of services layer a few extra packages onto
 an upstream image with a small `Dockerfile` built on the host (Borgmatic in
-`roles/backup`, Synapse in `roles/matrix`, catbro in `roles/petlibro`).
-These are not full self-developed apps and stay build-on-host for now. New
-services should not adopt this pattern without reason.
+`roles/backup`, Synapse in `roles/matrix`, catbro in `roles/petlibro`), and
+`album_sort` still builds the in-house Album Sort app plus Beets helper from
+a host clone. These stay build-on-host for now. New services should not
+adopt this pattern without reason.
 
 ## Image tag policy
 
@@ -125,9 +128,9 @@ roles):
 
 ## Adding a service: checklist
 
-1. Pick the category above and the role it belongs in. **Add it to an
-   existing themed role** (`utilities`, `productivity`, `media_*`, etc.) as
-   another compose service; do not create a per-app role.
+1. Pick the category above and the product role it belongs in. Create a new
+   product role/playbook only for a new product boundary; otherwise add the
+   helper service to the existing product role that owns it.
 2. Add config to that role's `defaults/main.yml`: image/tag (or registry
    vars for a self-developed app), domain, ports. Reference secrets as
    `{{ <name> }}` with a `# <name> - defined in vault` comment; never paste
