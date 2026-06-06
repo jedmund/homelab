@@ -32,5 +32,9 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    build: always
+    # Strudel uses a local-only image tag. Keep pull: policy so docker
+    # compose honors the service's pull_policy: build instead of trying
+    # to pull strudel:local when global docker_pull_policy is always.
+    pull: policy
   register: compose_result
