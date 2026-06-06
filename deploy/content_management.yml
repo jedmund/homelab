@@ -1,6 +1,0 @@
----
-- name: Deploy content-management stack
-  hosts: content_management
-  become: yes
-  roles:
-    - content_management
