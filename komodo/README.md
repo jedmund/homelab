@@ -29,7 +29,7 @@ Expected Komodo Server resource names:
 - `max` for the GPU host
 
 If the live Komodo Server resource for `max` uses a different name, update the
-three max-host stack declarations in `stacks.toml` before applying the sync.
+max-host stack declarations in `stacks.toml` before applying the sync.
 
 ## Legacy resources
 
@@ -51,5 +51,9 @@ migration and archive playbooks own data movement and rollback state.
 
 - `musicbrainz` points at `/opt/docker/musicbrainz/upstream` and
   `local/compose.merged.yml`, matching the role's generated merged compose.
+- `beszel-agent-max` and `beszel-agent-nuc-mini` point at the same
+  `/opt/docker/beszel-agent` run directory on different Komodo server
+  resources. The `mac-mini` agent is native Homebrew, so it has no Komodo
+  Stack resource.
 - `vllm` and `sglang` are profile-gated stacks. Komodo can track their compose
   files, but model lifecycle remains an explicit operator action.

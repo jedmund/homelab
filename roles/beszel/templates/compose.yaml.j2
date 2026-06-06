@@ -1,0 +1,45 @@
+# {{ ansible_managed }}
+name: {{ beszel_stack_name }}
+
+services:
+  beszel:
+    container_name: beszel
+    image: {{ beszel_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./data:/beszel_data
+    environment:
+      APP_URL: "{{ beszel_app_url }}"
+      CHECK_UPDATES: "{{ beszel_check_updates }}"
+      CONTAINER_DETAILS: "{{ beszel_container_details }}"
+      USER_CREATION: "{{ beszel_user_creation }}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.beszel-agent-connect.rule: "Host(`{{ beszel_domain }}`) && PathPrefix(`/api/beszel/agent-connect`)"
+      traefik.http.routers.beszel-agent-connect.entrypoints: "websecure"
+      traefik.http.routers.beszel-agent-connect.tls.certresolver: "letsencrypt"
+      traefik.http.routers.beszel-agent-connect.priority: "100"
+      traefik.http.routers.beszel-agent-connect.service: "beszel"
+      traefik.http.routers.beszel.rule: "Host(`{{ beszel_domain }}`)"
+      traefik.http.routers.beszel.entrypoints: "websecure"
+      traefik.http.routers.beszel.tls.certresolver: "letsencrypt"
+      traefik.http.routers.beszel.middlewares: "tinyauth@file"
+      traefik.http.services.beszel.loadbalancer.server.port: "{{ beszel_port }}"
+    healthcheck:
+      test: ["CMD", "/beszel", "health", "--url", "http://localhost:{{ beszel_port }}"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+name: {{ beszel_agent_stack_name }}
+
+services:
+  beszel-agent:
+    container_name: beszel_agent
+    image: {{ beszel_agent_image }}
+    restart: {{ restart_policy | default('unless-stopped') }}
+    network_mode: host
+    volumes:
+      - ./data:/var/lib/beszel-agent
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+{% for fs in beszel_agent_extra_filesystems %}
+      - {{ fs.source }}:/extra-filesystems/{{ fs.name }}:ro
+{% endfor %}
+    env_file:
+      - ./env/beszel-agent.env
+{% if gpu_type | default('') == 'nvidia' %}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - utility
+{% elif gpu_type | default('') == 'intel_arc' %}
+    cap_add:
+      - CAP_PERFMON
+    devices:
+      - /dev/dri:/dev/dri
+{% endif %}
+    healthcheck:
+      test: ["CMD", "/agent", "health"]
+      interval: {{ healthcheck_interval | default('30s') }}
+      timeout: {{ healthcheck_timeout | default('10s') }}
+      retries: {{ healthcheck_retries | default(3) }}
+      start_period: {{ healthcheck_start_period | default('30s') }}
+    logging:
+      driver: {{ logging_driver | default('json-file') }}
+      options:
+        max-size: {{ logging_max_size | default('10m') }}
+        max-file: {{ logging_max_file | default('3') }}

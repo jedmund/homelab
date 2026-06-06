@@ -1,0 +1,28 @@
+---
+# Beszel hub product stack.
+
+- name: Create Beszel directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ beszel_config_base }}"
+    - "{{ beszel_config_base }}/data"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ beszel_config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart Beszel stack
+
+- name: Deploy Beszel stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

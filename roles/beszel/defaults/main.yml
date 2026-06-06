@@ -1,0 +1,15 @@
+---
+# Stack identity
+beszel_stack_name: beszel
+beszel_config_base: "{{ docker_base_path }}/{{ beszel_stack_name }}"
+
+# Beszel hub
+beszel_image: henrygd/beszel:latest
+beszel_domain: beszel.atelier.house
+beszel_app_url: "https://{{ beszel_domain }}"
+beszel_port: 8090
+
+# Keep the hub deterministic and avoid update checks from inside the container.
+beszel_check_updates: "false"
+beszel_container_details: "true"
+beszel_user_creation: "false"

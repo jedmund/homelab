@@ -1,0 +1,102 @@
+---
+# Beszel agent. Credentials come from the hub UI after first deploy; until
+# then this role intentionally skips hosts so deploy-all remains usable.
+
+- name: Skip Beszel agent until hub key and token are configured
+  ansible.builtin.debug:
+    msg: >
+      Skipping Beszel agent on {{ inventory_hostname }} because
+      vault_beszel_agent_key and vault_beszel_agent_token are not configured.
+      Deploy the hub, create the first user, generate a universal token in
+      Beszel, add those vault values, then run deploy-beszel-agents.
+  when: not beszel_agent_credentials_configured | bool
+
+- name: Stop Beszel agent setup when credentials are missing
+  ansible.builtin.meta: end_host
+  when: not beszel_agent_credentials_configured | bool
+
+- name: Deploy Beszel Docker agent on Linux hosts
+  become: true
+  when: ansible_facts['os_family'] != 'Darwin'
+  block:
+    - name: Create Beszel agent directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ beszel_agent_config_base }}"
+        - "{{ beszel_agent_config_base }}/data"
+        - "{{ beszel_agent_config_base }}/env"
+
+    - name: Deploy Beszel agent environment file
+      ansible.builtin.template:
+        src: env/beszel-agent.env.j2
+        dest: "{{ beszel_agent_config_base }}/env/beszel-agent.env"
+        owner: "{{ ansible_user }}"
+        mode: '0600'
+      no_log: true
+      notify: Restart Beszel agent
+
+    - name: Deploy Beszel agent compose file
+      ansible.builtin.template:
+        src: compose.yaml.j2
+        dest: "{{ beszel_agent_config_base }}/compose.yaml"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+      notify: Restart Beszel agent
+
+    - name: Deploy Beszel agent stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ beszel_agent_config_base }}"
+        state: present
+        remove_orphans: true
+        pull: "{{ docker_pull_policy | default('missing') }}"
+      register: beszel_agent_compose_result
+
+- name: Deploy Beszel Homebrew agent on macOS hosts
+  when: ansible_facts['os_family'] == 'Darwin'
+  block:
+    - name: Ensure Beszel config directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+        - "{{ ansible_facts['env']['HOME'] }}/.config/beszel"
+        - "{{ ansible_facts['env']['HOME'] }}/.cache/beszel"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/share/beszel-agent"
+
+    - name: Add Beszel Homebrew tap
+      community.general.homebrew_tap:
+        name: henrygd/beszel
+        state: present
+
+    - name: Install Beszel agent via Homebrew
+      community.general.homebrew:
+        name: beszel-agent
+        state: present
+
+    - name: Install macmon for Apple Silicon GPU stats
+      community.general.homebrew:
+        name: macmon
+        state: present
+      when: beszel_agent_install_macmon | bool
+
+    - name: Deploy Beszel agent environment file
+      ansible.builtin.template:
+        src: env/beszel-agent.env.j2
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/beszel/beszel-agent.env"
+        mode: '0600'
+      no_log: true
+      notify: Restart Beszel agent
+
+    - name: Check Beszel agent brew service status
+      ansible.builtin.shell: brew services list | awk '$1 == "beszel-agent" {print $2}'
+      register: beszel_agent_brew_status
+      changed_when: false
+
+    - name: Start Beszel agent via brew services
+      ansible.builtin.command: brew services start beszel-agent
+      when: beszel_agent_brew_status.stdout != "started"
