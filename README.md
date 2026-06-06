@@ -97,7 +97,9 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Development (nuc-mini + mac-mini)**
 | Role | Services |
 |------|----------|
-| `development` | GitLab, GitLab Runner (Docker), Renovate, Open WebUI, Paseo relay |
+| `gitlab` | GitLab, GitLab Runner (Docker), Renovate |
+| `open_webui` | Open WebUI |
+| `paseo_relay` | Paseo Relay |
 | `development_macos` | GitLab Runner (shell executor, iOS builds) |
 | `openclaw` | OpenClaw agent (native macOS) |
 | `paseo_daemon` | Paseo daemon (native macOS) |
@@ -408,7 +410,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `n8n_db_password` | n8n PostgreSQL password |
 | `n8n_encryption_key` | n8n encryption key (optional if already initialized without one) |
 
-### group_vars/development/vault.yml
+### group_vars/gitlab/vault.yml
 
 | Variable | Description |
 |----------|-------------|
@@ -416,12 +418,22 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `gitlab_oidc_client_id` | GitLab OIDC client ID (PocketID) |
 | `gitlab_oidc_client_secret` | GitLab OIDC client secret (PocketID) |
 | `gitlab_runner_auth_token` | GitLab Runner auth token (nuc-mini-docker) |
-| `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
 | `renovate_gitlab_token` | Renovate bot GitLab personal access token |
 | `renovate_github_token` | Renovate GitHub token (optional, for rate limits) |
+
+### group_vars/open_webui/vault.yml
+
+| Variable | Description |
+|----------|-------------|
 | `open_webui_secret_key` | Open WebUI session secret |
 | `open_webui_oauth_client_id` | Open WebUI OAuth client ID |
 | `open_webui_oauth_client_secret` | Open WebUI OAuth client secret |
+
+### group_vars/development_macos/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
 
 ### group_vars/social/vault.yml
 
@@ -473,6 +485,9 @@ make deploy-miniflux
 make deploy-karakeep
 make deploy-blinko
 make deploy-obsidian-livesync
+make deploy-gitlab
+make deploy-open-webui
+make deploy-paseo-relay
 make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
@@ -500,6 +515,10 @@ make deploy-migrate-media-consumption-products
 # One-time migration from media acquisition to product stacks
 bin/split-media-acquisition-product-vaults
 make deploy-migrate-media-acquisition-products
+
+# One-time migration from development to product stacks
+bin/split-development-product-vaults
+make deploy-migrate-development-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
@@ -591,7 +610,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Blinko | `blinko_postgres` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
 
-GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/development/tasks/main.yml`.
+GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/gitlab/tasks/main.yml`.
 
 ### Backup (pg_dump)
 
