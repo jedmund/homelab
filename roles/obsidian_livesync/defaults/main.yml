@@ -1,0 +1,13 @@
+---
+# Stack identity
+stack_name: obsidian-livesync
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# CouchDB backend for Obsidian LiveSync
+obsidian_livesync_couchdb_image: couchdb:3
+obsidian_livesync_couchdb_port: 5984
+obsidian_livesync_domain: obsidian-sync.atelier.house
+
+# Secrets defined in vault:
+# obsidian_livesync_couchdb_user
+# obsidian_livesync_couchdb_password

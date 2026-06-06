@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  strudel:
+    container_name: strudel
+    build:
+      context: ./config/strudel
+      dockerfile: Dockerfile
+    image: {{ strudel_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.strudel.rule: "Host(`{{ strudel_domain }}`)"
+      traefik.http.routers.strudel.entrypoints: "websecure"
+      traefik.http.routers.strudel.tls.certresolver: "letsencrypt"
+      traefik.http.services.strudel.loadbalancer.server.port: "{{ strudel_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  couchdb:
+    container_name: obsidian_livesync
+    image: {{ obsidian_livesync_couchdb_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - obsidian-livesync-data:/opt/couchdb/data
+      - ./config/couchdb.ini:/opt/couchdb/etc/local.d/livesync.ini
+    env_file:
+      - ./env/obsidian_livesync.env
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.livesync.rule: "Host(`{{ obsidian_livesync_domain }}`)"
+      traefik.http.routers.livesync.entrypoints: "websecure"
+      traefik.http.routers.livesync.tls.certresolver: "letsencrypt"
+      traefik.http.services.livesync.loadbalancer.server.port: "{{ obsidian_livesync_couchdb_port }}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fSs -u \"$$COUCHDB_USER:$$COUCHDB_PASSWORD\" http://localhost:{{ obsidian_livesync_couchdb_port }}/_up"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  obsidian-livesync-data:
+    name: obsidian-livesync-data
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

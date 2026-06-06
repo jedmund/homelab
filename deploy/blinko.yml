@@ -1,0 +1,6 @@
+---
+- name: Deploy blinko stack
+  hosts: blinko
+  become: true
+  roles:
+    - blinko
