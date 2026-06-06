@@ -42,7 +42,7 @@ borg_source_paths:
 # Volume names follow docker compose's project_volume convention; check
 # `docker volume ls` on the host if in doubt.
 borg_named_volumes:
-  - volume: media-consumption_karakeep-data
+  - volume: karakeep-data
     path: /karakeep-data
 
 # Patterns to exclude (relative to source paths)
@@ -105,7 +105,7 @@ borg_networks:
 #   couchdb_user, couchdb_password
 #
 # Non-secret DB names and usernames are defined in each stack's role
-# defaults (e.g. roles/content_management/defaults/main.yml). Role
+# defaults (e.g. roles/immich/defaults/main.yml). Role
 # defaults only load when their own role is applied, so the backup
 # playbook can't see them. The block below mirrors those values so the
 # borgmatic config template can resolve them. Update both places when a
