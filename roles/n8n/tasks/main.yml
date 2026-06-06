@@ -1,8 +1,8 @@
 ---
-# Utilities Stack - n8n, ChangeDetection.io, Copyparty
+# n8n product stack
 
 - name: Create {{ stack_name }} directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
@@ -10,12 +10,9 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/changedetection"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/hist"
 
 - name: Deploy compose file
-  template:
+  ansible.builtin.template:
     src: compose.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
@@ -23,7 +20,7 @@
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
-  template:
+  ansible.builtin.template:
     src: "env/{{ item }}.env.j2"
     dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
     owner: "{{ ansible_user }}"
@@ -34,28 +31,10 @@
   no_log: true
   notify: Restart {{ stack_name }} stack
 
-- name: Set copyparty directory ownership
-  file:
-    path: "{{ docker_base_path }}/{{ stack_name }}/config/copyparty"
-    state: directory
-    owner: "{{ puid }}"
-    group: "{{ pgid }}"
-    recurse: yes
-
-- name: Deploy copyparty config
-  template:
-    src: config/copyparty.conf.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/config/copyparty/copyparty.conf"
-    owner: "{{ puid }}"
-    group: "{{ pgid }}"
-    mode: '0644'
-  notify: Restart {{ stack_name }} stack
-
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
-    build: policy
   register: compose_result

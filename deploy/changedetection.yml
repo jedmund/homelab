@@ -1,0 +1,6 @@
+---
+- name: Deploy changedetection stack
+  hosts: changedetection
+  become: true
+  roles:
+    - changedetection

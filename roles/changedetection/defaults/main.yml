@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: changedetection
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# ChangeDetection.io settings
+changedetection_image: ghcr.io/dgtlmoon/changedetection.io:latest
+changedetection_domain: track.atelier.house
+changedetection_port: 5000

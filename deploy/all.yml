@@ -27,14 +27,16 @@
           18. Development
           19. Development macOS
           20. Paseo daemon
-          21. Utilities
-          22. Vane
-          23. Feederhub
-          24. Social
-          25. Matrix
-          26. AI (max only)
-          27. Openclaw
-          28. Backup
+          21. n8n
+          22. ChangeDetection
+          23. Copyparty
+          24. Vane
+          25. Feederhub
+          26. Social
+          27. Matrix
+          28. AI (max only)
+          29. Openclaw
+          30. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -103,9 +105,15 @@
 - import_playbook: paseo_daemon.yml
   tags: [dev, paseo_daemon]
 
-# Utilities stack
-- import_playbook: utilities.yml
-  tags: [utilities]
+# Utility product stacks
+- import_playbook: n8n.yml
+  tags: [n8n]
+
+- import_playbook: changedetection.yml
+  tags: [changedetection]
+
+- import_playbook: copyparty.yml
+  tags: [copyparty]
 
 # Vane stack
 - import_playbook: vane.yml

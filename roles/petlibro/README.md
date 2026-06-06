@@ -24,7 +24,7 @@ host-level systemd unit**:
   containerised stack and the scripts have always run directly under Python.
 
 The MQTT bridge / feeding-schedule plane is owned by **feederhub**
-(`roles/utilities`).  Catbro is opt-in for protocol-capture sessions; see
+(`roles/feederhub`).  Catbro is opt-in for protocol-capture sessions; see
 "Enabling catbro" below.
 
 ### catbro-server (opt-in, default off)

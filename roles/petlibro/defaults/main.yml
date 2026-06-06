@@ -6,7 +6,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # ---------------------------------------------------------------------------
 # catbro-server (mock Petlibro cloud + embedded go2rtc) — github bobobo1618
 #
-# Disabled by default since feederhub (roles/utilities) now handles the live
+# Disabled by default since feederhub now handles the live
 # MQTT bridge + video plane.  Catbro's only remaining purpose is protocol
 # research — flip this to true for capture sessions, then back to false so it
 # stops fighting feederhub for :8554 (RTSP) and :1984/8555.

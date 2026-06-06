@@ -3,10 +3,8 @@
 # and pulled here; this role does not build from source.
 #
 # Bootstrap ordering:
-#   1. Deploy utilities first so the old Vane service is removed while its
-#      Docker volume remains on disk.
-#   2. Deploy this role; it mounts the existing utilities_vane-data volume.
-#   3. Register a Komodo Stack resource named `vane` with files_on_host=true
+#   1. Deploy this role; it mounts the existing utilities_vane-data volume.
+#   2. Register a Komodo Stack resource named `vane` with files_on_host=true
 #      and project_src={{ config_base }} so CI-triggered redeploys target the
 #      same compose file Ansible renders.
 
@@ -60,13 +58,11 @@
       {{ stack_name }} stack deployed.
 
       If this is the first split deploy:
-        1. Verify the old utilities Vane container is gone:
-             docker ps --filter name=vane
-        2. Verify Vane mounted the preserved volume:
+        1. Verify Vane mounted the preserved volume:
              docker inspect vane --format '{{ "{{" }} range .Mounts {{ "}}" }}{{ "{{" }} .Name {{ "}}" }} -> {{ "{{" }} .Destination {{ "}}" }}{{ "{{" }} println {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
-        3. Register a Komodo Stack named "vane" (files_on_host=true,
+        2. Register a Komodo Stack named "vane" (files_on_host=true,
            project_src={{ config_base }}) so CI-triggered redeploys target
            the same compose.
-        4. Set CI variables in the Vane GitLab project:
+        3. Set CI variables in the Vane GitLab project:
              KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
              KOMODO_VANE_STACK=vane

@@ -57,9 +57,9 @@ One of our own apps (an app we maintain the source for). These are
 **built by CI in the app's own repo and pulled here by tag** — this repo
 does not build from source.
 
-Reference: **`vane`** in `roles/utilities` (`defaults/main.yml:69-92`,
-the `vane:` service in `templates/compose.yaml.j2`, and the registry-login
-task in `tasks/main.yml`). `feederhub` is a second example.
+Reference: **`vane`** in `roles/vane` (`defaults/main.yml`, the `vane:`
+service in `templates/compose.yaml.j2`, and the registry-login task in
+`tasks/main.yml`). `feederhub` is a second example.
 
 Required `defaults/main.yml` vars (mirror `vane_*`):
 
@@ -85,7 +85,7 @@ Compose entry:
 ```
 
 Registry login task (private images only), before the deploy task — copy
-from `roles/utilities/tasks/main.yml`:
+from `roles/vane/tasks/main.yml`:
 
 ```yaml
 - name: Authenticate with <app> image registry

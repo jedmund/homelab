@@ -65,6 +65,9 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `strudel` | Strudel `[in-house]` |
 | `blinko` | Blinko, Postgres |
 | `obsidian_livesync` | CouchDB backend for Obsidian LiveSync |
+| `n8n` | n8n, Postgres |
+| `changedetection` | ChangeDetection.io |
+| `copyparty` | Copyparty |
 
 **Content and social (nuc-mini)**
 | Role | Services |
@@ -76,7 +79,6 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Utilities (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `utilities` | n8n, ChangeDetection, Copyparty |
 | `feederhub` | feederhub `[in-house]` |
 | `vane` | Vane `[in-house]` |
 | `petlibro` | catbro `[in-house]`, Mosquitto |
@@ -346,6 +348,13 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `obsidian_livesync_couchdb_user` | CouchDB admin user |
 | `obsidian_livesync_couchdb_password` | CouchDB admin password |
 
+### group_vars/n8n/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `n8n_db_password` | n8n PostgreSQL password |
+| `n8n_encryption_key` | n8n encryption key (optional if already initialized without one) |
+
 ### group_vars/development/vault.yml
 
 | Variable | Description |
@@ -396,6 +405,9 @@ make deploy-miniflux
 make deploy-karakeep
 make deploy-blinko
 make deploy-obsidian-livesync
+make deploy-n8n
+make deploy-changedetection
+make deploy-copyparty
 
 # One-time migration from old content/reading stacks to product stacks
 bin/split-content-reading-product-vaults
@@ -408,6 +420,10 @@ make archive-legacy-content-reading-stacks
 # This removes empty Draftboard and SilverBullet runtime data.
 bin/split-productivity-product-vaults
 make deploy-migrate-productivity-products
+
+# One-time migration from utilities to product stacks
+bin/split-utilities-product-vaults
+make deploy-migrate-utilities-products
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
@@ -495,7 +511,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Miniflux | `miniflux-db` | `miniflux` | `miniflux` |
 | Immich | `immich-database` | `immich` | `postgres` |
 | Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
-| n8n | `n8n-db` | `n8n` | `n8n` |
+| n8n | `n8n_postgres` | `n8n` | `n8n` |
 | Blinko | `blinko_postgres` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
 
@@ -511,7 +527,7 @@ docker exec <container> pg_dump -U <user> <database> > backup.sql
 docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
 docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
-docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
+docker exec n8n_postgres pg_dump -U n8n n8n > n8n_backup.sql
 docker exec blinko_postgres pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
 ```

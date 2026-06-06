@@ -1,0 +1,6 @@
+---
+- name: Deploy n8n stack
+  hosts: n8n
+  become: true
+  roles:
+    - n8n

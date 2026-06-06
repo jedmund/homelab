@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  changedetection:
+    container_name: changedetection
+    image: {{ changedetection_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./config:/datastore
+    environment:
+      - TZ={{ timezone }}
+      - PORT={{ changedetection_port }}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:{{ changedetection_port }}').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

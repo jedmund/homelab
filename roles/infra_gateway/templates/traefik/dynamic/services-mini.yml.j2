@@ -370,7 +370,7 @@ http:
         certResolver: letsencrypt
 
     # feederhub - cat.{{ traefik_domain }}.  Runs with
-    # network_mode: host (see roles/utilities/defaults/main.yml for
+    # network_mode: host (see roles/feederhub/defaults/main.yml for
     # why), so we route by file provider + IP rather than docker
     # provider labels.  LAN-only homelab today — no tinyauth
     # middleware until the auth posture firms up.
@@ -567,9 +567,9 @@ http:
           - url: "http://copyparty:3923"
 
     # feederhub (host-networked on nuc-mini).  Port 18080 also
-    # declared as feederhub_host_port in roles/utilities/defaults
+    # declared as feederhub_host_port in roles/feederhub/defaults
     # — hardcoded here because the infra_gateway role doesn't pull
-    # in utilities' defaults.  Mirrors how sonarr/radarr/etc. do it
+    # in feederhub's defaults.  Mirrors how sonarr/radarr/etc. do it
     # above.
     feederhub:
       loadBalancer:
