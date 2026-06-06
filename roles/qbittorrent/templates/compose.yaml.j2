@@ -14,8 +14,8 @@ services:
       - "{{ qbittorrent_torrenting_port }}:{{ qbittorrent_torrenting_port }}/udp"
     environment:
       - TZ={{ timezone }}
-      - PUID={{ ansible_user_uid | default(1000) }}
-      - PGID={{ ansible_user_gid | default(1000) }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
       - WEBUI_PORT=8080
       - TORRENTING_PORT={{ qbittorrent_torrenting_port }}
     volumes:
