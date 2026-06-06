@@ -131,7 +131,10 @@ files.each do |path, values|
 end
 ' "$tmpdir/media_consumption.yml" > "$tmpdir/targets"
 
-mapfile -t targets < "$tmpdir/targets"
+targets=()
+while IFS= read -r target; do
+    [ -n "$target" ] && targets+=("$target")
+done < "$tmpdir/targets"
 ansible-vault encrypt "${targets[@]}"
 
 echo "Created encrypted media consumption product vaults:"
