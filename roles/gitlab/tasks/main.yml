@@ -1,8 +1,8 @@
 ---
-# Development Stack - GitLab, GitLab Runner, Renovate, Open WebUI
+# GitLab product stack: GitLab, Docker runner, and Renovate.
 
 - name: Create {{ stack_name }} directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
@@ -10,16 +10,15 @@
   loop:
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/config"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/logs"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab/data"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner"
-    - "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/logs"
+    - "{{ docker_base_path }}/{{ stack_name }}/data"
+    - "{{ docker_base_path }}/{{ stack_name }}/runner"
+    - "{{ docker_base_path }}/{{ stack_name }}/runner/config"
     - "{{ docker_base_path }}/{{ stack_name }}/renovate"
 
 - name: Deploy compose file
-  template:
+  ansible.builtin.template:
     src: compose.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
@@ -27,7 +26,7 @@
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
-  template:
+  ansible.builtin.template:
     src: "env/{{ item }}.env.j2"
     dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
     owner: "{{ ansible_user }}"
@@ -39,25 +38,25 @@
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy GitLab omnibus config
-  template:
+  ansible.builtin.template:
     src: gitlab/gitlab.rb.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/gitlab/config/gitlab.rb"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/gitlab.rb"
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
   notify: Reconfigure GitLab if running
 
 - name: Deploy GitLab Runner config
-  template:
+  ansible.builtin.template:
     src: gitlab-runner/config.toml.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/gitlab-runner/config/config.toml"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/runner/config/config.toml"
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy Renovate config
-  template:
+  ansible.builtin.template:
     src: renovate/config.js.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/renovate/config.js"
     owner: "{{ ansible_user }}"

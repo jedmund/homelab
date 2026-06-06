@@ -1,6 +1,0 @@
----
-- name: Deploy development stack
-  hosts: nuc-mini
-  become: yes
-  roles:
-    - development

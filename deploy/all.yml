@@ -39,19 +39,21 @@
           30. Strudel
           31. Blinko
           32. Obsidian LiveSync
-          33. Development
-          34. Development macOS
-          35. Paseo daemon
-          36. n8n
-          37. ChangeDetection
-          38. Copyparty
-          39. Vane
-          40. Feederhub
-          41. Social
-          42. Matrix
-          43. AI (max only)
-          44. Openclaw
-          45. Backup
+          33. GitLab
+          34. Open WebUI
+          35. Paseo Relay
+          36. Development macOS
+          37. Paseo daemon
+          38. n8n
+          39. ChangeDetection
+          40. Copyparty
+          41. Vane
+          42. Feederhub
+          43. Social
+          44. Matrix
+          45. AI (max only)
+          46. Openclaw
+          47. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -153,9 +155,15 @@
 - import_playbook: obsidian_livesync.yml
   tags: [obsidian_livesync]
 
-# Development stack
-- import_playbook: development.yml
-  tags: [dev, development]
+# Development product stacks
+- import_playbook: gitlab.yml
+  tags: [dev, gitlab]
+
+- import_playbook: open_webui.yml
+  tags: [dev, open_webui]
+
+- import_playbook: paseo_relay.yml
+  tags: [dev, paseo_relay]
 
 # Development (macOS) stack - GitLab Runner on mac-mini for iOS builds
 - import_playbook: development_macos.yml

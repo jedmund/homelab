@@ -2,7 +2,7 @@
 # Stack identity
 stack_name: development_macos
 
-# GitLab URL (matches roles/development/defaults/main.yml — the runner
+# GitLab URL (matches roles/gitlab/defaults/main.yml — the runner
 # talks to the same GitLab instance running on nuc-mini).
 gitlab_root_url: "https://git.atelier.house"
 

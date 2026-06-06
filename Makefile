@@ -197,6 +197,18 @@ deploy-obsidian-livesync: ## Deploy Obsidian LiveSync
 	@echo "$(BLUE)Deploying Obsidian LiveSync...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/obsidian_livesync.yml $(VAULT_FLAG)
 
+deploy-gitlab: ## Deploy GitLab, Docker runner, and Renovate
+	@echo "$(BLUE)Deploying GitLab...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gitlab.yml $(VAULT_FLAG)
+
+deploy-open-webui: ## Deploy Open WebUI
+	@echo "$(BLUE)Deploying Open WebUI...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/open_webui.yml $(VAULT_FLAG)
+
+deploy-paseo-relay: ## Deploy Paseo Relay
+	@echo "$(BLUE)Deploying Paseo Relay...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/paseo_relay.yml $(VAULT_FLAG)
+
 deploy-n8n: ## Deploy n8n
 	@echo "$(BLUE)Deploying n8n...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/n8n.yml $(VAULT_FLAG)
@@ -229,15 +241,19 @@ deploy-migrate-media-acquisition-products: ## One-time migration from media acqu
 	@echo "$(BLUE)Migrating media acquisition stack to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_acquisition_products.yml $(VAULT_FLAG)
 
+deploy-migrate-development-products: ## One-time migration from development stack to product stacks
+	@echo "$(BLUE)Migrating development stack to product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_development_products.yml $(VAULT_FLAG)
+
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/archive_legacy_content_reading_stacks.yml $(VAULT_FLAG)
 
 ##@ Deployment - Application Stacks
 
-deploy-dev: ## Deploy development stack
-	@echo "$(BLUE)Deploying development stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/development.yml $(VAULT_FLAG)
+deploy-dev: ## Deploy development product stacks on nuc-mini
+	@echo "$(BLUE)Deploying development product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags gitlab,open_webui,paseo_relay
 
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"

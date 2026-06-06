@@ -2,7 +2,7 @@
 # Paseo daemon (native macOS install on mac-mini). The daemon is what the
 # Paseo mobile/desktop client talks to; it brokers Claude Code / agent
 # sessions over the LAN directly and over the public internet via the
-# self-hosted paseo-relay (development stack on nuc-mini). Repos and dev
+# self-hosted paseo-relay (paseo_relay stack on nuc-mini). Repos and dev
 # tooling live on mac-mini so coding from a coffee shop just resumes the
 # same shell the home Mac would see.
 

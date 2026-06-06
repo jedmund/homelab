@@ -1,0 +1,228 @@
+---
+- name: Migrate development stack to product stacks
+  hosts: nuc-mini
+  become: true
+  gather_facts: false
+  vars:
+    development_split_migration_force: false
+    development_split_disable_legacy_compose: true
+    development_split_legacy_path: "{{ docker_base_path }}/development"
+    development_split_target_roots:
+      - "{{ docker_base_path }}/gitlab"
+      - "{{ docker_base_path }}/open-webui"
+      - "{{ docker_base_path }}/paseo-relay"
+    development_split_bind_migrations:
+      - name: GitLab config
+        src: "{{ docker_base_path }}/development/gitlab/config"
+        dest: "{{ docker_base_path }}/gitlab/config"
+      - name: GitLab logs
+        src: "{{ docker_base_path }}/development/gitlab/logs"
+        dest: "{{ docker_base_path }}/gitlab/logs"
+      - name: GitLab data
+        src: "{{ docker_base_path }}/development/gitlab/data"
+        dest: "{{ docker_base_path }}/gitlab/data"
+      - name: GitLab Runner config
+        src: "{{ docker_base_path }}/development/gitlab-runner/config"
+        dest: "{{ docker_base_path }}/gitlab/runner/config"
+      - name: Renovate config
+        src: "{{ docker_base_path }}/development/renovate"
+        dest: "{{ docker_base_path }}/gitlab/renovate"
+    development_split_required_volumes:
+      - open-webui-data
+    development_split_required_vars:
+      - gitlab_initial_root_password
+      - gitlab_oidc_client_id
+      - gitlab_oidc_client_secret
+      - gitlab_runner_auth_token
+      - renovate_gitlab_token
+      - open_webui_secret_key
+      - open_webui_oauth_client_id
+      - open_webui_oauth_client_secret
+
+  tasks:
+    - name: Assert development product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+        fail_msg: >-
+          Required variable {{ item }} is undefined. Run
+          bin/split-development-product-vaults before migration.
+      loop: "{{ development_split_required_vars }}"
+
+    - name: Check legacy development path
+      ansible.builtin.stat:
+        path: "{{ development_split_legacy_path }}"
+      register: _development_split_legacy_path
+
+    - name: Assert legacy development path exists
+      ansible.builtin.assert:
+        that:
+          - _development_split_legacy_path.stat.exists
+          - _development_split_legacy_path.stat.isdir
+        fail_msg: >-
+          Legacy development path {{ development_split_legacy_path }} is
+          missing; aborting migration.
+
+    - name: Check legacy development compose file
+      ansible.builtin.stat:
+        path: "{{ development_split_legacy_path }}/compose.yaml"
+      register: _development_split_legacy_compose
+
+    - name: Check source bind paths
+      ansible.builtin.stat:
+        path: "{{ item.src }}"
+      loop: "{{ development_split_bind_migrations }}"
+      register: _development_split_bind_source_stats
+
+    - name: Assert source bind paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required source path {{ item.item.src }} for {{ item.item.name }} is missing."
+      loop: "{{ _development_split_bind_source_stats.results }}"
+
+    - name: Check product target roots
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ development_split_target_roots }}"
+      register: _development_split_target_root_stats
+
+    - name: Inspect product target root contents
+      ansible.builtin.find:
+        paths: "{{ item.stat.path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      loop: "{{ _development_split_target_root_stats.results }}"
+      when:
+        - not development_split_migration_force | bool
+        - item.stat.exists
+        - item.stat.isdir
+      register: _development_split_target_root_contents
+
+    - name: Assert product target roots are clean
+      ansible.builtin.assert:
+        that:
+          - item.matched == 0
+        fail_msg: >-
+          Product target path {{ item.item.stat.path }} already contains files.
+          Re-run with -e development_split_migration_force=true only if it is
+          safe to replace migration output.
+      loop: "{{ _development_split_target_root_contents.results | default([]) }}"
+      when: item.matched is defined
+
+    - name: List Docker volumes
+      ansible.builtin.command: docker volume ls -q
+      register: _development_split_docker_volume_ls
+      changed_when: false
+
+    - name: Record Docker volume names
+      ansible.builtin.set_fact:
+        development_split_volume_names: "{{ _development_split_docker_volume_ls.stdout_lines }}"
+
+    - name: Assert required external Docker volumes exist
+      ansible.builtin.assert:
+        that:
+          - item in development_split_volume_names
+        fail_msg: "Required Docker volume {{ item }} is missing."
+      loop: "{{ development_split_required_volumes }}"
+
+    - name: Remove existing product target roots when forced
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ development_split_target_roots }}"
+      when: development_split_migration_force | bool
+
+    - name: Stop legacy development stack before migration
+      ansible.builtin.command: docker compose stop
+      args:
+        chdir: "{{ development_split_legacy_path }}"
+      register: _development_split_stack_stop
+      when: _development_split_legacy_compose.stat.exists
+      changed_when: >-
+        'Stopped' in (_development_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_development_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_development_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_development_split_stack_stop.stderr | default(''))
+
+    - name: Create product bind destination directories
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop: "{{ development_split_bind_migrations }}"
+
+    - name: Create non-data product directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ docker_base_path }}/gitlab/env"
+        - "{{ docker_base_path }}/open-webui"
+        - "{{ docker_base_path }}/open-webui/env"
+        - "{{ docker_base_path }}/paseo-relay"
+
+    - name: Copy bind-mounted data into product paths
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ item.src }}/."
+          - "{{ item.dest }}"
+      loop: "{{ development_split_bind_migrations }}"
+      changed_when: true
+
+    - name: Bring legacy development stack down without deleting data
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ development_split_legacy_path }}"
+      when: _development_split_legacy_compose.stat.exists
+      changed_when: true
+
+    - name: Write legacy development archive marker
+      ansible.builtin.copy:
+        dest: "{{ development_split_legacy_path }}/ARCHIVED_BY_ANSIBLE.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Archived legacy stack: development
+
+          This runtime directory is retained only for rollback after the
+          development product stack split.
+
+          Do not deploy this directory as an active stack. The active product
+          stacks are:
+          - gitlab
+          - open-webui
+          - paseo-relay
+
+          If compose disabling is enabled, this playbook renames compose.yaml to
+          compose.yaml.archived. To roll back manually, stop the replacement
+          product stacks, rename compose.yaml.archived back to compose.yaml, and
+          run docker compose up -d from this directory.
+
+    - name: Disable legacy development compose file
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ development_split_legacy_path }}/compose.yaml"
+          - "{{ development_split_legacy_path }}/compose.yaml.archived"
+      args:
+        creates: "{{ development_split_legacy_path }}/compose.yaml.archived"
+        removes: "{{ development_split_legacy_path }}/compose.yaml"
+      when: development_split_disable_legacy_compose | bool
+      changed_when: true
+
+- name: Deploy GitLab product stack
+  import_playbook: gitlab.yml
+
+- name: Deploy Open WebUI product stack
+  import_playbook: open_webui.yml
+
+- name: Deploy Paseo Relay product stack
+  import_playbook: paseo_relay.yml

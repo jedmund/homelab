@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  open-webui:
+    container_name: open_webui
+    image: {{ open_webui_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - open-webui-data:/app/backend/data
+    env_file:
+      - ./env/open_webui.env
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.open-webui.rule: "Host(`{{ open_webui_domain }}`)"
+      traefik.http.routers.open-webui.entrypoints: "websecure"
+      traefik.http.routers.open-webui.tls.certresolver: "letsencrypt"
+      traefik.http.services.open-webui.loadbalancer.server.port: "{{ open_webui_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  open-webui-data:
+    name: open-webui-data
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
