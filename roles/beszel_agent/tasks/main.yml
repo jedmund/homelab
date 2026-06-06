@@ -1,14 +1,15 @@
 ---
-# Beszel agent. The registration token comes from the hub UI after first deploy; until
+# Beszel agent. Credentials come from the hub UI after first deploy; until
 # then this role intentionally skips hosts so deploy-all remains usable.
 
-- name: Skip Beszel agent until hub token is configured
+- name: Skip Beszel agent until hub key and token are configured
   ansible.builtin.debug:
     msg: >
       Skipping Beszel agent on {{ inventory_hostname }} because
-      vault_beszel_agent_token is not configured. Deploy the hub, create the
-      first user, create a permanent universal token in Beszel, add that vault
-      value, then run deploy-beszel-agents.
+      vault_beszel_agent_key and vault_beszel_agent_token are not configured.
+      Deploy the hub, create the first user, create a permanent universal token
+      in Beszel, copy the hub public key from the generated agent command, add
+      those vault values, then run deploy-beszel-agents.
   when: not beszel_agent_credentials_configured | bool
 
 - name: Stop Beszel agent setup when credentials are missing

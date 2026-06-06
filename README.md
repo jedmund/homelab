@@ -451,9 +451,12 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 Beszel generates agent registration tokens in the hub UI after the first hub
 deploy. Deploy the hub, create the first admin user, then create or enable a
 permanent universal token under `/settings/tokens` before deploying agents.
+The token table shows the token; the public key is embedded in the generated
+agent command from the Add System flow or the token action menu.
 
 | Variable | Description |
 |----------|-------------|
+| `vault_beszel_agent_key` | Hub public key from Beszel's generated agent command |
 | `vault_beszel_agent_token` | Permanent universal token for agent WebSocket registration |
 
 ### group_vars/social/vault.yml
@@ -551,8 +554,9 @@ make deploy-migrate-development-products
 # 4. In the Beszel superuser UI at https://beszel.atelier.house/_/,
 #    unhide collection controls, edit the users collection, enable OAuth2,
 #    add the PocketID OIDC provider, then hide collection controls again.
-# 5. Create or enable a permanent universal token and save it as
-#    vault_beszel_agent_token in group_vars/beszel_agents/vault.yml.
+# 5. Create or enable a permanent universal token. Save it as
+#    vault_beszel_agent_token, and save the KEY from Beszel's generated agent
+#    command as vault_beszel_agent_key in group_vars/beszel_agents/vault.yml.
 # 6. Deploy agents on max, nuc-mini, and mac-mini.
 make deploy-infra-gateway
 make deploy-beszel
