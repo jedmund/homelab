@@ -4,7 +4,7 @@
   gather_facts: false
   tasks:
     - name: Display deployment plan
-      debug:
+      ansible.builtin.debug:
         msg: |
           Deploying homelab infrastructure in the following order:
           1. Prerequisites (networks, volumes)
@@ -13,20 +13,26 @@
           4. Media Acquisition
           5. MusicBrainz mirror
           6. Media Consumption
-          7. Reading
-          8. Content Management
-          9. Development
-          10. Development macOS
-          11. Paseo daemon
-          12. Utilities
-          13. Vane
-          14. Feederhub
-          15. Productivity
-          16. Social
-          17. Matrix
-          18. AI (max only)
-          19. Openclaw
-          20. Backup
+          7. Immich
+          8. Papra
+          9. Homebox
+          10. Album Sort
+          11. Dawarich
+          12. Miniflux
+          13. Karakeep
+          14. Kavita
+          15. Development
+          16. Development macOS
+          17. Paseo daemon
+          18. Utilities
+          19. Vane
+          20. Feederhub
+          21. Productivity
+          22. Social
+          23. Matrix
+          24. AI (max only)
+          25. Openclaw
+          26. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -49,13 +55,30 @@
 - import_playbook: media_consumption.yml
   tags: [media, media_consumption]
 
-# Reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
-- import_playbook: reading.yml
-  tags: [reading]
+# Product stacks
+- import_playbook: immich.yml
+  tags: [immich]
 
-# Content stack
-- import_playbook: content_management.yml
-  tags: [content, content_management]
+- import_playbook: papra.yml
+  tags: [papra]
+
+- import_playbook: homebox.yml
+  tags: [homebox]
+
+- import_playbook: album_sort.yml
+  tags: [album_sort]
+
+- import_playbook: dawarich.yml
+  tags: [dawarich]
+
+- import_playbook: miniflux.yml
+  tags: [miniflux]
+
+- import_playbook: karakeep.yml
+  tags: [karakeep]
+
+- import_playbook: kavita.yml
+  tags: [kavita]
 
 # Development stack
 - import_playbook: development.yml
