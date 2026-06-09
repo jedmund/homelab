@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Split Line secrets out of the infra_gateway vault into group_vars/line/vault.yml.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+force=false
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "${1:-}" != "" ]; then
+    echo "usage: $0 [--force]" >&2
+    exit 2
+fi
+
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/private/tmp/ansible-local}"
+
+infra_gateway_vault="${INFRA_GATEWAY_VAULT:-group_vars/infra_gateway/vault.yml}"
+target="group_vars/line/vault.yml"
+
+if [ ! -f "$infra_gateway_vault" ]; then
+    echo "missing $infra_gateway_vault" >&2
+    exit 1
+fi
+
+if [ "$force" = false ] && [ -e "$target" ]; then
+    echo "$target already exists; rerun with --force to replace it" >&2
+    exit 1
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/homelab-line-vault-split.XXXXXX")"
+cleanup() {
+    rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+ansible-vault view "$infra_gateway_vault" > "$tmpdir/infra_gateway.yml"
+
+ruby -ryaml -rfileutils -e '
+source = YAML.load_file(ARGV[0]) || {}
+target = ARGV[1]
+
+def fetch_any(source, output_key, *input_keys)
+  input_keys.each do |key|
+    return source.fetch(key) if source.key?(key)
+  end
+
+  raise "missing #{output_key} (looked for #{input_keys.join(", ")})"
+end
+
+def copy_optional(source, values, output_key, *input_keys)
+  input_keys.each do |key|
+    if source.key?(key)
+      values[output_key] = source.fetch(key)
+      return
+    end
+  end
+end
+
+values = {
+  "vault_line_admin_emails" => fetch_any(
+    source,
+    "vault_line_admin_emails",
+    "vault_line_admin_emails",
+    "line_admin_emails"
+  ),
+  "vault_line_oidc_client_id" => fetch_any(
+    source,
+    "vault_line_oidc_client_id",
+    "vault_line_oidc_client_id",
+    "line_oidc_client_id"
+  ),
+  "vault_line_oidc_client_secret" => fetch_any(
+    source,
+    "vault_line_oidc_client_secret",
+    "vault_line_oidc_client_secret",
+    "line_oidc_client_secret"
+  )
+}
+
+{
+  "vault_line_widget_token_key" => ["vault_line_widget_token_key", "line_widget_token_key"],
+  "vault_line_reddit_client_id" => ["vault_line_reddit_client_id", "line_reddit_client_id"],
+  "vault_line_twitch_client_id" => ["vault_line_twitch_client_id", "line_twitch_client_id"],
+  "vault_line_twitch_client_secret" => ["vault_line_twitch_client_secret", "line_twitch_client_secret"],
+  "vault_line_youtube_api_key" => ["vault_line_youtube_api_key", "line_youtube_api_key"],
+  "vault_line_bart_api_key" => ["vault_line_bart_api_key", "line_bart_api_key"],
+  "vault_line_bay_511_api_key" => ["vault_line_bay_511_api_key", "line_bay_511_api_key"],
+  "vault_line_github_oauth_client_id" => ["vault_line_github_oauth_client_id", "line_github_oauth_client_id"],
+  "vault_line_github_oauth_client_secret" => ["vault_line_github_oauth_client_secret", "line_github_oauth_client_secret"]
+}.each do |output_key, input_keys|
+  copy_optional(source, values, output_key, *input_keys)
+end
+
+FileUtils.mkdir_p(File.dirname(target))
+File.write(target, YAML.dump(values))
+File.chmod(0600, target)
+' "$tmpdir/infra_gateway.yml" "$target"
+
+ansible-vault encrypt "$target"
+
+echo "Created encrypted Line vault:"
+printf "  %s\n" "$target"

@@ -117,18 +117,6 @@ tinyauth_atelier_users: "{{ vault_tinyauth_atelier_users }}"
 # OpenSpeedTest settings
 openspeedtest_port: 3000
 
-# Line settings
-line_port: 5180
-line_repo: "git@github.com:jedmund/line.git"
-line_version: "main"
-line_source_path: "{{ docker_base_path }}/{{ stack_name }}/source/line"
-line_backup_dir: /data/backups
-line_app_url: "https://{{ traefik_domain }}"
-line_oidc_issuer: "{{ pocketid_app_url }}"
-line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
-# line_admin_emails (comma-separated admin email list) - defined in vault
-line_admin_emails: "{{ vault_line_admin_emails }}"
-
 # AdGuard settings
 adguard_port_http: 80
 adguard_port_setup: 3000

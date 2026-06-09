@@ -1,0 +1,134 @@
+---
+- name: Migrate Line out of infra-gateway
+  hosts: line
+  become: true
+  gather_facts: false
+  vars:
+    line_split_migration_force: false
+    line_split_legacy_path: "{{ docker_base_path }}/infra-gateway"
+    line_split_legacy_data_path: "{{ line_split_legacy_path }}/config/line/data"
+    line_split_target_path: "{{ docker_base_path }}/line"
+    line_split_target_data_path: "{{ line_split_target_path }}/data"
+    line_split_required_vars:
+      - line_admin_emails
+      - line_oidc_client_id
+      - line_oidc_client_secret
+
+  tasks:
+    - name: Assert Line product vault variables are available
+      ansible.builtin.assert:
+        that:
+          - vars[item] is defined
+          - vars[item] | string | length > 0
+        fail_msg: >-
+          Required variable {{ item }} is undefined or empty. Run
+          bin/split-line-vaults before migration.
+      loop: "{{ line_split_required_vars }}"
+
+    - name: Check legacy Line data path
+      ansible.builtin.stat:
+        path: "{{ line_split_legacy_data_path }}"
+      register: _line_split_legacy_data_path
+
+    - name: Assert legacy Line data exists
+      ansible.builtin.assert:
+        that:
+          - _line_split_legacy_data_path.stat.exists
+          - _line_split_legacy_data_path.stat.isdir
+        fail_msg: >-
+          Legacy Line data path {{ line_split_legacy_data_path }} is missing;
+          aborting migration.
+
+    - name: Check legacy infra-gateway compose file
+      ansible.builtin.stat:
+        path: "{{ line_split_legacy_path }}/compose.yaml"
+      register: _line_split_legacy_compose
+
+    - name: Check Line target root
+      ansible.builtin.stat:
+        path: "{{ line_split_target_path }}"
+      register: _line_split_target_root
+
+    - name: Inspect Line target root contents
+      ansible.builtin.find:
+        paths: "{{ line_split_target_path }}"
+        file_type: any
+        hidden: true
+        recurse: false
+      when:
+        - not line_split_migration_force | bool
+        - _line_split_target_root.stat.exists
+        - _line_split_target_root.stat.isdir
+      register: _line_split_target_root_contents
+
+    - name: Assert Line target root is clean
+      ansible.builtin.assert:
+        that:
+          - (_line_split_target_root_contents.matched | default(0)) == 0
+        fail_msg: >-
+          Line target path {{ line_split_target_path }} already contains files.
+          Re-run with -e line_split_migration_force=true only if it is safe to
+          replace migration output.
+      when:
+        - not line_split_migration_force | bool
+        - _line_split_target_root.stat.exists
+        - _line_split_target_root.stat.isdir
+
+    - name: Remove existing Line target root when forced
+      ansible.builtin.file:
+        path: "{{ line_split_target_path }}"
+        state: absent
+      when: line_split_migration_force | bool
+
+    - name: Stop legacy Line service before migration
+      ansible.builtin.command: docker compose stop line
+      args:
+        chdir: "{{ line_split_legacy_path }}"
+      register: _line_split_stack_stop
+      when: _line_split_legacy_compose.stat.exists
+      failed_when: >-
+        _line_split_stack_stop.rc != 0
+        and 'no such service' not in (_line_split_stack_stop.stderr | default('') | lower)
+      changed_when: >-
+        'Stopped' in (_line_split_stack_stop.stdout | default(''))
+        or 'Stopping' in (_line_split_stack_stop.stdout | default(''))
+        or 'Stopped' in (_line_split_stack_stop.stderr | default(''))
+        or 'Stopping' in (_line_split_stack_stop.stderr | default(''))
+
+    - name: Create Line data destination
+      ansible.builtin.file:
+        path: "{{ line_split_target_data_path }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy Line data into product path
+      ansible.builtin.command:
+        argv:
+          - cp
+          - -a
+          - "{{ line_split_legacy_data_path }}/."
+          - "{{ line_split_target_data_path }}"
+      changed_when: true
+
+    - name: Write Line migration marker
+      ansible.builtin.copy:
+        dest: "{{ line_split_target_path }}/MIGRATED_FROM_INFRA_GATEWAY.md"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        content: |
+          # Line migrated from infra-gateway
+
+          Data was copied from:
+
+          - {{ line_split_legacy_data_path }}
+
+          The active Line stack now lives at:
+
+          - {{ line_split_target_path }}
+
+- name: Redeploy infra-gateway without Line
+  import_playbook: infra_gateway.yml
+
+- name: Deploy Line product stack
+  import_playbook: line.yml

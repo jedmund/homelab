@@ -46,7 +46,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Infrastructure (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, Line `[in-house]` |
+| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest |
 | `infra_core` | Komodo (Core + Periphery + MongoDB) |
 | `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
 
@@ -71,6 +71,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `pinchflat` | Pinchflat |
 | `slskd` | slskd |
 | `qui` | Qui |
+| `line` | Line dashboard `[in-house]` |
 | `immich` | Immich server, machine learning, Redis, Postgres |
 | `papra` | Papra |
 | `homebox` | Homebox |
@@ -250,17 +251,6 @@ Shared secrets used by multiple stacks.
 | `tinyauth_pocketid_token_url` | PocketID token endpoint URL |
 | `tinyauth_pocketid_user_info_url` | PocketID user info endpoint URL |
 
-#### Line (in-house)
-
-[line](https://github.com/jedmund/line) is one of our own projects, built on the server from a clone of the repo (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
-
-| Variable | Description |
-|----------|-------------|
-| `line_oidc_client_id` | OIDC client ID from PocketID |
-| `line_oidc_client_secret` | OIDC client secret from PocketID |
-
-Register the OIDC client manually in PocketID with redirect URI `https://atelier.house/auth/callback`, then drop the values into the vault.
-
 ### group_vars/gluetun/vault.yml
 
 #### Gluetun
@@ -274,6 +264,34 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `gluetun_wireguard_private_key` | WireGuard private key |
 | `gluetun_wireguard_addresses` | WireGuard address list |
 | `gluetun_server_countries` | Optional server country filter |
+
+### group_vars/line/vault.yml
+
+#### Line (in-house)
+
+[line](https://github.com/jedmund/line) is one of our own projects. Its
+GitHub Actions workflow builds and pushes `ghcr.io/jedmund/line`, then calls
+Komodo to redeploy the standalone `line` stack.
+
+| Variable | Description |
+|----------|-------------|
+| `vault_line_admin_emails` | Comma-separated admin email list |
+| `vault_line_oidc_client_id` | OIDC client ID from PocketID |
+| `vault_line_oidc_client_secret` | OIDC client secret from PocketID |
+| `vault_line_widget_token_key` | Optional widget token key |
+| `vault_line_reddit_client_id` | Optional Reddit API client ID |
+| `vault_line_twitch_client_id` | Optional Twitch API client ID |
+| `vault_line_twitch_client_secret` | Optional Twitch API client secret |
+| `vault_line_youtube_api_key` | Optional YouTube API key |
+| `vault_line_bart_api_key` | Optional BART API key |
+| `vault_line_bay_511_api_key` | Optional Bay 511 API key |
+| `vault_line_github_oauth_client_id` | Optional GitHub OAuth app client ID |
+| `vault_line_github_oauth_client_secret` | Optional GitHub OAuth app client secret |
+| `vault_line_registry_username` | Optional GHCR username if the package is private |
+| `vault_line_registry_password` | Optional GHCR token with `read:packages` if private |
+
+Register the OIDC client manually in PocketID with redirect URI
+`https://atelier.house/auth/callback`, then drop the values into the vault.
 
 ### group_vars/unpackerr/vault.yml
 
@@ -501,6 +519,7 @@ make deploy-jdownloader
 make deploy-pinchflat
 make deploy-slskd
 make deploy-qui
+make deploy-line
 make deploy-romm
 make deploy-plex
 make deploy-multi-scrobbler
@@ -545,6 +564,10 @@ make deploy-migrate-media-acquisition-products
 # One-time migration from development to product stacks
 bin/split-development-product-vaults
 make deploy-migrate-development-products
+
+# One-time migration from infra-gateway's embedded Line service to the Line stack
+bin/split-line-vaults
+make deploy-migrate-line-from-infra-gateway
 
 # First Beszel bootstrap:
 # 1. Land DNS labels, then deploy the hub.

@@ -1,7 +1,7 @@
 ---
 - name: Restart {{ stack_name }} stack
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
     recreate: always

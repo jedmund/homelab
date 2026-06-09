@@ -1,0 +1,6 @@
+---
+- name: Deploy line stack
+  hosts: line
+  become: yes
+  roles:
+    - line

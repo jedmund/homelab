@@ -1,0 +1,59 @@
+---
+# Line stack - in-house dashboard app. Images are built in GitHub Actions
+# and pulled here; this role does not build from source.
+#
+# Bootstrap ordering:
+#   1. Run bin/split-line-vaults to create group_vars/line/vault.yml.
+#   2. Run make deploy-migrate-line-from-infra-gateway once to move
+#      /opt/docker/infra-gateway/config/line/data to /opt/docker/line/data.
+#   3. Register a Komodo Stack named `line` with files_on_host=true and
+#      project_src={{ config_base }} so GitHub Actions can redeploy it.
+#   4. Set GitHub Actions secrets in jedmund/line:
+#        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET
+#      Optional repository variable:
+#        KOMODO_LINE_STACK=line
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/data"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/line.env.j2
+    dest: "{{ config_base }}/env/line.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Authenticate with Line image registry
+  community.docker.docker_login:
+    registry_url: "{{ line_registry_url }}"
+    username: "{{ line_registry_username }}"
+    password: "{{ line_registry_password }}"
+    reauthorize: true
+  when: line_registry_username | length > 0 and line_registry_password | length > 0
+  no_log: true
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result
