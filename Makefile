@@ -312,6 +312,10 @@ deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/openclaw.yml $(VAULT_FLAG)
 
+deploy-hermes: ## Deploy Hermes Agent dashboard natively on mac-mini
+	@echo "$(BLUE)Deploying Hermes Agent dashboard...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/hermes.yml $(VAULT_FLAG)
+
 deploy-dokploy-host: ## Provision Dokploy VM on nuc-mini (libvirt + bridge)
 	@echo "$(BLUE)Provisioning Dokploy VM on nuc-mini...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/dokploy_host.yml $(VAULT_FLAG)

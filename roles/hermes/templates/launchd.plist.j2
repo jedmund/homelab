@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- {{ ansible_managed }} -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{ hermes_launchd_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ hermes_dashboard_wrapper }}</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{ hermes_path }}</string>
+    <key>HOME</key>
+    <string>{{ ansible_user_dir }}</string>
+    <key>HERMES_HOME</key>
+    <string>{{ hermes_home }}</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>{{ hermes_log_dir }}/hermes-dashboard.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{ hermes_log_dir }}/hermes-dashboard.err.log</string>
+</dict>
+</plist>

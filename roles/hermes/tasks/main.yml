@@ -1,0 +1,166 @@
+---
+# Hermes Agent dashboard (native macOS install on mac-mini).
+
+- name: Assert Hermes dashboard auth is configured
+  ansible.builtin.assert:
+    that:
+      - hermes_dashboard_basic_auth_username | length > 0
+      - "(hermes_dashboard_basic_auth_password_hash | length > 0) or (hermes_dashboard_basic_auth_password | length > 0)"
+      - hermes_dashboard_basic_auth_secret | length >= 32
+    fail_msg: >
+      Hermes dashboard binds to a non-loopback address, so configure
+      vault_hermes_dashboard_basic_auth_password_hash (preferred) or
+      vault_hermes_dashboard_basic_auth_password, plus a 32+ character
+      vault_hermes_dashboard_basic_auth_secret.
+  when:
+    - hermes_dashboard_basic_auth_enabled
+    - not hermes_dashboard_insecure
+    - hermes_dashboard_host not in ['127.0.0.1', 'localhost', '::1']
+  no_log: true
+
+- name: Check for Homebrew (Apple Silicon prefix)
+  ansible.builtin.stat:
+    path: /opt/homebrew/bin/brew
+  register: _brew_apple_silicon
+
+- name: Check for Homebrew (Intel prefix)
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: _brew_intel
+
+- name: Bootstrap Homebrew if missing
+  ansible.builtin.shell: |
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  environment:
+    NONINTERACTIVE: "1"
+  when:
+    - not _brew_apple_silicon.stat.exists
+    - not _brew_intel.stat.exists
+
+- name: Resolve Homebrew prefix
+  ansible.builtin.command: brew --prefix
+  register: _hermes_brew_prefix
+  changed_when: false
+
+- name: Pin Homebrew prefix as a fact
+  ansible.builtin.set_fact:
+    hermes_brew_prefix: "{{ _hermes_brew_prefix.stdout }}"
+
+- name: Ensure Git is installed
+  community.general.homebrew:
+    name: git
+    state: present
+
+- name: Ensure Hermes directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ hermes_home }}"
+      mode: '0700'
+    - path: "{{ hermes_home }}/bin"
+      mode: '0700'
+    - path: "{{ hermes_bin_dir }}"
+      mode: '0755'
+    - path: "{{ ansible_user_dir }}/Library/LaunchAgents"
+      mode: '0755'
+    - path: "{{ hermes_log_dir }}"
+      mode: '0755'
+
+- name: Check whether Hermes CLI is installed
+  ansible.builtin.stat:
+    path: "{{ hermes_bin }}"
+  register: _hermes_bin
+
+- name: Check whether Hermes managed venv exists
+  ansible.builtin.stat:
+    path: "{{ hermes_install_dir }}/venv/bin/python"
+  register: _hermes_venv_python
+
+- name: Install Hermes Agent CLI/server
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL {{ hermes_install_url | quote }} | bash -s -- --skip-setup --non-interactive{% if hermes_install_skip_browser %} --skip-browser{% endif %}
+  args:
+    executable: /bin/bash
+  environment:
+    HERMES_HOME: "{{ hermes_home }}"
+    HERMES_INSTALL_DIR: "{{ hermes_install_dir }}"
+    PATH: "{{ hermes_path }}"
+  when: not _hermes_bin.stat.exists or not _hermes_venv_python.stat.exists
+  notify: Reload Hermes dashboard LaunchAgent
+
+- name: Check Hermes dashboard Python dependencies
+  ansible.builtin.command:
+    argv:
+      - "{{ hermes_install_dir }}/venv/bin/python"
+      - -c
+      - "import fastapi, uvicorn; import ptyprocess"
+  register: _hermes_dashboard_deps
+  failed_when: false
+  changed_when: false
+
+- name: Ensure Hermes dashboard Python extras are installed
+  ansible.builtin.command:
+    argv:
+      - "{{ hermes_home }}/bin/uv"
+      - pip
+      - install
+      - --python
+      - "{{ hermes_install_dir }}/venv/bin/python"
+      - -e
+      - .[web,pty]
+  args:
+    chdir: "{{ hermes_install_dir }}"
+  environment:
+    PATH: "{{ hermes_path }}"
+  when:
+    - hermes_install_dashboard_extras
+    - _hermes_dashboard_deps.rc != 0
+  notify: Reload Hermes dashboard LaunchAgent
+
+- name: Manage Hermes dashboard auth environment block
+  ansible.builtin.blockinfile:
+    path: "{{ hermes_env_file }}"
+    create: true
+    mode: '0600'
+    backup: true
+    marker: "# {mark} ANSIBLE MANAGED: hermes dashboard"
+    block: |
+      HERMES_DASHBOARD_PUBLIC_URL={{ hermes_dashboard_public_url | quote }}
+      {% if hermes_dashboard_basic_auth_enabled %}
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME={{ hermes_dashboard_basic_auth_username | quote }}
+      {% if hermes_dashboard_basic_auth_password | length > 0 %}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD={{ hermes_dashboard_basic_auth_password | quote }}
+      {% elif hermes_dashboard_basic_auth_password_hash | length > 0 %}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH={{ hermes_dashboard_basic_auth_password_hash | quote }}
+      {% endif %}
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET={{ hermes_dashboard_basic_auth_secret | quote }}
+      HERMES_DASHBOARD_BASIC_AUTH_TTL_SECONDS={{ hermes_dashboard_basic_auth_ttl_seconds | string | quote }}
+      {% endif %}
+  no_log: true
+  notify: Reload Hermes dashboard LaunchAgent
+
+- name: Template Hermes dashboard wrapper
+  ansible.builtin.template:
+    src: hermes-dashboard.j2
+    dest: "{{ hermes_dashboard_wrapper }}"
+    mode: '0700'
+  notify: Reload Hermes dashboard LaunchAgent
+
+- name: Template Hermes dashboard LaunchAgent plist
+  ansible.builtin.template:
+    src: launchd.plist.j2
+    dest: "{{ hermes_launchd_plist }}"
+    mode: '0644'
+  notify: Reload Hermes dashboard LaunchAgent
+
+- name: Ensure Hermes dashboard LaunchAgent is loaded
+  ansible.builtin.shell: |
+    if ! launchctl print gui/$(id -u)/{{ hermes_launchd_label }} >/dev/null 2>&1; then
+      launchctl bootstrap gui/$(id -u) {{ hermes_launchd_plist }}
+      echo "loaded"
+    fi
+  register: _hermes_launchd_state
+  changed_when: "'loaded' in _hermes_launchd_state.stdout"
