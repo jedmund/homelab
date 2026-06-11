@@ -82,6 +82,41 @@
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
 
+# The one-time garage_bootstrap.sh handles layout + bucket + key creation
+# (the key secret has to be captured into the vault by a human). But its two
+# idempotent, declarative steps — granting the key access and setting CORS —
+# are wired here so every deploy self-heals them. This is what was missing in
+# prod: the key existed with NO bucket permission (so the app couldn't store
+# media) and CORS was unset (so browser presigned-PUT uploads would fail).
+# Both `allow` and `set-cors` are no-ops once applied. Gated on the vault key
+# being present and the bucket existing, so a pre-bootstrap host skips cleanly.
+- name: Ensure Garage bucket access + CORS
+  when: kizuna_garage_access_key_id | length > 0
+  block:
+    - name: Check the Garage bucket exists
+      command: docker exec kizuna-garage /garage bucket info {{ kizuna_garage_bucket }}
+      register: kizuna_garage_bucket_info
+      changed_when: false
+      failed_when: false
+
+    - name: Grant the API key read+write+owner on the bucket
+      command: >-
+        docker exec kizuna-garage /garage bucket allow
+        --read --write --owner {{ kizuna_garage_bucket }}
+        --key {{ kizuna_garage_access_key_id }}
+      changed_when: false
+      when: kizuna_garage_bucket_info.rc == 0
+
+    - name: Allow the SPA origin to upload via CORS (cross-origin presigned PUT)
+      command: >-
+        docker exec kizuna-garage /garage bucket set-cors {{ kizuna_garage_bucket }}
+        --allowed-origin {{ kizuna_web_origin }}
+        --allowed-method GET --allowed-method PUT
+        --allowed-method POST --allowed-method DELETE
+        --allowed-header '*' --expose-header ETag
+      changed_when: false
+      when: kizuna_garage_bucket_info.rc == 0
+
 - name: Print post-deploy reminder
   debug:
     msg: |
