@@ -101,19 +101,30 @@ ACCESS_KEY_ID="${KIZUNA_S3_ACCESS_KEY_ID:-$(g key info "${KEY_NAME}" | awk '/Key
 echo "Granting ${ACCESS_KEY_ID} read+write+owner on ${BUCKET}..."
 g bucket allow --read --write --owner "${BUCKET}" --key "${ACCESS_KEY_ID}"
 
-# Step 5 — CORS for the SPA's cross-origin presigned PUT.  Same
-# concern as the dev bootstrap — without this, the browser refuses
-# the upload before it ever reaches Garage.
+# Step 5 — CORS for the SPA's cross-origin presigned PUT. Without this the
+# browser refuses the upload before it ever reaches Garage. Garage v2.3.0's
+# CLI has no `bucket set-cors` — CORS is an S3-API config (PutBucketCors), so
+# set it through the API container's aws-sdk client (matches the Ansible role).
+# The Ansible deploy also applies this idempotently; this keeps the standalone
+# script correct for a manual first-time bootstrap.
 echo "Setting CORS on ${BUCKET} for ${SPA_ORIGIN}..."
-g bucket website --allow "${BUCKET}" >/dev/null 2>&1 || true
-# Garage v2 took the CORS API into `garage bucket set-cors`.
-g bucket set-cors "${BUCKET}" \
-  --allowed-origin "${SPA_ORIGIN}" \
-  --allowed-method GET \
-  --allowed-method PUT \
-  --allowed-method POST \
-  --allowed-method DELETE \
-  --allowed-header "*" \
-  --expose-header ETag
+docker exec kizuna-api bin/rails runner "
+  require \"aws-sdk-s3\"
+  Aws::S3::Client.new(
+    endpoint: ENV.fetch(\"KIZUNA_S3_ENDPOINT\"),
+    region: ENV.fetch(\"KIZUNA_S3_REGION\", \"garage\"),
+    access_key_id: ENV.fetch(\"KIZUNA_S3_ACCESS_KEY_ID\"),
+    secret_access_key: ENV.fetch(\"KIZUNA_S3_SECRET_ACCESS_KEY\"),
+    force_path_style: true
+  ).put_bucket_cors(
+    bucket: ENV.fetch(\"KIZUNA_S3_BUCKET\"),
+    cors_configuration: {cors_rules: [{
+      allowed_origins: [\"${SPA_ORIGIN}\"],
+      allowed_methods: %w[GET PUT POST DELETE],
+      allowed_headers: [\"*\"],
+      expose_headers: [\"ETag\"]
+    }]}
+  )
+"
 
 echo "Garage bootstrap done."
