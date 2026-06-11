@@ -12,8 +12,8 @@ services:
       - "{{ lidarr_port }}:8686"
     environment:
       - TZ={{ timezone }}
-      - PUID={{ ansible_user_uid | default(1000) }}
-      - PGID={{ ansible_user_gid | default(1000) }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
     volumes:
       - ./config:/config
       - music:/music
