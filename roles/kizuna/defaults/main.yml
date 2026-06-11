@@ -58,6 +58,13 @@ kizuna_redis_image: redis:7-alpine
 # only; this template ships its own from the vault.
 kizuna_garage_image: dxflrs/garage:v2.3.0
 kizuna_garage_bucket: kizuna
+# Public S3 endpoint. Garage's S3 API is internal-only on the backend
+# network; Traefik fronts it at this host so the browser can fetch image
+# bytes from the presigned GET URLs the API mints. Server-side object ops
+# still use the internal kizuna-garage:3900. Needs a DNS record for this
+# host pointing at the homelab, plus a Let's Encrypt cert (auto via Traefik).
+kizuna_garage_domain: files.kizuna.fm
+kizuna_garage_public_endpoint: "https://{{ kizuna_garage_domain }}"
 # Garage credentials. Generate with `garage key create` on first deploy
 # (see roles/kizuna/files/garage_bootstrap.sh) and store the output in
 # the vault; the API container reads these values straight from its env.

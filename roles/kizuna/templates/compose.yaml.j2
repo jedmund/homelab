@@ -121,6 +121,7 @@ services:
     image: {{ kizuna_garage_image }}
     restart: {{ restart_policy }}
     networks:
+      - proxy
       - backend
     volumes:
       - ./config/garage/garage.toml:/etc/garage.toml:ro
@@ -128,6 +129,18 @@ services:
       - kizuna-garage-meta:/var/lib/garage/meta
     env_file:
       - ./env/garage.env
+    labels:
+      # Public S3 endpoint, browser-reachable, used ONLY for presigned image
+      # URLs (the API signs GETs against {{ kizuna_garage_domain }} via
+      # KIZUNA_S3_PUBLIC_ENDPOINT). Server-side object ops stay on the internal
+      # kizuna-garage:3900 over `backend`. Only the S3 API port (3900) is
+      # routed — the admin (3903) and metrics (3904) ports stay internal. The
+      # bucket is private (presigned-only), so anonymous hits get 403.
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-garage.rule: "Host(`{{ kizuna_garage_domain }}`)"
+      traefik.http.routers.kizuna-garage.entrypoints: "websecure"
+      traefik.http.routers.kizuna-garage.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-garage.loadbalancer.server.port: "3900"
     logging:
       driver: {{ logging_driver }}
       options:
