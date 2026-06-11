@@ -75,6 +75,18 @@ kizuna_garage_metrics_token: "{{ vault_kizuna_garage_metrics_token | default('')
 # `bin/rails secret` once; store in vault.
 kizuna_secret_key_base: "{{ vault_kizuna_secret_key_base | default('') }}"
 
+# ---- Active Record Encryption ----
+# Encrypts AI-connection API keys at rest (the only `encrypts` column).
+# Generate the three values ONCE with `bin/rails db:encryption:init` and
+# store in vault; the api + worker share them via api.env. NEVER rotate
+# once any connection is saved — changing a key orphans the ciphertext.
+#   vault_kizuna_ar_encryption_primary_key
+#   vault_kizuna_ar_encryption_deterministic_key
+#   vault_kizuna_ar_encryption_key_derivation_salt
+kizuna_ar_encryption_primary_key: "{{ vault_kizuna_ar_encryption_primary_key | default('') }}"
+kizuna_ar_encryption_deterministic_key: "{{ vault_kizuna_ar_encryption_deterministic_key | default('') }}"
+kizuna_ar_encryption_key_derivation_salt: "{{ vault_kizuna_ar_encryption_key_derivation_salt | default('') }}"
+
 # ---- OIDC against PocketID ----
 # Same shape as the Vane role. Register a Kizuna client in PocketID's
 # admin UI (https://id.atelier.house) with the redirect URI below, then
