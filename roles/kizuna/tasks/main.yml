@@ -107,13 +107,36 @@
       changed_when: false
       when: kizuna_garage_bucket_info.rc == 0
 
-    - name: Allow the SPA origin to upload via CORS (cross-origin presigned PUT)
-      command: >-
-        docker exec kizuna-garage /garage bucket set-cors {{ kizuna_garage_bucket }}
-        --allowed-origin {{ kizuna_web_origin }}
-        --allowed-method GET --allowed-method PUT
-        --allowed-method POST --allowed-method DELETE
-        --allowed-header '*' --expose-header ETag
+    # Garage v2.3.0's CLI has no `bucket set-cors`; CORS is an S3-API config
+    # (PutBucketCors). Set it through the API's own aws-sdk client (already in
+    # the image) so the SPA's cross-origin presigned PUT uploads are allowed.
+    # argv form avoids shell/shlex quoting of the inline script. Idempotent.
+    - name: Allow the SPA origin to upload via CORS (S3 PutBucketCors)
+      command:
+        argv:
+          - docker
+          - exec
+          - kizuna-api
+          - bin/rails
+          - runner
+          - |
+            require "aws-sdk-s3"
+            client = Aws::S3::Client.new(
+              endpoint: ENV.fetch("KIZUNA_S3_ENDPOINT"),
+              region: ENV.fetch("KIZUNA_S3_REGION", "garage"),
+              access_key_id: ENV.fetch("KIZUNA_S3_ACCESS_KEY_ID"),
+              secret_access_key: ENV.fetch("KIZUNA_S3_SECRET_ACCESS_KEY"),
+              force_path_style: true
+            )
+            client.put_bucket_cors(
+              bucket: ENV.fetch("KIZUNA_S3_BUCKET"),
+              cors_configuration: {cors_rules: [{
+                allowed_origins: ["{{ kizuna_web_origin }}"],
+                allowed_methods: %w[GET PUT POST DELETE],
+                allowed_headers: ["*"],
+                expose_headers: ["ETag"]
+              }]}
+            )
       changed_when: false
       when: kizuna_garage_bucket_info.rc == 0
 
