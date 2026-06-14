@@ -1,0 +1,48 @@
+---
+# Plane Community Edition (AGPL self-host)
+# https://github.com/makeplane/plane
+#
+# Community Edition only. The paid feature set (SSO, Teamspaces, Dashboards,
+# Recurring Work Items, Nested Pages, etc.) lives in Plane's closed-source
+# Commercial Edition, a separate codebase that is NOT in this stack.
+
+# Stack identity
+stack_name: plane
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Routing (single domain; Plane's own nginx proxy splits paths internally:
+#   /        -> web        /spaces/    -> space
+#   /god-mode/ -> admin    /api/,/auth/ -> api      /live/ -> live)
+plane_domain: plane.atelier.house
+
+# Image release tag, applied to every makeplane/* image.
+# Pin to a version (e.g. v0.24.0) for reproducible deploys; "stable" tracks latest.
+plane_app_release: stable
+
+# Pinned infra image versions (match upstream deploy/selfhost/docker-compose.yml)
+plane_postgres_image: postgres:15.7-alpine
+plane_redis_image: valkey/valkey:7.2.5-alpine
+plane_mq_image: rabbitmq:3.13.6-management-alpine
+plane_minio_image: minio/minio:latest
+
+# Database / broker identities (non-secret; passwords come from vault)
+plane_postgres_user: plane
+plane_postgres_db: plane
+plane_rabbitmq_user: plane
+plane_rabbitmq_vhost: plane
+
+# Object storage: use the bundled MinIO (USE_MINIO=1).
+# Set plane_use_minio: "0" and the AWS_* vars to point at external S3 instead.
+plane_use_minio: "1"
+plane_s3_bucket: uploads
+plane_file_size_limit: "5242880"
+
+# Gunicorn workers for the API container
+plane_gunicorn_workers: "1"
+
+# Secrets - defined in group_vars/plane/vault.yml (encrypted):
+#   plane_secret_key        - Django SECRET_KEY
+#   plane_postgres_password - Postgres password (also embedded in DATABASE_URL)
+#   plane_rabbitmq_password - RabbitMQ password (also embedded in AMQP_URL)
+#   plane_minio_access_key  - MinIO root user / AWS_ACCESS_KEY_ID
+#   plane_minio_secret_key  - MinIO root password / AWS_SECRET_ACCESS_KEY

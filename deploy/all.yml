@@ -56,6 +56,7 @@
           47. AI (max only)
           48. Openclaw
           49. Backup
+          50. Plane
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -185,6 +186,9 @@
 # Utility product stacks
 - import_playbook: n8n.yml
   tags: [n8n]
+
+- import_playbook: plane.yml
+  tags: [plane]
 
 - import_playbook: changedetection.yml
   tags: [changedetection]

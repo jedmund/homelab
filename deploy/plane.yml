@@ -1,0 +1,6 @@
+---
+- name: Deploy Plane stack
+  hosts: plane
+  become: true
+  roles:
+    - plane
