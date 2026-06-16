@@ -10,52 +10,53 @@
           1. Prerequisites (networks, volumes)
           2. Infrastructure Gateway (Traefik, PocketID)
           3. Infrastructure Core (Komodo)
-          4. Beszel hub
-          5. Beszel agents
-          6. Gluetun
-          7. Prowlarr
-          8. qBittorrent
-          9. Sonarr
-          10. Radarr
-          11. Lidarr
-          12. Seerr
-          13. Unpackerr
-          14. JDownloader
-          15. Pinchflat
-          16. slskd
-          17. Qui
-          18. MusicBrainz mirror
-          19. RomM
-          20. Plex
-          21. Multi-Scrobbler
-          22. Tunarr
-          23. Stash
-          24. Immich
-          25. Papra
-          26. Homebox
-          27. Album Sort
-          28. Dawarich
-          29. Miniflux
-          30. Karakeep
-          31. Kavita
-          32. Strudel
-          33. Blinko
-          34. Obsidian LiveSync
-          35. GitLab
-          36. Open WebUI
-          37. Paseo Relay
-          38. Development macOS
-          39. Paseo daemon
-          40. n8n
-          41. ChangeDetection
-          42. Copyparty
-          43. Vane
-          44. Feederhub
-          45. Social
-          46. Matrix
-          47. AI (max only)
-          48. Openclaw
-          49. Backup
+          4. Line dashboard
+          5. Beszel hub
+          6. Beszel agents
+          7. Gluetun
+          8. Prowlarr
+          9. qBittorrent
+          10. Sonarr
+          11. Radarr
+          12. Lidarr
+          13. Seerr
+          14. Unpackerr
+          15. JDownloader
+          16. Pinchflat
+          17. slskd
+          18. Qui
+          19. MusicBrainz mirror
+          20. RomM
+          21. Plex
+          22. Multi-Scrobbler
+          23. Tunarr
+          24. Stash
+          25. Immich
+          26. Papra
+          27. Homebox
+          28. Album Sort
+          29. Dawarich
+          30. Miniflux
+          31. Karakeep
+          32. Kavita
+          33. Strudel
+          34. Blinko
+          35. Obsidian LiveSync
+          36. GitLab
+          37. Open WebUI
+          38. Paseo Relay
+          39. Development macOS
+          40. Paseo daemon
+          41. n8n
+          42. ChangeDetection
+          43. Copyparty
+          44. Vane
+          45. Feederhub
+          46. Social
+          47. Matrix
+          48. AI (max only)
+          49. Openclaw
+          50. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -67,6 +68,10 @@
 
 - import_playbook: infra_core.yml
   tags: [infra, infra_core]
+
+# Root dashboard
+- import_playbook: line.yml
+  tags: [line]
 
 # Monitoring
 - import_playbook: beszel.yml

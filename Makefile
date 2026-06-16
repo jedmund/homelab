@@ -146,6 +146,10 @@ deploy-qui: ## Deploy Qui
 	@echo "$(BLUE)Deploying Qui...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/qui.yml $(VAULT_FLAG)
 
+deploy-line: ## Deploy Line dashboard
+	@echo "$(BLUE)Deploying Line...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/line.yml $(VAULT_FLAG)
+
 deploy-immich: ## Deploy Immich
 	@echo "$(BLUE)Deploying Immich...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/immich.yml $(VAULT_FLAG)
@@ -257,6 +261,10 @@ deploy-migrate-media-acquisition-products: ## One-time migration from media acqu
 deploy-migrate-development-products: ## One-time migration from development stack to product stacks
 	@echo "$(BLUE)Migrating development stack to product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_development_products.yml $(VAULT_FLAG)
+
+deploy-migrate-line-from-infra-gateway: ## One-time migration from infra-gateway Line service to Line stack
+	@echo "$(BLUE)Migrating Line out of infra-gateway...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_line_from_infra_gateway.yml $(VAULT_FLAG)
 
 archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
 	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"

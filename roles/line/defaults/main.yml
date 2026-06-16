@@ -1,0 +1,39 @@
+---
+# Stack identity
+stack_name: line
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Line dashboard app. The image is built by GitHub Actions in
+# github.com/jedmund/line and pushed to GHCR. CI calls Komodo DeployStack
+# for this stack after successful main builds.
+line_image: ghcr.io/jedmund/line
+line_image_tag: latest
+
+# Registry auth is optional. Public GHCR images do not need it; private
+# packages need a token with read:packages.
+line_registry_url: ghcr.io
+line_registry_username: "{{ vault_line_registry_username | default('') }}"
+line_registry_password: "{{ vault_line_registry_password | default('') }}"
+
+line_domain: atelier.house
+line_port: 5180
+line_app_url: "https://{{ line_domain }}"
+line_backup_dir: /data/backups
+
+# OIDC + app secrets. Populate group_vars/line/vault.yml.
+line_admin_emails: "{{ vault_line_admin_emails | default('') }}"
+line_oidc_issuer: https://id.atelier.house
+line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
+line_oidc_client_id: "{{ vault_line_oidc_client_id | default('') }}"
+line_oidc_client_secret: "{{ vault_line_oidc_client_secret | default('') }}"
+
+# Optional widget/API integrations.
+line_widget_token_key: "{{ vault_line_widget_token_key | default('') }}"
+line_reddit_client_id: "{{ vault_line_reddit_client_id | default('') }}"
+line_twitch_client_id: "{{ vault_line_twitch_client_id | default('') }}"
+line_twitch_client_secret: "{{ vault_line_twitch_client_secret | default('') }}"
+line_youtube_api_key: "{{ vault_line_youtube_api_key | default('') }}"
+line_bart_api_key: "{{ vault_line_bart_api_key | default('') }}"
+line_bay_511_api_key: "{{ vault_line_bay_511_api_key | default('') }}"
+line_github_oauth_client_id: "{{ vault_line_github_oauth_client_id | default('') }}"
+line_github_oauth_client_secret: "{{ vault_line_github_oauth_client_secret | default('') }}"

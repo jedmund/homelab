@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, and Line"
+description = "Traefik, PocketID, TinyAuth, ddclient, AdGuard, and OpenSpeedTest"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -48,6 +48,19 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/beszel-agent"
 file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "line"
+description = "Line dashboard"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house", "ci"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/line"
+file_paths = ["compose.yaml"]
+auto_pull = true
 poll_for_updates = false
 auto_update = false
 

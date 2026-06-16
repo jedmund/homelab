@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  line:
+    container_name: line
+    image: "{{ line_image }}:{{ line_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./data:/data
+    env_file:
+      - ./env/line.env
+    labels:
+      # Line handles its own OIDC; no TinyAuth middleware on the root dashboard.
+      traefik.enable: "true"
+      traefik.http.routers.line.rule: "Host(`{{ line_domain }}`)"
+      traefik.http.routers.line.entrypoints: "websecure"
+      traefik.http.routers.line.tls.certresolver: "letsencrypt"
+      traefik.http.services.line.loadbalancer.server.port: "{{ line_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

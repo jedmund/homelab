@@ -14,10 +14,8 @@
     - "{{ docker_base_path }}/{{ stack_name }}/assets"
     - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/ddclient"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/line/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
     - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
-    - "{{ docker_base_path }}/{{ stack_name }}/source"
 
 - name: Create Traefik config directories
   file:
@@ -65,7 +63,6 @@
     - traefik
     - pocketid
     - tinyauth
-    - line
   no_log: true
   notify: Restart {{ stack_name }} stack
 
@@ -147,21 +144,10 @@
   become: false
   run_once: true
 
-- name: Pull latest line source
-  ansible.builtin.git:
-    repo: "{{ line_repo }}"
-    dest: "{{ line_source_path }}"
-    version: "{{ line_version }}"
-    force: yes
-    accept_hostkey: true
-  become: false
-  notify: Restart {{ stack_name }} stack
-
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
