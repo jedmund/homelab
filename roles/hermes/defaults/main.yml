@@ -1,0 +1,60 @@
+---
+# Hermes Agent dashboard (native macOS install on mac-mini). We install
+# the CLI/server path only, not Hermes Desktop.
+
+stack_name: hermes
+
+# Upstream installer and user-scoped install layout. The docs' default
+# non-root layout is code in ~/.hermes/hermes-agent, data in ~/.hermes,
+# and a ~/.local/bin/hermes symlink.
+hermes_install_url: https://hermes-agent.nousresearch.com/install.sh
+hermes_home: "{{ ansible_user_dir }}/.hermes"
+hermes_install_dir: "{{ hermes_home }}/hermes-agent"
+hermes_bin_dir: "{{ ansible_user_dir }}/.local/bin"
+hermes_bin: "{{ hermes_bin_dir }}/hermes"
+hermes_env_file: "{{ hermes_home }}/.env"
+
+# The installer pulls browser support by default. Leave this false for the
+# dashboard host so web/browser tools can work after model/tool setup.
+hermes_install_skip_browser: false
+
+# Dashboard runtime. Binding to 0.0.0.0 is required for a remote browser,
+# and upstream intentionally requires an auth provider on non-loopback
+# binds unless --insecure is passed.
+hermes_dashboard_host: "0.0.0.0"
+hermes_dashboard_port: 9119
+hermes_dashboard_public_url: "https://hermes.{{ traefik_domain | default('atelier.house') }}"
+hermes_dashboard_insecure: false
+
+# Username/password auth provider. The hash is preferred so plaintext does
+# not sit at rest; plaintext password is supported for initial bootstrap
+# and rotation through vault.
+hermes_dashboard_basic_auth_enabled: true
+hermes_dashboard_basic_auth_username: "{{ vault_hermes_dashboard_basic_auth_username | default('admin') }}"
+hermes_dashboard_basic_auth_password_hash: "{{ vault_hermes_dashboard_basic_auth_password_hash | default('') }}"
+hermes_dashboard_basic_auth_password: "{{ vault_hermes_dashboard_basic_auth_password | default('') }}"
+hermes_dashboard_basic_auth_secret: "{{ vault_hermes_dashboard_basic_auth_secret | default('') }}"
+hermes_dashboard_basic_auth_ttl_seconds: 604800
+
+# If the upstream installer ever changes its default dependency set, keep
+# the dashboard extras present explicitly.
+hermes_install_dashboard_extras: true
+
+# launchd user agent.
+hermes_launchd_label: house.atelier.hermes
+hermes_launchd_plist: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ hermes_launchd_label }}.plist"
+hermes_dashboard_wrapper: "{{ hermes_home }}/bin/hermes-dashboard"
+hermes_log_dir: "{{ ansible_user_dir }}/Library/Logs"
+
+hermes_path_entries:
+  - "{{ hermes_bin_dir }}"
+  - "{{ hermes_home }}/bin"
+  - "{{ hermes_home }}/node/bin"
+  - "{{ hermes_install_dir }}/venv/bin"
+  - /opt/homebrew/bin
+  - /usr/local/bin
+  - /usr/bin
+  - /bin
+  - /usr/sbin
+  - /sbin
+hermes_path: "{{ hermes_path_entries | join(':') }}"

@@ -114,6 +114,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `development_macos` | GitLab Runner (shell executor, iOS builds) |
 | `openclaw` | OpenClaw agent (native macOS) |
 | `paseo_daemon` | Paseo daemon (native macOS) |
+| `hermes` | Hermes Agent Web Dashboard (native macOS) |
 
 **AI / GPU (max)**
 | Role | Services |
@@ -446,6 +447,14 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 |----------|-------------|
 | `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
 
+### group_vars/hermes/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `vault_hermes_dashboard_basic_auth_secret` | Stable signing secret for dashboard sessions |
+| `vault_hermes_dashboard_basic_auth_password_hash` | Preferred username/password auth credential |
+| `vault_hermes_dashboard_basic_auth_password` | Plaintext bootstrap alternative to the password hash |
+
 ### group_vars/beszel_agents/vault.yml
 
 Beszel generates agent registration tokens in the hub UI after the first hub
@@ -561,6 +570,12 @@ make deploy-migrate-development-products
 make deploy-infra-gateway
 make deploy-beszel
 make deploy-beszel-agents
+
+# Hermes Agent Web Dashboard on mac-mini:
+# 1. Create group_vars/hermes/vault.yml with dashboard basic auth.
+# 2. Deploy the native LaunchAgent, then refresh Traefik/TinyAuth routing.
+make deploy-hermes
+make deploy-infra-gateway
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites

@@ -1,0 +1,12 @@
+---
+- name: Deploy Hermes Agent dashboard (macOS)
+  hosts: hermes
+  become: false
+  gather_facts: yes
+  # macOS SSH sessions do not source ~/.zprofile, so pin the paths where
+  # Homebrew and the Hermes user install place binaries.
+  environment:
+    PATH: "{{ ansible_user_dir }}/.local/bin:{{ ansible_user_dir }}/.hermes/bin:{{ ansible_user_dir }}/.hermes/node/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+  roles:
+    - hermes

@@ -91,6 +91,8 @@ services:
       tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
       tinyauth.apps.openclaw.config.domain: "claw.{{ traefik_domain }}"
       tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.hermes.config.domain: "hermes.{{ traefik_domain }}"
+      tinyauth.apps.hermes.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.searxng.config.domain: "search.{{ traefik_domain }}"
       tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
     logging:

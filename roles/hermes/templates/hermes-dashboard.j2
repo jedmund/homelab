@@ -1,0 +1,19 @@
+#!/bin/sh
+# {{ ansible_managed }}
+set -eu
+
+export PATH="{{ hermes_path }}"
+export HOME="{{ ansible_user_dir }}"
+export HERMES_HOME="{{ hermes_home }}"
+
+if [ -f "{{ hermes_env_file }}" ]; then
+  set -a
+  . "{{ hermes_env_file }}"
+  set +a
+fi
+
+exec "{{ hermes_bin }}" dashboard \
+  --host "{{ hermes_dashboard_host }}" \
+  --port "{{ hermes_dashboard_port }}" \
+  --no-open{% if hermes_dashboard_insecure %} \
+  --insecure{% endif %}

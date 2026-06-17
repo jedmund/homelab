@@ -398,6 +398,19 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Hermes Agent Web Dashboard - hermes.{{ traefik_domain }}
+    # Native macOS LaunchAgent on mac-mini. Hermes still enforces its
+    # own dashboard auth gate because the service binds non-loopback.
+    hermes:
+      rule: "Host(`hermes.{{ traefik_domain }}`)"
+      service: hermes
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # ========== Monitoring ==========
 
     # Netdata API bypass for Line widgets (no auth)
@@ -587,6 +600,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mac_mini_ip }}:18789"
+
+    hermes:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mac_mini_ip }}:9119"
 
   middlewares:
     yardsale-strip-images:
