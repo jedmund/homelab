@@ -6,6 +6,7 @@ services:
     container_name: frps
     image: {{ frp_image }}
     restart: {{ restart_policy }}
+    command: ["-c", "/etc/frp/frps.toml"]
     networks:
       - proxy
     ports:
