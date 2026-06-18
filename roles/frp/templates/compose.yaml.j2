@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  frps:
+    container_name: frps
+    image: {{ frp_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    ports:
+      - "{{ frp_bind_port }}:{{ frp_bind_port }}"
+    volumes:
+      - ./config:/etc/frp
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.frp.rule: "Host(`{{ frp_domain }}`)"
+      traefik.http.routers.frp.entrypoints: "websecure"
+      traefik.http.routers.frp.tls.certresolver: "letsencrypt"
+      traefik.http.services.frp.loadbalancer.server.port: "{{ frp_dashboard_port }}"
+      traefik.http.routers.frp.middlewares: "tinyauth@file"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

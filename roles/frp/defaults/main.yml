@@ -1,0 +1,17 @@
+---
+# Stack identity
+stack_name: frp
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# frp settings
+frp_image: docker.io/fatedier/frps:v0.63.0
+frp_bind_port: 7000
+frp_dashboard_port: 7500
+frp_dashboard_user: admin
+frp_subdomain_host: tun.atelier.house
+frp_domain: frp.tun.atelier.house
+
+# Secrets defined in vault:
+# frp_token, frp_dashboard_password
+frp_token: "{{ vault_frp_token }}"
+frp_dashboard_password: "{{ vault_frp_dashboard_password }}"

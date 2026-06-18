@@ -1,0 +1,6 @@
+---
+- name: Deploy frp stack
+  hosts: frp
+  become: true
+  roles:
+    - frp
