@@ -1,8 +1,9 @@
 # {{ ansible_managed }}
-bind_addr = "0.0.0.0"
-bind_port = {{ frp_bind_port }}
+bindAddr = "0.0.0.0"
+bindPort = {{ frp_bind_port }}
 
 # Authentication
+auth.method = "token"
 auth.token = "{{ frp_token }}"
 
 # Dashboard
@@ -12,9 +13,9 @@ webServer.user = "{{ frp_dashboard_user }}"
 webServer.password = "{{ frp_dashboard_password }}"
 
 # Subdomain hosting
-vhost_http_port = 0
-vhost_https_port = 0
-subdomain_host = "{{ frp_subdomain_host }}"
+vhostHTTPPort = 0
+vhostHTTPSPort = 0
+subdomainHost = "{{ frp_subdomain_host }}"
 
 # Logging
 log.to = "console"
