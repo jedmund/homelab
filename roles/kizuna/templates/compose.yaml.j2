@@ -42,6 +42,12 @@ services:
     command: ["bundle", "exec", "sidekiq"]
     restart: {{ restart_policy }}
     networks:
+      # proxy (not just backend) is required for egress: `backend` is an
+      # internal: true network with no gateway, and the worker runs the
+      # enrichment jobs that fetch external URLs and call the embedding/LLM
+      # host (ai.atelier.house). Without this the jobs fail with
+      # "Network is unreachable". kizuna-api carries proxy for the same reason.
+      - proxy
       - backend
     env_file:
       - ./env/api.env
