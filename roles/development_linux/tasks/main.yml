@@ -1,0 +1,135 @@
+---
+# Development (Linux) agent tooling — nuc-mini. User-mode (no become).
+
+# --- Node runtime via mise -------------------------------------------------
+
+- name: Install mise (user-mode) if missing
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://mise.run | sh
+  args:
+    executable: /bin/bash
+    creates: "{{ mise_bin }}"
+
+- name: Activate mise in ~/.zshrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_user_dir }}/.zshrc"
+    marker: "# {mark} ANSIBLE managed — mise"
+    create: true
+    mode: '0644'
+    block: |
+      eval "$({{ mise_bin }} activate zsh)"
+
+- name: Install mise-managed tools (node, fd)
+  ansible.builtin.command: "{{ mise_bin }} use -g {{ item }}"
+  args:
+    creates: "{{ mise_shims }}/{{ 'node' if 'node' in item else 'fd' }}"
+  loop: "{{ dev_linux_mise_tools }}"
+
+# --- Pi --------------------------------------------------------------------
+
+- name: Install Pi globally via npm (mise node)
+  community.general.npm:
+    name: "{{ pi_npm_package }}"
+    state: latest
+    global: true
+    executable: "{{ mise_node_bin }}/npm"
+  environment:
+    PATH: "{{ mise_node_bin }}:{{ ansible_env.PATH }}"
+
+- name: Ensure Pi config directory exists
+  ansible.builtin.file:
+    path: "{{ pi_agent_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Pi static config (settings)
+  ansible.builtin.copy:
+    src: pi-settings.json
+    dest: "{{ pi_agent_dir }}/settings.json"
+    mode: '0644'
+
+- name: Deploy Pi models.json (atelier provider key from vault)
+  ansible.builtin.template:
+    src: pi-models.json.j2
+    dest: "{{ pi_agent_dir }}/models.json"
+    mode: '0644'
+
+- name: Deploy Pi config trees (agents, prompts, skills, extensions)
+  ansible.builtin.copy:
+    src: "pi-{{ item }}/"
+    dest: "{{ pi_agent_dir }}/{{ item }}/"
+    mode: '0644'
+    directory_mode: '0755'
+  loop:
+    - agents
+    - prompts
+    - skills
+    - extensions
+
+# --- Opencode --------------------------------------------------------------
+
+- name: Install Opencode via official installer if missing
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL {{ opencode_install_url }} | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ opencode_bin }}"
+
+- name: Ensure Opencode config directory exists
+  ansible.builtin.file:
+    path: "{{ opencode_config_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy opencode.jsonc (atelier key from vault, host-local paths)
+  ansible.builtin.template:
+    src: opencode.jsonc.j2
+    dest: "{{ opencode_config_dir }}/opencode.jsonc"
+    mode: '0644'
+
+- name: Deploy opencode plugin manifest
+  ansible.builtin.copy:
+    src: opencode-package.json
+    dest: "{{ opencode_config_dir }}/package.json"
+    mode: '0644'
+  register: _opencode_pkg
+
+- name: Install opencode plugin dependencies
+  community.general.npm:
+    path: "{{ opencode_config_dir }}"
+    executable: "{{ mise_node_bin }}/npm"
+  environment:
+    PATH: "{{ mise_node_bin }}:{{ ansible_env.PATH }}"
+  when: _opencode_pkg is changed
+
+# --- Edra MCP server (launched by Opencode over stdio) ---------------------
+# Tagged `edra` so it can be skipped (`--skip-tags edra`) when the host
+# lacks GitHub access. Private repo: clone needs a deploy key / agent fwd.
+
+- name: Clone Edra MCP server
+  ansible.builtin.git:
+    repo: "{{ edra_repo }}"
+    dest: "{{ edra_dir }}"
+    version: "{{ edra_version }}"
+    update: false
+    accept_hostkey: true
+  tags: [edra]
+
+- name: Install Edra dependencies
+  community.general.npm:
+    path: "{{ edra_dir }}"
+    executable: "{{ mise_node_bin }}/npm"
+  environment:
+    PATH: "{{ mise_node_bin }}:{{ ansible_env.PATH }}"
+  tags: [edra]
+
+- name: Build Edra
+  ansible.builtin.command: "{{ mise_node_bin }}/npm run build"
+  args:
+    chdir: "{{ edra_dir }}"
+    creates: "{{ edra_dir }}/dist/index.js"
+  environment:
+    PATH: "{{ mise_node_bin }}:{{ ansible_env.PATH }}"
+  tags: [edra]

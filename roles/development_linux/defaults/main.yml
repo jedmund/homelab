@@ -1,0 +1,46 @@
+---
+# Development (Linux) agent tooling on nuc-mini. Installs the Pi and
+# Opencode coding agents the same way they were brought up by hand:
+# mise-managed Node for Pi (npm global), the official standalone
+# installer for Opencode, fd for Pi's file search, and the Edra MCP
+# server that Opencode's config launches over stdio. User-mode install
+# (no become) — these are the `justin` user's CLI tools, not a service.
+
+stack_name: development_linux
+
+# Node + mise. mise lives in ~/.local/bin; its shims/installs sit under
+# ~/.local/share/mise. node_version is the major mise pins (`node@24`).
+node_version: "24"
+mise_bin: "{{ ansible_user_dir }}/.local/bin/mise"
+mise_shims: "{{ ansible_user_dir }}/.local/share/mise/shims"
+mise_node_bin: "{{ ansible_user_dir }}/.local/share/mise/installs/node/{{ node_version }}/bin"
+
+# mise-managed extra tools (besides node). fd backs Pi's file search.
+dev_linux_mise_tools:
+  - "node@{{ node_version }}"
+  - "fd@latest"
+
+# Pi (@earendil-works/pi-coding-agent). Config tree lives in ~/.pi/agent.
+# models.json carries the atelier vLLM provider key (vaulted); the rest
+# of the tree (agents/prompts/skills/extensions/settings) is static.
+pi_npm_package: "@earendil-works/pi-coding-agent"
+pi_agent_dir: "{{ ansible_user_dir }}/.pi/agent"
+
+# Opencode. The official installer drops a standalone binary in
+# ~/.opencode/bin and appends its own PATH line to ~/.zshrc.
+opencode_install_url: "https://opencode.ai/install"
+opencode_bin: "{{ ansible_user_dir }}/.opencode/bin/opencode"
+opencode_config_dir: "{{ ansible_user_dir }}/.config/opencode"
+
+# Edra MCP server — a self-developed stdio MCP server that Opencode's
+# opencode.jsonc launches as `node <edra_dir>/dist/index.js`. Cloned and
+# built on the host. NOTE: edra_repo is private; the host needs GitHub
+# access (deploy key / agent forwarding) for the clone to succeed.
+edra_repo: "git@github.com:jedmund/edra-mcp-server.git"
+edra_version: "claude/edra-mcp-server-011CUqe2VzjUpXpkXzfr2ht7"
+edra_dir: "{{ ansible_user_dir }}/Developer/Personal/edra-mcp-server"
+
+# Atelier vLLM API key (LAN/travel-safe key for ai.atelier.house). Real
+# value comes from group_vars/development_linux/vault.yml; empty default
+# keeps the templates rendering on a first run without the vault.
+atelier_vllm_api_key: ""

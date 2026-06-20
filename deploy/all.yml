@@ -179,6 +179,10 @@
 - import_playbook: development_macos.yml
   tags: [dev, development_macos]
 
+# Development (Linux) agent tooling - Pi + Opencode on nuc-mini
+- import_playbook: development_linux.yml
+  tags: [dev, development_linux]
+
 # Paseo daemon (native macOS install on mac-mini)
 - import_playbook: paseo_daemon.yml
   tags: [dev, paseo_daemon]
