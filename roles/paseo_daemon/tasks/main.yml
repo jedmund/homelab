@@ -55,6 +55,17 @@
     executable: "{{ paseo_node_bin }}/npm"
   notify: Reload paseo LaunchAgent
 
+- name: Install npm-based coding-agent CLIs globally (daemon-visible)
+  community.general.npm:
+    name: "{{ item }}"
+    state: latest
+    global: true
+    executable: "{{ paseo_node_bin }}/npm"
+  loop: "{{ paseo_agent_npm_packages }}"
+  # No daemon reload on purpose: the daemon resolves agent executables
+  # from PATH on each provider-snapshot refresh, so a newly installed CLI
+  # is picked up live without bouncing the LaunchAgent.
+
 - name: Ensure Paseo state directory exists
   ansible.builtin.file:
     path: "{{ paseo_home }}"
