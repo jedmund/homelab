@@ -284,6 +284,10 @@ deploy-kizuna: ## Deploy Kizuna stack (kizuna-api + kizuna-app + worker + pg + r
 	@echo "$(BLUE)Deploying Kizuna stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/kizuna.yml $(VAULT_FLAG)
 
+deploy-frp: ## Deploy frp tunnel proxy
+	@echo "$(BLUE)Deploying frp tunnel proxy...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/frp.yml $(VAULT_FLAG)
+
 deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)

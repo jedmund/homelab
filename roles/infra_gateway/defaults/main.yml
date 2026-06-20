@@ -58,6 +58,9 @@ ddclient_atelier_subdomains:
   - strudel.atelier.house
   - track.atelier.house
   - tr.atelier.house
+  - tun.atelier.house
+  - "*.tun.atelier.house"
+  - frp.tun.atelier.house
   - tv.atelier.house
   - ups.atelier.house
   - watch.atelier.house
