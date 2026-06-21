@@ -1,0 +1,105 @@
+---
+# glm52-listen product stack: self-hosted listen-with-friends.
+# Two-source build (frontend SPA + Rails API) on the host via compose
+# `build:` directives, mirroring the album_sort pattern.
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "{{ config_base }}" }
+    - { path: "{{ config_base }}/env", mode: "0700" }
+    # Bind-mount target for album art. The Rails image runs as uid 1000
+    # (user 'rails'); the host-side dir must be owned by that uid so the
+    # container can write extracted cover art.
+    - { path: "{{ config_base }}/art", owner: "1000", group: "1000" }
+
+- name: Pull latest listen-glm52-app source
+  ansible.builtin.git:
+    repo: "{{ glm52_listen_app_repo }}"
+    dest: "{{ glm52_listen_app_source_path }}"
+    version: "{{ glm52_listen_app_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
+
+- name: Pull latest listen-glm52-api source
+  ansible.builtin.git:
+    repo: "{{ glm52_listen_api_repo }}"
+    dest: "{{ glm52_listen_api_source_path }}"
+    version: "{{ glm52_listen_api_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - api
+    - db
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    build: always
+    # Both services use local-only tags via pull_policy: build in the
+    # compose template. pull: policy makes docker compose honor that.
+    pull: policy
+  register: compose_result
+
+- name: Print post-deploy reminder
+  ansible.builtin.debug:
+    msg: |
+      {{ stack_name }} stack deployed.
+
+      The database schema is bootstrapped automatically by the one-shot
+      `migrate` service before api/worker/watcher start (idempotent), so no
+      manual db:prepare is needed.
+
+      First-time setup:
+        1. Register the app in PocketID and set the OIDC vault entries below,
+           then redeploy. Redirect URI to register:
+             {{ glm52_listen_oidc_redirect_uri }}
+        2. The library populates automatically (watcher + nightly scan). To
+           force an immediate first scan:
+             docker compose -f {{ config_base }}/compose.yaml exec api bin/rails runner 'LibraryScanner.new.call'
+        3. Open https://{{ glm52_listen_app_domain }} and sign in via OIDC.
+
+      If album art isn't showing on an existing deploy (the original deploy
+      hit this — worker was missing ART_DIR + the named volume was root-owned,
+      so 20k+ tracks got marked metadata_status=failed):
+        docker compose -f {{ config_base }}/compose.yaml exec api bin/rails library:backfill_art
+      Re-extracts cover art for every has_art=true track whose file is missing
+      on disk, and resets metadata_status to 'ok' for tracks that originally
+      failed purely because art persistence raised.
+
+      Vault entries this role consumes (see group_vars/glm52_listen/vault.yml):
+        vault_glm52_listen_db_password
+        vault_glm52_listen_secret_key_base
+        vault_glm52_listen_oidc_client_id
+        vault_glm52_listen_oidc_client_secret
+        vault_glm52_listen_admin_emails
+        vault_glm52_listen_lastfm_api_key       (optional)
+        vault_glm52_listen_lastfm_api_secret    (optional)

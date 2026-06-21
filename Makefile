@@ -162,6 +162,10 @@ deploy-album-sort: ## Deploy Album Sort
 	@echo "$(BLUE)Deploying Album Sort...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
 
+deploy-glm52-listen: ## Deploy glm52-listen (listen-with-friends)
+	@echo "$(BLUE)Deploying glm52-listen...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/glm52_listen.yml $(VAULT_FLAG)
+
 deploy-romm: ## Deploy RomM
 	@echo "$(BLUE)Deploying RomM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/romm.yml $(VAULT_FLAG)
