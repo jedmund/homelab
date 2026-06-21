@@ -69,15 +69,18 @@
     msg: |
       {{ stack_name }} stack deployed.
 
+      The database schema is bootstrapped automatically by the one-shot
+      `migrate` service before api/worker/watcher start (idempotent), so no
+      manual db:prepare is needed.
+
       First-time setup:
-        1. Bootstrap the database (idempotent, safe to re-run):
-             docker compose -f {{ config_base }}/compose.yaml exec api bin/rails db:prepare
-        2. Populate the library (one-time; the watcher keeps it fresh after):
+        1. Register the app in PocketID and set the OIDC vault entries below,
+           then redeploy. Redirect URI to register:
+             {{ glm52_listen_oidc_redirect_uri }}
+        2. The library populates automatically (watcher + nightly scan). To
+           force an immediate first scan:
              docker compose -f {{ config_base }}/compose.yaml exec api bin/rails runner 'LibraryScanner.new.call'
         3. Open https://{{ glm52_listen_app_domain }} and sign in via OIDC.
-
-      OIDC redirect URI to register in PocketID:
-        {{ glm52_listen_oidc_redirect_uri }}
 
       Vault entries this role consumes (see group_vars/glm52_listen/vault.yml):
         vault_glm52_listen_db_password

@@ -70,7 +70,57 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     mem_limit: {{ glm52_listen_api_mem_limit }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # ------------------------------------------------- One-shot DB bootstrap (migrate)
+  migrate:
+    container_name: {{ stack_name }}-migrate
+    image: {{ stack_name }}/api:local
+    pull_policy: never   # built by the api service
+    restart: "no"
+    # Inline so there's no single-file bind mount (docker would create a missing
+    # mount source as a directory before this container's first start).
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        # Primary schema (idempotent: loads db/schema.rb on first run, migrates after).
+        bin/rails db:prepare
+        # Solid Queue/Cache/Cable share the primary DATABASE_URL here, so
+        # db:prepare skips their schemas (the physical DB already exists). Load
+        # each schema file directly, but only when its tables are missing, so a
+        # redeploy doesn't drop queued jobs or the cache. (db:schema:load:NAME
+        # can't run in production: it chains into a destructive test-purge that
+        # has no config in this single-test-db setup.)
+        bin/rails runner '
+        { queue: "solid_queue_jobs", cache: "solid_cache_entries", cable: "solid_cable_messages" }.each do |db, sentinel|
+          ActiveRecord::Base.establish_connection(db)
+          if ActiveRecord::Base.connection.table_exists?(sentinel)
+            puts "#{db} schema already present, skipping"
+          else
+            puts "loading #{db} schema"
+            load Rails.root.join("db/#{db}_schema.rb").to_s
+          end
+        end
+        '
+    networks:
+      - default
+    env_file:
+      - ./env/api.env
+    environment:
+      - TZ={{ timezone }}
+      - RAILS_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
     logging:
       driver: {{ logging_driver }}
       options:
@@ -97,8 +147,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      api:
-        condition: service_started
+      migrate:
+        condition: service_completed_successfully
     mem_limit: {{ glm52_listen_worker_mem_limit }}
     logging:
       driver: {{ logging_driver }}
@@ -126,8 +176,10 @@ services:
     volumes:
       - music:/music:ro
     depends_on:
-      api:
-        condition: service_started
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     mem_limit: {{ glm52_listen_watcher_mem_limit }}
     logging:
       driver: {{ logging_driver }}
