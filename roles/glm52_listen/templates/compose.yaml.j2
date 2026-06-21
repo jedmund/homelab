@@ -53,6 +53,10 @@ services:
       TZ: "{{ timezone }}"
       RAILS_ENV: production
       RAILS_LOG_LEVEL: info
+      # Redis backs the PresenceCoordinator (online membership, DJ ownership,
+      # drop/teardown timers) so the web process and the Solid Queue worker
+      # agree on room state. No password, so it lives here, not in api.env.
+      REDIS_URL: "redis://redis:6379/1"
       MUSIC_LIBRARY_DIR: "{{ glm52_listen_music_dir }}"
       TRANSCODE_CACHE_DIR: /tmp/transcode
       ART_DIR: /data/art
@@ -70,6 +74,8 @@ services:
       - {{ config_base }}/art:/data/art
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -146,6 +152,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     mem_limit: {{ glm52_listen_worker_mem_limit }}
@@ -209,12 +217,40 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  # --------------------------------------------------- Redis (presence + DJ)
+  redis:
+    container_name: {{ stack_name }}-redis
+    image: redis:7-alpine
+    restart: {{ restart_policy }}
+    # Light AOF-less persistence so room/DJ state survives a restart; the
+    # data is ephemeral by nature, so a coarse snapshot is plenty.
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    networks:
+      - default
+    environment:
+      - TZ={{ timezone }}
+    volumes:
+      - {{ glm52_listen_redis_volume }}:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   music:
     name: music
     external: true
   {{ glm52_listen_pg_volume }}:
     name: {{ glm52_listen_pg_volume }}
+  {{ glm52_listen_redis_volume }}:
+    name: {{ glm52_listen_redis_volume }}
 
 networks:
   proxy:

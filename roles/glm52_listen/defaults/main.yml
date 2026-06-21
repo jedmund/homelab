@@ -88,6 +88,9 @@ glm52_listen_musicbrainz_host: "https://musicbrainz.atelier.house"
 # Storage volumes
 # ---------------------------------------------------------------------------
 glm52_listen_pg_volume: glm52-listen-pg-data
+# Redis persistence (PresenceCoordinator: online membership, DJ ownership,
+# drop/teardown timers). State is ephemeral, so a coarse RDB snapshot is fine.
+glm52_listen_redis_volume: glm52-listen-redis-data
 # Album art lives in a bind-mounted host directory ({{ config_base }}/art)
 # so Ansible can manage ownership. The Rails image runs as uid 1000; the
 # role pre-creates the directory with that owner.
