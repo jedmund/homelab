@@ -50,20 +50,21 @@ services:
       # Secrets only (SECRET_KEY_BASE, DATABASE_URL, OIDC + Last.fm keys).
       - ./env/api.env
     environment: &api_env
-      - TZ={{ timezone }}
-      - RAILS_ENV=production
-      - RAILS_LOG_LEVEL=info
-      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
-      - TRANSCODE_CACHE_DIR=/tmp/transcode
-      - ART_DIR=/data/art
-      - FRONTEND_ORIGINS={{ glm52_listen_app_origin }}
-      - CORS_ORIGINS={{ glm52_listen_app_origin }}
-      - CABLE_ALLOWED_ORIGINS={{ glm52_listen_app_origin }}
-      - OIDC_ISSUER={{ glm52_listen_oidc_issuer }}
-      - OIDC_SCOPES={{ glm52_listen_oidc_scopes }}
-      - OIDC_REDIRECT_URI={{ glm52_listen_oidc_redirect_uri }}
-      - ADMIN_EMAILS={{ glm52_listen_admin_emails }}
-      - DEV_LOGIN=false
+      TZ: "{{ timezone }}"
+      RAILS_ENV: production
+      RAILS_LOG_LEVEL: info
+      MUSIC_LIBRARY_DIR: "{{ glm52_listen_music_dir }}"
+      TRANSCODE_CACHE_DIR: /tmp/transcode
+      ART_DIR: /data/art
+      MUSICBRAINZ_HOST: "{{ glm52_listen_musicbrainz_host }}"
+      FRONTEND_ORIGINS: "{{ glm52_listen_app_origin }}"
+      CORS_ORIGINS: "{{ glm52_listen_app_origin }}"
+      CABLE_ALLOWED_ORIGINS: "{{ glm52_listen_app_origin }}"
+      OIDC_ISSUER: "{{ glm52_listen_oidc_issuer }}"
+      OIDC_SCOPES: "{{ glm52_listen_oidc_scopes }}"
+      OIDC_REDIRECT_URI: "{{ glm52_listen_oidc_redirect_uri }}"
+      ADMIN_EMAILS: "{{ glm52_listen_admin_emails }}"
+      DEV_LOGIN: "false"
     volumes: &api_volumes
       - music:/music:ro
       - {{ config_base }}/art:/data/art
@@ -140,7 +141,7 @@ services:
       - ./env/api.env
     environment:
       <<: *api_env
-      - RAILS_LOG_LEVEL=info
+      RAILS_LOG_LEVEL: info
     volumes: *api_volumes
     depends_on:
       postgres:
@@ -168,7 +169,7 @@ services:
     environment:
       <<: *api_env
       # NFS mounts don't always emit inotify events — poll.
-      - LISTENER_POLLING=true
+      LISTENER_POLLING: "true"
     volumes: *api_volumes
     depends_on:
       postgres:

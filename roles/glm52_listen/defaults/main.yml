@@ -80,6 +80,11 @@ glm52_listen_lastfm_api_key: "{{ vault_glm52_listen_lastfm_api_key | default('')
 glm52_listen_lastfm_api_secret: "{{ vault_glm52_listen_lastfm_api_secret | default('') }}"
 
 # ---------------------------------------------------------------------------
+# MusicBrainz metadata enrichment + cover art (self-hosted instance)
+# ---------------------------------------------------------------------------
+glm52_listen_musicbrainz_host: "https://musicbrainz.atelier.house"
+
+# ---------------------------------------------------------------------------
 # Storage volumes
 # ---------------------------------------------------------------------------
 glm52_listen_pg_volume: glm52-listen-pg-data
