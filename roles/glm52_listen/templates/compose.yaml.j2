@@ -49,7 +49,7 @@ services:
     env_file:
       # Secrets only (SECRET_KEY_BASE, DATABASE_URL, OIDC + Last.fm keys).
       - ./env/api.env
-    environment:
+    environment: &api_env
       - TZ={{ timezone }}
       - RAILS_ENV=production
       - RAILS_LOG_LEVEL=info
@@ -64,9 +64,9 @@ services:
       - OIDC_REDIRECT_URI={{ glm52_listen_oidc_redirect_uri }}
       - ADMIN_EMAILS={{ glm52_listen_admin_emails }}
       - DEV_LOGIN=false
-    volumes:
+    volumes: &api_volumes
       - music:/music:ro
-      - {{ glm52_listen_art_volume }}:/data/art
+      - {{ config_base }}/art:/data/art
     depends_on:
       postgres:
         condition: service_healthy
@@ -139,11 +139,9 @@ services:
     env_file:
       - ./env/api.env
     environment:
-      - TZ={{ timezone }}
-      - RAILS_ENV=production
-      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
-    volumes:
-      - music:/music:ro
+      <<: *api_env
+      - RAILS_LOG_LEVEL=info
+    volumes: *api_volumes
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,13 +166,10 @@ services:
     env_file:
       - ./env/api.env
     environment:
-      - TZ={{ timezone }}
-      - RAILS_ENV=production
-      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
+      <<: *api_env
       # NFS mounts don't always emit inotify events — poll.
       - LISTENER_POLLING=true
-    volumes:
-      - music:/music:ro
+    volumes: *api_volumes
     depends_on:
       postgres:
         condition: service_healthy
@@ -219,8 +214,6 @@ volumes:
     external: true
   {{ glm52_listen_pg_volume }}:
     name: {{ glm52_listen_pg_volume }}
-  {{ glm52_listen_art_volume }}:
-    name: {{ glm52_listen_art_volume }}
 
 networks:
   proxy:

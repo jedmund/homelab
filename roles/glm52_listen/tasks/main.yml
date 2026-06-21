@@ -5,13 +5,18 @@
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
+    owner: "{{ item.owner | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
   loop:
-    - "{{ config_base }}"
-    - "{{ config_base }}/env"
+    - { path: "{{ config_base }}" }
+    - { path: "{{ config_base }}/env", mode: "0700" }
+    # Bind-mount target for album art. The Rails image runs as uid 1000
+    # (user 'rails'); the host-side dir must be owned by that uid so the
+    # container can write extracted cover art.
+    - { path: "{{ config_base }}/art", owner: "1000", group: "1000" }
 
 - name: Pull latest listen-glm52-app source
   ansible.builtin.git:
@@ -81,6 +86,14 @@
            force an immediate first scan:
              docker compose -f {{ config_base }}/compose.yaml exec api bin/rails runner 'LibraryScanner.new.call'
         3. Open https://{{ glm52_listen_app_domain }} and sign in via OIDC.
+
+      If album art isn't showing on an existing deploy (the original deploy
+      hit this — worker was missing ART_DIR + the named volume was root-owned,
+      so 20k+ tracks got marked metadata_status=failed):
+        docker compose -f {{ config_base }}/compose.yaml exec api bin/rails library:backfill_art
+      Re-extracts cover art for every has_art=true track whose file is missing
+      on disk, and resets metadata_status to 'ok' for tracks that originally
+      failed purely because art persistence raised.
 
       Vault entries this role consumes (see group_vars/glm52_listen/vault.yml):
         vault_glm52_listen_db_password

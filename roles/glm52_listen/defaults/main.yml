@@ -83,7 +83,9 @@ glm52_listen_lastfm_api_secret: "{{ vault_glm52_listen_lastfm_api_secret | defau
 # Storage volumes
 # ---------------------------------------------------------------------------
 glm52_listen_pg_volume: glm52-listen-pg-data
-glm52_listen_art_volume: glm52-listen-art
+# Album art lives in a bind-mounted host directory ({{ config_base }}/art)
+# so Ansible can manage ownership. The Rails image runs as uid 1000; the
+# role pre-creates the directory with that owner.
 
 # ---------------------------------------------------------------------------
 # Resource limits (the worker + watcher + transcoder can be hungry)
