@@ -1,0 +1,89 @@
+---
+# glm52-listen product stack: self-hosted listen-with-friends.
+# Two-source build (frontend SPA + Rails API) on the host via compose
+# `build:` directives, mirroring the album_sort pattern.
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Pull latest listen-glm52-app source
+  ansible.builtin.git:
+    repo: "{{ glm52_listen_app_repo }}"
+    dest: "{{ glm52_listen_app_source_path }}"
+    version: "{{ glm52_listen_app_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
+
+- name: Pull latest listen-glm52-api source
+  ansible.builtin.git:
+    repo: "{{ glm52_listen_api_repo }}"
+    dest: "{{ glm52_listen_api_source_path }}"
+    version: "{{ glm52_listen_api_version | default('main') }}"
+    force: true
+    accept_hostkey: true
+  become: false
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - api
+    - db
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    build: always
+    # Both services use local-only tags via pull_policy: build in the
+    # compose template. pull: policy makes docker compose honor that.
+    pull: policy
+  register: compose_result
+
+- name: Print post-deploy reminder
+  ansible.builtin.debug:
+    msg: |
+      {{ stack_name }} stack deployed.
+
+      First-time setup:
+        1. Bootstrap the database (idempotent, safe to re-run):
+             docker compose -f {{ config_base }}/compose.yaml exec api bin/rails db:prepare
+        2. Populate the library (one-time; the watcher keeps it fresh after):
+             docker compose -f {{ config_base }}/compose.yaml exec api bin/rails runner 'LibraryScanner.new.call'
+        3. Open https://{{ glm52_listen_app_domain }} and sign in via OIDC.
+
+      OIDC redirect URI to register in PocketID:
+        {{ glm52_listen_oidc_redirect_uri }}
+
+      Vault entries this role consumes (see group_vars/glm52_listen/vault.yml):
+        vault_glm52_listen_db_password
+        vault_glm52_listen_secret_key_base
+        vault_glm52_listen_oidc_client_id
+        vault_glm52_listen_oidc_client_secret
+        vault_glm52_listen_admin_emails
+        vault_glm52_listen_lastfm_api_key       (optional)
+        vault_glm52_listen_lastfm_api_secret    (optional)

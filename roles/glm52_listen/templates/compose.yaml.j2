@@ -1,0 +1,178 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  # ---------------------------------------------------------------- App (SPA)
+  app:
+    container_name: {{ stack_name }}-app
+    build:
+      context: {{ glm52_listen_app_source_path }}
+      args:
+        # Vite inlines this at build time; absolute backend origin so the
+        # SPA can call the API cross-origin from the browser.
+        VITE_API_BASE: {{ glm52_listen_api_origin }}
+    image: {{ stack_name }}/app:local
+    pull_policy: build
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.{{ stack_name }}-app.rule: "Host(`{{ glm52_listen_app_domain }}`)"
+      traefik.http.routers.{{ stack_name }}-app.entrypoints: "websecure"
+      traefik.http.routers.{{ stack_name }}-app.tls.certresolver: "letsencrypt"
+      traefik.http.services.{{ stack_name }}-app.loadbalancer.server.port: "{{ glm52_listen_app_container_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # ---------------------------------------------------------------- API (Rails)
+  api:
+    container_name: {{ stack_name }}-api
+    build: {{ glm52_listen_api_source_path }}
+    image: {{ stack_name }}/api:local
+    pull_policy: build
+    restart: {{ restart_policy }}
+    command: ["bin/rails", "server", "-b", "0.0.0.0", "-p", "{{ glm52_listen_api_container_port }}"]
+    networks:
+      - proxy
+      - default
+    labels:
+      # The SPA talks to the API cross-origin, so it needs its own router.
+      traefik.enable: "true"
+      traefik.http.routers.{{ stack_name }}-api.rule: "Host(`{{ glm52_listen_api_domain }}`)"
+      traefik.http.routers.{{ stack_name }}-api.entrypoints: "websecure"
+      traefik.http.routers.{{ stack_name }}-api.tls.certresolver: "letsencrypt"
+      traefik.http.services.{{ stack_name }}-api.loadbalancer.server.port: "{{ glm52_listen_api_container_port }}"
+    env_file:
+      # Secrets only (SECRET_KEY_BASE, DATABASE_URL, OIDC + Last.fm keys).
+      - ./env/api.env
+    environment:
+      - TZ={{ timezone }}
+      - RAILS_ENV=production
+      - RAILS_LOG_LEVEL=info
+      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
+      - TRANSCODE_CACHE_DIR=/tmp/transcode
+      - ART_DIR=/data/art
+      - FRONTEND_ORIGINS={{ glm52_listen_app_origin }}
+      - CORS_ORIGINS={{ glm52_listen_app_origin }}
+      - CABLE_ALLOWED_ORIGINS={{ glm52_listen_app_origin }}
+      - OIDC_ISSUER={{ glm52_listen_oidc_issuer }}
+      - OIDC_SCOPES={{ glm52_listen_oidc_scopes }}
+      - OIDC_REDIRECT_URI={{ glm52_listen_oidc_redirect_uri }}
+      - ADMIN_EMAILS={{ glm52_listen_admin_emails }}
+      - DEV_LOGIN=false
+    volumes:
+      - music:/music:ro
+      - {{ glm52_listen_art_volume }}:/data/art
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: {{ glm52_listen_api_mem_limit }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # --------------------------------------------- Solid Queue worker (jobs/scrobbles)
+  worker:
+    container_name: {{ stack_name }}-worker
+    image: {{ stack_name }}/api:local
+    pull_policy: never   # built by the api service above
+    restart: {{ restart_policy }}
+    command: ["bin/rails", "solid_queue:start"]
+    networks:
+      - default
+    env_file:
+      - ./env/api.env
+    environment:
+      - TZ={{ timezone }}
+      - RAILS_ENV=production
+      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
+    volumes:
+      - music:/music:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    mem_limit: {{ glm52_listen_worker_mem_limit }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # ----------------------------------------------------- Library auto-rescan watcher
+  watcher:
+    container_name: {{ stack_name }}-watcher
+    image: {{ stack_name }}/api:local
+    pull_policy: never
+    restart: {{ restart_policy }}
+    command: ["bin/library-watcher"]
+    networks:
+      - default
+    env_file:
+      - ./env/api.env
+    environment:
+      - TZ={{ timezone }}
+      - RAILS_ENV=production
+      - MUSIC_LIBRARY_DIR={{ glm52_listen_music_dir }}
+      # NFS mounts don't always emit inotify events — poll.
+      - LISTENER_POLLING=true
+    volumes:
+      - music:/music:ro
+    depends_on:
+      api:
+        condition: service_started
+    mem_limit: {{ glm52_listen_watcher_mem_limit }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # ----------------------------------------------------------------- Postgres
+  postgres:
+    container_name: {{ stack_name }}-postgres
+    image: postgres:17-alpine
+    restart: {{ restart_policy }}
+    networks:
+      - default
+    env_file:
+      # POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD.
+      - ./env/db.env
+    environment:
+      - TZ={{ timezone }}
+    volumes:
+      - {{ glm52_listen_pg_volume }}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ glm52_listen_db_user }} -d {{ glm52_listen_db_name }}"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  music:
+    name: music
+    external: true
+  {{ glm52_listen_pg_volume }}:
+    name: {{ glm52_listen_pg_volume }}
+  {{ glm52_listen_art_volume }}:
+    name: {{ glm52_listen_art_volume }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  default:
+    name: {{ stack_name }}-internal

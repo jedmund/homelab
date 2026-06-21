@@ -144,6 +144,9 @@
 - import_playbook: album_sort.yml
   tags: [album_sort]
 
+- import_playbook: glm52_listen.yml
+  tags: [glm52_listen]
+
 - import_playbook: dawarich.yml
   tags: [dawarich]
 

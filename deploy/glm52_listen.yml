@@ -1,0 +1,6 @@
+---
+- name: Deploy glm52-listen stack
+  hosts: glm52_listen
+  become: true
+  roles:
+    - glm52_listen

@@ -1,0 +1,93 @@
+---
+# Stack identity
+stack_name: glm52-listen
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# ---------------------------------------------------------------------------
+# Source repositories (self-developed, built on the host via compose `build:`)
+# ---------------------------------------------------------------------------
+# App: SvelteKit SPA, builds to static files served by nginx.
+glm52_listen_app_repo: ssh://git@git.atelier.house:2222/jedmund/listen-glm52-app.git
+glm52_listen_app_source_path: /home/{{ ansible_user }}/listen-glm52-app
+glm52_listen_app_version: main
+
+# API: Rails 8 + ActionCable, also runs the Solid Queue worker and the
+# library watcher with different entrypoints (same image).
+glm52_listen_api_repo: ssh://git@git.atelier.house:2222/jedmund/listen-glm52-api.git
+glm52_listen_api_source_path: /home/{{ ansible_user }}/listen-glm52-api
+glm52_listen_api_version: main
+
+# ---------------------------------------------------------------------------
+# Domains (routed via Traefik on the proxy network)
+# Single-level subdomains so the `*.atelier.house` wildcard cert covers both.
+# The SPA and API are intentionally separate origins (cross-origin design with
+# a SameSite=None; Secure session cookie), so they get distinct hostnames.
+# ---------------------------------------------------------------------------
+glm52_listen_app_domain: listen.atelier.house
+glm52_listen_api_domain: listen-api.atelier.house
+glm52_listen_app_origin: "https://{{ glm52_listen_app_domain }}"
+glm52_listen_api_origin: "https://{{ glm52_listen_api_domain }}"
+
+# Container ports (internal)
+glm52_listen_app_container_port: 80   # nginx serves the SPA build
+glm52_listen_api_container_port: 3000 # Puma
+
+# ---------------------------------------------------------------------------
+# Database (postgres in-stack; data on a named volume)
+# ---------------------------------------------------------------------------
+glm52_listen_db_name: listen_production
+glm52_listen_db_user: listen
+# vault_glm52_listen_db_password — required, no default. App will fail to boot
+# until it is set.
+glm52_listen_db_password: "{{ vault_glm52_listen_db_password }}"
+
+# ---------------------------------------------------------------------------
+# Rails secret_key_base — generate with `bin/rails secret` once and vault it.
+# vault_glm52_listen_secret_key_base
+glm52_listen_secret_key_base: "{{ vault_glm52_listen_secret_key_base }}"
+
+# ---------------------------------------------------------------------------
+# OIDC (PocketID). client_id / client_secret come from vault; empty defaults
+# let templating succeed before the vault is populated, but the API will
+# reject OIDC attempts with 503 oidc_not_configured until they are set.
+# Redirect URI must match what's registered in PocketID admin:
+#   https://{{ glm52_listen_api_domain }}/auth/oidc/callback
+# vault_glm52_listen_oidc_client_id
+# vault_glm52_listen_oidc_client_secret
+glm52_listen_oidc_issuer: "https://id.atelier.house"
+glm52_listen_oidc_scopes: "openid email profile groups"
+glm52_listen_oidc_redirect_uri: "https://{{ glm52_listen_api_domain }}/auth/oidc/callback"
+glm52_listen_oidc_client_id: "{{ vault_glm52_listen_oidc_client_id | default('') }}"
+glm52_listen_oidc_client_secret: "{{ vault_glm52_listen_oidc_client_secret | default('') }}"
+
+# Comma-separated list of emails promoted to admin on first login.
+# Kept in vault since this is a public repo (no emails in defaults).
+# vault_glm52_listen_admin_emails
+glm52_listen_admin_emails: "{{ vault_glm52_listen_admin_emails | default('') }}"
+
+# ---------------------------------------------------------------------------
+# Music library — mounted from the shared NFS-backed `music` volume.
+# Path matches the rest of the homelab (album-sort, lidarr, copyparty, …).
+# ---------------------------------------------------------------------------
+glm52_listen_music_dir: /music
+
+# ---------------------------------------------------------------------------
+# Last.fm (optional). Both empty by default; the Settings page hides the
+# connect flow when these are unset.
+# vault_glm52_listen_lastfm_api_key
+# vault_glm52_listen_lastfm_api_secret
+glm52_listen_lastfm_api_key: "{{ vault_glm52_listen_lastfm_api_key | default('') }}"
+glm52_listen_lastfm_api_secret: "{{ vault_glm52_listen_lastfm_api_secret | default('') }}"
+
+# ---------------------------------------------------------------------------
+# Storage volumes
+# ---------------------------------------------------------------------------
+glm52_listen_pg_volume: glm52-listen-pg-data
+glm52_listen_art_volume: glm52-listen-art
+
+# ---------------------------------------------------------------------------
+# Resource limits (the worker + watcher + transcoder can be hungry)
+# ---------------------------------------------------------------------------
+glm52_listen_api_mem_limit: 1g
+glm52_listen_worker_mem_limit: 1g
+glm52_listen_watcher_mem_limit: 512m
