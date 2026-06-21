@@ -6,3 +6,9 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # Stash settings
 stash_image: stashapp/stash:latest
 stash_port: 9999
+
+# Stash is served behind the TinyAuth reverse-proxy authwall (z.atelier.house),
+# so its built-in authentication is redundant. When true, allow Stash to serve
+# without its own auth, reset the public-internet security tripwire if it fired,
+# and clear any stored credentials. See the stash route in roles/infra_gateway.
+stash_public_without_auth: true
