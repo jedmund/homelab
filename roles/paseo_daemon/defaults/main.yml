@@ -12,6 +12,15 @@ stack_name: paseo_daemon
 # node@24 install services both daemons.
 paseo_node_formula: node@24
 
+# Coding-agent CLIs the daemon brokers that ship as npm packages (Claude
+# Code and Codex come from their own installers). Installed into the same
+# brew node@24 npm prefix as @getpaseo/cli so the binaries land in
+# /opt/homebrew/bin — on the daemon's launchd PATH. An nvm/mise global
+# install resolves in an interactive shell but stays INVISIBLE to the
+# launchd daemon, so the agent shows "Not installed" in the Paseo client.
+paseo_agent_npm_packages:
+  - "@earendil-works/pi-coding-agent"
+
 # State directory (PASEO_HOME). Holds pairing tokens, agent state, etc.
 # Persisted across daemon restarts so paired devices stay paired.
 paseo_home: "{{ ansible_user_dir }}/.paseo"
