@@ -341,9 +341,13 @@ ai_models:
   - name: qwen3-embed-4b
     file: Qwen3-Embedding-4B-Q8_0.gguf
     group: embed
+    # Native context is 32K; YaRN extends to 128K with rope-scale 4.
+    # --yarn-orig-ctx pins the unscaled window so llama.cpp computes the
+    # scaling factor from the requested -c.
     args: >-
       -ngl 99 --embeddings --pooling last
-      -c 32768 -b 8192 --ubatch-size 8192
+      -c 131072 -b 8192 --ubatch-size 8192
+      --rope-scaling yarn --yarn-orig-ctx 32768
     ttl: 300
     aliases:
       - "qwen3-embedding:4b"
