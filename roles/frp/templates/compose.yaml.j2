@@ -15,11 +15,22 @@ services:
       - ./config:/etc/frp
     labels:
       traefik.enable: "true"
+      # Dashboard (authenticated). Higher priority so the exact host wins over
+      # the wildcard tunnel router below, which also matches frp.tun.*.
       traefik.http.routers.frp.rule: "Host(`{{ frp_domain }}`)"
+      traefik.http.routers.frp.priority: "100"
       traefik.http.routers.frp.entrypoints: "websecure"
       traefik.http.routers.frp.tls.certresolver: "letsencrypt"
+      traefik.http.routers.frp.service: "frp"
       traefik.http.services.frp.loadbalancer.server.port: "{{ frp_dashboard_port }}"
       traefik.http.routers.frp.middlewares: "tinyauth@file"
+      # Wildcard ingress for HTTP tunnels: any <name>.tun.atelier.house is
+      # forwarded to the frps vhost HTTP port, which routes by subdomain.
+      traefik.http.routers.frp-tunnels.rule: 'HostRegexp(`^[a-z0-9-]+\.{{ frp_subdomain_host | replace(".", "\\.") }}$`)'
+      traefik.http.routers.frp-tunnels.entrypoints: "websecure"
+      traefik.http.routers.frp-tunnels.tls.certresolver: "letsencrypt"
+      traefik.http.routers.frp-tunnels.service: "frp-tunnels"
+      traefik.http.services.frp-tunnels.loadbalancer.server.port: "{{ frp_vhost_http_port }}"
     logging:
       driver: {{ logging_driver }}
       options:

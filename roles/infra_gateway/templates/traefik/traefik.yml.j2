@@ -33,6 +33,7 @@ entryPoints:
             sans:
               - "*.{{ traefik_domain }}"
           - main: "*.sort.{{ traefik_domain }}"
+          - main: "*.tun.{{ traefik_domain }}"
 # Providers
 providers:
   docker:
