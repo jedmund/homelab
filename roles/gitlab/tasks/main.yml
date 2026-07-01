@@ -1,6 +1,23 @@
 ---
 # GitLab product stack: GitLab, Docker runner, and Renovate.
 
+# CI jobs on the Docker runner (Vite/Vitest, webpack, tsc --watch, etc.) each
+# open many per-file inotify watchers. The kernel default
+# fs.inotify.max_user_instances=128 is far too low: inotify_init() starts
+# returning EMFILE once a job crosses it, and the job dies with
+# "EMFILE: too many open files" during watcher setup even though no fds are
+# leaking (raising ulimit -n does NOT help — it's the instance cap, not the fd
+# cap). Raise it host-wide via a sysctl.d drop-in so it survives reboots and
+# applies to every runner container on the box.
+- name: Raise inotify instance limit for CI runner file watchers
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: "{{ gitlab_runner_inotify_max_user_instances }}"
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/99-gitlab-runner-inotify.conf
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

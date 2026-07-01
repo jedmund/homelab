@@ -27,6 +27,10 @@ gitlab_oidc_client_secret: ""
 gitlab_runner_image: gitlab/gitlab-runner:v17.5.2
 gitlab_runner_name: nuc-mini-docker
 gitlab_runner_concurrent: 4
+# Host inotify instance cap for CI file watchers (see tasks/main.yml). Kernel
+# default is 128, which Vite/Vitest jobs blow past → EMFILE. 1024 gives ample
+# headroom for the concurrent jobs above.
+gitlab_runner_inotify_max_user_instances: 1024
 gitlab_runner_default_image: alpine:latest
 gitlab_runner_log_level: info
 gitlab_runner_url: "http://gitlab"
