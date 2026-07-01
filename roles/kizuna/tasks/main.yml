@@ -55,6 +55,7 @@
     - api
     - postgres
     - garage
+    - screenshotter
   no_log: true
   notify: Restart {{ stack_name }} stack
 

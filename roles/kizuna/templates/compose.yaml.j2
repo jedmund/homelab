@@ -64,6 +64,30 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-screenshotter:
+    container_name: kizuna-screenshotter
+    # Node + Playwright sidecar. kizuna-api's CaptureScreenshotsJob (and the
+    # text-only FetchNodeContentJob) POST /capture here; the headless browser
+    # lives in this image, not the Rails one.
+    image: "{{ kizuna_screenshotter_image }}:{{ kizuna_screenshotter_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      # proxy for egress: the sidecar navigates arbitrary user-supplied URLs
+      # with a real browser, so it needs to reach the public internet (same
+      # reason kizuna-api/worker carry proxy; `backend` is internal: true with
+      # no gateway). backend so kizuna-api + kizuna-worker can reach it on the
+      # internal hostname. NOT fronted by Traefik — no public route; the shared
+      # secret + backend-only ingress are the guard.
+      - proxy
+      - backend
+    env_file:
+      - ./env/screenshotter.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-web:
     container_name: kizuna-web
     image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"

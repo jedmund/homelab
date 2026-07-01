@@ -19,6 +19,21 @@ kizuna_api_image_tag: latest
 kizuna_app_image: registry.atelier.house/kizuna/kizuna-app
 kizuna_app_image_tag: latest
 
+# ---- Screenshotter sidecar (Node + Playwright) ----
+# Captures URL screenshots + reader-mode page text for CaptureScreenshotsJob
+# / FetchNodeContentJob; the browser is quarantined here, out of the Rails
+# image. Built by kizuna-app CI from apps/screenshotter/Dockerfile and pushed
+# to a nested path under the kizuna-app project registry (same read_registry
+# deploy token covers it). Internal-only — no Traefik route; kizuna-api and
+# the worker reach it over the backend network at http://kizuna-screenshotter:4000.
+kizuna_screenshotter_image: registry.atelier.house/kizuna/kizuna-app/screenshotter
+kizuna_screenshotter_image_tag: latest
+# Shared secret: the API sends it as the X-Screenshot-Secret header and the
+# sidecar checks it. Generate once (`openssl rand -hex 32`) and store in the
+# vault; api.env and screenshotter.env read the same value. Blank leaves the
+# sidecar unauthenticated (dev only) and still lets the API call it.
+kizuna_screenshotter_secret: "{{ vault_kizuna_screenshotter_secret | default('') }}"
+
 # Registry auth. Use a single GitLab deploy token scoped to
 # `read_registry` at the kizuna group level so one credential covers
 # both project registries.
