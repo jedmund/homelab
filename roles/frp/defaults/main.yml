@@ -7,6 +7,10 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 frp_image: docker.io/fatedier/frps:v0.63.0
 frp_bind_port: 7000
 frp_dashboard_port: 7500
+# Internal HTTP vhost port for subdomain tunnels (type=http proxies).
+# Not published on the host; Traefik reaches it over the proxy network and
+# terminates TLS with the *.tun.atelier.house wildcard cert.
+frp_vhost_http_port: 8080
 frp_dashboard_user: admin
 frp_subdomain_host: tun.atelier.house
 frp_domain: frp.tun.atelier.house

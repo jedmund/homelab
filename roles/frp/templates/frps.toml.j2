@@ -13,7 +13,9 @@ webServer.user = "{{ frp_dashboard_user }}"
 webServer.password = "{{ frp_dashboard_password }}"
 
 # Subdomain hosting
-vhostHTTPPort = 0
+# HTTPS is terminated upstream by Traefik (wildcard *.tun cert), so only the
+# plain HTTP vhost port is enabled here.
+vhostHTTPPort = {{ frp_vhost_http_port }}
 vhostHTTPSPort = 0
 subdomainHost = "{{ frp_subdomain_host }}"
 
