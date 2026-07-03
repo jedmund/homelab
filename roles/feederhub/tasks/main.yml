@@ -82,6 +82,30 @@
     sysctl_file: /etc/sysctl.d/50-feederhub-unprivileged-ports.conf
   when: feederhub_onvif_enabled | bool
 
+# ---- Take over Kalay from the external kalay-mock unit ------------
+# feederhub's in-process Kalay master binds the same UDP ports (10001,
+# 10240) as the host-level kalay-mock systemd unit shipped by
+# roles/petlibro/.  When feederhub owns Kalay that unit must be down,
+# or the container fails to bind on start.  Stop it BEFORE the compose
+# up below.  roles/petlibro also gates kalay-mock behind
+# `petlibro_kalay_mock_enabled: false` so a petlibro redeploy won't
+# resurrect it — this task is the belt to that role's suspenders and
+# makes `make deploy-feederhub` self-sufficient.
+- name: Check whether the legacy kalay-mock unit is installed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/kalay-mock.service
+  register: feederhub_kalay_mock_unit
+  when: feederhub_kalay_enabled | bool
+
+- name: Stop + disable the legacy kalay-mock unit (feederhub owns Kalay now)
+  ansible.builtin.systemd:
+    name: kalay-mock.service
+    state: stopped
+    enabled: false
+  when:
+    - feederhub_kalay_enabled | bool
+    - feederhub_kalay_mock_unit.stat.exists | default(false)
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"

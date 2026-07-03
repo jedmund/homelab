@@ -49,6 +49,41 @@ feederhub_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
 feederhub_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
 feederhub_feeders: "{{ vault_feederhub_feeders | default('') }}"
 
+# In-process Kalay master (feederhub's internal/kalay).  When enabled,
+# feederhub binds UDP 10001 + 10240 and impersonates ThroughTek's Kalay
+# cloud itself, so feeders register locally and pkg/tutk can dial them.
+# This REPLACES the external `kalay-mock` systemd unit shipped by
+# roles/petlibro/: this role's "take over Kalay" task stops + disables
+# it, and roles/petlibro gates it behind `petlibro_kalay_mock_enabled`
+# (default false) so a petlibro redeploy won't fight for the UDP ports.
+#
+# HOST_LAN_IP is advertised to feeders as the relay endpoint and used as
+# the PUNCH_TO2 source — it's the nuc's LAN address (same as the ONVIF
+# advertise host).  With Kalay on and TUTK_SERVER left blank, feederhub
+# auto-targets its own 127.0.0.1:10001 listener (see loadKalay).
+feederhub_kalay_enabled: true
+feederhub_kalay_bind: "0.0.0.0"
+feederhub_kalay_host_lan_ip: "{{ feederhub_onvif_advertise_host }}"
+
+# Feeder LAN IPs that seed the Kalay registry so GET_RIP answers on boot
+# instead of waiting for the feeder's first KEEPALIVE.  Each `uid` must
+# match a 20-char TUTK UID present in `feederhub_feeders` (vault); the
+# `ip` is the feeder's real DHCP address (mirror of roles/petlibro's
+# `petlibro_feeders` local_ip — same physical feeders on nuc-mini).
+feederhub_feeder_ips:
+  - uid: "JNGT5PBUAF61NKVS111A"
+    ip: "192.168.1.180"   # left_feeder
+  - uid: "HFEY837GWWHWC27U111A"
+    ip: "192.168.1.181"   # right_feeder
+
+# Cloud bridge — off.  Round-trips MQTT through Petlibro's real cloud;
+# only read when FEEDERHUB_CLOUD_BRIDGE_ENABLED=true, kept here so the
+# full env surface lives in one place.
+feederhub_cloud_bridge_enabled: false
+feederhub_cloud_host: ""
+feederhub_cloud_port: 1883
+feederhub_cloud_creds_file: ""
+
 # ONVIF Profile-S responder.  Each feeder is exposed as an independent
 # ONVIF camera at its own LAN VIP on port 80.
 #
