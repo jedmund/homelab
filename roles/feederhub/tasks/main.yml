@@ -36,9 +36,16 @@
     label: "{{ item.ip }}"
   register: vip_legacy_del
   changed_when: vip_legacy_del.rc == 0
+  # Idempotent cleanup: tolerate the two benign "nothing to remove"
+  # messages so re-runs after the alias IPs are already gone don't abort
+  # the play. `ip addr del` reports "Address not found." when the address
+  # isn't on the interface (the normal case now that the VIPs live on
+  # macvlan children); older iproute2 emits "Cannot assign requested
+  # address". Any other non-zero rc (e.g. missing device) still fails.
   failed_when:
     - vip_legacy_del.rc != 0
     - "'Cannot assign requested address' not in vip_legacy_del.stderr"
+    - "'Address not found' not in vip_legacy_del.stderr"
   when: feederhub_onvif_enabled | bool
 
 - name: Install feederhub-onvif-vips systemd unit
