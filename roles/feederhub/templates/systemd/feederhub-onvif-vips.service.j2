@@ -6,10 +6,26 @@
 # link layer, so synthesising distinct MACs is what makes two feeder
 # IPs adopted as two cameras.
 #
-# Idempotent: addresses + links that already exist are re-added with
-# `|| true` so a re-run after a reboot (where systemd-networkd has
-# already brought up the parent bridge but our oneshot hasn't yet
-# touched the children) doesn't fail.
+# Interface names are index-based (onvif0, onvif1, ...) rather than
+# name-based (onvif-<feeder name>): Linux caps interface names at 15
+# chars (IFNAMSIZ), and onvif-left_feeder (17) / onvif-right_feeder
+# (18) overflow it, so the kernel rejects `ip link add` with "not a
+# valid ifname".  Per-camera identity comes from the MAC (set below),
+# not the ifname, so an index is sufficient.
+#
+# VIPs are added as /32, NOT /24.  A /24 makes the kernel install a
+# scope-link route for the whole subnet via each macvlan child at
+# metric 0, which outranks {{ feederhub_onvif_bridge }}'s own route and
+# steals egress for the entire LAN (the NAS ends up reached from a VIP
+# that isn't in its NFS access list -> "access denied by server", plus
+# any other LAN traffic sourced from the wrong address).  A /32 gives
+# the VIP an address that answers ARP for adoption without owning any
+# subnet route.
+#
+# Idempotent: link + address creation is prefixed with `-` so systemd
+# ignores "File exists" on a re-run after a reboot (where the parent
+# bridge is already up but this oneshot hasn't yet touched the
+# children).
 
 [Unit]
 Description=feederhub ONVIF VIPs (macvlan children of {{ feederhub_onvif_bridge }})
@@ -20,12 +36,12 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 {% for dev in feederhub_onvif_devices %}
-ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif-{{ dev.name }} address {{ dev.mac }} type macvlan mode bridge
-ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/24 dev onvif-{{ dev.name }}
-ExecStart=/usr/sbin/ip link set onvif-{{ dev.name }} up
+ExecStart=-/usr/sbin/ip link add link {{ feederhub_onvif_bridge }} name onvif{{ loop.index0 }} address {{ dev.mac }} type macvlan mode bridge
+ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/32 dev onvif{{ loop.index0 }}
+ExecStart=/usr/sbin/ip link set onvif{{ loop.index0 }} up
 {% endfor %}
 {% for dev in feederhub_onvif_devices %}
-ExecStop=-/usr/sbin/ip link delete onvif-{{ dev.name }}
+ExecStop=-/usr/sbin/ip link delete onvif{{ loop.index0 }}
 {% endfor %}
 
 [Install]
