@@ -1,12 +1,16 @@
 # {{ ansible_managed }}
-# Per-feeder ONVIF VIPs on {{ feederhub_onvif_bridge }}.  Matches the
-# addresses added by the "Ensure feederhub ONVIF VIPs" task in
-# roles/feederhub/tasks/main.yml — keep in sync with
-# feederhub_onvif_bind_ips in defaults/main.yml.
+# SUPERSEDED / UNUSED: this is the legacy alias-IP-on-{{ feederhub_onvif_bridge }}
+# approach.  tasks/main.yml no longer renders this template — it installs
+# the macvlan-child systemd unit (systemd/feederhub-onvif-vips.service.j2)
+# and actively removes the deployed drop-in this once produced.  Kept for
+# reference only; do not re-enable without reworking adoption (alias IPs
+# all ARP back with the bridge MAC, so UniFi Protect can't tell the
+# feeders apart).  Addresses are /32 to avoid stealing the LAN subnet
+# route — see the systemd template for the full rationale.
 [Match]
 Name={{ feederhub_onvif_bridge }}
 
 [Network]
 {% for ip in feederhub_onvif_bind_ips %}
-Address={{ ip }}/24
+Address={{ ip }}/32
 {% endfor %}
