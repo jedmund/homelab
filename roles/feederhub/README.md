@@ -35,13 +35,29 @@ shared network).  Mitigated by a router + service block in
 `roles/infra_gateway/templates/traefik/dynamic/services-mini.yml.j2`
 (search for `feederhub`).
 
-## Runtime dependency: kalay_mock
+## Kalay: self-hosted in-process
 
-Feederhub's `FEEDERHUB_TUTK_SERVER=192.168.1.6:10001` dials the
-kalay_mock systemd unit shipped by `roles/petlibro/`.  Without it
-running, every WebRTC offer fails with `streams: petlibro/tutk:
-dial: read udp ...: i/o timeout`.  See `roles/petlibro/TROUBLESHOOTING.md`
-for the full dependency graph and recovery playbook.
+Feederhub runs its own Kalay master (`internal/kalay`) when
+`feederhub_kalay_enabled: true` (the default).  It binds UDP 10001 +
+10240 under `network_mode: host` and impersonates ThroughTek's cloud,
+so feeders register locally and the video plane dials them directly —
+**no external `kalay-mock` unit required**.  Relevant vars in
+`defaults/main.yml`:
+
+- `feederhub_kalay_host_lan_ip` — the nuc's LAN IP, advertised to
+  feeders and used as the PUNCH_TO2 source (defaults to the ONVIF
+  advertise host).
+- `feederhub_feeder_ips` — `uid → LAN IP` seeds so `GET_RIP` answers on
+  boot instead of after the first KEEPALIVE.
+- `FEEDERHUB_TUTK_SERVER` is emitted blank while Kalay is on, so the
+  binary auto-targets its own `127.0.0.1:10001` listener.
+
+Because feederhub and the old `kalay-mock` would collide on those UDP
+ports, this role stops + disables `kalay-mock.service` on deploy, and
+`roles/petlibro/` gates it behind `petlibro_kalay_mock_enabled: false`.
+To fall back to the external mock, set `feederhub_kalay_enabled: false`
+here and `petlibro_kalay_mock_enabled: true` there.  See
+`roles/petlibro/TROUBLESHOOTING.md` for the recovery playbook.
 
 ## Required vault entries
 

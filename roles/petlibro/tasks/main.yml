@@ -89,7 +89,26 @@
 
 # ---------------------------------------------------------------------------
 # kalay_mock — host-level systemd unit, NOT a container.  See defaults.
+# SUPERSEDED by feederhub's in-process Kalay: gated behind
+# `petlibro_kalay_mock_enabled` (default false).  When false we stop +
+# disable the unit if it's present so it can't collide with feederhub on
+# UDP 10001/10240; the deploy tasks only run when it's explicitly on.
 # ---------------------------------------------------------------------------
+- name: Check whether the kalay_mock unit is installed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/kalay-mock.service
+  register: petlibro_kalay_mock_unit
+
+- name: Stop + disable kalay_mock (superseded by feederhub in-process Kalay)
+  ansible.builtin.systemd:
+    name: kalay-mock.service
+    state: stopped
+    enabled: false
+  become: true
+  when:
+    - not (petlibro_kalay_mock_enabled | bool)
+    - petlibro_kalay_mock_unit.stat.exists
+
 - name: Create kalay_mock directory
   ansible.builtin.file:
     path: "{{ kalay_mock_dir }}"
@@ -98,6 +117,7 @@
     group: "{{ kalay_mock_group }}"
     mode: '0755'
   become: true
+  when: petlibro_kalay_mock_enabled | bool
 
 - name: Deploy kalay_mock scripts
   ansible.builtin.copy:
@@ -110,6 +130,7 @@
   loop:
     - mock_kalay.py
     - decrypt.py
+  when: petlibro_kalay_mock_enabled | bool
   notify: Restart kalay_mock
 
 - name: Install kalay_mock systemd unit
@@ -120,15 +141,18 @@
     group: root
     mode: '0644'
   become: true
+  when: petlibro_kalay_mock_enabled | bool
   notify:
     - Reload systemd
     - Restart kalay_mock
 
-- name: Enable kalay_mock at boot
+- name: Enable + start kalay_mock at boot
   ansible.builtin.systemd:
     name: kalay-mock.service
     enabled: true
+    state: started
   become: true
+  when: petlibro_kalay_mock_enabled | bool
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:

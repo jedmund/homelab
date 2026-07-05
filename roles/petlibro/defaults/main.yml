@@ -75,10 +75,20 @@ petlibro_feeders:
 # NOT a container — the scripts pre-date the containerised stack and there's
 # no upside to wrapping them.
 #
-# Without this running, feederhub's FEEDERHUB_TUTK_SERVER target on
-# 192.168.1.6:10001 is unbound and every WebRTC offer fails with
-# `streams: petlibro/tutk: dial: read udp ...: i/o timeout`.
+# SUPERSEDED: feederhub now runs Kalay in-process (internal/kalay,
+# `feederhub_kalay_enabled: true` in roles/feederhub/).  Because both
+# bind UDP 10001 + 10240 on the host, only one can run at a time — so
+# this unit is DISABLED by default now.  The feederhub role stops +
+# disables it on deploy; keeping this flag false means a petlibro
+# redeploy won't start it back up and re-collide.  Flip to true only
+# if you deliberately fall back to the external mock (and then set
+# `feederhub_kalay_enabled: false`).
+#
+# When it *is* running: without it, feederhub's FEEDERHUB_TUTK_SERVER
+# target on 192.168.1.6:10001 is unbound and every WebRTC offer fails
+# with `streams: petlibro/tutk: dial: read udp ...: i/o timeout`.
 # ---------------------------------------------------------------------------
+petlibro_kalay_mock_enabled: false
 kalay_mock_dir: "/opt/kalay-mock"
 kalay_mock_user: "{{ ansible_user }}"
 kalay_mock_group: "{{ ansible_user }}"
