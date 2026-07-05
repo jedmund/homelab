@@ -3,7 +3,7 @@ name: {{ stack_name }}
 
 services:
   miniflux:
-    image: miniflux/miniflux:latest
+    image: {{ miniflux_image }}
     container_name: miniflux
     restart: {{ restart_policy }}
     networks:
@@ -28,7 +28,7 @@ services:
         max-file: {{ logging_max_file }}
 
   miniflux-db:
-    image: postgres:17-alpine
+    image: {{ miniflux_db_image }}
     container_name: miniflux-db
     restart: {{ restart_policy }}
     networks:
@@ -50,7 +50,7 @@ services:
         max-file: {{ logging_max_file }}
 
   miniflux-db-backup:
-    image: postgres:17-alpine
+    image: {{ miniflux_db_image }}
     container_name: miniflux-db-backup
     restart: {{ restart_policy }}
     networks:
@@ -77,7 +77,7 @@ services:
         max-file: {{ logging_max_file }}
 
   reactflux:
-    image: electh/reactflux:latest
+    image: {{ reactflux_image }}
     container_name: reactflux
     restart: {{ restart_policy }}
     networks:
@@ -96,7 +96,7 @@ services:
         max-file: {{ logging_max_file }}
 
   fivefilters:
-    image: heussd/fivefilters-full-text-rss:latest
+    image: {{ fivefilters_image }}
     container_name: fivefilters
     restart: {{ restart_policy }}
     networks:

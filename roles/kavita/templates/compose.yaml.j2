@@ -3,7 +3,7 @@ name: {{ stack_name }}
 
 services:
   kavita:
-    image: jvmilazz0/kavita:nightly
+    image: {{ kavita_image }}
     container_name: kavita
     networks:
       - shared

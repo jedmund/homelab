@@ -4,7 +4,7 @@ name: {{ stack_name }}
 services:
   karakeep:
     container_name: karakeep_web
-    image: ghcr.io/karakeep-app/karakeep:release
+    image: {{ karakeep_image }}
     restart: {{ restart_policy }}
     networks:
       - shared
@@ -32,7 +32,7 @@ services:
 
   karakeep-chrome:
     container_name: karakeep_chrome
-    image: gcr.io/zenika-hub/alpine-chrome:123
+    image: {{ karakeep_chrome_image }}
     restart: {{ restart_policy }}
     networks:
       - shared
@@ -52,7 +52,7 @@ services:
 
   karakeep-meilisearch:
     container_name: karakeep_meilisearch
-    image: getmeili/meilisearch:v1.13.3
+    image: {{ karakeep_meilisearch_image }}
     restart: {{ restart_policy }}
     networks:
       - backend

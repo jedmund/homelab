@@ -35,7 +35,7 @@ services:
 
   pocketid:
     container_name: pocketid
-    image: ghcr.io/pocket-id/pocket-id:latest
+    image: {{ pocketid_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -57,7 +57,7 @@ services:
 
   tinyauth:
     container_name: tinyauth
-    image: ghcr.io/steveiliop56/tinyauth:v4
+    image: {{ tinyauth_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -102,7 +102,7 @@ services:
   ddclient:
     container_name: ddclient
     restart: {{ restart_policy }}
-    image: linuxserver/ddclient
+    image: {{ ddclient_image }}
     networks:
       - proxy
     environment:
@@ -119,7 +119,7 @@ services:
   openspeedtest:
     container_name: openspeedtest
     restart: {{ restart_policy }}
-    image: openspeedtest/latest
+    image: {{ openspeedtest_image }}
     networks:
       - proxy
     labels:
@@ -160,7 +160,7 @@ services:
 
   adguard:
     container_name: adguard
-    image: adguard/adguardhome:latest
+    image: {{ adguard_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
