@@ -99,6 +99,28 @@
     sysctl_file: /etc/sysctl.d/50-feederhub-unprivileged-ports.conf
   when: feederhub_onvif_enabled | bool
 
+# Prevent ARP flux across the per-feeder ONVIF VIPs.  The VIPs are
+# macvlan children of br0, so with the default arp_ignore=0 the host
+# answers ARP for any local IP from any interface — all VIPs collapse
+# onto a single MAC as seen from the LAN (and it flaps between them).
+# UniFi Protect fingerprints ONVIF cameras by MAC, so it then sees one
+# device at N IPs and offers only one for adoption.  arp_ignore=1 makes
+# each VIP answer only for its own address; arp_announce=2 keeps the
+# outbound ARP source address correct.  Host-wide, standard multi-IP
+# hardening (the nuc's other services all live on br0's own .6).
+- name: Prevent ARP flux across ONVIF VIPs (per-VIP MAC on the LAN)
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/51-feederhub-onvif-arp.conf
+  loop:
+    - { name: net.ipv4.conf.all.arp_ignore, value: '1' }
+    - { name: net.ipv4.conf.all.arp_announce, value: '2' }
+  when: feederhub_onvif_enabled | bool
+
 # ---- Take over Kalay from the external kalay-mock unit ------------
 # feederhub's in-process Kalay master binds the same UDP ports (10001,
 # 10240) as the host-level kalay-mock systemd unit shipped by
