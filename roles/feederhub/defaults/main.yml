@@ -75,6 +75,8 @@ feederhub_feeder_ips:
     ip: "192.168.1.180"   # left_feeder
   - uid: "HFEY837GWWHWC27U111A"
     ip: "192.168.1.181"   # right_feeder
+  - uid: "B8NGCEB9X15GGWJ3111A"
+    ip: "192.168.1.182"   # kiki_feeder
 
 # Cloud bridge — off.  Round-trips MQTT through Petlibro's real cloud;
 # only read when FEEDERHUB_CLOUD_BRIDGE_ENABLED=true, kept here so the
@@ -113,6 +115,12 @@ feederhub_onvif_devices:
   - name: right_feeder
     ip: 192.168.1.185
     mac: "02:F1:CB:8A:74:02"
+  # Kiki (B8NGCEB9X15GGWJ3111A, .182). Requires a matching FEEDERHUB_FEEDERS
+  # entry in the vault (one bind IP per feeder), and a registered stream
+  # named kiki_feeder. onvif2 macvlan child, /32.
+  - name: kiki_feeder
+    ip: 192.168.1.186
+    mac: "02:F1:CB:8A:74:03"
 feederhub_onvif_bridge: br0
 feederhub_onvif_advertise_host: "192.168.1.6"
 
