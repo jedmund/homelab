@@ -71,6 +71,10 @@ deploy-infra-core: ## Deploy infrastructure core (Komodo, MongoDB)
 	@echo "$(BLUE)Deploying infrastructure core...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_core.yml $(VAULT_FLAG)
 
+deploy-infra-periphery: ## Deploy Komodo Periphery agent (max)
+	@echo "$(BLUE)Deploying Komodo Periphery agent...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_periphery.yml $(VAULT_FLAG)
+
 deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)

@@ -1,0 +1,6 @@
+---
+- name: Deploy Komodo Periphery agent
+  hosts: infra_periphery
+  become: true
+  roles:
+    - infra_periphery

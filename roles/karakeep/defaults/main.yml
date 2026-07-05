@@ -3,6 +3,12 @@
 stack_name: karakeep
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# Images. `release` is upstream's rolling stable channel (intentional
+# floating tag); chrome and meilisearch pins follow upstream's compose.
+karakeep_image: ghcr.io/karakeep-app/karakeep:release
+karakeep_chrome_image: gcr.io/zenika-hub/alpine-chrome:123
+karakeep_meilisearch_image: getmeili/meilisearch:v1.13.3
+
 # Karakeep settings
 karakeep_port: 3232
 karakeep_base_url: "https://keep.atelier.house"

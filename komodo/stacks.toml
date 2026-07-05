@@ -28,6 +28,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "infra-periphery"
+description = "Komodo Periphery agent on max"
+tags = ["homelab", "ansible", "max", "infrastructure"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/infra-periphery"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "beszel"
 description = "Beszel monitoring hub"
 tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
@@ -515,6 +527,18 @@ tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house"]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/petlibro"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "frp"
+description = "frps tunnel proxy"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/frp"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false

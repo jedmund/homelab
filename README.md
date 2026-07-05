@@ -48,6 +48,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 |------|----------|
 | `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, Line `[in-house]` |
 | `infra_core` | Komodo (Core + Periphery + MongoDB) |
+| `infra_periphery` | Komodo Periphery agent on `max` |
 | `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
 
 **Monitoring**
@@ -217,6 +218,12 @@ Shared secrets used by multiple stacks.
 | `komodo_passkey` | Passkey for periphery authentication |
 | `komodo_webhook_secret` | Webhook signing secret |
 | `komodo_oidc_client_secret` | OIDC client secret (if using SSO) |
+
+### group_vars/infra_periphery/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `komodo_passkey` | Periphery auth passkey (must equal infra_core's `komodo_passkey`) |
 
 ### group_vars/infra_gateway/vault.yml
 

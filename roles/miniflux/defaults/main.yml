@@ -3,6 +3,13 @@
 stack_name: miniflux
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# Images. Floating :latest tags are intentional on the app-side services:
+# they roll forward on redeploy (pull policy from docker_pull_policy).
+miniflux_image: miniflux/miniflux:latest
+miniflux_db_image: postgres:17-alpine
+reactflux_image: electh/reactflux:latest
+fivefilters_image: heussd/fivefilters-full-text-rss:latest
+
 # Miniflux settings
 miniflux_port: 8280
 miniflux_admin_username: admin
