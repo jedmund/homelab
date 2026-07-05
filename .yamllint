@@ -1,0 +1,25 @@
+# yamllint configuration, also consumed by ansible-lint's yaml[*] rules.
+---
+extends: default
+
+ignore: |
+  .git/
+  group_vars/*/vault.yml
+
+rules:
+  # Jinja-heavy apt repo strings and compose labels run long; not worth
+  # splitting them for a character count.
+  line-length: disable
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: false
+  document-start:
+    present: true

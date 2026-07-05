@@ -1,0 +1,24 @@
+# ansible-lint configuration. `make lint` runs this over the whole repo.
+---
+profile: moderate
+
+exclude_paths:
+  - .git/
+  - komodo/
+  - bin/
+  - stacks/
+  # Encrypted vaults (gitignored, not YAML documents)
+  - group_vars/*/vault.yml
+
+skip_list:
+  # This repo's deliberate role shape shares unprefixed vars
+  # (stack_name, config_base) across all stack roles; see CONVENTIONS.md.
+  - var-naming[no-role-prefix]
+  # Task/handler names embed {{ stack_name }} mid-name by convention
+  # ("Restart {{ stack_name }} stack").
+  - name[template]
+  # deploy/*.yml are minimal one-stack playbooks; the filename is the name.
+  - name[play]
+  # roles/docker-volumes predates the underscore convention; renaming the
+  # role dir isn't worth the churn.
+  - role-name

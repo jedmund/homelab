@@ -1,0 +1,9 @@
+# Ansible collections this repo depends on beyond ansible-core builtins.
+# Install user-scope (visible to both ansible and ansible-lint) with:
+#   make setup   (or: ansible-galaxy collection install -r requirements.yml)
+---
+collections:
+  - name: community.docker
+  - name: community.general
+  - name: community.crypto
+  - name: ansible.posix
