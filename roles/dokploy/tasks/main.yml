@@ -45,6 +45,8 @@
       dokploy
     after=$(docker service inspect dokploy --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
     [ "$before" != "$after" ] && echo SPEC_CHANGED || true
+  args:
+    executable: /bin/bash
   register: dokploy_service_update
   changed_when: "'SPEC_CHANGED' in dokploy_service_update.stdout"
 
