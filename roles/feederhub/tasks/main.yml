@@ -67,8 +67,18 @@
   ansible.builtin.systemd:
     name: feederhub-onvif-vips.service
     enabled: true
-    state: restarted
+    state: started
   when: feederhub_onvif_enabled | bool
+
+# Restart (not just start) only when the unit file actually changed, so
+# unchanged re-runs don't flap the ONVIF VIP interfaces.
+- name: Restart feederhub-onvif-vips on unit change
+  ansible.builtin.systemd:
+    name: feederhub-onvif-vips.service
+    state: restarted
+  when:
+    - feederhub_onvif_enabled | bool
+    - vip_unit.changed
 
 # Lower the host's "privileged port" cutoff so feederhub's distroless
 # nonroot process can bind port 80 on its VIPs.  `cap_add` in compose
@@ -155,7 +165,6 @@
     registry_url: "{{ feederhub_registry_url }}"
     username: "{{ feederhub_registry_username }}"
     password: "{{ feederhub_registry_password }}"
-    reauthorize: true
   when: feederhub_registry_username | length > 0 and feederhub_registry_password | length > 0
   no_log: true
 
