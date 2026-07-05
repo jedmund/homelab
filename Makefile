@@ -234,34 +234,6 @@ deploy-copyparty: ## Deploy Copyparty
 	@echo "$(BLUE)Deploying Copyparty...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/copyparty.yml $(VAULT_FLAG)
 
-deploy-migrate-content-reading-products: ## One-time migration from thematic stacks to product stacks
-	@echo "$(BLUE)Migrating content/reading stacks to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_content_reading_products.yml $(VAULT_FLAG)
-
-deploy-migrate-productivity-products: ## One-time migration from productivity stack to product stacks
-	@echo "$(BLUE)Migrating productivity stack to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_productivity_products.yml $(VAULT_FLAG)
-
-deploy-migrate-utilities-products: ## One-time migration from utilities stack to product stacks
-	@echo "$(BLUE)Migrating utilities stack to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_utilities_products.yml $(VAULT_FLAG)
-
-deploy-migrate-media-consumption-products: ## One-time migration from media consumption stack to product stacks
-	@echo "$(BLUE)Migrating media consumption stack to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_consumption_products.yml $(VAULT_FLAG)
-
-deploy-migrate-media-acquisition-products: ## One-time migration from media acquisition stack to product stacks
-	@echo "$(BLUE)Migrating media acquisition stack to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_media_acquisition_products.yml $(VAULT_FLAG)
-
-deploy-migrate-development-products: ## One-time migration from development stack to product stacks
-	@echo "$(BLUE)Migrating development stack to product stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/migrate_development_products.yml $(VAULT_FLAG)
-
-archive-legacy-content-reading-stacks: ## Mark old content/reading runtime stack dirs as archived
-	@echo "$(BLUE)Archiving legacy content/reading runtime stacks...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/archive_legacy_content_reading_stacks.yml $(VAULT_FLAG)
-
 ##@ Deployment - Application Stacks
 
 deploy-dev: ## Deploy development product stacks on nuc-mini

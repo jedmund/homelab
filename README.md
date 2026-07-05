@@ -518,34 +518,6 @@ make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
 
-# One-time migration from old content/reading stacks to product stacks
-bin/split-content-reading-product-vaults
-make deploy-migrate-content-reading-products
-
-# After verifying product stacks and backups, archive old runtime dirs
-make archive-legacy-content-reading-stacks
-
-# One-time migration from productivity to product stacks
-# This removes empty Draftboard and SilverBullet runtime data.
-bin/split-productivity-product-vaults
-make deploy-migrate-productivity-products
-
-# One-time migration from utilities to product stacks
-bin/split-utilities-product-vaults
-make deploy-migrate-utilities-products
-
-# One-time migration from media consumption to product stacks
-bin/split-media-consumption-product-vaults
-make deploy-migrate-media-consumption-products
-
-# One-time migration from media acquisition to product stacks
-bin/split-media-acquisition-product-vaults
-make deploy-migrate-media-acquisition-products
-
-# One-time migration from development to product stacks
-bin/split-development-product-vaults
-make deploy-migrate-development-products
-
 # First Beszel bootstrap:
 # 1. Land DNS labels, then deploy the hub.
 # 2. Create the first Beszel admin user at https://beszel.atelier.house.
