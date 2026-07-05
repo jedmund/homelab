@@ -152,7 +152,7 @@
     repo: "{{ line_repo }}"
     dest: "{{ line_source_path }}"
     version: "{{ line_version }}"
-    force: yes
+    force: true
     accept_hostkey: true
   become: false
   notify: Restart {{ stack_name }} stack

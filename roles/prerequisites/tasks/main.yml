@@ -2,7 +2,7 @@
 # Ensure host has working DNS (fixes systemd-resolved issues with AdGuard)
 # This runs first to ensure we can download packages and keys
 - name: Check if DNS resolution is working
-  shell: getent hosts registry-1.docker.io
+  command: getent hosts registry-1.docker.io
   register: dns_check
   failed_when: false
   changed_when: false
@@ -34,7 +34,7 @@
       - zsh
       - sqlite3
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Ensure keyrings directory exists
   file:
@@ -58,7 +58,7 @@
   apt:
     name: eza
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Check if oh-my-zsh is installed
   stat:
@@ -66,6 +66,7 @@
   register: ohmyzsh_installed
 
 - name: Install oh-my-zsh
+  become: true
   become_user: "{{ ansible_user }}"
   shell: |
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -95,7 +96,7 @@
   apt:
     name: gh
     state: present
-    update_cache: yes
+    update_cache: true
 
 # GitLab CLI (glab). Installed from the official .deb on GitLab
 # releases rather than packages.gitlab.com — the latter stopped
@@ -125,12 +126,14 @@
     state: present
 
 - name: Install HuggingFace CLI via pipx
+  become: true
   become_user: "{{ ansible_user }}"
   command: pipx install "huggingface_hub[cli]"
   args:
     creates: "/home/{{ ansible_user }}/.local/bin/hf"
 
 - name: Ensure pipx bin dir is on PATH
+  become: true
   become_user: "{{ ansible_user }}"
   command: pipx ensurepath
   register: pipx_ensurepath

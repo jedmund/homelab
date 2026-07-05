@@ -14,20 +14,20 @@
       - cloud-image-utils
       - bridge-utils
     state: present
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Ensure libvirtd is running
   systemd:
     name: libvirtd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Add ansible_user to libvirt and kvm groups
   user:
     name: "{{ ansible_user }}"
     groups: [libvirt, kvm]
-    append: yes
+    append: true
 
 - name: Deploy bridge netplan config
   template:
@@ -111,8 +111,8 @@
   copy:
     src: "{{ vm_image_dest }}"
     dest: "{{ vm_disk_path }}"
-    remote_src: yes
-    force: no
+    remote_src: true
+    force: false
     owner: root
     group: root
     mode: '0600'

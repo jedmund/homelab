@@ -1,6 +1,6 @@
 ---
 - name: Deploy social stack
   hosts: social
-  become: yes
+  become: true
   roles:
     - social
