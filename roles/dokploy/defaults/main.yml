@@ -12,6 +12,7 @@
 #
 # Vault secrets consumed by this role:
 #   dokploy_cloudflare_token  - Cloudflare API token, Zone.DNS:Edit on atelier.house
+#   dokploy_acme_email        - ACME registration email for Let's Encrypt
 
 # Dokploy track
 dokploy_version: canary
@@ -37,7 +38,8 @@ dokploy_traefik_container: dokploy-traefik
 dokploy_traefik_config_path: "{{ dokploy_config_dir }}/traefik/traefik.yml"
 
 # ACME / certificate issuance
-dokploy_acme_email: justin@jedmund.com
+# dokploy_acme_email - defined in vault
+dokploy_acme_email: ""
 # Empty default lets the role template render on first run before the
 # vault entry exists; Traefik will log auth errors against Cloudflare
 # until the real token is populated and the play re-runs.

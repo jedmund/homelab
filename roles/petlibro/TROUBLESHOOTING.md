@@ -1,5 +1,12 @@
 # petlibro troubleshooting
 
+> **Historical note:** this doc predates the in-process Kalay migration.
+> `kalay-mock.service` is retired — feederhub now serves Kalay itself
+> (`roles/feederhub`, `internal/kalay`) on the same UDP ports, and this
+> role removes the old unit from hosts.  The dependency graph, incident
+> writeup, and diagnostics below are kept as history; where they say
+> "kalay-mock", today's equivalent is the feederhub container.
+
 ## Architecture and dependency graph
 
 ```
