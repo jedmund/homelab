@@ -20,6 +20,7 @@
     update: true
     accept_hostkey: true
   become: false
+  register: musicbrainz_git
   notify: Restart {{ stack_name }} stack
 
 - name: Create local overlay directories
@@ -87,5 +88,7 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
-    build: always
+    # Rebuild only when upstream moved; `policy` still builds the images
+    # when they're missing.
+    build: "{{ 'always' if musicbrainz_git.changed else 'policy' }}"
   register: compose_result

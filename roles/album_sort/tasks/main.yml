@@ -21,6 +21,7 @@
     force: true
     accept_hostkey: true
   become: false
+  register: album_sort_git
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
@@ -47,7 +48,9 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
+    # Rebuild only when the source moved; `policy` still builds the
+    # images when they're missing.
+    build: "{{ 'always' if album_sort_git.changed else 'policy' }}"
     # The app and beets images use local-only tags. Keep pull: policy so
     # docker compose honors each service's pull_policy: build.
     pull: policy
