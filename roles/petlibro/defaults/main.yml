@@ -54,9 +54,8 @@ petlibro_subnets:
 #   - one creds.toml block (binds device_sn -> tutk_uid)
 #   - one go2rtc stream named "petlibro_<friendly_name>" -> petlibro://<uid>
 #   - one Home Assistant camera entity (auto-discovered via MQTT)
-#   - one --seed-feeder arg on the kalay_mock systemd unit (LAN IP needed
-#     so the mock can answer "where is UID X?" without waiting for the
-#     feeder's first KEEPALIVE)
+# local_ip lets a Kalay master answer "where is UID X?" without waiting
+# for the feeder's first KEEPALIVE; roles/feederhub mirrors this list.
 petlibro_feeders:
   - device_sn: "AF03013D11C574RN1"
     tutk_uid: "JNGT5PBUAF61NKVS111A"
@@ -67,39 +66,7 @@ petlibro_feeders:
     friendly_name: "right_feeder"
     local_ip: "192.168.1.181"
 
-# ---------------------------------------------------------------------------
-# kalay_mock — Python re-implementation of the Kalay master server.  Pretends
-# to be the TUTK cloud so feeders can register without internet, and any
-# Kalay client (feederhub, catbro's go2rtc, ...) can ask "where is UID X?"
-# and get back the feeder's LAN endpoint.  Runs as a host-level systemd unit,
-# NOT a container — the scripts pre-date the containerised stack and there's
-# no upside to wrapping them.
-#
-# SUPERSEDED: feederhub now runs Kalay in-process (internal/kalay,
-# `feederhub_kalay_enabled: true` in roles/feederhub/).  Because both
-# bind UDP 10001 + 10240 on the host, only one can run at a time — so
-# this unit is DISABLED by default now.  The feederhub role stops +
-# disables it on deploy; keeping this flag false means a petlibro
-# redeploy won't start it back up and re-collide.  Flip to true only
-# if you deliberately fall back to the external mock (and then set
-# `feederhub_kalay_enabled: false`).
-#
-# When it *is* running: without it, feederhub's FEEDERHUB_TUTK_SERVER
-# target on 192.168.1.6:10001 is unbound and every WebRTC offer fails
-# with `streams: petlibro/tutk: dial: read udp ...: i/o timeout`.
-# ---------------------------------------------------------------------------
-petlibro_kalay_mock_enabled: false
-kalay_mock_dir: "/opt/kalay-mock"
-kalay_mock_user: "{{ ansible_user }}"
-kalay_mock_group: "{{ ansible_user }}"
-# Port plan matches what's currently deployed on the NUC.  The mock listens
-# on multiple UDP ports because the real TUTK cloud uses both 10001 and
-# 10240; feeders are observed to talk to whichever they were provisioned
-# against.  TCP 10080 is required for AV streaming (Kalay-over-TCP).
-kalay_mock_udp_ports:
-  - 10001
-  - 10240
-kalay_mock_tcp_port: 10080
-# Verbosity passed to the script.  -vv = DEBUG.  Drop to -v in steady state
-# once we trust the unit; right now we want full session traces.
-kalay_mock_verbosity: "-vv"
+# The external kalay-mock systemd unit is retired: feederhub runs Kalay
+# in-process (internal/kalay, `feederhub_kalay_enabled: true` in
+# roles/feederhub/).  The mock's scripts live in the petlibro app repo
+# (feeder-re/mock-kalay) if a standalone fallback is ever needed again.
