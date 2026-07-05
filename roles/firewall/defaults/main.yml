@@ -112,6 +112,23 @@ firewall_ports_feederhub:
   - { port: 8555, proto: udp, comment: "feederhub WebRTC UDP" }
   - { port: 3702, proto: udp, comment: "feederhub WS-Discovery (ONVIF)" }
 
+# feederhub P2P video (the last-mile fix).  The LAN-direct TUTK handshake
+# has the FEEDER connect back to feederhub's video client on an EPHEMERAL
+# UDP port — random per session — after the cloud PUNCH_TO2.  A fixed-port
+# allow can't cover that, so instead allow all UDP *from* each feeder's LAN
+# IP; the KNOCK/session packets originate there.  Without this, ufw's DROP
+# policy silently eats the feeder's KNOCK and every video Dial times out
+# (registration still works because 10001/10240 are open, so the symptom is
+# "camera unavailable" while the feeder looks online).
+#
+# Keep this list in sync with roles/feederhub `feederhub_feeder_ips` (plus
+# any extra feeders).  DHCP-reserve the feeders so these stay valid; if you
+# would rather not track IPs, replace with the LAN CIDR (192.168.1.0/24).
+firewall_feederhub_p2p_srcs:
+  - 192.168.1.180   # left_feeder (JNGT)
+  - 192.168.1.181   # right_feeder (HFEY)
+  - 192.168.1.182   # B8NGCEB9 (added 2025)
+
 # Consolidated port list - dynamically built from enabled groups
 firewall_ports_all: >-
   {{
