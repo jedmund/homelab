@@ -520,6 +520,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "frp"
+description = "frps tunnel proxy"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/frp"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "social"
 description = "Mastodon"
 tags = ["homelab", "ansible", "nuc-mini", "social"]

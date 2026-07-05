@@ -3,7 +3,7 @@ name: {{ stack_name }}
 
 services:
   mongo:
-    image: mongo
+    image: {{ komodo_mongo_image }}
     container_name: komodo_mongo
     labels:
       komodo.skip: # Prevent Komodo from stopping with StopAllContainers
