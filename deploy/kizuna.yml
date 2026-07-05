@@ -1,6 +1,6 @@
 ---
 - name: Deploy kizuna stack
   hosts: kizuna
-  become: yes
+  become: true
   roles:
     - kizuna

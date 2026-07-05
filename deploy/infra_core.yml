@@ -1,8 +1,8 @@
 ---
 - name: Deploy infrastructure core stack
   hosts: infra_core
-  become: yes
-  
+  become: true
+
   pre_tasks:
     - name: Ensure Docker volumes exist
       community.docker.docker_volume:
@@ -11,6 +11,6 @@
       loop:
         - mongo-data
         - mongo-config
-  
+
   roles:
     - infra_core

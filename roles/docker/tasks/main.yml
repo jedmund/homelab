@@ -1,7 +1,7 @@
 ---
 - name: Update apt cache
   apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Install prerequisites
@@ -46,7 +46,7 @@
       - docker-compose-plugin
       - python3-docker
     state: present
-  notify: restart docker
+  notify: Restart docker
 
 - name: Ensure docker group exists
   group:
@@ -57,7 +57,7 @@
   user:
     name: "{{ ansible_user }}"
     groups: docker
-    append: yes
+    append: true
 
 - name: Configure Docker daemon
   copy:
@@ -79,7 +79,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: restart docker
+  notify: Restart docker
 
 - name: Install nas-reachable.service
   template:
@@ -89,8 +89,8 @@
     group: root
     mode: '0644'
   notify:
-    - reload systemd
-    - restart docker
+    - Reload systemd
+    - Restart docker
 
 - name: Create docker.service.d drop-in directory
   file:
@@ -108,14 +108,14 @@
     group: root
     mode: '0644'
   notify:
-    - reload systemd
-    - restart docker
+    - Reload systemd
+    - Restart docker
 
 - name: Enable nas-reachable.service
   systemd:
     name: nas-reachable
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Install docker-stacks-up.service
   template:
@@ -124,19 +124,19 @@
     owner: root
     group: root
     mode: '0644'
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Enable docker-stacks-up.service
   systemd:
     name: docker-stacks-up
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Enable Docker is running
   service:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Schedule weekly Docker prune
   ansible.builtin.cron:

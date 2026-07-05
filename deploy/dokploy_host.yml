@@ -1,6 +1,6 @@
 ---
 - name: Provision Dokploy VM on nuc-mini
   hosts: dokploy_host
-  become: yes
+  become: true
   roles:
     - dokploy_host

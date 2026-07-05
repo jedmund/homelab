@@ -44,6 +44,8 @@ setup: ## Initial setup - create ansible.cfg and vault password file
 	else \
 		echo "$(YELLOW)Vault password file already exists$(NC)"; \
 	fi
+	@echo "$(BLUE)Installing required collections (user scope)...$(NC)"
+	@ansible-galaxy collection install -r requirements.yml -p $(HOME)/.ansible/collections
 
 ##@ Deployment - Full Stack
 
@@ -318,12 +320,13 @@ syntax: ## Check playbook syntax
 	done
 	@echo "$(GREEN)All playbooks passed syntax check$(NC)"
 
-lint: ## Lint playbooks with ansible-lint
-	@echo "$(BLUE)Linting playbooks...$(NC)"
+lint: ## Lint the whole repo with ansible-lint (config in .ansible-lint / .yamllint)
+	@echo "$(BLUE)Linting repo...$(NC)"
 	@if command -v ansible-lint >/dev/null 2>&1; then \
-		ansible-lint deploy/*.yml || true; \
+		ansible-lint; \
 	else \
-		echo "$(YELLOW)ansible-lint not installed. Install with: pip install ansible-lint$(NC)"; \
+		echo "$(RED)ansible-lint not installed. Install with: brew install ansible-lint$(NC)"; \
+		exit 1; \
 	fi
 
 dry-run: ## Dry-run full deployment (check mode)

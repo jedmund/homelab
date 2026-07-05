@@ -1,6 +1,6 @@
 ---
 - name: Deploy Vane stack
   hosts: vane
-  become: yes
+  become: true
   roles:
     - vane
