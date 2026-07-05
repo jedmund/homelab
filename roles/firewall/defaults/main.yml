@@ -15,6 +15,9 @@ firewall_group_downloads: true
 firewall_group_social: true
 firewall_group_matrix: true
 firewall_group_feederhub: true
+# Komodo Periphery agent port; only hosts running roles/infra_periphery
+# (standalone agent, not the core host) enable this in inventory.
+firewall_group_komodo_periphery: false
 
 # Base ports (SSH, HTTP, HTTPS)
 firewall_ports_base:
@@ -92,6 +95,13 @@ firewall_ports_infrastructure:
   - { port: 1411, proto: tcp, comment: "PocketID" }
   - { port: 18080, proto: tcp, src: "172.16.0.0/12", comment: "feederhub API (Docker bridges only)" }
 
+# Komodo Periphery (inbound from Core on nuc-mini only)
+firewall_ports_komodo_periphery:
+  - port: 8120
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "Komodo Periphery (core host only)"
+
 # Downloads (BitTorrent)
 firewall_ports_downloads:
   - { port: 6881, proto: tcp, comment: "BitTorrent" }
@@ -126,5 +136,6 @@ firewall_ports_all: >-
     (firewall_ports_downloads if firewall_group_downloads else []) +
     (firewall_ports_social if firewall_group_social else []) +
     (firewall_ports_matrix if firewall_group_matrix else []) +
-    (firewall_ports_feederhub if firewall_group_feederhub else [])
+    (firewall_ports_feederhub if firewall_group_feederhub else []) +
+    (firewall_ports_komodo_periphery if firewall_group_komodo_periphery else [])
   }}

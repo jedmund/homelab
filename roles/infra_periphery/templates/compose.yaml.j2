@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  komodo-periphery:
+    image: {{ komodo_periphery_image }}:{{ komodo_periphery_image_tag }}
+    container_name: komodo_periphery
+    labels:
+      komodo.skip: # Prevent Komodo from stopping with StopAllContainers
+    restart: {{ restart_policy }}
+    ports:
+      # Core (on nuc-mini) connects inbound; the firewall scopes this to
+      # the core host's IP.
+      - {{ periphery_port }}:8120
+    env_file: ./env/periphery.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - {{ periphery_root_directory }}:{{ periphery_root_directory }}
+      # Read-only: Komodo observes Ansible-rendered stacks, never edits them
+      - {{ docker_base_path }}:{{ docker_base_path }}:ro
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}

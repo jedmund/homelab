@@ -28,6 +28,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "infra-periphery"
+description = "Komodo Periphery agent on max"
+tags = ["homelab", "ansible", "max", "infrastructure"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/infra-periphery"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "beszel"
 description = "Beszel monitoring hub"
 tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
