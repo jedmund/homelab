@@ -40,7 +40,6 @@
     registry_url: "{{ vane_registry_url }}"
     username: "{{ vane_registry_username }}"
     password: "{{ vane_registry_password }}"
-    reauthorize: true
   when: vane_registry_username | length > 0 and vane_registry_password | length > 0
   no_log: true
 

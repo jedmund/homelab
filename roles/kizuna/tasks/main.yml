@@ -71,7 +71,6 @@
     registry_url: "{{ kizuna_registry_url }}"
     username: "{{ kizuna_registry_username }}"
     password: "{{ kizuna_registry_password }}"
-    reauthorize: true
   when: kizuna_registry_username | length > 0 and kizuna_registry_password | length > 0
   no_log: true
 

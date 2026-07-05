@@ -85,6 +85,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/build/Dockerfile"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  register: backup_dockerfile
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy borgmatic config
@@ -142,6 +143,8 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
+    # Rebuild only when the Dockerfile changed; `policy` still builds the
+    # image when it's missing, so first runs work and re-runs are no-ops.
+    build: "{{ 'always' if backup_dockerfile.changed else 'policy' }}"
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

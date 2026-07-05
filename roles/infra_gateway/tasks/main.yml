@@ -155,6 +155,7 @@
     force: yes
     accept_hostkey: true
   become: false
+  register: line_git
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
@@ -162,6 +163,8 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
+    # Rebuild only when the line source moved; `policy` still builds the
+    # image when it's missing.
+    build: "{{ 'always' if line_git.changed else 'policy' }}"
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
