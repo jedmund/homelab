@@ -16,4 +16,6 @@ changedetection_playwright_driver_url: "ws://changedetection-browser:3000"
 changedetection_browser_screen_width: 1920
 changedetection_browser_screen_height: 1024
 changedetection_browser_screen_depth: 16
-changedetection_browser_max_chrome: 10
+# Upstream default is 10, but headless Chrome is memory-hungry; keep it low
+# on nuc-mini (a shared utility host, not a big-RAM box).
+changedetection_browser_max_chrome: 5
