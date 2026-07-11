@@ -41,6 +41,30 @@ feederhub_host_port: 18080
 feederhub_data_uid: 65532
 feederhub_data_gid: 65532
 
+# Cat-photo object storage: feederhub's OWN Garage instance, a
+# sibling service in this stack (deliberately not kizuna's — the two
+# stacks stay independently deployable). The S3 API is published on
+# host loopback only, because feederhub runs network_mode: host and
+# can't resolve compose-network hostnames; nothing off-host can reach
+# it. Bucket + key are created by garage_bootstrap.sh (deployed to
+# {{ config_base }}), and the whole garage sub-stack is gated on the
+# vault rpc secret so a pre-vault deploy simply runs without photos
+# (the server answers 503 on photo endpoints and is otherwise
+# unchanged).
+#
+# Vault entries:
+#   vault_feederhub_garage_rpc_secret       openssl rand -hex 32
+#   vault_feederhub_s3_access_key_id        printed by garage_bootstrap.sh
+#   vault_feederhub_s3_secret_access_key    printed by garage_bootstrap.sh
+feederhub_garage_image: dxflrs/garage:v2.3.0
+feederhub_garage_rpc_secret: "{{ vault_feederhub_garage_rpc_secret | default('') }}"
+feederhub_garage_s3_port: 3900   # published on 127.0.0.1 only
+feederhub_s3_endpoint: "http://127.0.0.1:{{ feederhub_garage_s3_port }}"
+feederhub_s3_bucket: feederhub
+feederhub_s3_region: garage
+feederhub_s3_access_key_id: "{{ vault_feederhub_s3_access_key_id | default('') }}"
+feederhub_s3_secret_access_key: "{{ vault_feederhub_s3_secret_access_key | default('') }}"
+
 # TUTK + feeders inventory continue to come from the vault.  Keys
 # moved verbatim from the old utilities vault when this role
 # was split out of utilities.

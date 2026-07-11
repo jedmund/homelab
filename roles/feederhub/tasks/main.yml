@@ -13,6 +13,12 @@
 #   4. Set CI variables in the jedmund/feederhub GitLab project:
 #        KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
 #        KOMODO_FEEDERHUB_STACK=feederhub
+#   5. Cat-photo storage (optional, feederhub's own Garage):
+#      vault vault_feederhub_garage_rpc_secret (openssl rand -hex 32),
+#      redeploy, run {{ config_base }}/garage_bootstrap.sh on the host
+#      (creates bucket + key, prints the key), vault the key as
+#      vault_feederhub_s3_access_key_id / _secret_access_key, redeploy
+#      again so feederhub.env picks up FEEDERHUB_S3_*.
 
 # ---- ONVIF LAN VIPs on macvlan children ---------------------------
 # Each feeder is exposed as an independent ONVIF camera at its own LAN
@@ -165,6 +171,39 @@
     group: "{{ feederhub_data_gid }}"
     mode: '0750'
 
+# ---- feederhub's own Garage (cat photos) --------------------------
+# Whole sub-stack gated on the vault rpc secret: without it the
+# compose template omits the garage service, no config lands, and
+# feederhub runs with photo endpoints disabled (503). One-time bucket
+# + key creation lives in garage_bootstrap.sh (a human captures the
+# generated key into the vault); see the bootstrap ordering comment
+# at the top of this file.
+- name: Deploy feederhub Garage config + bootstrap
+  when: feederhub_garage_rpc_secret | length > 0
+  block:
+    - name: Create Garage config directory
+      file:
+        path: "{{ config_base }}/config/garage"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Deploy garage.toml
+      template:
+        src: garage.toml.j2
+        dest: "{{ config_base }}/config/garage/garage.toml"
+        owner: "{{ ansible_user }}"
+        mode: '0600'
+      no_log: true
+      notify: Restart {{ stack_name }} stack
+
+    - name: Deploy garage_bootstrap.sh
+      copy:
+        src: garage_bootstrap.sh
+        dest: "{{ config_base }}/garage_bootstrap.sh"
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
@@ -197,3 +236,27 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
+
+# Deploy self-heal (the kizuna role's lesson: a key existing with no
+# bucket grant fails silently at runtime). `bucket allow` is additive
+# and idempotent, so re-assert it every run once the vault key exists
+# and the bucket has been bootstrapped; a pre-bootstrap host skips
+# cleanly on the rc check.
+- name: Ensure Garage bucket access for the app key
+  when:
+    - feederhub_garage_rpc_secret | length > 0
+    - feederhub_s3_access_key_id | length > 0
+  block:
+    - name: Check the Garage bucket exists
+      command: docker exec feederhub-garage /garage bucket info {{ feederhub_s3_bucket }}
+      register: feederhub_garage_bucket_info
+      changed_when: false
+      failed_when: false
+
+    - name: Grant the app key read+write+owner on the bucket
+      command: >-
+        docker exec feederhub-garage /garage bucket allow
+        --read --write --owner {{ feederhub_s3_bucket }}
+        --key {{ feederhub_s3_access_key_id }}
+      changed_when: false
+      when: feederhub_garage_bucket_info.rc == 0
