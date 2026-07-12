@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+# feederhub's dedicated Garage: a single-node object store for cat
+# profile photos, private to this stack. Modeled on the kizuna
+# garage.toml but deliberately smaller:
+#   - no [admin] section — nothing scrapes metrics here and all ops go
+#     through `docker exec feederhub-garage /garage ...`, which talks
+#     RPC using this file's secret.
+#   - no k2v — unused.
+#   - rpc_secret from the vault (a published/shared secret would be a
+#     trivial RPC-spoof primitive).
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "sqlite"
+
+replication_factor = 1
+consistency_mode   = "consistent"
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "feederhub-garage:3901"
+rpc_secret      = "{{ feederhub_garage_rpc_secret }}"
+
+[s3_api]
+s3_region     = "{{ feederhub_s3_region }}"
+api_bind_addr = "[::]:3900"

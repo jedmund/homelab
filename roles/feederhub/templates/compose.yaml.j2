@@ -27,3 +27,33 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+{% if feederhub_garage_rpc_secret | length > 0 %}
+
+  # feederhub's own Garage — private S3 for cat profile photos,
+  # deliberately separate from kizuna's instance so the two stacks
+  # deploy independently. The S3 API is published on host loopback
+  # only: the feederhub service above is network_mode: host and can't
+  # resolve compose-network hostnames, so it dials
+  # http://127.0.0.1:{{ feederhub_garage_s3_port }}; nothing off-host
+  # can reach the bound port. Bucket + access key are created by
+  # ./garage_bootstrap.sh (one-time, prints the key for the vault).
+  feederhub-garage:
+    container_name: feederhub-garage
+    image: {{ feederhub_garage_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "127.0.0.1:{{ feederhub_garage_s3_port }}:3900"
+    volumes:
+      - ./config/garage/garage.toml:/etc/garage.toml:ro
+      - feederhub-garage-data:/var/lib/garage/data
+      - feederhub-garage-meta:/var/lib/garage/meta
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  feederhub-garage-data:
+  feederhub-garage-meta:
+{% endif %}
