@@ -65,6 +65,30 @@ feederhub_s3_region: garage
 feederhub_s3_access_key_id: "{{ vault_feederhub_s3_access_key_id | default('') }}"
 feederhub_s3_secret_access_key: "{{ vault_feederhub_s3_secret_access_key | default('') }}"
 
+# OIDC auth via the household PocketID (https://id.atelier.house).
+# One PUBLIC client serves both surfaces: the server's web BFF flow
+# runs authorization-code + PKCE (no secret needed — see the
+# feederhub provider), and the iOS app runs its own PKCE flow against
+# the same client. Register it in PocketID with BOTH callback URLs:
+#   https://cat.atelier.house/api/auth/callback
+#   feederhub://oauth-callback
+# Gated on the vault client id: absent → the env block isn't rendered
+# and feederhub runs with auth disabled (open LAN API), the pre-OIDC
+# posture.
+#
+# Vault entries:
+#   vault_feederhub_oidc_client_id
+#   vault_feederhub_oidc_client_secret      (optional — only for a
+#                                            confidential web client)
+#   vault_feederhub_oidc_native_client_id   (optional — only if the
+#                                            iOS app gets a separate
+#                                            client)
+feederhub_oidc_issuer: "https://id.atelier.house"
+feederhub_oidc_redirect_url: "https://{{ feederhub_domain }}/api/auth/callback"
+feederhub_oidc_client_id: "{{ vault_feederhub_oidc_client_id | default('') }}"
+feederhub_oidc_client_secret: "{{ vault_feederhub_oidc_client_secret | default('') }}"
+feederhub_oidc_native_client_id: "{{ vault_feederhub_oidc_native_client_id | default('') }}"
+
 # TUTK + feeders inventory continue to come from the vault.  Keys
 # moved verbatim from the old utilities vault when this role
 # was split out of utilities.
