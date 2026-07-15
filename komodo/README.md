@@ -10,7 +10,7 @@ Docker Compose stacks in this repo.
 - Komodo should not clone stack repos, edit stack files, poll for image updates,
   or auto-update stacks behind Ansible.
 - CI-triggered stacks keep their existing resource names:
-  `feederhub`, `vane`, and `kizuna`.
+  `kibble`, `vane`, and `kizuna`.
 
 ## Sync setup
 

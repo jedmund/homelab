@@ -88,7 +88,7 @@
   notify: Restart {{ stack_name }} stack
 
 # ---------------------------------------------------------------------------
-# kalay-mock — RETIRED.  feederhub runs Kalay in-process (internal/kalay)
+# kalay-mock — RETIRED.  kibble runs Kalay in-process (internal/kalay)
 # and owns UDP 10001/10240 now; the scripts live on in the petlibro app
 # repo (feeder-re/mock-kalay).  These tasks scrub the legacy host-level
 # unit from hosts that still have it; drop the block once it has run
@@ -99,7 +99,7 @@
     path: /etc/systemd/system/kalay-mock.service
   register: petlibro_kalay_mock_unit
 
-- name: Stop + disable the legacy kalay-mock unit (retired; feederhub owns Kalay)
+- name: Stop + disable the legacy kalay-mock unit (retired; kibble owns Kalay)
   ansible.builtin.systemd:
     name: kalay-mock.service
     state: stopped
@@ -127,7 +127,7 @@
     state: present
     # remove_orphans removes the catbro container when the flag flips
     # back to false — without it the stale container would keep running
-    # holding :8554 + :8555 hostage from feederhub.
+    # holding :8554 + :8555 hostage from kibble.
     remove_orphans: true
     # Force a rebuild when the catbro source changed; otherwise defer to
     # the compose file (where catbro has `pull_policy: build`, so docker

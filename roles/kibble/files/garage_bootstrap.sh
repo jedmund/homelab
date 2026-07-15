@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 #
-# garage_bootstrap.sh — one-time + re-runnable setup for feederhub's
+# garage_bootstrap.sh — one-time + re-runnable setup for kibble's
 # dedicated Garage.  Apply the single-node cluster layout, ensure the
 # cat-photo bucket exists, and import the vault-supplied access key
 # (or generate one and print it for the vault).
 #
-# Run on the host after `make deploy-feederhub` brings the stack up
+# Run on the host after `make deploy-kibble` brings the stack up
 # (the garage service only starts once vault_feederhub_garage_rpc_secret
 # is set).  Re-running is safe — every step is gated on current state.
 #
 # No CORS step, unlike the kizuna bootstrap: the browser never talks
-# to this Garage. The feederhub server proxies photo uploads and
+# to this Garage. The kibble server proxies photo uploads and
 # serving, and the bucket stays private.
 #
 # Variables (set via env before running, or rely on the defaults):
-#   FEEDERHUB_GARAGE_CONTAINER   default: feederhub-garage
-#   FEEDERHUB_S3_BUCKET          default: feederhub
-#   FEEDERHUB_S3_KEY_NAME        default: feederhub-app
-#   FEEDERHUB_S3_ACCESS_KEY_ID   if set, import this key; if empty, a
+#   KIBBLE_GARAGE_CONTAINER   default: kibble-garage
+#   KIBBLE_S3_BUCKET          default: kibble
+#   KIBBLE_S3_KEY_NAME        default: kibble-app
+#   KIBBLE_S3_ACCESS_KEY_ID   if set, import this key; if empty, a
 #                                new one is generated and printed
-#   FEEDERHUB_S3_SECRET_ACCESS_KEY  paired secret for import
+#   KIBBLE_S3_SECRET_ACCESS_KEY  paired secret for import
 
 set -euo pipefail
 
-CONTAINER="${FEEDERHUB_GARAGE_CONTAINER:-feederhub-garage}"
-BUCKET="${FEEDERHUB_S3_BUCKET:-feederhub}"
-KEY_NAME="${FEEDERHUB_S3_KEY_NAME:-feederhub-app}"
+CONTAINER="${KIBBLE_GARAGE_CONTAINER:-kibble-garage}"
+BUCKET="${KIBBLE_S3_BUCKET:-kibble}"
+KEY_NAME="${KIBBLE_S3_KEY_NAME:-kibble-app}"
 
 g() { docker exec "${CONTAINER}" /garage "$@"; }
 
@@ -69,17 +69,17 @@ fi
 # Step 3 — access key: import the vault pair, or generate + print one
 # so it can be added to the vault (as vault_feederhub_s3_access_key_id
 # / vault_feederhub_s3_secret_access_key) and this script re-run.
-if [ -n "${FEEDERHUB_S3_ACCESS_KEY_ID:-}" ] && [ -n "${FEEDERHUB_S3_SECRET_ACCESS_KEY:-}" ]; then
-  if g key info "${FEEDERHUB_S3_ACCESS_KEY_ID}" >/dev/null 2>&1; then
-    echo "Key ${FEEDERHUB_S3_ACCESS_KEY_ID} already imported — skipping."
+if [ -n "${KIBBLE_S3_ACCESS_KEY_ID:-}" ] && [ -n "${KIBBLE_S3_SECRET_ACCESS_KEY:-}" ]; then
+  if g key info "${KIBBLE_S3_ACCESS_KEY_ID}" >/dev/null 2>&1; then
+    echo "Key ${KIBBLE_S3_ACCESS_KEY_ID} already imported — skipping."
   else
-    echo "Importing access key ${FEEDERHUB_S3_ACCESS_KEY_ID}..."
+    echo "Importing access key ${KIBBLE_S3_ACCESS_KEY_ID}..."
     g key import --yes \
       --name "${KEY_NAME}" \
-      "${FEEDERHUB_S3_ACCESS_KEY_ID}" \
-      "${FEEDERHUB_S3_SECRET_ACCESS_KEY}"
+      "${KIBBLE_S3_ACCESS_KEY_ID}" \
+      "${KIBBLE_S3_SECRET_ACCESS_KEY}"
   fi
-  ACCESS_KEY_ID="${FEEDERHUB_S3_ACCESS_KEY_ID}"
+  ACCESS_KEY_ID="${KIBBLE_S3_ACCESS_KEY_ID}"
 else
   if g key info "${KEY_NAME}" >/dev/null 2>&1; then
     echo "Key ${KEY_NAME} already exists — re-printing for the vault:"
@@ -89,7 +89,7 @@ else
     g key create "${KEY_NAME}"
     echo
     echo "Add these to the vault as vault_feederhub_s3_access_key_id /"
-    echo "vault_feederhub_s3_secret_access_key, then redeploy feederhub:"
+    echo "vault_feederhub_s3_secret_access_key, then redeploy kibble:"
     g key info --show-secret "${KEY_NAME}"
   fi
   ACCESS_KEY_ID="$(g key info "${KEY_NAME}" | awk '/Key ID:/ {print $3}')"
@@ -100,4 +100,4 @@ fi
 echo "Granting ${ACCESS_KEY_ID} read+write+owner on ${BUCKET}..."
 g bucket allow --read --write --owner "${BUCKET}" --key "${ACCESS_KEY_ID}"
 
-echo "feederhub Garage bootstrap done."
+echo "kibble Garage bootstrap done."

@@ -14,7 +14,7 @@ firewall_group_infrastructure: true
 firewall_group_downloads: true
 firewall_group_social: true
 firewall_group_matrix: true
-firewall_group_feederhub: true
+firewall_group_kibble: true
 # Komodo Periphery agent port; only hosts running roles/infra_periphery
 # (standalone agent, not the core host) enable this in inventory.
 firewall_group_komodo_periphery: false
@@ -85,7 +85,7 @@ firewall_ports_matrix:
 # Infrastructure
 #
 # Port entries support an optional `src` field that scopes the rule to a
-# specific source CIDR.  Used for feederhub: the only consumer is Traefik
+# specific source CIDR.  Used for kibble: the only consumer is Traefik
 # (in a Docker bridge) so there's no reason to expose 18080 to the LAN —
 # `src: 172.16.0.0/12` covers every Docker bridge subnet on the host
 # while keeping the port closed to anything outside the docker namespace.
@@ -93,7 +93,7 @@ firewall_ports_infrastructure:
   - { port: 9120, proto: tcp, comment: "Komodo" }
   - { port: 3000, proto: tcp, comment: "AdGuard setup / TinyAuth" }
   - { port: 1411, proto: tcp, comment: "PocketID" }
-  - { port: 18080, proto: tcp, src: "172.16.0.0/12", comment: "feederhub API (Docker bridges only)" }
+  - { port: 18080, proto: tcp, src: "172.16.0.0/12", comment: "kibble API (Docker bridges only)" }
 
 # Komodo Periphery (inbound from Core on nuc-mini only)
 firewall_ports_komodo_periphery:
@@ -107,7 +107,7 @@ firewall_ports_downloads:
   - { port: 6881, proto: tcp, comment: "BitTorrent" }
   - { port: 6881, proto: udp, comment: "BitTorrent UDP" }
 
-# feederhub video plane + ONVIF.  These are the LAN-facing surfaces:
+# kibble video plane + ONVIF.  These are the LAN-facing surfaces:
 #  * 8554/tcp — RTSP server (Protect pulls live streams via this; the
 #    main API at 18080 stays scoped to Docker bridges per the
 #    infrastructure rule above)
@@ -116,14 +116,14 @@ firewall_ports_downloads:
 #    adoption probes)
 #  * 80/tcp on the per-feeder ONVIF VIPs is already covered by the
 #    base "HTTP" rule
-firewall_ports_feederhub:
-  - { port: 8554, proto: tcp, comment: "feederhub RTSP" }
-  - { port: 8555, proto: tcp, comment: "feederhub WebRTC TCP" }
-  - { port: 8555, proto: udp, comment: "feederhub WebRTC UDP" }
-  - { port: 3702, proto: udp, comment: "feederhub WS-Discovery (ONVIF)" }
+firewall_ports_kibble:
+  - { port: 8554, proto: tcp, comment: "kibble RTSP" }
+  - { port: 8555, proto: tcp, comment: "kibble WebRTC TCP" }
+  - { port: 8555, proto: udp, comment: "kibble WebRTC UDP" }
+  - { port: 3702, proto: udp, comment: "kibble WS-Discovery (ONVIF)" }
 
-# feederhub P2P video (the last-mile fix).  The LAN-direct TUTK handshake
-# has the FEEDER connect back to feederhub's video client on an EPHEMERAL
+# kibble P2P video (the last-mile fix).  The LAN-direct TUTK handshake
+# has the FEEDER connect back to kibble's video client on an EPHEMERAL
 # UDP port — random per session — after the cloud PUNCH_TO2.  A fixed-port
 # allow can't cover that, so instead allow all UDP *from* each feeder's LAN
 # IP; the KNOCK/session packets originate there.  Without this, ufw's DROP
@@ -131,10 +131,10 @@ firewall_ports_feederhub:
 # (registration still works because 10001/10240 are open, so the symptom is
 # "camera unavailable" while the feeder looks online).
 #
-# Keep this list in sync with roles/feederhub `feederhub_feeder_ips` (plus
+# Keep this list in sync with roles/kibble `kibble_feeder_ips` (plus
 # any extra feeders).  DHCP-reserve the feeders so these stay valid; if you
 # would rather not track IPs, replace with the LAN CIDR (192.168.1.0/24).
-firewall_feederhub_p2p_srcs:
+firewall_kibble_p2p_srcs:
   - 192.168.1.180   # left_feeder (JNGT)
   - 192.168.1.181   # right_feeder (HFEY)
   - 192.168.1.182   # B8NGCEB9 (added 2025)
@@ -153,6 +153,6 @@ firewall_ports_all: >-
     (firewall_ports_downloads if firewall_group_downloads else []) +
     (firewall_ports_social if firewall_group_social else []) +
     (firewall_ports_matrix if firewall_group_matrix else []) +
-    (firewall_ports_feederhub if firewall_group_feederhub else []) +
+    (firewall_ports_kibble if firewall_group_kibble else []) +
     (firewall_ports_komodo_periphery if firewall_group_komodo_periphery else [])
   }}

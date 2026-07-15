@@ -254,9 +254,9 @@ deploy-vane: ## Deploy Vane stack
 	@echo "$(BLUE)Deploying Vane stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/vane.yml $(VAULT_FLAG)
 
-deploy-feederhub: ## Deploy feederhub stack
-	@echo "$(BLUE)Deploying feederhub stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/feederhub.yml $(VAULT_FLAG)
+deploy-kibble: ## Deploy kibble stack
+	@echo "$(BLUE)Deploying kibble stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kibble.yml $(VAULT_FLAG)
 
 deploy-kizuna: ## Deploy Kizuna stack (kizuna-api + kizuna-app + worker + pg + redis + garage)
 	@echo "$(BLUE)Deploying Kizuna stack...$(NC)"
