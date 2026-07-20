@@ -496,8 +496,8 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "feederhub"
-description = "Feederhub"
+name = "kibble"
+description = "Kibble"
 tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
 [stack.config]
 server = "Atelier"

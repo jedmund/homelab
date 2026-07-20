@@ -1,0 +1,6 @@
+---
+- name: Deploy kibble stack
+  hosts: kibble
+  become: true
+  roles:
+    - kibble

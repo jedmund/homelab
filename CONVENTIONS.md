@@ -47,7 +47,7 @@ Reference: **`roles/infra_gateway/templates/traefik/dynamic/services-mini.yml.j2
   sourced from inventory (`{{ hostvars['<host>'].ansible_host }}` or a var
   like `max_server_ip`) so the address lives in one place.
 - Use this when, and only when, the docker provider cannot discover the
-  container: cross-host, host networking (feederhub is the live example),
+  container: cross-host, host networking (kibble is the live example),
   or a native macOS service (openclaw). Anything on the `proxy` network on
   the same host as Traefik uses docker labels instead (category 1 or 3).
 
@@ -59,7 +59,7 @@ does not build from source.
 
 Reference: **`vane`** in `roles/vane` (`defaults/main.yml`, the `vane:`
 service in `templates/compose.yaml.j2`, and the registry-login task in
-`tasks/main.yml`). `feederhub` is a second example.
+`tasks/main.yml`). `kibble` is a second example.
 
 Required `defaults/main.yml` vars (mirror `vane_*`):
 

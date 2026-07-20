@@ -1,11 +1,11 @@
 # petlibro troubleshooting
 
 > **Historical note:** this doc predates the in-process Kalay migration.
-> `kalay-mock.service` is retired — feederhub now serves Kalay itself
-> (`roles/feederhub`, `internal/kalay`) on the same UDP ports, and this
+> `kalay-mock.service` is retired — kibble now serves Kalay itself
+> (`roles/kibble`, `internal/kalay`) on the same UDP ports, and this
 > role removes the old unit from hosts.  The dependency graph, incident
 > writeup, and diagnostics below are kept as history; where they say
-> "kalay-mock", today's equivalent is the feederhub container.
+> "kalay-mock", today's equivalent is the kibble container.
 
 ## Architecture and dependency graph
 
@@ -14,13 +14,13 @@ PetLibro PLAF203 feeder
     │
     ├── MQTT (TCP :1883) ──────────→ petlibro-mosquitto (container)
     │       reached via DNS rewrite       │
-    │       mqtt.us.petlibro.com →        ├── feederhub subscribes (host net)
+    │       mqtt.us.petlibro.com →        ├── kibble subscribes (host net)
     │       192.168.1.6                   └── catbro subscribes (opt-in)
     │
     └── Kalay/TUTK ────────────────→ kalay-mock.service (systemd, host)
             UDP :10001/:10240               │
-            TCP :10080                      ├── feederhub dials
-            reached via UDM NAT             │   (FEEDERHUB_TUTK_SERVER=192.168.1.6:10001)
+            TCP :10080                      ├── kibble dials
+            reached via UDM NAT             │   (KIBBLE_TUTK_SERVER=192.168.1.6:10001)
             (real-cloud IPs → .6)           └── catbro's embedded go2rtc dials (opt-in)
                                                 (--go2rtc-tutk-server)
 ```
@@ -79,7 +79,7 @@ These dead-ends are worth knowing so the next debugger doesn't relitigate:
 3. **catbro being disabled.** Catbro is opt-in for protocol research
    (`--mode record`) and is a *consumer* of TUTK via
    `--go2rtc-tutk-server 192.168.1.6:10001`, not a provider. Re-enabling
-   it added another go2rtc instance fighting feederhub for :8554/:8555
+   it added another go2rtc instance fighting kibble for :8554/:8555
    but did not restore the missing :10001 endpoint.
 
 ## Diagnostic playbook
@@ -89,7 +89,7 @@ Run these in order on `nuc`. Each step narrows where the break is.
 ```bash
 # 1. Container layer
 docker ps --filter "name=petlibro" --format "table {{.Names}}\t{{.Status}}"
-docker ps --filter "name=feederhub" --format "table {{.Names}}\t{{.Status}}"
+docker ps --filter "name=kibble" --format "table {{.Names}}\t{{.Status}}"
 docker logs petlibro-mosquitto --tail 20
 
 # 2. kalay_mock service
@@ -102,7 +102,7 @@ sudo tail -f /opt/kalay-mock/mock.log
 #   want to see, within ~30s:
 #     [192.168.1.180:NNNNN] KEEPALIVE uid=JNGT5PBUAF61NKVS111A    (feeder is alive)
 #     [192.168.1.181:NNNNN] KEEPALIVE uid=HFEY837GWWHWC27U111A    (feeder is alive)
-#     [192.168.1.6:NNNNN] GET_RIP uid=...                          (feederhub is polling)
+#     [192.168.1.6:NNNNN] GET_RIP uid=...                          (kibble is polling)
 
 # 4. Feeder reachability
 ping -c 2 192.168.1.180

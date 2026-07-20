@@ -153,9 +153,9 @@
 - import_playbook: vane.yml
   tags: [vane]
 
-# Feederhub stack
-- import_playbook: feederhub.yml
-  tags: [feederhub]
+# Kibble stack
+- import_playbook: kibble.yml
+  tags: [kibble]
 
 # Social stack
 - import_playbook: social.yml

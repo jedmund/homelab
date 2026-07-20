@@ -1,9 +1,9 @@
 # {{ ansible_managed }}
-# feederhub's dedicated Garage: a single-node object store for cat
+# kibble's dedicated Garage: a single-node object store for cat
 # profile photos, private to this stack. Modeled on the kizuna
 # garage.toml but deliberately smaller:
 #   - no [admin] section — nothing scrapes metrics here and all ops go
-#     through `docker exec feederhub-garage /garage ...`, which talks
+#     through `docker exec kibble-garage /garage ...`, which talks
 #     RPC using this file's secret.
 #   - no k2v — unused.
 #   - rpc_secret from the vault (a published/shared secret would be a
@@ -17,9 +17,9 @@ replication_factor = 1
 consistency_mode   = "consistent"
 
 rpc_bind_addr   = "[::]:3901"
-rpc_public_addr = "feederhub-garage:3901"
-rpc_secret      = "{{ feederhub_garage_rpc_secret }}"
+rpc_public_addr = "kibble-garage:3901"
+rpc_secret      = "{{ kibble_garage_rpc_secret }}"
 
 [s3_api]
-s3_region     = "{{ feederhub_s3_region }}"
+s3_region     = "{{ kibble_s3_region }}"
 api_bind_addr = "[::]:3900"

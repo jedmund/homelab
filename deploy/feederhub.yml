@@ -1,6 +1,0 @@
----
-- name: Deploy feederhub stack
-  hosts: feederhub
-  become: true
-  roles:
-    - feederhub

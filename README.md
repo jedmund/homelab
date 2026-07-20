@@ -102,7 +102,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Utilities (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `feederhub` | feederhub `[in-house]` |
+| `kibble` | kibble `[in-house]` |
 | `vane` | Vane `[in-house]` |
 | `petlibro` | catbro `[in-house]`, Mosquitto |
 
