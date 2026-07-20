@@ -21,7 +21,7 @@ services:
     env_file:
       - ./env/kibble.env
     volumes:
-      - ./config/kibble:/data
+      - ./config/{{ data_name }}:/data
     logging:
       driver: {{ logging_driver }}
       options:
@@ -54,6 +54,13 @@ services:
         max-file: {{ logging_max_file }}
 
 volumes:
+  # Reuse the existing Garage volumes from the pre-rename feederhub stack so the
+  # cat-photo bucket carries over without a migration. external + explicit name
+  # bypasses the compose project prefix (which would otherwise be kibble_*).
   kibble-garage-data:
+    external: true
+    name: {{ data_name }}_{{ data_name }}-garage-data
   kibble-garage-meta:
+    external: true
+    name: {{ data_name }}_{{ data_name }}-garage-meta
 {% endif %}

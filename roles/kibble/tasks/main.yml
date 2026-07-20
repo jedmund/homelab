@@ -162,10 +162,11 @@
     - "{{ config_base }}/env"
 
 # Kibble's distroless image runs as uid 65532; the data dir must be
-# owned by that uid for the SQLite DB to land.
+# owned by that uid for the SQLite DB to land. Uses data_name (feederhub)
+# so it ensures the existing pre-rename data dir, not a fresh one.
 - name: Create kibble data directory
   file:
-    path: "{{ config_base }}/config/kibble"
+    path: "{{ config_base }}/config/{{ data_name }}"
     state: directory
     owner: "{{ kibble_data_uid }}"
     group: "{{ kibble_data_gid }}"

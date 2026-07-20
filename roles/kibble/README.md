@@ -114,6 +114,8 @@ make deploy-kibble
 
 ## Where the data lives
 
-- `/opt/docker/feederhub/config/kibble/kibble.db` — SQLite
-  state (events, schedules, feeders).  Distroless container runs as
+- `/opt/docker/feederhub/config/feederhub/feederhub.db` — SQLite
+  state (events, schedules, feeders).  On-disk paths keep the
+  `feederhub` name (see `data_name` in defaults) so the rename did not
+  migrate the DB or Garage volumes.  Distroless container runs as
   uid 65532; this dir must be owned by it.
