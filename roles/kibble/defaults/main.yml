@@ -1,7 +1,12 @@
 ---
 # Stack identity
 stack_name: kibble
-config_base: "{{ docker_base_path }}/{{ stack_name }}"
+# On-disk data identity kept as "feederhub" so the rename does not migrate the
+# live SQLite DB or the Garage volumes. stack_name (kibble) is the logical /
+# Komodo / image / container name; data_name (feederhub) is where data lives on
+# disk (config_base, the /data mount subdir, the DB filename, Garage volumes).
+data_name: feederhub
+config_base: "{{ docker_base_path }}/{{ data_name }}"
 
 # Kibble — local-first PetLibro PLAF203 control plane.  Built from
 # /Users/justin/Developer/PetLibro/kibble; CI in that repo builds the
