@@ -1,7 +1,9 @@
 ---
 - name: Restart {{ stack_name }} stack
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    # config_base ({{ docker_base_path }}/{{ data_name }}), not stack_name:
+    # on-disk paths keep the feederhub name so data is not migrated.
+    project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
     recreate: always
