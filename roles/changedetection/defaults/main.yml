@@ -7,3 +7,15 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 changedetection_image: ghcr.io/dgtlmoon/changedetection.io:latest
 changedetection_domain: track.atelier.house
 changedetection_port: 5000
+
+# Playwright browser (sockpuppetbrowser). Enables fetching JS-rendered pages,
+# the visual selector, full-page screenshots, and restock/price monitoring.
+# selenium/standalone-chrome is the deprecated alternative driver.
+changedetection_browser_image: dgtlmoon/sockpuppetbrowser:latest
+changedetection_playwright_driver_url: "ws://changedetection-browser:3000"
+changedetection_browser_screen_width: 1920
+changedetection_browser_screen_height: 1024
+changedetection_browser_screen_depth: 16
+# Upstream default is 10, but headless Chrome is memory-hungry; keep it low
+# on nuc-mini (a shared utility host, not a big-RAM box).
+changedetection_browser_max_chrome: 5

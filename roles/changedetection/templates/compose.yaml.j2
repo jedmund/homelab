@@ -8,11 +8,18 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
+      - internal
     volumes:
       - ./config:/datastore
     environment:
       - TZ={{ timezone }}
       - PORT={{ changedetection_port }}
+      # Fetches flagged as "Playwright/Chrome" route through the sockpuppet
+      # browser over the stack-local `internal` bridge. Plain requests-based
+      # watches ignore this and still fetch from the changedetection container.
+      - PLAYWRIGHT_DRIVER_URL={{ changedetection_playwright_driver_url }}
+    depends_on:
+      - changedetection-browser
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:{{ changedetection_port }}').read()"]
       interval: 30s
@@ -24,7 +31,34 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  # Playwright-compatible headless Chrome (sockpuppetbrowser). Kept off the
+  # shared proxy network: it exposes an unauthenticated devtools websocket, so
+  # only changedetection should reach it. The `internal` bridge is a normal
+  # NAT bridge (not internal: true), so Chrome still has egress to load the
+  # target sites it navigates.
+  changedetection-browser:
+    container_name: changedetection-browser
+    image: {{ changedetection_browser_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - internal
+    # Chrome's sandbox needs SYS_ADMIN to run inside the container.
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - SCREEN_WIDTH={{ changedetection_browser_screen_width }}
+      - SCREEN_HEIGHT={{ changedetection_browser_screen_height }}
+      - SCREEN_DEPTH={{ changedetection_browser_screen_depth }}
+      - MAX_CONCURRENT_CHROME_PROCESSES={{ changedetection_browser_max_chrome }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 networks:
   proxy:
     name: {{ proxy_network }}
     external: true
+  internal:
+    name: {{ stack_name }}-internal
