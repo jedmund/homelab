@@ -65,7 +65,9 @@ kibble_garage_image: dxflrs/garage:v2.3.0
 kibble_garage_rpc_secret: "{{ vault_feederhub_garage_rpc_secret | default('') }}"
 kibble_garage_s3_port: 3900   # published on 127.0.0.1 only
 kibble_s3_endpoint: "http://127.0.0.1:{{ kibble_garage_s3_port }}"
-kibble_s3_bucket: kibble
+# data_name (feederhub), not stack_name: the existing Garage bucket + app key
+# were bootstrapped under "feederhub"; renaming would orphan every stored photo.
+kibble_s3_bucket: "{{ data_name }}"
 kibble_s3_region: garage
 kibble_s3_access_key_id: "{{ vault_feederhub_s3_access_key_id | default('') }}"
 kibble_s3_secret_access_key: "{{ vault_feederhub_s3_secret_access_key | default('') }}"
