@@ -3,10 +3,13 @@
 stack_name: album-sort
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Album Sort images are built by GitLab CI. Pin both to the same full commit SHA.
+# Album Sort images are built by GitLab CI and published as a short SHA, branch
+# slug, and `latest`. `latest` is published only from the default branch, then CI
+# calls Komodo to redeploy this stack. Set this to a short SHA for a deploy freeze
+# or rollback.
 album_sort_image: registry.atelier.house/jedmund/album-sort
 album_sort_beets_image: registry.atelier.house/jedmund/album-sort/beets
-album_sort_image_tag: "{{ vault_album_sort_image_tag | default('') }}"
+album_sort_image_tag: latest
 album_sort_registry_url: https://registry.atelier.house
 album_sort_registry_username: "{{ vault_album_sort_registry_username | default('') }}"
 album_sort_registry_password: "{{ vault_album_sort_registry_password | default('') }}"
@@ -36,6 +39,6 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # album_sort_apple_music_team_id, album_sort_apple_music_key_id,
 # album_sort_apple_music_private_key, album_sort_discogs_token,
 # album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
-# vault_album_sort_image_tag, vault_album_sort_registry_username,
-# vault_album_sort_registry_password, vault_album_sort_oidc_client_id,
+# vault_album_sort_registry_username, vault_album_sort_registry_password,
+# vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret

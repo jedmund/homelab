@@ -1,16 +1,22 @@
 ---
-# Album Sort product stack. GitLab CI builds both images; this role only pulls
-# immutable tags and renders deployment state.
+# Album Sort product stack. GitLab CI builds both images and asks Komodo to
+# redeploy after successful main builds; this role renders deployment state.
+#
+# Bootstrap ordering:
+#   1. Populate the registry and PocketID vault entries.
+#   2. Run the Album Sort playbook to render and start the stack.
+#   3. Keep the Komodo Stack resource named `album-sort` pointed at
+#      /opt/docker/album-sort with files_on_host=true.
+#   4. Set KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET, and
+#      KOMODO_ALBUM_SORT_STACK=album-sort in the GitLab project.
 
-- name: Validate Album Sort release and native OIDC configuration
+- name: Validate Album Sort native OIDC configuration
   ansible.builtin.assert:
     that:
-      - album_sort_image_tag is match('^[0-9a-f]{40}$')
       - album_sort_oidc_client_id | length > 0
       - album_sort_oidc_client_secret | length > 0
     fail_msg: >-
-      Set vault_album_sort_image_tag to a full Git commit SHA and populate the
-      PocketID client ID/secret before deploying Album Sort.
+      Populate the PocketID client ID and secret before deploying Album Sort.
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
@@ -65,7 +71,7 @@
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    pull: always
+    pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
 
 - name: Wait for Album Sort container health
