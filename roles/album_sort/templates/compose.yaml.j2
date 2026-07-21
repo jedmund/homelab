@@ -4,32 +4,58 @@ name: {{ stack_name }}
 services:
   album-sort:
     container_name: album_sort
-    build: {{ album_sort_source_path }}
-    image: {{ stack_name }}/album-sort:local
-    pull_policy: build
+    image: "{{ album_sort_image }}:{{ album_sort_image_tag }}"
+    pull_policy: always
     restart: {{ restart_policy }}
-    ports:
-      - {{ album_sort_port }}:{{ album_sort_container_port }}
     env_file:
       - ./env/album-sort.env
     environment:
-      - TZ={{ timezone }}
-      - ORIGIN={{ album_sort_origin }}
-      - UNSORTED_PATH={{ album_sort_unsorted_path }}
-      - SORTED_PATH={{ album_sort_sorted_path }}
-      - DATA_PATH={{ album_sort_data_path }}
-      - WATCH_INTERVAL={{ album_sort_watch_interval }}
-      - BEETS_WEB_URL=http://beets:8337
-      - BEETS_API_URL=http://beets:8338
+      TZ: "{{ timezone }}"
+      NODE_ENV: production
+      APP_BASE_URL: "{{ album_sort_origin }}"
+      ORIGIN: "{{ album_sort_origin }}"
+      AUTH_REQUIRED: "{{ album_sort_auth_required }}"
+      SORT_MUTATIONS_ENABLED: "{{ album_sort_mutations_enabled }}"
+      OIDC_ISSUER_URL: "{{ album_sort_oidc_issuer_url }}"
+      SESSION_TTL_HOURS: "{{ album_sort_session_ttl_hours }}"
+      UNSORTED_PATH: "{{ album_sort_unsorted_path }}"
+      SORTED_PATH: "{{ album_sort_sorted_path }}"
+      DATA_PATH: "{{ album_sort_data_path }}"
+      WATCH_INTERVAL: "{{ album_sort_watch_interval }}"
+      SCAN_CONCURRENCY: "{{ album_sort_scan_concurrency }}"
+      BEETS_WEB_URL: http://beets:8337
+      BEETS_API_URL: http://beets:8338
     volumes:
       - music:/music
       - ./data:/data
     depends_on:
-      - beets
+      beets:
+        condition: service_healthy
+    networks:
+      - proxy
+      - shared
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     ulimits:
       nofile:
         soft: 65536
         hard: 65536
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.album-sort.rule: "Host(`{{ album_sort_domain }}`)"
+      traefik.http.routers.album-sort.entrypoints: websecure
+      traefik.http.routers.album-sort.tls.certresolver: letsencrypt
+{% if album_sort_use_tinyauth %}
+      traefik.http.routers.album-sort.middlewares: tinyauth@file
+{% endif %}
+      traefik.http.services.album-sort.loadbalancer.server.port: "{{ album_sort_container_port }}"
+      traefik.http.services.album-sort.loadbalancer.healthcheck.path: /healthz
+      traefik.http.services.album-sort.loadbalancer.healthcheck.interval: 30s
     logging:
       driver: {{ logging_driver }}
       options:
@@ -38,16 +64,22 @@ services:
 
   beets:
     container_name: album_sort_beets
-    build: {{ album_sort_source_path }}/deploy/beets
-    image: {{ stack_name }}/beets:local
-    pull_policy: build
+    image: "{{ album_sort_beets_image }}:{{ album_sort_image_tag }}"
+    pull_policy: always
     restart: {{ restart_policy }}
     environment:
-      - TZ={{ timezone }}
-      - MUSIC_SORTED_PATH={{ album_sort_sorted_path }}
+      TZ: "{{ timezone }}"
+      MUSIC_SORTED_PATH: "{{ album_sort_sorted_path }}"
     volumes:
-      - music:/music
+      - music:/music:ro
       - ./beets-data:/data/beets
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: {{ logging_driver }}
       options:
@@ -59,6 +91,11 @@ volumes:
     external: true
 
 networks:
-  default:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  shared:
     name: {{ shared_network }}
     external: true
+  backend:
+    internal: true
