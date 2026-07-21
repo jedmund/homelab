@@ -367,7 +367,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 
 ### group_vars/album_sort/vault.yml
 
-[album-sort](https://github.com/jedmund/album-sort) is one of our own projects, built on the host from a GitLab clone (`album_sort_repo` in `roles/album_sort/defaults/main.yml`).
+[album-sort](https://github.com/jedmund/album-sort) is built by GitLab CI. Successful default-branch builds publish `latest` for the app and beets images, then ask Komodo to redeploy the stack. The Ansible role renders the stack and defaults to `latest`; set `album_sort_image_tag` to a published short SHA for a rollback or deploy freeze.
 
 | Variable | Description |
 |----------|-------------|
@@ -377,6 +377,10 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `album_sort_discogs_token` | Discogs API token |
 | `album_sort_kagi_api_key` | Kagi API key |
 | `album_sort_multi_scrobbler_token` | Shared token for Multi-Scrobbler integration |
+| `vault_album_sort_registry_username` | GitLab deploy-token username with `read_registry` access |
+| `vault_album_sort_registry_password` | GitLab deploy-token password |
+| `vault_album_sort_oidc_client_id` | PocketID client ID |
+| `vault_album_sort_oidc_client_secret` | PocketID client secret |
 
 ### group_vars/dawarich/vault.yml
 

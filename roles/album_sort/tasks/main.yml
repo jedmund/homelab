@@ -1,57 +1,101 @@
 ---
-# Album Sort product stack
+# Album Sort product stack. GitLab CI builds both images and asks Komodo to
+# redeploy after successful main builds; this role renders deployment state.
+#
+# Bootstrap ordering:
+#   1. Populate the registry and PocketID vault entries.
+#   2. Run the Album Sort playbook to render and start the stack.
+#   3. Keep the Komodo Stack resource named `album-sort` pointed at
+#      /opt/docker/album-sort with files_on_host=true.
+#   4. Set KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET, and
+#      KOMODO_ALBUM_SORT_STACK=album-sort in the GitLab project.
+
+- name: Validate Album Sort native OIDC configuration
+  ansible.builtin.assert:
+    that:
+      - album_sort_oidc_client_id | length > 0
+      - album_sort_oidc_client_secret | length > 0
+    fail_msg: >-
+      Populate the PocketID client ID and secret before deploying Album Sort.
 
 - name: Create {{ stack_name }} directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ docker_base_path }}/{{ stack_name }}"
-    - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/data"
-    - "{{ docker_base_path }}/{{ stack_name }}/beets-data"
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/beets-data"
 
-- name: Pull latest album-sort source
-  ansible.builtin.git:
-    repo: "{{ album_sort_repo }}"
-    dest: "{{ album_sort_source_path }}"
-    version: "{{ album_sort_version | default('main') }}"
-    force: true
-    accept_hostkey: true
-  become: false
-  register: album_sort_git
-  notify: Restart {{ stack_name }} stack
+- name: Ensure non-root containers own existing state
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: true
+  loop:
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/beets-data"
 
 - name: Deploy compose file
-  template:
+  ansible.builtin.template:
     src: compose.yaml.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
-- name: Deploy environment files
-  template:
-    src: "env/{{ item }}.env.j2"
-    dest: "{{ docker_base_path }}/{{ stack_name }}/env/{{ item }}.env"
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/album-sort.env.j2
+    dest: "{{ config_base }}/env/album-sort.env"
     owner: "{{ ansible_user }}"
     mode: '0600'
-  loop:
-    - album-sort
   no_log: true
   notify: Restart {{ stack_name }} stack
 
+- name: Authenticate with Album Sort image registry
+  community.docker.docker_login:
+    registry_url: "{{ album_sort_registry_url }}"
+    username: "{{ album_sort_registry_username }}"
+    password: "{{ album_sort_registry_password }}"
+  when: album_sort_registry_username | length > 0 and album_sort_registry_password | length > 0
+  no_log: true
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    # Rebuild only when the source moved; `policy` still builds the
-    # images when they're missing.
-    build: "{{ 'always' if album_sort_git.changed else 'policy' }}"
-    # The app and beets images use local-only tags. Keep pull: policy so
-    # docker compose honors each service's pull_policy: build.
-    pull: policy
+    pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
+
+- name: Wait for Album Sort container health
+  community.docker.docker_container_info:
+    name: album_sort
+  register: album_sort_container
+  retries: 20
+  delay: 3
+  until:
+    - album_sort_container.exists
+    - album_sort_container.container.State.Health.Status == 'healthy'
+  changed_when: false
+
+- name: Remove retired Album Sort host-port firewall rule
+  community.general.ufw:
+    rule: allow
+    port: "5180"
+    proto: tcp
+    delete: true
+  when: firewall_enabled | default(true) | bool
+
+- name: Print native OIDC rollout state
+  ansible.builtin.debug:
+    msg: >-
+      Album Sort {{ album_sort_image_tag }} is healthy. TinyAuth transition
+      middleware is {{ 'enabled' if album_sort_use_tinyauth else 'disabled' }};
+      filesystem mutations are {{ 'enabled' if album_sort_mutations_enabled == 'true' else 'disabled' }}.

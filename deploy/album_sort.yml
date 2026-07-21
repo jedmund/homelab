@@ -4,3 +4,9 @@
   become: true
   roles:
     - album_sort
+
+- name: Remove the retired Album Sort file-provider route
+  hosts: infra_gateway
+  become: true
+  roles:
+    - infra_gateway

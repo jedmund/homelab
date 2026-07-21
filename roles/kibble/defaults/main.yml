@@ -102,6 +102,7 @@ kibble_oidc_native_client_id: "{{ vault_feederhub_oidc_native_client_id | defaul
 kibble_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
 kibble_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
 kibble_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
+kibble_video_audio_enabled: true
 kibble_feeders: "{{ vault_feederhub_feeders | default('') }}"
 
 # In-process Kalay master (kibble's internal/kalay).  When enabled,
@@ -171,15 +172,26 @@ kibble_onvif_devices:
     ip: 192.168.1.185
     mac: "02:F1:CB:8A:74:02"
   # Kiki (B8NGCEB9X15GGWJ3111A, .182). Requires a matching KIBBLE_FEEDERS
-  # entry in the vault (one bind IP per feeder), and a registered stream
+  # entry in the vault (one bind IP per ONVIF device), and a registered stream
   # named kiki_feeder. onvif2 macvlan child, /32.
   - name: kiki_feeder
     ip: 192.168.1.186
     mac: "02:F1:CB:8A:74:03"
+  # Temporary duplicate identity for testing Protect audio without removing
+  # kiki_feeder (and risking its existing recording history). The alias below
+  # points this camera at the original kiki_feeder stream.
+  - name: kiki_audio_test
+    ip: 192.168.1.188
+    mac: "02:F1:CB:8A:74:04"
 kibble_onvif_bridge: br0
 kibble_onvif_advertise_host: "192.168.1.6"
 
-# Backwards-compat: derived from the structured devices list above so
-# the env template can keep emitting a flat comma-separated bind IPs
-# string into the kibble binary.
+kibble_onvif_aliases:
+  - source: kiki_feeder
+    name: kiki_audio_test
+
+# Backwards-compat: derived from the structured devices list above so the env
+# template can keep emitting a flat comma-separated bind IPs string into the
+# kibble binary. Real feeders come first; aliases are appended in the same
+# order as kibble_onvif_aliases.
 kibble_onvif_bind_ips: "{{ kibble_onvif_devices | map(attribute='ip') | list }}"
