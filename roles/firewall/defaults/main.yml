@@ -19,6 +19,11 @@ firewall_group_kibble: true
 # (standalone agent, not the core host) enable this in inventory.
 firewall_group_komodo_periphery: false
 
+# Explicitly remove retired rules; deleting an entry from the allow-list does
+# not remove a UFW rule that was created by an earlier playbook run.
+firewall_ports_revoked:
+  - { port: 5180, proto: tcp, comment: "Retired Album Sort host port" }
+
 # Base ports (SSH, HTTP, HTTPS)
 firewall_ports_base:
   - { port: "{{ ansible_port | default(22) }}", proto: tcp, comment: "SSH" }
@@ -57,7 +62,6 @@ firewall_ports_product_stacks:
   - { port: 2283, proto: tcp, comment: "Immich" }
   - { port: 8787, proto: tcp, comment: "Papra" }
   - { port: 3100, proto: tcp, comment: "Homebox" }
-  - { port: 5180, proto: tcp, comment: "Album Sort" }
   - { port: 3030, proto: tcp, comment: "Dawarich" }
   - { port: 8280, proto: tcp, comment: "Miniflux" }
   - { port: 2000, proto: tcp, comment: "Reactflux" }
