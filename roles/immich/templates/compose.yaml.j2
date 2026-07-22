@@ -22,6 +22,13 @@ services:
   immich-machine-learning:
     container_name: immich_machine_learning
     image: {{ immich_ml_image }}
+{% if immich_ml_backend == 'openvino' %}
+    # Intel Arc iGPU. Upstream's openvino fragment also passes /dev/bus/usb and a
+    # 189:* cgroup rule for discontinued Myriad VPU sticks; omitted, no VPU here.
+    # The container runs as root so it needs no group_add to reach renderD128.
+    devices:
+      - /dev/dri:/dev/dri
+{% endif %}
     volumes:
       - model-cache:/cache
     env_file:
