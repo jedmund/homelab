@@ -6,7 +6,7 @@ services:
     container_name: immich_server
     image: {{ immich_server_image }}
     volumes:
-      - photos:/usr/src/app/upload
+      - photos:{{ immich_media_location }}
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - ./env/immich.env
@@ -44,6 +44,7 @@ services:
       - ./env/immich.env
     volumes:
       - immich-pgdata:/var/lib/postgresql/data
+    shm_size: 128mb
     restart: always
 
 volumes:
