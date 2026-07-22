@@ -129,3 +129,8 @@ kizuna_allowed_origins: "{{ kizuna_web_origin }}"
 # Cookies are set on the parent domain so the SPA at kizuna.fm and the
 # API at api.kizuna.fm share session state.
 kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
+
+# The upload reaper is the stack's one scheduled hard-delete path. New
+# deployments start in audit-only mode; flip this to "0" in a dedicated
+# follow-up only after the production DRY_RUN output has been reviewed.
+kizuna_reaper_dry_run: "1"

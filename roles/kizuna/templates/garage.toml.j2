@@ -13,6 +13,11 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir     = "/var/lib/garage/data"
 db_engine    = "sqlite"
 
+# Borg captures this volume while Garage is live. Periodic Garage snapshots
+# provide a consistent metadata restore point inside that backup; object blocks
+# in data_dir are immutable after they are written.
+metadata_auto_snapshot_interval = "6h"
+
 replication_factor = 1
 consistency_mode   = "consistent"
 

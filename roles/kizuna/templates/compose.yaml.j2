@@ -18,6 +18,12 @@ services:
         condition: service_healthy
       kizuna-garage:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     labels:
       # SPA + API split: Traefik routes api.kizuna.fm here, and the
       # SPA at kizuna.fm hits this origin directly (CORS allowlists
@@ -57,7 +63,7 @@ services:
       kizuna-redis:
         condition: service_healthy
       kizuna-api:
-        condition: service_started
+        condition: service_healthy
     logging:
       driver: {{ logging_driver }}
       options:
@@ -82,6 +88,12 @@ services:
       - backend
     env_file:
       - ./env/screenshotter.env
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     logging:
       driver: {{ logging_driver }}
       options:
