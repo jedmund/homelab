@@ -120,6 +120,12 @@ kizuna_oidc_client_id: "{{ vault_kizuna_oidc_client_id | default('') }}"
 kizuna_oidc_client_secret: "{{ vault_kizuna_oidc_client_secret | default('') }}"
 kizuna_oidc_redirect_uri: "{{ kizuna_api_origin }}/auth/pocketid/callback"
 
+# The API callback is a top-level browser navigation, so it must return to
+# the SPA rather than render JSON. Keep target selection separate from its
+# security boundary even though production currently has one app origin.
+kizuna_app_url: "{{ kizuna_web_origin }}"
+kizuna_app_redirect_allowlist: "{{ kizuna_web_origin }}"
+
 # ---- CORS allowlist ----
 # Comma-separated list consumed by config/initializers/cors.rb; fail-
 # closed if empty.
