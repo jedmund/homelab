@@ -133,7 +133,7 @@
               cors_configuration: {cors_rules: [{
                 allowed_origins: ["{{ kizuna_web_origin }}"],
                 allowed_methods: %w[GET PUT POST DELETE],
-                allowed_headers: ["*"],
+                allowed_headers: ["Content-Type"],
                 expose_headers: ["ETag"]
               }]}
             )

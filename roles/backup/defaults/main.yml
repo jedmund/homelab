@@ -44,6 +44,13 @@ borg_source_paths:
 borg_named_volumes:
   - volume: karakeep-data
     path: /karakeep-data
+  # Garage object blocks are immutable once written. The metadata volume also
+  # contains Garage's periodic consistent snapshots (configured by the Kizuna
+  # role), which are the restore source rather than a live SQLite file copy.
+  - volume: kizuna_kizuna-garage-data
+    path: /kizuna-garage-data
+  - volume: kizuna_kizuna-garage-meta
+    path: /kizuna-garage-meta
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
@@ -99,6 +106,7 @@ borg_networks:
 #   miniflux_db_password
 #   blinko_db_password
 #   dawarich_db_password
+#   vault_kizuna_postgres_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -126,6 +134,9 @@ blinko_db_name: blinko
 blinko_db_user: blinko
 dawarich_db_name: dawarich_production
 dawarich_db_username: dawarich
+kizuna_db_name: kizuna_api_production
+kizuna_db_user: kizuna
+kizuna_db_password: "{{ vault_kizuna_postgres_password }}"
 obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace

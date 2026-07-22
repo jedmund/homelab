@@ -121,7 +121,7 @@ docker exec kizuna-api bin/rails runner "
     cors_configuration: {cors_rules: [{
       allowed_origins: [\"${SPA_ORIGIN}\"],
       allowed_methods: %w[GET PUT POST DELETE],
-      allowed_headers: [\"*\"],
+      allowed_headers: [\"Content-Type\"],
       expose_headers: [\"ETag\"]
     }]}
   )
