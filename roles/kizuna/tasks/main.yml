@@ -80,7 +80,22 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 180
   register: compose_result
+
+# Search documents are a rebuildable projection. Running this after every
+# healthy deploy covers both first-time migrations and any rows missed while
+# the projection was unavailable; the Rails task only saves changed rows.
+- name: Backfill Kizuna search documents
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - search:backfill
+  changed_when: false
 
 # The one-time garage_bootstrap.sh handles layout + bucket + key creation
 # (the key secret has to be captured into the vault by a human). But its two
