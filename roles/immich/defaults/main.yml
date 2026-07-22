@@ -12,6 +12,15 @@ immich_redis_image: "docker.io/valkey/valkey:9@sha256:fb8d272e529ea567b9bf130224
 immich_port: 2283
 immich_server_url: "https://photos.atelier.house"
 
+# Media location. Upstream's default is /data; this stack predates that move and
+# still holds every DB path under the legacy /usr/src/app/upload prefix. Pinning
+# the value drives both the volume mount and IMMICH_MEDIA_LOCATION from one place
+# and short-circuits the server's boot-time path detection, which otherwise
+# guesses between /data and /usr/src/app/upload. Changing this var to /data
+# triggers an automatic one-shot rewrite of the stored paths on next boot; do
+# that on its own, not alongside a version bump.
+immich_media_location: /usr/src/app/upload
+
 # Immich database
 immich_db_hostname: immich-database
 immich_db_username: postgres
