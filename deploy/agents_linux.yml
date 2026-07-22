@@ -1,0 +1,6 @@
+---
+- name: Deploy agent tooling (Linux)
+  hosts: agents_linux
+  become: false
+  roles:
+    - agents_linux

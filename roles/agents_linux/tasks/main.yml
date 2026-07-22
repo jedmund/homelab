@@ -1,5 +1,5 @@
 ---
-# Development (Linux) agent tooling — nuc-mini. User-mode (no become).
+# Agent tooling (Linux) — nuc-mini. User-mode (no become).
 
 # --- Node runtime via mise -------------------------------------------------
 
@@ -24,7 +24,7 @@
   ansible.builtin.command: "{{ mise_bin }} use -g {{ item }}"
   args:
     creates: "{{ mise_shims }}/{{ 'node' if 'node' in item else 'fd' }}"
-  loop: "{{ dev_linux_mise_tools }}"
+  loop: "{{ agents_linux_mise_tools }}"
 
 # --- Pi --------------------------------------------------------------------
 

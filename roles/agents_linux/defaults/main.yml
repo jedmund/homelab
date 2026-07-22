@@ -1,12 +1,12 @@
 ---
-# Development (Linux) agent tooling on nuc-mini. Installs the Pi and
+# Agent tooling (Linux) on nuc-mini. Installs the Pi and
 # Opencode coding agents the same way they were brought up by hand:
 # mise-managed Node for Pi (npm global), the official standalone
 # installer for Opencode, fd for Pi's file search, and the Edra MCP
 # server that Opencode's config launches over stdio. User-mode install
 # (no become) — these are the `justin` user's CLI tools, not a service.
 
-stack_name: development_linux
+stack_name: agents_linux
 
 # Node + mise. mise lives in ~/.local/bin; its shims/installs sit under
 # ~/.local/share/mise. node_version is the major mise pins (`node@24`).
@@ -16,7 +16,7 @@ mise_shims: "{{ ansible_user_dir }}/.local/share/mise/shims"
 mise_node_bin: "{{ ansible_user_dir }}/.local/share/mise/installs/node/{{ node_version }}/bin"
 
 # mise-managed extra tools (besides node). fd backs Pi's file search.
-dev_linux_mise_tools:
+agents_linux_mise_tools:
   - "node@{{ node_version }}"
   - "fd@latest"
 
@@ -41,6 +41,6 @@ edra_version: "claude/edra-mcp-server-011CUqe2VzjUpXpkXzfr2ht7"
 edra_dir: "{{ ansible_user_dir }}/Developer/Personal/edra-mcp-server"
 
 # Atelier vLLM API key (LAN/travel-safe key for ai.atelier.house). Real
-# value comes from group_vars/development_linux/vault.yml; empty default
+# value comes from group_vars/agents_linux/vault.yml; empty default
 # keeps the templates rendering on a first run without the vault.
 atelier_vllm_api_key: ""
