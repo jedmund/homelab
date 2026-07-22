@@ -1,0 +1,6 @@
+---
+- name: Deploy development (Linux) stack
+  hosts: development_linux
+  become: true
+  roles:
+    - development_linux

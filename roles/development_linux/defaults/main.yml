@@ -1,0 +1,70 @@
+---
+# Development (Linux) stack: a GitLab Runner with the Docker executor,
+# deployed to max. Parallels roles/development_macos (the mac-mini shell
+# runner for Xcode builds); this is the Linux/Docker counterpart.
+#
+# Exists because nuc-mini, which hosts GitLab itself plus ~50 other
+# stacks, sits near its load ceiling and cannot absorb more concurrent CI
+# without starving those services. max is a 32-thread Threadripper Pro
+# whose CPU is almost entirely idle (the LLM work happens on the GPUs),
+# so CI capacity is close to free there.
+
+# Stack identity
+stack_name: development_linux
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Vault secrets consumed by this role:
+#   gitlab_runner_linux_auth_token
+
+# Runner image. Kept in step with roles/gitlab's runner and the GitLab
+# server itself; a runner newer than the server is unsupported.
+gitlab_runner_linux_image: gitlab/gitlab-runner:v17.5.2
+
+# Runner identity. Derived from the host so adding a second Linux runner
+# is just an inventory change. Registers in GitLab as `max-docker`,
+# alongside `nuc-mini-docker` and `mac-mini-xcode`.
+gitlab_runner_linux_name: "{{ inventory_hostname }}-docker"
+
+# Concurrency. 8 jobs against 32 threads, with the per-job caps below
+# bounding the worst case at 24 cores and 48 GB. That leaves headroom for
+# vLLM's CPU-side work (tokenization, sampling, dataloading), which is
+# the only other meaningful CPU consumer on this host.
+gitlab_runner_linux_concurrent: 8
+gitlab_runner_linux_cpus: "3"
+gitlab_runner_linux_memory: 6g
+
+gitlab_runner_linux_default_image: alpine:latest
+gitlab_runner_linux_log_level: info
+
+# Unlike the nuc-mini runner, which reaches GitLab as `http://gitlab` over
+# a shared Docker network, this host is remote and goes over the LAN
+# through Traefik. Same approach as the macOS runner.
+gitlab_runner_linux_url: "https://{{ gitlab_domain }}"
+
+# Empty default lets a first deploy render config.toml without failing.
+# The runner logs auth errors until the vault value is populated. Token
+# comes from a separate runner registration in the GitLab admin UI, not
+# from the nuc-mini or macOS runner's token.
+gitlab_runner_linux_auth_token: ""
+
+# Pin the GitLab hostnames to nuc-mini directly. Job containers resolve
+# through Docker's embedded DNS to the host resolver (AdGuard on
+# nuc-mini), so without these a CI job cannot clone whenever AdGuard is
+# down, which includes every infra_gateway redeploy. Mirrors
+# gitlab_runner_extra_hosts in roles/gitlab.
+gitlab_runner_linux_extra_hosts:
+  - "{{ gitlab_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+  - "{{ gitlab_registry_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+
+# GitLab server coordinates. Duplicated from roles/gitlab/defaults rather
+# than shared, because that role is scoped to the nuc-mini host and its
+# vars are not in scope here.
+gitlab_domain: git.atelier.house
+gitlab_registry_domain: registry.atelier.house
+
+# Host inotify instance cap for CI file watchers. Kernel default is 128,
+# which Vite/Vitest jobs blow past, and inotify_init() then returns EMFILE
+# mid-job even though no fds are leaking (raising ulimit -n does not help,
+# it is the instance cap and not the fd cap). Same fix roles/gitlab
+# applies on nuc-mini, needed here for the same reason.
+gitlab_runner_linux_inotify_max_user_instances: 1024
