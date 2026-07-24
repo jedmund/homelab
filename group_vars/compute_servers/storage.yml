@@ -100,4 +100,13 @@ nfs_volumes:
       device: ":{{ nfs_base_path }}/Files/.data/Papra/documents"
       o: "{{ nfs_base_opts }}"
 
+  # HuggingHack model library (staging; promoted to max by hand for serving).
+  # NAS export path Files/.data/HuggingHack must exist before first mount.
+  - name: hugginghack-models
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/HuggingHack"
+      o: "{{ nfs_base_opts }}"
+
 # Note: docker_base_path is defined in docker.yml to avoid duplication

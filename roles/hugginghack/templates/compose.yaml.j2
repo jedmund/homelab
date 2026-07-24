@@ -1,0 +1,45 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  hugginghack:
+    container_name: hugginghack
+    image: {{ hugginghack_image }}
+    # Built from the pinned repo commit; no upstream image exists. BuildKit
+    # fetches the ref directly, so no host checkout is needed.
+    build:
+      context: "{{ hugginghack_git_repo }}#{{ hugginghack_version }}"
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
+    networks:
+      - proxy
+    volumes:
+      # Model library on the NAS Files share (external NFS volume, see
+      # group_vars/compute_servers/storage.yml). App reads/writes at /models.
+      - hugginghack-models:/models
+      - ./data:/data
+    env_file:
+      - ./env/hugginghack.env
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ hugginghack_container_port }}/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+
+volumes:
+  hugginghack-models:
+    external: true

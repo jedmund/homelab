@@ -157,6 +157,9 @@
 - import_playbook: copyparty.yml
   tags: [copyparty]
 
+- import_playbook: hugginghack.yml
+  tags: [hugginghack]
+
 # Vane stack
 - import_playbook: vane.yml
   tags: [vane]
