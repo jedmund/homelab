@@ -448,7 +448,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `renovate_gitlab_token` | Renovate bot GitLab personal access token |
 | `renovate_github_token` | Renovate GitHub token (optional, for rate limits) |
 
-> The CI cache Garage needs a one-time bootstrap after the first `make deploy-gitlab`: SSH to nuc-mini and run `roles/gitlab/files/ci_cache_bootstrap.sh` to assign a cluster layout, create the `ci-cache` bucket, and generate the S3 access key. Add the printed key to `group_vars/compute_servers/vault.yml` (`gitlab_cache_s3_access_key_id` / `gitlab_cache_s3_secret_access_key`), then re-run the script to import it. Until those keys are set, both runners fall back to local (per-host) cache.
+> The CI cache Garage needs a one-time bootstrap after the first `make deploy-gitlab`: SSH to nuc-mini and run `roles/gitlab/files/ci_cache_bootstrap.sh` to assign a cluster layout, create the `ci-cache` bucket, generate the S3 access key, and set the object-expiry lifecycle. Add the printed key to `group_vars/compute_servers/vault.yml` (`gitlab_cache_s3_access_key_id` / `gitlab_cache_s3_secret_access_key`), then re-run the script to import it. Until those keys are set, both runners fall back to local (per-host) cache. Cache objects expire after `gitlab_cache_s3_expiry_days` (default 14) via a native Garage lifecycle rule, so the bucket stays bounded without a cron.
 
 ### group_vars/open_webui/vault.yml
 

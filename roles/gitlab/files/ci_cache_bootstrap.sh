@@ -23,6 +23,9 @@ set -euo pipefail
 CONTAINER="${CI_CACHE_GARAGE_CONTAINER:-gitlab-cache-garage}"
 BUCKET="${CI_CACHE_S3_BUCKET:-ci-cache}"
 KEY_NAME="${CI_CACHE_S3_KEY_NAME:-ci-cache-key}"
+EXPIRY_DAYS="${CI_CACHE_S3_EXPIRY_DAYS:-14}"
+CIBUILD_NETWORK="${CI_CACHE_CIBUILD_NETWORK:-cibuild-network}"
+MC_IMAGE="${CI_CACHE_MC_IMAGE:-minio/mc}"
 
 g() { docker exec "${CONTAINER}" /garage "$@"; }
 
@@ -95,5 +98,17 @@ fi
 ACCESS_KEY_ID="${CI_CACHE_S3_ACCESS_KEY_ID:-$(g key info "${KEY_NAME}" | awk '/Key ID:/ {print $3}')}"
 echo "Granting ${ACCESS_KEY_ID} read+write+owner on ${BUCKET}..."
 g bucket allow --read --write --owner "${BUCKET}" --key "${ACCESS_KEY_ID}"
+
+# Step 5 - object-expiry lifecycle. GitLab never prunes its own cache objects,
+# so a native Garage S3 lifecycle rule expires them after EXPIRY_DAYS. `ilm
+# import` replaces the whole lifecycle config, so re-running is idempotent.
+# Garage's CLI has no lifecycle command, hence the one-shot mc client. The
+# Ansible deploy applies the same rule on every run.
+SECRET_KEY="${CI_CACHE_S3_SECRET_ACCESS_KEY:-$(g key info --show-secret "${ACCESS_KEY_ID}" | awk '/Secret key:/ {print $3}')}"
+echo "Setting ${EXPIRY_DAYS}d object-expiry lifecycle on ${BUCKET}..."
+printf '%s' "{\"Rules\":[{\"ID\":\"expire-ci-cache\",\"Status\":\"Enabled\",\"Filter\":{\"Prefix\":\"\"},\"Expiration\":{\"Days\":${EXPIRY_DAYS}},\"AbortIncompleteMultipartUpload\":{\"DaysAfterInitiation\":1}}]}" \
+  | docker run --rm -i --network "${CIBUILD_NETWORK}" \
+      -e MC_HOST_cache="http://${ACCESS_KEY_ID}:${SECRET_KEY}@${CONTAINER}:3900" \
+      "${MC_IMAGE}" ilm import "cache/${BUCKET}"
 
 echo "CI cache Garage bootstrap done."

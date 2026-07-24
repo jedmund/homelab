@@ -141,3 +141,20 @@
         --key {{ gitlab_cache_s3_access_key_id }}
       changed_when: false
       when: gitlab_cache_bucket_info.rc == 0
+
+    # Object expiry via a native Garage S3 lifecycle rule (see
+    # gitlab_cache_s3_expiry_days). ilm import maps to
+    # PutBucketLifecycleConfiguration, which replaces the whole config, so
+    # re-applying every deploy is idempotent. Garage's own CLI has no
+    # lifecycle command, hence the one-shot mc client on the cibuild network.
+    - name: Set CI cache bucket object-expiry lifecycle
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s'
+          '{"Rules":[{"ID":"expire-ci-cache","Status":"Enabled","Filter":{"Prefix":""},"Expiration":{"Days":{{ gitlab_cache_s3_expiry_days }}},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}]}'
+          | docker run --rm -i --network {{ cibuild_network }}
+          -e MC_HOST_cache=http://{{ gitlab_cache_s3_access_key_id }}:{{ gitlab_cache_s3_secret_access_key }}@gitlab-cache-garage:3900
+          {{ gitlab_cache_mc_image }} ilm import cache/{{ gitlab_cache_s3_bucket }}
+      changed_when: false
+      no_log: true
+      when: gitlab_cache_bucket_info.rc == 0

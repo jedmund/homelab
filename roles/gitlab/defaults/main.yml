@@ -63,6 +63,20 @@ gitlab_cache_garage_bind_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 gitlab_cache_garage_rpc_secret: ""
 gitlab_cache_garage_admin_token: ""
 
+# Cache object expiry. GitLab never deletes its own S3 cache objects: a
+# changed cache:key orphans the old archive, so the bucket grows unbounded.
+# A native Garage S3 lifecycle rule expires objects older than this many days
+# (Garage enforces it internally, no cron). The default pull-push cache policy
+# refreshes an actively-used key's timestamp on every job, so hot caches
+# survive and only abandoned keys age out. A quota is deliberately NOT used:
+# it caps size by rejecting new writes once full, which freezes the cache on
+# stale content instead of recycling it.
+gitlab_cache_s3_expiry_days: 14
+# One-shot S3 client used only to apply the lifecycle rule (Garage's own CLI
+# has no lifecycle command). Unpinned: it is a throwaway client invocation,
+# not a running service.
+gitlab_cache_mc_image: minio/mc
+
 # Renovate settings
 renovate_image: renovate/renovate:39
 renovate_log_level: info
