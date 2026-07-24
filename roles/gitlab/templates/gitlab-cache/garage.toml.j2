@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+# Isolated Garage for the GitLab CI runner cache. Single node, no
+# replication - this is regenerable build cache, not durable data, so it is
+# deliberately excluded from Borg (named volumes, not a bind under
+# /opt/docker) and needs no snapshots. Kept fully separate from the
+# kizuna/kibble Garage instances: own rpc_secret and admin token so a leaked
+# CI cache credential cannot touch application object storage.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "sqlite"
+
+replication_factor = 1
+consistency_mode   = "consistent"
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "gitlab-cache-garage:3901"
+rpc_secret      = "{{ gitlab_cache_garage_rpc_secret }}"
+
+[s3_api]
+s3_region     = "{{ gitlab_cache_s3_region }}"
+api_bind_addr = "[::]:3900"
+
+[admin]
+api_bind_addr = "[::]:3903"
+admin_token   = "{{ gitlab_cache_garage_admin_token }}"
