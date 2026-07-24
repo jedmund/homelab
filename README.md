@@ -106,13 +106,14 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `vane` | Vane `[in-house]` |
 | `petlibro` | catbro `[in-house]`, Mosquitto |
 
-**Development (nuc-mini + mac-mini)**
+**Development (nuc-mini + mac-mini + max)**
 | Role | Services |
 |------|----------|
 | `gitlab` | GitLab, GitLab Runner (Docker), Renovate |
 | `open_webui` | Open WebUI |
 | `paseo_relay` | Paseo Relay |
 | `development_macos` | GitLab Runner (shell executor, iOS builds) |
+| `development_linux` | GitLab Runner (Docker executor, CI capacity on max) |
 | `openclaw` | OpenClaw agent (native macOS) |
 | `paseo_daemon` | Paseo daemon (native macOS) |
 
@@ -456,6 +457,12 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | Variable | Description |
 |----------|-------------|
 | `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
+
+### group_vars/development_linux/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `gitlab_runner_linux_auth_token` | GitLab Runner auth token (max-docker) |
 
 ### group_vars/beszel_agents/vault.yml
 
