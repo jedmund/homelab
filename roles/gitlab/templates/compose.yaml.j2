@@ -63,6 +63,29 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  gitlab-cache-garage:
+    container_name: gitlab-cache-garage
+    image: {{ gitlab_cache_garage_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - cibuild
+    ports:
+      # S3 API published on the LAN IP only (not 0.0.0.0) so the max runner
+      # reaches it at {{ gitlab_cache_garage_bind_ip }}:{{ gitlab_cache_garage_s3_host_port }}
+      # and nuc-mini jobs use the same address. Admin (3903) stays internal.
+      - "{{ gitlab_cache_garage_bind_ip }}:{{ gitlab_cache_garage_s3_host_port }}:3900"
+    volumes:
+      - ./config/gitlab-cache/garage.toml:/etc/garage.toml:ro
+      - gitlab-cache-garage-data:/var/lib/garage/data
+      - gitlab-cache-garage-meta:/var/lib/garage/meta
+    env_file:
+      - ./env/gitlab-cache-garage.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   renovate:
     container_name: renovate
     image: {{ renovate_image }}
@@ -92,3 +115,9 @@ networks:
   cibuild:
     name: {{ cibuild_network }}
     external: true
+
+volumes:
+  # Named (not bind-mounted under /opt/docker) so Borg skips them: CI cache
+  # is regenerable, not durable data.
+  gitlab-cache-garage-data:
+  gitlab-cache-garage-meta:

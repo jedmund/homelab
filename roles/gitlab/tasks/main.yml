@@ -33,6 +33,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/runner"
     - "{{ docker_base_path }}/{{ stack_name }}/runner/config"
     - "{{ docker_base_path }}/{{ stack_name }}/renovate"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/gitlab-cache"
 
 - name: Deploy compose file
   ansible.builtin.template:
@@ -51,8 +52,27 @@
   loop:
     - gitlab
     - renovate
+    - gitlab-cache-garage
   no_log: true
   notify: Restart {{ stack_name }} stack
+
+- name: Deploy CI cache Garage config
+  ansible.builtin.template:
+    src: gitlab-cache/garage.toml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/config/gitlab-cache/garage.toml"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+# Staged to the host so the one-time bootstrap (layout + bucket + key) can be
+# run over SSH without a repo checkout. See files/ci_cache_bootstrap.sh.
+- name: Stage CI cache bootstrap script
+  ansible.builtin.copy:
+    src: ci_cache_bootstrap.sh
+    dest: "{{ docker_base_path }}/{{ stack_name }}/ci_cache_bootstrap.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
 
 - name: Deploy GitLab omnibus config
   ansible.builtin.template:
@@ -108,3 +128,42 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
+
+# The one-time files/ci_cache_bootstrap.sh handles layout + bucket + key
+# creation (the key secret has to be captured into the vault by a human).
+# Re-granting the key access to the bucket is idempotent, so wire it here to
+# self-heal on every deploy. Gated on the vaulted key being present and the
+# bucket existing, so a pre-bootstrap host skips cleanly.
+- name: Ensure CI cache bucket access
+  when: gitlab_cache_s3_access_key_id | length > 0
+  block:
+    - name: Check the CI cache bucket exists
+      ansible.builtin.command: docker exec gitlab-cache-garage /garage bucket info {{ gitlab_cache_s3_bucket }}
+      register: gitlab_cache_bucket_info
+      changed_when: false
+      failed_when: false
+
+    - name: Grant the CI cache key read+write+owner on the bucket
+      ansible.builtin.command: >-
+        docker exec gitlab-cache-garage /garage bucket allow
+        --read --write --owner {{ gitlab_cache_s3_bucket }}
+        --key {{ gitlab_cache_s3_access_key_id }}
+      changed_when: false
+      when: gitlab_cache_bucket_info.rc == 0
+
+    # Object expiry via a native Garage S3 lifecycle rule (see
+    # gitlab_cache_s3_expiry_days). ilm import maps to
+    # PutBucketLifecycleConfiguration, which replaces the whole config, so
+    # re-applying every deploy is idempotent. Garage's own CLI has no
+    # lifecycle command, hence the one-shot mc client on the cibuild network.
+    - name: Set CI cache bucket object-expiry lifecycle
+      ansible.builtin.shell:
+        cmd: >-
+          printf '%s'
+          '{"Rules":[{"ID":"expire-ci-cache","Status":"Enabled","Filter":{"Prefix":""},"Expiration":{"Days":{{ gitlab_cache_s3_expiry_days }}},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}]}'
+          | docker run --rm -i --network {{ cibuild_network }}
+          -e MC_HOST_cache=http://{{ gitlab_cache_s3_access_key_id }}:{{ gitlab_cache_s3_secret_access_key }}@gitlab-cache-garage:3900
+          {{ gitlab_cache_mc_image }} ilm import cache/{{ gitlab_cache_s3_bucket }}
+      changed_when: false
+      no_log: true
+      when: gitlab_cache_bucket_info.rc == 0

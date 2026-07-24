@@ -39,6 +39,44 @@ gitlab_runner_extra_hosts:
   - "{{ gitlab_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
   - "{{ gitlab_registry_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
 
+# CI distributed cache (Garage S3). An isolated single-node Garage on
+# nuc-mini, backing the shared runner cache so the nuc-mini and max runners
+# stop cold-building node_modules independently. Kept separate from the
+# kizuna/kibble Garage instances (own container, network, bucket, keys)
+# because CI jobs run arbitrary code and their cache credentials must not
+# reach application object storage.
+#
+# The S3 client connection details (endpoint, bucket, keys) are shared with
+# the max runner and live in group_vars/compute_servers (ci_cache.yml +
+# vault.yml), since both runner roles need them. Only the Garage *server*
+# tokens live here, because Garage itself runs only on this host.
+#
+# Vault secrets consumed for the cache Garage (nuc-mini only):
+#   gitlab_cache_garage_rpc_secret
+#   gitlab_cache_garage_admin_token
+gitlab_cache_garage_image: dxflrs/garage:v2.3.0
+# Host-published S3 API port. Bound to the LAN IP (not 0.0.0.0) so it sits
+# beside Traefik's pinned bind without grabbing the wildcard address, and so
+# the max runner can reach it at {{ ansible_host }}:{{ port }} over the LAN.
+gitlab_cache_garage_s3_host_port: "{{ gitlab_cache_s3_port }}"
+gitlab_cache_garage_bind_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+gitlab_cache_garage_rpc_secret: ""
+gitlab_cache_garage_admin_token: ""
+
+# Cache object expiry. GitLab never deletes its own S3 cache objects: a
+# changed cache:key orphans the old archive, so the bucket grows unbounded.
+# A native Garage S3 lifecycle rule expires objects older than this many days
+# (Garage enforces it internally, no cron). The default pull-push cache policy
+# refreshes an actively-used key's timestamp on every job, so hot caches
+# survive and only abandoned keys age out. A quota is deliberately NOT used:
+# it caps size by rejecting new writes once full, which freezes the cache on
+# stale content instead of recycling it.
+gitlab_cache_s3_expiry_days: 14
+# One-shot S3 client used only to apply the lifecycle rule (Garage's own CLI
+# has no lifecycle command). Unpinned: it is a throwaway client invocation,
+# not a running service.
+gitlab_cache_mc_image: minio/mc
+
 # Renovate settings
 renovate_image: renovate/renovate:39
 renovate_log_level: info

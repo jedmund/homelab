@@ -21,8 +21,23 @@ shutdown_timeout = 0
   token_expires_at = 0001-01-01T00:00:00Z
   executor = "docker"
   [runners.cache]
+{% if gitlab_cache_s3_access_key_id | length > 0 %}
+    # Distributed cache on the isolated CI Garage (nuc-mini). Shared = true so
+    # cache keys are not runner-scoped and the nuc-mini + max runners reuse
+    # each other's archives. Config in group_vars/compute_servers/ci_cache.yml.
+    Type = "s3"
+    Shared = true
+{% endif %}
     MaxUploadedArchiveSize = 0
     [runners.cache.s3]
+{% if gitlab_cache_s3_access_key_id | length > 0 %}
+      ServerAddress = "{{ gitlab_cache_s3_endpoint }}"
+      AccessKey = "{{ gitlab_cache_s3_access_key_id }}"
+      SecretKey = "{{ gitlab_cache_s3_secret_access_key }}"
+      BucketName = "{{ gitlab_cache_s3_bucket }}"
+      BucketLocation = "{{ gitlab_cache_s3_region }}"
+      Insecure = {{ gitlab_cache_s3_insecure | ternary('true', 'false') }}
+{% endif %}
     [runners.cache.gcs]
     [runners.cache.azure]
   [runners.docker]
