@@ -31,7 +31,8 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  # The docker_compose_v2 task below applies image and compose changes. A
+  # handler here would immediately recreate the freshly deployed runner again.
 
 - name: Deploy GitLab Runner config
   ansible.builtin.template:
