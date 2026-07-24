@@ -19,11 +19,17 @@
 # present, so a pre-bootstrap host cleanly falls back to local cache.
 
 gitlab_cache_s3_port: 3910
-gitlab_cache_s3_endpoint: "{{ hostvars['nuc-mini'].ansible_host }}:{{ gitlab_cache_s3_port }}"
+# Job containers on max reach Garage through nuc-mini's LAN-published port.
+gitlab_cache_s3_lan_endpoint: "{{ hostvars['nuc-mini'].ansible_host }}:{{ gitlab_cache_s3_port }}"
+# Job containers on nuc-mini cannot hairpin through that host-published LAN
+# address. Both the runner and its job containers share cibuild-network with
+# Garage, so use Docker DNS and Garage's container port locally.
+gitlab_cache_s3_nuc_endpoint: "gitlab-cache-garage:3900"
 gitlab_cache_s3_bucket: ci-cache
 gitlab_cache_s3_region: garage
-# Plain http over the LAN. The endpoint is an IP:port with no TLS cert; the
-# bucket is private and credentialed, and traffic stays on the wired LAN.
+# Plain HTTP over private networks. The LAN endpoint has no TLS certificate;
+# the bucket is private and credentialed, and traffic stays on either the
+# wired LAN or the host-local Docker network.
 gitlab_cache_s3_insecure: true
 gitlab_cache_s3_access_key_id: ""
 gitlab_cache_s3_secret_access_key: ""

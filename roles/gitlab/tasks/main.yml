@@ -92,7 +92,8 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  # GitLab Runner watches config.toml and hot-reloads changes. Avoid
+  # interrupting in-flight jobs for settings that do not require a restart.
 
 - name: Deploy Renovate config
   ansible.builtin.template:
