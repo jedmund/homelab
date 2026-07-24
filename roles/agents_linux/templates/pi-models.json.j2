@@ -1,0 +1,107 @@
+{
+  "providers": {
+    "atelier": {
+      "baseUrl": "https://ai.atelier.house/openai",
+      "api": "openai-completions",
+      "apiKey": "{{ atelier_vllm_api_key }}",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "minimax-m27",
+          "name": "MiniMax M2.7 (IQ3_S)",
+          "contextWindow": 81920,
+          "maxTokens": 16384
+        },
+        {
+          "id": "minimax-m27-iq4",
+          "name": "MiniMax M2.7 (IQ4_XS)",
+          "contextWindow": 81920,
+          "maxTokens": 16384
+        },
+        {
+          "id": "minimax-m27-q4",
+          "name": "MiniMax M2.7 (Q4_K_XL)",
+          "contextWindow": 65536,
+          "maxTokens": 16384
+        },
+        {
+          "id": "gpt-oss",
+          "name": "GPT-OSS 120B (Q6_K_XL)",
+          "contextWindow": 32768,
+          "maxTokens": 8192
+        },
+        {
+          "id": "qwen3.6-flash",
+          "name": "Qwen3.6 Flash (35B MoE)",
+          "input": ["text", "image"]
+        },
+        {
+          "id": "qwen3.6",
+          "name": "Qwen3.6 (27B + MTP)",
+          "input": ["text", "image"]
+        },
+        {
+          "id": "gemma4",
+          "name": "Gemma 4 (31B)",
+          "input": ["text", "image"]
+        },
+        {
+          "id": "qwen3.6-flash-uncensored",
+          "name": "Qwen3.6 Flash Uncensored (35B MoE)",
+          "input": ["text", "image"]
+        },
+        {
+          "id": "gemma4-uncensored",
+          "name": "Gemma 4 Uncensored (26B MoE)",
+          "input": ["text", "image"]
+        },
+        {
+          "id": "gemma-e4b-uncensored",
+          "name": "Gemma 4 E4B Uncensored (4B dense)",
+          "input": ["text", "image"],
+          "contextWindow": 32768,
+          "maxTokens": 8192
+        },
+        {
+          "id": "qwen3-coder",
+          "name": "Qwen3 Coder (30B MoE)"
+        },
+        {
+          "id": "qwen3-small",
+          "name": "Qwen 3 4B (CPU, compaction)",
+          "contextWindow": 32768,
+          "maxTokens": 4096
+        },
+        {
+          "id": "DeepSeek-V4-Flash",
+          "name": "DeepSeek V4 Flash (via proxy, 284B/13B-A, reasoning)",
+          "reasoning": true,
+          "contextWindow": 524288,
+          "maxTokens": 32768
+        }
+      ]
+    },
+
+    "vllm-max": {
+      "baseUrl": "http://192.168.1.100:11437/v1",
+      "api": "openai-completions",
+      "apiKey": "vllm",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "DeepSeek-V4-Flash",
+          "name": "DeepSeek V4 Flash (284B/13B-A, reasoning)",
+          "reasoning": true,
+          "contextWindow": 524288,
+          "maxTokens": 32768
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,298 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "threshold": 0.8,
+    // 65536 = 64K per slot, matches the default --parallel 4 -c 262144
+    // shape on the chat-group models. With threshold 0.8 compaction
+    // kicks in around ~52K tokens, comfortably below llama-swap's
+    // per-slot ceiling so requests never 400 from context exhaustion.
+    // minimax-m27 entries get 80K per slot (-c 327680) so they could
+    // safely use a higher limit, but a single global value is simpler
+    // until per-model limits become necessary.
+    "maxContext": 131072
+  },
+  
+  "instructions": [
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+
+  "plugin": [
+    // TEMPORARILY DISABLED 2026-06-18 — re-enable by uncommenting.
+    // "superpowers@git+https://github.com/obra/superpowers.git",
+    "opencode-claude-auth@latest"
+  ],
+
+  // Paseo MCP server registration. Paseo's session-level injection
+  // writes `config.mcpServers.paseo` (Claude Desktop convention), but
+  // opencode 1.15.10 reads `mcp.*` (its own schema). Until that
+  // mismatch is fixed upstream, register it here so every opencode
+  // session can reach the daemon. URL omits the per-agent
+  // ?callerAgentId=... param Paseo would have appended; the daemon
+  // still serves the MCP RPCs but agents won't be uniquely scoped.
+  // Drop this block once Paseo's injection format matches opencode.
+  "mcp": {
+    "paseo": {
+      "type": "remote",
+      "url": "http://127.0.0.1:6767/mcp/agents",
+      // TEMPORARILY DISABLED 2026-06-18 — set back to true to re-enable.
+      "enabled": false
+    },
+    "edra": {
+      "type": "local",
+      "command": ["node", "{{ ansible_user_dir }}/Developer/Personal/edra-mcp-server/dist/index.js"],
+      "enabled": true
+    }
+  },
+  
+  "provider": {
+    "atelier": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Atelier",
+      "options": {
+        "baseURL": "https://ai.atelier.house/openai",
+        "apiKey": "{{ atelier_vllm_api_key }}"
+      },
+      "models": {
+        // MiniMax M2.7 quant A/B test. minimax-m27 is the IQ3_S baseline
+        // (default chat model); iq4 and q4 are the higher-quality
+        // candidates being evaluated. Once a winner is picked, prune
+        // the losers here and in roles/ai/defaults/main.yml.
+        // All three run -c 327680 --parallel 4 = 80K per slot, so they
+        // get a per-model limit overriding the 64K global default.
+        "minimax-m27": {
+          "name": "MiniMax M2.7 (IQ3_S)",
+          "limit": { "context": 81920, "output": 16384 }
+        },
+        "minimax-m27-iq4": {
+          "name": "MiniMax M2.7 (IQ4_XS)",
+          "limit": { "context": 81920, "output": 16384 }
+        },
+        // Q4_K_XL runs at 64K per slot (not 80K like iq3/iq4) because
+        // 80K + 118GB weights crashed in MoE routing on the Max-Q.
+        // See roles/ai/defaults/main.yml for full reasoning.
+        "minimax-m27-q4": {
+          "name": "MiniMax M2.7 (Q4_K_XL)",
+          "limit": { "context": 65536, "output": 16384 }
+        },
+
+        // 120B cross-lineage reference (text-only, no vision). Runs
+        // -c 131072 --parallel 4 = 32K per slot, so it needs a smaller
+        // per-model limit than the 64K global default.
+        "gpt-oss": {
+          "name": "GPT-OSS 120B (Q6_K_XL)",
+          "limit": { "context": 32768, "output": 8192 }
+        },
+
+        // Daily-driver multimodal chat models (vision enabled).
+        "qwen3.6-flash": {
+          "name": "Qwen3.6 Flash (35B MoE)"
+        },
+        "qwen3.6": {
+          "name": "Qwen3.6 (27B + MTP)"
+        },
+        "gemma4": {
+          "name": "Gemma 4 (31B)"
+        },
+
+        // Abliterated/uncensored variants. Same architectures and quant
+        // tiers as their non-abliterated siblings, swap in when refusal
+        // training gets in the way.
+        "qwen3.6-flash-uncensored": {
+          "name": "Qwen3.6 Flash Uncensored (35B MoE)"
+        },
+        "gemma4-uncensored": {
+          "name": "Gemma 4 Uncensored (26B MoE)"
+        },
+        // Smaller -c 131072 --parallel 4 = 32K per slot.
+        "gemma-e4b-uncensored": {
+          "name": "Gemma 4 E4B Uncensored (4B dense)",
+          "limit": { "context": 32768, "output": 8192 }
+        },
+
+        // Coding specialist; likely subsumed by Qwen3.6 eventually.
+        "qwen3-coder": {
+          "name": "Qwen3 Coder (30B MoE)"
+        },
+
+        // CPU-resident, used as small_model for compaction. Not for
+        // interactive chat (slow CPU prompt processing). Single-slot
+        // -c 32768, smaller output cap because compaction summaries
+        // don't need 8K+ tokens of expansion.
+        "qwen3-small": {
+          "name": "Qwen 3 4B (CPU, compaction)",
+          "limit": { "context": 32768, "output": 4096 }
+        },
+
+        // V4 Flash via the OpenWebUI proxy (not llama-swap). Works
+        // both on-LAN (split DNS) and from anywhere DNS resolves to
+        // ai.atelier.house. Slower than the LAN-direct vllm-max
+        // provider below because of TLS + proxy hops, but the only
+        // way in when traveling. Still fails when the vLLM container
+        // isn't running on max; ssh in and `docker start ds4` first.
+        "DeepSeek-V4-Flash": {
+          "name": "DeepSeek V4 Flash (via proxy, 284B/13B-A, reasoning)",
+          "limit": { "context": 524288, "output": 32768 }
+        }
+      }
+    },
+
+    // V4 Flash runs on its own vLLM container on max:11437, separate
+    // from the llama-swap stack behind the Atelier Traefik route.
+    // Direct LAN IP because no Traefik route is configured (vLLM
+    // lifecycle is manual: docker stop ds4 / docker run ... on max).
+    // Only reachable from the LAN; requests will fail when off-network
+    // OR when the container isn't running. Both expected.
+    "vllm-max": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM (max)",
+      "options": {
+        "baseURL": "http://192.168.1.100:11437/v1"
+      },
+      "models": {
+        // DeepSeek V4 Flash served via lavd/vllm:jasl-dsv4-5-21-13.2.
+        // Mixed FP4+FP8 quant, 284B total / 13B active MoE, TP=2
+        // across both Blackwells. Reasoning-tuned ("thinking": true is
+        // baked into the container's --default-chat-template-kwargs).
+        // max_num_seqs=2 means only 2 concurrent requests at a time.
+        // Context capped at 512K in the vLLM args (native is 1M).
+        // This is the primary coding model (see `model` at the bottom
+        // of this file). atelier/DeepSeek-V4-Flash is the proxy fallback
+        // for travel; vllm-max is LAN-direct and faster.
+        "DeepSeek-V4-Flash": {
+          "name": "DeepSeek V4 Flash (284B/13B-A, reasoning)",
+          "limit": { "context": 524288, "output": 32768 }
+        }
+      }
+    },
+
+    // Z.ai GLM Coding Plan. Z.ai exposes both an Anthropic-compatible
+    // and an OpenAI-compatible endpoint; we use the OpenAI-compatible
+    // coding endpoint (the same base URL Z.ai documents for Cline) so it
+    // slots into the existing @ai-sdk/openai-compatible pattern. Auth is
+    // a Z.ai API key pulled from $ZAI_API_KEY at launch rather than
+    // inlined, since this is a paid cloud key (unlike the LAN-only
+    // atelier key). Export it in your shell profile:
+    //   export ZAI_API_KEY=...
+    // The [1m] model-name suffix Z.ai mentions is a Claude-Code-only
+    // trick for its Anthropic endpoint; on the OpenAI-compatible
+    // endpoint the model is just "glm-5.2" and the 1M window is set via
+    // the context limit below (matching Z.ai's Cline guidance).
+    "zai": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Z.ai (GLM Coding Plan)",
+      "options": {
+        "baseURL": "https://api.z.ai/api/coding/paas/v4",
+        "apiKey": "{env:ZAI_API_KEY}"
+      },
+      "models": {
+        // opencode does NOT expose a reasoning-effort selector for GLM
+        // models: its provider transform special-cases any id containing
+        // "glm" and returns no effort variants (unlike GPT-5/Claude),
+        // so there's no in-session high/max toggle. We pin the effort
+        // per entry via options.reasoningEffort, which opencode forwards
+        // to the OpenAI-compatible body as `reasoning_effort`. Per Z.ai's
+        // mapping table, "high" -> GLM's high effort and "max" -> GLM's
+        // max effort (Z.ai accepts both as inputs). Two entries means
+        // both levels show up as distinct picks in /models; the second
+        // aliases the same upstream `glm-5.2` via the `id` field.
+        // NOTE: verify the param is actually sent (see opencode logs /
+        // Z.ai usage) since GLM is special-cased; if it's ignored, the
+        // fallback is to send it as a raw body field instead.
+        "glm-5.2": {
+          "name": "GLM-5.2 (high)",
+          "reasoning": true,
+          "options": { "reasoningEffort": "high" },
+          "limit": { "context": 1000000, "output": 131072 }
+        },
+        "glm-5.2-max": {
+          "id": "glm-5.2",
+          "name": "GLM-5.2 (max)",
+          "reasoning": true,
+          "options": { "reasoningEffort": "max" },
+          "limit": { "context": 1000000, "output": 131072 }
+        },
+        // GLM-4.5 Air: the lighter/faster tier (Z.ai's "haiku" slot).
+        // Here purely for the eval comparison against 5.2 while deciding
+        // whether the quality justifies more GPU spend.
+        "glm-4.5-air": {
+          "name": "GLM-4.5 Air",
+          "reasoning": true,
+          "limit": { "context": 131072, "output": 32768 }
+        }
+      }
+    },
+
+    // OpenAI provider authenticated against the ChatGPT/Codex
+    // subscription, NOT an API key, so per-token spend is covered by
+    // the monthly sub. Authenticate once with
+    // `opencode auth login openai` and pick "ChatGPT Plus/Pro" at the
+    // auth-method prompt (the other option is "Manually enter API
+    // Key" -- avoid that, it bills per token). No apiKey field belongs
+    // in this block. Used by both the plan agent and the review
+    // subagent; reasoningEffort is set per-agent so the two can
+    // diverge if planning starts wanting more depth than review.
+    // No Claude provider is configured because the only no-extra-cost
+    // path (GitHub Copilot) requires a paid Copilot sub anyway.
+    "openai": {
+      "models": {
+        "gpt-5.5-codex": {
+          "name": "GPT-5.5 Codex"
+        }
+      }
+    }
+  },
+
+  // Agent overrides. `build` is opencode's default primary agent and
+  // inherits the top-level `model` (DSV4 Flash via the atelier proxy).
+  // `plan` is also built-in but we redirect it to Codex 5.5 for
+  // planning-grade reasoning. `review` is a custom read-only subagent
+  // the primary hands off to for a second-opinion pass.
+  "agent": {
+    "plan": {
+      "model": "openai/gpt-5.5-codex",
+      "reasoningEffort": "medium"
+    },
+    "review": {
+      "description": "Reviewer pass on the pending changes using Codex 5.5 at medium reasoning effort. Read-only by default; can run bash/read but not edit.",
+      "mode": "subagent",
+      "model": "openai/gpt-5.5-codex",
+      "reasoningEffort": "medium",
+      "permission": {
+        "edit": "deny",
+        "bash": "ask",
+        "read": "allow"
+      }
+    }
+  },
+  
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow"
+  },
+  
+  "watcher": {
+    "ignore": [
+      "node_modules/**", ".venv/**", "dist/**", "build/**", ".git/**", "**/*.log"
+    ]
+  },
+
+  // Primary coding (and planning) model: DSV4 Flash via the atelier
+  // proxy. Travel-safe because it resolves to ai.atelier.house from
+  // anywhere DNS works, not just on the LAN. Slower than the
+  // LAN-direct vllm-max/DeepSeek-V4-Flash because of TLS + proxy hops,
+  // so swap to that one when home if you want the faster path. Still
+  // fails when the ds4 container is stopped on max either way.
+  // small_model stays on the CPU-resident qwen3-small so compaction
+  // summaries don't compete with chat for GPU slots.
+  "model": "atelier/DeepSeek-V4-Flash",
+  "small_model": "atelier/qwen3-small",
+
+  "lsp": true,
+  "autoupdate": "notify",
+  "snapshot": true
+}

@@ -228,6 +228,10 @@ deploy-paseo-relay: ## Deploy Paseo Relay
 	@echo "$(BLUE)Deploying Paseo Relay...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/paseo_relay.yml $(VAULT_FLAG)
 
+deploy-agents-linux: ## Deploy agent tooling (Linux) on nuc-mini
+	@echo "$(BLUE)Deploying agent tooling (Linux)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/agents_linux.yml $(VAULT_FLAG)
+
 deploy-n8n: ## Deploy n8n
 	@echo "$(BLUE)Deploying n8n...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/n8n.yml $(VAULT_FLAG)
