@@ -65,6 +65,15 @@
   no_log: true
   notify: Restart {{ stack_name }} stack
 
+# Staged to the host so the one-time bootstrap (layout + bucket + key) can be
+# run over SSH without a repo checkout. See files/ci_cache_bootstrap.sh.
+- name: Stage CI cache bootstrap script
+  ansible.builtin.copy:
+    src: ci_cache_bootstrap.sh
+    dest: "{{ docker_base_path }}/{{ stack_name }}/ci_cache_bootstrap.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
 - name: Deploy GitLab omnibus config
   ansible.builtin.template:
     src: gitlab/gitlab.rb.j2
