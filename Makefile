@@ -1,5 +1,5 @@
 # Homelab Ansible Makefile
-.PHONY: help deploy-all deploy-infra deploy-media check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags
+.PHONY: help deploy-all deploy-infra deploy-media check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags migrate-hugginghack-models migrate-hugginghack-models-apply
 
 # Colors for output
 RED := \033[0;31m
@@ -13,6 +13,7 @@ ANSIBLE := ansible-playbook
 INVENTORY := inventory/hosts.yml
 VAULT_PASS := ~/.ansible-vault-pass
 ANSIBLE_CONFIG := ansible.cfg
+FILES_ROOT ?= /Volumes/Files
 
 # Check if vault password file exists
 VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS),--ask-vault-pass)
@@ -247,6 +248,12 @@ deploy-copyparty: ## Deploy Copyparty
 deploy-hugginghack: ## Deploy HuggingHack (HF model browser) on nuc-mini
 	@echo "$(BLUE)Deploying HuggingHack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/hugginghack.yml $(VAULT_FLAG)
+
+migrate-hugginghack-models: ## Preview migration of Files/models into HuggingHack
+	@./scripts/migrate-hugginghack-models.sh --files-root "$(FILES_ROOT)"
+
+migrate-hugginghack-models-apply: ## Apply migration of Files/models into HuggingHack
+	@./scripts/migrate-hugginghack-models.sh --files-root "$(FILES_ROOT)" --apply
 
 ##@ Deployment - Application Stacks
 

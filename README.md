@@ -555,6 +555,15 @@ make deploy-hugginghack
 # create the NFS volume (its internal export path includes Files/.data):
 make deploy-prerequisites
 
+# To reorganize models previously downloaded under Files/models, mount the
+# Files share on this machine and preview the owner/repository moves first.
+# FILES_ROOT defaults to /Volumes/Files on macOS.
+make migrate-hugginghack-models FILES_ROOT=/Volumes/Files
+
+# Apply only after the preview is correct. The migration refuses destination
+# conflicts and is safe to rerun after already-completed moves.
+make migrate-hugginghack-models-apply FILES_ROOT=/Volumes/Files
+
 # First Beszel bootstrap:
 # 1. Land DNS labels, then deploy the hub.
 # 2. Create the first Beszel admin user at https://beszel.atelier.house.
