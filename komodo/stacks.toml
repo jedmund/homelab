@@ -739,8 +739,6 @@ if (operation === 'destroy') {
 
   console.log(`Deployed ${stackName} at https://${host} (${revision})`)
 }
-
-export {}
 '''
 
 [[user_group]]
