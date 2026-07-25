@@ -6,6 +6,42 @@ works, API credentialed CORS is correct, and the private Garage endpoint accepts
 the expected upload preflight. The checks below cover the authenticated and
 stateful behavior that should not be automated with production credentials.
 
+## YouTube enrichment and archival
+
+Add the server-side YouTube Data API v3 key to the Kizuna vault before
+deploying:
+
+```yaml
+vault_kizuna_youtube_api_key: your-restricted-server-key
+```
+
+The role enables video archival by default and shares the resulting settings
+with both the Rails and Sidekiq containers. The worker uses yt-dlp and ffmpeg
+from the Kizuna API image to store an MP4, poster, and selected captions in the
+existing Garage bucket. Subtitle selection defaults to `en.*,en`; override
+`kizuna_video_archive_sub_langs` in inventory if needed.
+
+For videos that require an authenticated YouTube session, optionally store the
+contents of a Netscape-format cookies file in the vault:
+
+```yaml
+vault_kizuna_youtube_cookies: |
+  # Netscape HTTP Cookie File
+  ...
+```
+
+The role writes that credential to a mode-`0600` host file and mounts it
+read-only into the worker. Leave it unset for anonymous yt-dlp access. Never
+commit the API key or cookie contents outside the encrypted vault.
+
+After deployment, verify the worker received the non-secret switches and a
+non-empty key without printing the credential:
+
+```sh
+docker exec kizuna-worker sh -c \
+  'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1'
+```
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
@@ -16,9 +52,10 @@ stateful behavior that should not be automated with production credentials.
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved
    the content. Turn a note into a task; exercise date, time, and priority.
-5. Capture a generic link and an image. Confirm the link preview completes, the
-   image survives a reload, and removing a parsed embed prevents its node from
-   being created.
+5. Capture a generic link, an image, and a public YouTube URL. Confirm the link
+   preview completes, the image survives a reload, and the video receives its
+   title, channel, duration, and poster. Confirm the worker eventually marks
+   its local copy ready and playback prefers the archived media.
 6. Start a chat that uses a source. Confirm streaming, cancel/reload behavior,
    the collapsible Thinking section, and the inline Sources pill. Open Run
    details from the overflow menu.
