@@ -169,6 +169,16 @@ kizuna_allowed_origins: "{{ kizuna_web_origin }}"
 # API at api.kizuna.fm share session state.
 kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
 
+# ---- Shared web search ----
+# SearXNG is owned by the ai stack on max. Kizuna consumes that service;
+# this role must not deploy a second search container on nuc-mini.
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+kizuna_searxng_port: 8889
+kizuna_searxng_base_url: "http://{{ max_server_ip }}:{{ kizuna_searxng_port }}"
+kizuna_searxng_name: "Atelier SearXNG"
+kizuna_searxng_enabled: "true"
+kizuna_searxng_api_key: "{{ vault_kizuna_searxng_api_key | default('') }}"
+
 # The upload reaper is the stack's one scheduled hard-delete path. New
 # deployments start in audit-only mode; flip this to "0" in a dedicated
 # follow-up only after the production DRY_RUN output has been reviewed.
