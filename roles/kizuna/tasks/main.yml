@@ -202,6 +202,19 @@
     wait_timeout: 180
   register: compose_result
 
+- name: Provision Kizuna agent tool connections
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - agent_tools:provision
+  register: kizuna_agent_tools_provision
+  changed_when: >-
+    'created searxng' in kizuna_agent_tools_provision.stdout or
+    'updated searxng' in kizuna_agent_tools_provision.stdout
+
 # Search documents are a rebuildable projection. Running this after every
 # healthy deploy covers both first-time migrations and any rows missed while
 # the projection was unavailable; the Rails task only saves changed rows.

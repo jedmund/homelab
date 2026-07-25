@@ -74,6 +74,39 @@ backs up only Garage metadata; it no longer duplicates the unbounded media
 library. The `Files/Kizuna/Garage` directory therefore needs to be included
 in the NAS's own snapshot or offsite-backup policy.
 
+## Web search
+
+SearXNG is deployed by `roles/ai` on `max`; Kizuna reuses it and does not run
+a second search container on `nuc-mini`. The endpoint is derived from the
+`max` inventory address plus `kizuna_searxng_port`, not a duplicated IP
+literal. After every healthy Compose deployment, the Kizuna role runs the
+API's idempotent `agent_tools:provision` task. Enabling probes the shared
+JSON search endpoint before changing the database, so a failed probe stops
+the Ansible run while leaving the running stack and prior connection intact.
+
+Verify the non-secret connection state and probe from inside the API:
+
+```sh
+docker exec kizuna-api bin/rails runner \
+  'puts AiToolConnection.where(user_id: nil, kind: "searxng").pick(:base_url, :enabled, :last_status).inspect'
+
+docker exec kizuna-api bin/rails runner \
+  'connection = AiToolConnection.where(user_id: nil, kind: "searxng").sole; result = AiToolConnections::SearxngClient.new(connection).probe; abort(result.error) unless result.ok?; puts "ok"'
+```
+
+Do not print `api_key` or dump the container environment. Confirm
+`docker compose -f /opt/docker/kizuna/compose.yaml ps` remains healthy and
+that no Kizuna-owned SearXNG container exists on `nuc-mini`. Then sign in and
+ask chat for current information; the completed run should have at least one
+`AiSource` with `kind: "web"` and a working citation. A second
+`make deploy-kizuna` should report the provisioning task unchanged. Open
+WebUI and Vane continue to use this same shared service.
+
+To roll back, set `kizuna_searxng_enabled: "false"` and redeploy. Provisioning
+skips the probe, disables the instance connection, and Kizuna stops
+advertising `web_search`. This does not change the shared SearXNG deployment
+or its Open WebUI/Vane consumers.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
