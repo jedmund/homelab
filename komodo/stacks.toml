@@ -626,3 +626,119 @@ run_directory = "/opt/docker/sglang"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+[[action]]
+name = "kizuna-storybook-review"
+description = "Create and destroy authenticated Kizuna Storybook stacks for GitLab merge requests"
+tags = ["homelab", "kizuna", "ci", "review-app"]
+[action.config]
+failure_alert = true
+file_contents = '''
+type Operation = 'deploy' | 'destroy'
+
+const SERVER = 'Atelier'
+const REVIEW_DOMAIN = 'review.atelier.house'
+const PROXY_NETWORK = 'proxy-network'
+const AUTH_MIDDLEWARE = 'tinyauth@file'
+const CERTIFICATE_RESOLVER = 'letsencrypt'
+const IMAGE_PATTERN =
+  /^registry\.atelier\.house\/kizuna\/kizuna-app\/storybook:[a-f0-9]{8,64}$/i
+
+const required = (name: string): string => {
+  const value = String(ARGS[name] ?? '').trim()
+  if (!value) throw new Error(`Missing Action argument: ${name}`)
+  return value
+}
+
+const matches = (name: string, pattern: RegExp): string => {
+  const value = required(name)
+  if (!pattern.test(value)) throw new Error(`Invalid Action argument: ${name}`)
+  return value
+}
+
+const operation = required('operation') as Operation
+if (operation !== 'deploy' && operation !== 'destroy') {
+  throw new Error('operation must be deploy or destroy')
+}
+
+const reviewId = matches('review_id', /^[1-9][0-9]*$/)
+const stackName = `kizuna-storybook-mr-${reviewId}`
+const stacks = await komodo.read('ListStacks', {})
+const existing = stacks.find((stack) => stack.name === stackName)
+
+if (operation === 'destroy') {
+  if (!existing) {
+    console.log(`${stackName} is already absent`)
+  } else {
+    const update = await komodo.execute_and_poll('DestroyStack', {
+      stack: existing.id,
+      remove_orphans: true,
+      stop_time: 10,
+    })
+    if (Array.isArray(update) || !update.success) {
+      throw new Error(`Failed to destroy ${stackName}`)
+    }
+    await komodo.write('DeleteStack', { id: existing.id })
+    console.log(`Destroyed and deleted ${stackName}`)
+  }
+} else {
+  const image = matches('image', IMAGE_PATTERN)
+  const host = required('host')
+  const expectedHost = `storybook-mr-${reviewId}.${REVIEW_DOMAIN}`
+  if (host !== expectedHost) {
+    throw new Error(`host must be ${expectedHost}`)
+  }
+  const revision = matches('revision', /^[a-f0-9]{40,64}$/i)
+  const router = `kizuna-storybook-mr-${reviewId}`
+
+  const compose: DockerCompose = {
+    services: {
+      storybook: {
+        image,
+        restart: 'unless-stopped',
+        labels: {
+          'traefik.enable': 'true',
+          'traefik.docker.network': PROXY_NETWORK,
+          [`traefik.http.routers.${router}.rule`]: `Host(\`${host}\`)`,
+          [`traefik.http.routers.${router}.entrypoints`]: 'websecure',
+          [`traefik.http.routers.${router}.tls`]: 'true',
+          [`traefik.http.routers.${router}.tls.certresolver`]: CERTIFICATE_RESOLVER,
+          [`traefik.http.routers.${router}.middlewares`]: AUTH_MIDDLEWARE,
+          [`traefik.http.services.${router}.loadbalancer.server.port`]: '80',
+        },
+        networks: [PROXY_NETWORK],
+      },
+    },
+    networks: {
+      [PROXY_NETWORK]: {
+        external: true,
+      },
+    },
+  }
+
+  const config = {
+    server_id: SERVER,
+    project_name: stackName,
+    auto_pull: true,
+    file_contents: YAML.stringify(compose),
+    links: [`https://${host}`],
+    send_alerts: false,
+  }
+
+  const stack = existing
+    ? await komodo.write('UpdateStack', { id: existing.id, config })
+    : await komodo.write('CreateStack', { name: stackName, config })
+
+  const update = await komodo.execute_and_poll('DeployStack', {
+    stack: stack.name,
+    stop_time: 10,
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error(`Failed to deploy ${stackName}`)
+  }
+
+  console.log(`Deployed ${stackName} at https://${host} (${revision})`)
+}
+
+export {}
+'''
