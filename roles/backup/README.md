@@ -130,11 +130,12 @@ and `/opt/docker/backup` (avoid recursive snapshot).
 that use internal compose volumes rather than bind mounts. The volume is
 mounted read-only into the borgmatic container at a known path, added to
 `source_directories`, and any SQLite inside also gets a dump-sqlite
-  entry. Currently: `karakeep-data` -> `/karakeep-data`
-  (captures Karakeep's SQLite plus its asset/screenshot store), plus Kizuna's
-  Garage object-data and metadata volumes. Garage writes consistent metadata
-  snapshots every six hours; use one of those snapshots for recovery rather
-  than treating the live SQLite files as a consistent copy.
+entry. Currently: `karakeep-data` -> `/karakeep-data` (captures Karakeep's
+SQLite plus its asset/screenshot store), plus Kizuna's Garage metadata
+volume. Garage writes consistent metadata snapshots every six hours; use one
+of those snapshots for recovery rather than treating the live SQLite files as
+a consistent copy. Garage object blocks live directly on the NAS and must be
+covered by the NAS's own snapshot or offsite-backup policy.
 
 ## What's not covered yet
 

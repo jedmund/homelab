@@ -42,6 +42,38 @@ docker exec kizuna-worker sh -c \
   'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1'
 ```
 
+## NAS-backed media storage
+
+Garage continues to provide the private S3 API and presigned playback URLs,
+but its large object-block directory is stored under
+`Private/Kizuna/Garage` on the NAS. Garage's SQLite metadata stays in the
+local `kizuna_kizuna-garage-meta` volume because database metadata should not
+live on NFS.
+
+The first deployment performs a one-time, consistent migration:
+
+1. Create the NAS subdirectory and dedicated `kizuna-garage-data-nas` NFS
+   volume.
+2. Stop the API, worker, and Garage briefly.
+3. Copy the existing `kizuna_kizuna-garage-data` contents to the NAS.
+4. Record a migration marker and start the stack against the NAS volume.
+
+The old local volume is deliberately retained as a rollback copy. To roll
+back, set `kizuna_garage_data_nas_enabled: false` and redeploy. Remove the old
+volume only after uploads, archived playback, and a Garage integrity check
+have all passed:
+
+```sh
+docker volume inspect kizuna-garage-data-nas
+docker exec kizuna-garage /garage status
+docker exec kizuna-garage /garage stats
+```
+
+Because the object blocks now live on the NAS, the NUC-local Borg repository
+backs up only Garage metadata; it no longer duplicates the unbounded media
+library. The `Private/Kizuna/Garage` directory therefore needs to be included
+in the NAS's own snapshot or offsite-backup policy.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its

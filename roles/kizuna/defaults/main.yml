@@ -90,6 +90,20 @@ kizuna_youtube_cookies_container_path: /run/secrets/kizuna-youtube-cookies.txt
 # only; this template ships its own from the vault.
 kizuna_garage_image: dxflrs/garage:v2.3.0
 kizuna_garage_bucket: kizuna
+# Garage keeps its small SQLite metadata volume on the NUC, while the large
+# immutable object blocks live on the existing Private NAS share. This moves
+# uploaded media and archived videos off the NUC without changing the S3 API
+# consumed by Rails or the browser. Set false for an immediate rollback to the
+# retained Compose-managed local volume.
+kizuna_garage_data_nas_enabled: true
+kizuna_garage_data_nas_seed_volume: private
+kizuna_garage_data_nas_subdirectory: Kizuna/Garage
+kizuna_garage_data_nfs_device: ":{{ nfs_base_path }}/Private/.data/{{ kizuna_garage_data_nas_subdirectory }}"
+kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
+kizuna_garage_data_volume_name: kizuna-garage-data-nas
+kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
+kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
+kizuna_storage_init_image: alpine:3.20
 # Public S3 endpoint. Garage's S3 API is internal-only on the backend
 # network; Traefik fronts it at this host so the browser can fetch image
 # bytes from the presigned GET URLs the API mints. Server-side object ops

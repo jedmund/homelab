@@ -197,6 +197,14 @@ volumes:
   kizuna-pgdata:
   kizuna-redis:
   kizuna-garage-data:
+{% if kizuna_garage_data_nas_enabled %}
+    name: {{ kizuna_garage_data_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kizuna_garage_data_nfs_options }}"
+      device: "{{ kizuna_garage_data_nfs_device }}"
+{% endif %}
   kizuna-garage-meta:
 
 networks:
