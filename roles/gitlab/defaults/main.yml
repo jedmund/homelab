@@ -10,7 +10,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 #   renovate_gitlab_token, renovate_github_token (optional)
 
 # GitLab CE settings
-gitlab_image: gitlab/gitlab-ce:17.5.2-ce.0
+gitlab_image: gitlab/gitlab-ce:19.2.0-ce.0
 gitlab_domain: git.atelier.house
 gitlab_registry_domain: registry.atelier.house
 gitlab_ssh_port: "2222"
@@ -24,7 +24,7 @@ gitlab_oidc_client_id: ""
 gitlab_oidc_client_secret: ""
 
 # GitLab Runner settings
-gitlab_runner_image: gitlab/gitlab-runner:v17.5.2
+gitlab_runner_image: gitlab/gitlab-runner:v19.2.0
 gitlab_runner_name: nuc-mini-docker
 gitlab_runner_concurrent: 4
 # Host inotify instance cap for CI file watchers (see tasks/main.yml). Kernel

@@ -31,7 +31,7 @@ shutdown_timeout = 0
     MaxUploadedArchiveSize = 0
     [runners.cache.s3]
 {% if gitlab_cache_s3_access_key_id | length > 0 %}
-      ServerAddress = "{{ gitlab_cache_s3_endpoint }}"
+      ServerAddress = "{{ gitlab_cache_s3_lan_endpoint }}"
       AccessKey = "{{ gitlab_cache_s3_access_key_id }}"
       SecretKey = "{{ gitlab_cache_s3_secret_access_key }}"
       BucketName = "{{ gitlab_cache_s3_bucket }}"

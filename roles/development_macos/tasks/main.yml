@@ -25,12 +25,12 @@
   notify: Restart gitlab-runner
 
 - name: Install gitlab-runner as a user LaunchAgent
-  ansible.builtin.command: gitlab-runner install
+  ansible.builtin.command: "{{ gitlab_runner_macos_binary }} install"
   args:
     creates: "{{ gitlab_runner_macos_home }}/Library/LaunchAgents/gitlab.gitlab-runner.plist"
   become: false
 
 - name: Ensure gitlab-runner is started
-  ansible.builtin.command: gitlab-runner start
+  ansible.builtin.command: "{{ gitlab_runner_macos_binary }} start"
   become: false
   changed_when: false

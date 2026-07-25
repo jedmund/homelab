@@ -294,6 +294,10 @@ deploy-sglang: ## Deploy SGLang stack on max (parked: DSV4 NVFP4 fails strict-co
 	@echo "$(BLUE)Deploying SGLang stack (parked, see role README)...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/sglang.yml $(VAULT_FLAG)
 
+deploy-development-macos: ## Deploy GitLab Runner (shell executor) on mac-mini
+	@echo "$(BLUE)Deploying development (macOS) stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/development_macos.yml $(VAULT_FLAG)
+
 deploy-development-linux: ## Deploy GitLab Runner (docker executor) on max
 	@echo "$(BLUE)Deploying development (Linux) stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/development_linux.yml $(VAULT_FLAG)

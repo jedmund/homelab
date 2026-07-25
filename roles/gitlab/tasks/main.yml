@@ -41,7 +41,9 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  # The docker_compose_v2 task below applies compose changes and waits for
+  # service health. Notifying the unconditional recreate handler here would
+  # restart the freshly upgraded stack a second time.
 
 - name: Deploy environment files
   ansible.builtin.template:
@@ -90,7 +92,8 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  # GitLab Runner watches config.toml and hot-reloads changes. Avoid
+  # interrupting in-flight jobs for settings that do not require a restart.
 
 - name: Deploy Renovate config
   ansible.builtin.template:

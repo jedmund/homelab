@@ -71,8 +71,9 @@ services:
       - cibuild
     ports:
       # S3 API published on the LAN IP only (not 0.0.0.0) so the max runner
-      # reaches it at {{ gitlab_cache_garage_bind_ip }}:{{ gitlab_cache_garage_s3_host_port }}
-      # and nuc-mini jobs use the same address. Admin (3903) stays internal.
+      # reaches it at {{ gitlab_cache_garage_bind_ip }}:{{ gitlab_cache_garage_s3_host_port }}.
+      # nuc-mini jobs use gitlab-cache-garage:3900 over cibuild instead,
+      # avoiding a same-host Docker hairpin. Admin (3903) stays internal.
       - "{{ gitlab_cache_garage_bind_ip }}:{{ gitlab_cache_garage_s3_host_port }}:3900"
     volumes:
       - ./config/gitlab-cache/garage.toml:/etc/garage.toml:ro
