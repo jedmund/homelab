@@ -6,6 +6,74 @@ works, API credentialed CORS is correct, and the private Garage endpoint accepts
 the expected upload preflight. The checks below cover the authenticated and
 stateful behavior that should not be automated with production credentials.
 
+## YouTube enrichment and archival
+
+Add the server-side YouTube Data API v3 key to the Kizuna vault before
+deploying:
+
+```yaml
+vault_kizuna_youtube_api_key: your-restricted-server-key
+```
+
+The role enables video archival by default and shares the resulting settings
+with both the Rails and Sidekiq containers. The worker uses yt-dlp and ffmpeg
+from the Kizuna API image to store an MP4, poster, and selected captions in the
+existing Garage bucket. Subtitle selection defaults to `en.*,en`; override
+`kizuna_video_archive_sub_langs` in inventory if needed.
+
+For videos that require an authenticated YouTube session, optionally store the
+contents of a Netscape-format cookies file in the vault:
+
+```yaml
+vault_kizuna_youtube_cookies: |
+  # Netscape HTTP Cookie File
+  ...
+```
+
+The role writes that credential to a mode-`0600` host file and mounts it
+read-only into the worker. Leave it unset for anonymous yt-dlp access. Never
+commit the API key or cookie contents outside the encrypted vault.
+
+After deployment, verify the worker received the non-secret switches and a
+non-empty key without printing the credential:
+
+```sh
+docker exec kizuna-worker sh -c \
+  'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1'
+```
+
+## NAS-backed media storage
+
+Garage continues to provide the private S3 API and presigned playback URLs,
+but its large object-block directory is stored under
+`Files/Kizuna/Garage` on the NAS. Garage's SQLite metadata stays in the
+local `kizuna_kizuna-garage-meta` volume because database metadata should not
+live on NFS.
+
+The first deployment performs a one-time, consistent migration:
+
+1. Create the NAS subdirectory and dedicated `kizuna-garage-data-nas` NFS
+   volume.
+2. Stop the API, worker, and Garage briefly.
+3. Copy the existing `kizuna_kizuna-garage-data` contents to the NAS.
+4. Record a migration marker and start the stack against the NAS volume.
+
+The old local volume is deliberately retained as a rollback copy. To roll
+back, set `kizuna_garage_data_nas_enabled: false` and redeploy. Remove the old
+volume only after uploads, archived playback, and a Garage integrity check
+have all passed:
+
+```sh
+docker volume inspect kizuna-garage-data-nas
+docker exec kizuna-garage /garage status
+docker exec kizuna-garage /garage stats
+```
+
+Because the object blocks now live on the NAS, the NUC-local Borg repository
+backs up only Garage metadata; it no longer duplicates the unbounded media
+library. The `Files/Kizuna/Garage` directory therefore needs to be included
+in the NAS's own snapshot or offsite-backup policy.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
@@ -16,9 +84,10 @@ stateful behavior that should not be automated with production credentials.
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved
    the content. Turn a note into a task; exercise date, time, and priority.
-5. Capture a generic link and an image. Confirm the link preview completes, the
-   image survives a reload, and removing a parsed embed prevents its node from
-   being created.
+5. Capture a generic link, an image, and a public YouTube URL. Confirm the link
+   preview completes, the image survives a reload, and the video receives its
+   title, channel, duration, and poster. Confirm the worker eventually marks
+   its local copy ready and playback prefers the archived media.
 6. Start a chat that uses a source. Confirm streaming, cancel/reload behavior,
    the collapsible Thinking section, and the inline Sources pill. Open Run
    details from the overflow menu.

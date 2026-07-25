@@ -57,6 +57,10 @@ services:
       - backend
     env_file:
       - ./env/api.env
+{% if kizuna_youtube_cookies | length > 0 %}
+    volumes:
+      - ./secrets/youtube-cookies.txt:{{ kizuna_youtube_cookies_container_path }}:ro
+{% endif %}
     depends_on:
       kizuna-postgres:
         condition: service_healthy
@@ -193,6 +197,14 @@ volumes:
   kizuna-pgdata:
   kizuna-redis:
   kizuna-garage-data:
+{% if kizuna_garage_data_nas_enabled %}
+    name: {{ kizuna_garage_data_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kizuna_garage_data_nfs_options }}"
+      device: "{{ kizuna_garage_data_nfs_device }}"
+{% endif %}
   kizuna-garage-meta:
 
 networks:

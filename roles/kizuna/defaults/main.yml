@@ -67,12 +67,45 @@ kizuna_postgres_password: "{{ vault_kizuna_postgres_password | default('') }}"
 # ---- Redis ----
 kizuna_redis_image: redis:7-alpine
 
+# ---- YouTube enrichment + archival ----
+# Server-side YouTube Data API v3 key used by the Sidekiq enrichment worker
+# for titles, duration, thumbnails, channel details, and availability. Keep
+# this out of the SPA; populate vault_kizuna_youtube_api_key in the Kizuna
+# vault. A blank key leaves YouTube blocks playable but skips rich metadata.
+kizuna_youtube_api_key: "{{ vault_kizuna_youtube_api_key | default('') }}"
+# Archival is enabled for production so newly enriched YouTube blocks are
+# downloaded by yt-dlp, normalized by ffmpeg, and stored in Garage. The same
+# api.env is consumed by Rails and Sidekiq, as required by the application.
+kizuna_video_archive_enabled: "1"
+kizuna_video_archive_sub_langs: "en.*,en"
+# Optional Netscape-format cookies for videos the instance is authorized to
+# access but that require a signed-in session. Store the file contents—not a
+# host path—in the vault; the role deploys and mounts it read-only.
+kizuna_youtube_cookies: "{{ vault_kizuna_youtube_cookies | default('') }}"
+kizuna_youtube_cookies_container_path: /run/secrets/kizuna-youtube-cookies.txt
+
 # ---- Garage (S3) ----
 # Per-stack Garage instance. The dev rpc_secret in
 # kizuna-api/garage_config/garage.toml is for the local docker-compose
 # only; this template ships its own from the vault.
 kizuna_garage_image: dxflrs/garage:v2.3.0
 kizuna_garage_bucket: kizuna
+# Garage keeps its small SQLite metadata volume on the NUC, while the large
+# immutable object blocks live on the Files NAS share. This moves
+# uploaded media and archived videos off the NUC without changing the S3 API
+# consumed by Rails or the browser. Set false for an immediate rollback to the
+# retained Compose-managed local volume.
+kizuna_garage_data_nas_enabled: true
+kizuna_garage_data_nas_share: Files
+kizuna_garage_data_nas_seed_volume: kizuna-files-nas-root
+kizuna_garage_data_nas_subdirectory: Kizuna/Garage
+kizuna_garage_data_nfs_root_device: ":{{ nfs_base_path }}/{{ kizuna_garage_data_nas_share }}/.data"
+kizuna_garage_data_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_garage_data_nas_subdirectory }}"
+kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
+kizuna_garage_data_volume_name: kizuna-garage-data-nas
+kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
+kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
+kizuna_storage_init_image: alpine:3.20
 # Public S3 endpoint. Garage's S3 API is internal-only on the backend
 # network; Traefik fronts it at this host so the browser can fetch image
 # bytes from the presigned GET URLs the API mints. Server-side object ops

@@ -26,6 +26,7 @@
   loop:
     - "{{ config_base }}"
     - "{{ config_base }}/env"
+    - "{{ config_base }}/secrets"
     - "{{ config_base }}/config/garage"
 
 - name: Deploy Garage config
@@ -59,6 +60,15 @@
   no_log: true
   notify: Restart {{ stack_name }} stack
 
+- name: Deploy optional YouTube cookies
+  template:
+    src: secrets/youtube-cookies.txt.j2
+    dest: "{{ config_base }}/secrets/youtube-cookies.txt"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
 - name: Stage Garage bootstrap script
   copy:
     src: garage_bootstrap.sh
@@ -73,6 +83,114 @@
     password: "{{ kizuna_registry_password }}"
   when: kizuna_registry_username | length > 0 and kizuna_registry_password | length > 0
   no_log: true
+
+- name: Prepare NAS-backed Garage object storage
+  when: kizuna_garage_data_nas_enabled
+  block:
+    - name: Create Files-root NFS bootstrap volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_nas_seed_volume }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_garage_data_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_root_device }}"
+        state: present
+
+    - name: Create Kizuna Garage data directory on the NAS
+      community.docker.docker_container:
+        name: kizuna-garage-nas-init
+        image: "{{ kizuna_storage_init_image }}"
+        command:
+          - mkdir
+          - -p
+          - "/nas/{{ kizuna_garage_data_nas_subdirectory }}"
+        volumes:
+          - "{{ kizuna_garage_data_nas_seed_volume }}:/nas"
+        network_mode: none
+        detach: false
+        cleanup: true
+        state: started
+      changed_when: false
+
+    - name: Create dedicated Kizuna Garage NFS volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_volume_name }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_garage_data_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_device }}"
+        state: present
+
+    - name: Inspect legacy local Garage data volume
+      community.docker.docker_volume_info:
+        name: "{{ kizuna_garage_legacy_data_volume_name }}"
+      register: kizuna_garage_legacy_data_volume
+
+    - name: Check whether Garage data already migrated to the NAS
+      ansible.builtin.stat:
+        path: "{{ kizuna_garage_data_migration_marker }}"
+      register: kizuna_garage_data_migration
+
+    - name: Migrate existing Garage object blocks to the NAS
+      when:
+        - kizuna_garage_legacy_data_volume.exists
+        - not kizuna_garage_data_migration.stat.exists
+      block:
+        - name: Stop Kizuna services for a consistent Garage data copy
+          community.docker.docker_compose_v2:
+            project_src: "{{ config_base }}"
+            services:
+              - kizuna-api
+              - kizuna-worker
+              - kizuna-garage
+            state: stopped
+
+        - name: Copy legacy Garage object blocks to the NAS
+          community.docker.docker_container:
+            name: kizuna-garage-data-migration
+            image: "{{ kizuna_storage_init_image }}"
+            command:
+              - sh
+              - -c
+              - cp -R /source/. /destination/ && sync
+            volumes:
+              - "{{ kizuna_garage_legacy_data_volume_name }}:/source:ro"
+              - "{{ kizuna_garage_data_volume_name }}:/destination"
+            network_mode: none
+            detach: false
+            cleanup: true
+            state: started
+
+        - name: Record successful Garage NAS migration
+          ansible.builtin.file:
+            path: "{{ kizuna_garage_data_migration_marker }}"
+            state: touch
+            owner: "{{ ansible_user }}"
+            mode: '0600'
+      rescue:
+        - name: Restart existing Kizuna containers after migration failure
+          community.docker.docker_container:
+            name: "{{ item.name }}"
+            image: "{{ item.image }}"
+            state: started
+            comparisons:
+              image: ignore
+          loop:
+            - name: kizuna-garage
+              image: "{{ kizuna_garage_image }}"
+            - name: kizuna-api
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+            - name: kizuna-worker
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+
+        - name: Stop deployment after Garage migration failure
+          ansible.builtin.fail:
+            msg: >-
+              Garage data migration failed. Existing containers were restarted
+              against the retained local volume; inspect the migration error
+              before retrying.
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:

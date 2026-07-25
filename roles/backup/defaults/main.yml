@@ -44,11 +44,9 @@ borg_source_paths:
 borg_named_volumes:
   - volume: karakeep-data
     path: /karakeep-data
-  # Garage object blocks are immutable once written. The metadata volume also
-  # contains Garage's periodic consistent snapshots (configured by the Kizuna
-  # role), which are the restore source rather than a live SQLite file copy.
-  - volume: kizuna_kizuna-garage-data
-    path: /kizuna-garage-data
+  # Garage object blocks live directly on the NAS so the NUC-local Borg repo
+  # does not duplicate an unbounded media library. The metadata volume remains
+  # local and its periodic consistent snapshots are still backed up here.
   - volume: kizuna_kizuna-garage-meta
     path: /kizuna-garage-meta
 
