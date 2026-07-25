@@ -1,0 +1,55 @@
+---
+# HuggingHack stack: Hugging Face model browser/downloader on nuc-mini.
+# The hugginghack-models NFS volume is created by the docker-volumes role
+# (group_vars/compute_servers/storage.yml); run deploy-prerequisites first
+# on a fresh setup. The NAS export path Files/.data/HuggingHack must exist and
+# be writable by {{ puid }}:{{ pgid }}.
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Create {{ stack_name }} data directory
+  ansible.builtin.file:
+    path: "{{ config_base }}/data"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+
+- name: Ensure {{ stack_name }} owns existing data
+  ansible.builtin.file:
+    path: "{{ config_base }}/data"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    recurse: true
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/hugginghack.env.j2
+    dest: "{{ config_base }}/env/hugginghack.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    build: policy

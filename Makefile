@@ -244,6 +244,10 @@ deploy-copyparty: ## Deploy Copyparty
 	@echo "$(BLUE)Deploying Copyparty...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/copyparty.yml $(VAULT_FLAG)
 
+deploy-hugginghack: ## Deploy HuggingHack (HF model browser) on nuc-mini
+	@echo "$(BLUE)Deploying HuggingHack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/hugginghack.yml $(VAULT_FLAG)
+
 ##@ Deployment - Application Stacks
 
 deploy-dev: ## Deploy development product stacks on nuc-mini

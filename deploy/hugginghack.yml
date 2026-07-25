@@ -1,0 +1,6 @@
+---
+- name: Deploy hugginghack stack
+  hosts: hugginghack
+  become: true
+  roles:
+    - hugginghack

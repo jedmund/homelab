@@ -1,0 +1,39 @@
+---
+# HuggingHack: a local-first Hugging Face Hub browser/downloader (React +
+# FastAPI, single container on 7860, SQLite). Used as a staging library on
+# nuc-mini: models land on the NAS Files share and are promoted to max by
+# hand when we actually want to serve them.
+
+# Stack identity
+stack_name: hugginghack
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# No published image upstream, so the image is built from the pinned repo.
+# Bump hugginghack_version to a new commit SHA to roll forward; the tag
+# changes with it, so the next deploy rebuilds.
+hugginghack_git_repo: "https://github.com/tyedalwaves/hugginghack.git"
+hugginghack_version: "efb53edb7bdb9edf62a019d22784daec482eee8f"
+hugginghack_image: "hugginghack:{{ hugginghack_version[:12] }}"
+
+# Routed by Traefik's Docker provider with tinyauth@file, so no host port is
+# published.
+hugginghack_domain: hf.atelier.house
+hugginghack_container_port: 7860
+
+# App config (rendered into env/hugginghack.env).
+# Accounts are disabled: TinyAuth is the only auth layer, so we skip
+# HuggingHack's own owner/login and avoid a double sign-in. Flip to true if
+# you want per-user identity inside the app as well.
+hugginghack_accounts_enabled: false
+# Behind Traefik TLS, so cookies are HTTPS-only.
+hugginghack_secure_cookies: true
+hugginghack_session_ttl_hours: 720
+hugginghack_hf_endpoint: "https://huggingface.co"
+hugginghack_max_concurrent_downloads: 2
+hugginghack_download_workers_per_job: 4
+hugginghack_upload_chunk_mb: 8
+hugginghack_max_upload_size_gb: 1024
+
+# Optional read-only HF token for gated/private repos. Empty unless set in
+# group_vars/hugginghack/vault.yml as vault_hugginghack_hf_token.
+hugginghack_hf_token: "{{ vault_hugginghack_hf_token | default('') }}"
