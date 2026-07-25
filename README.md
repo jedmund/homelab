@@ -550,8 +550,9 @@ make deploy-changedetection
 make deploy-copyparty
 make deploy-hugginghack
 
-# Before the first HuggingHack deploy, create Files/.data/HuggingHack on the
-# NAS, make it writable by the configured puid:pgid, then create the NFS volume:
+# Before the first HuggingHack deploy, create HuggingHack at the root of the
+# visible Files share, make it writable by the configured puid:pgid, then
+# create the NFS volume (its internal export path includes Files/.data):
 make deploy-prerequisites
 
 # First Beszel bootstrap:

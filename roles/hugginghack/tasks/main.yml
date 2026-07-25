@@ -2,8 +2,9 @@
 # HuggingHack stack: Hugging Face model browser/downloader on nuc-mini.
 # The hugginghack-models NFS volume is created by the docker-volumes role
 # (group_vars/compute_servers/storage.yml); run deploy-prerequisites first
-# on a fresh setup. The NAS export path Files/.data/HuggingHack must exist and
-# be writable by {{ puid }}:{{ pgid }}.
+# on a fresh setup. Create HuggingHack at the visible Files share root (the
+# internal export path is Files/.data/HuggingHack) and make it writable by
+# {{ puid }}:{{ pgid }}.
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:

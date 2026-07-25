@@ -16,8 +16,13 @@ services:
       - proxy
     volumes:
       # Model library on the NAS Files share (external NFS volume, see
-      # group_vars/compute_servers/storage.yml). App reads/writes at /models.
-      - hugginghack-models:/models
+      # group_vars/compute_servers/storage.yml). Disable Docker's copy-up so it
+      # does not try to chmod the root-squashed NFS directory.
+      - type: volume
+        source: hugginghack-models
+        target: /models
+        volume:
+          nocopy: true
       - ./data:/data
     env_file:
       - ./env/hugginghack.env
