@@ -742,3 +742,10 @@ if (operation === 'destroy') {
 
 export {}
 '''
+
+[[user_group]]
+name = "kizuna-storybook-review-ci"
+users = ["kizuna-storybook-review-ci"]
+permissions = [
+  { target.type = "Action", target.id = "kizuna-storybook-review", level = "Execute" },
+]

@@ -58,7 +58,8 @@ Before enabling the app CI jobs:
 
 1. Deploy `infra_gateway` so Cloudflare has
    `*.review.atelier.house` and Traefik has the nested wildcard certificate.
-2. Apply this Resource Sync and grant the Kizuna CI service user execute-only
+2. Create the `kizuna-storybook-review-ci` Komodo service user, then apply this
+   Resource Sync. The declared user group grants that account execute-only
    access to `kizuna-storybook-review`.
 3. In `kizuna-app`, set `STORYBOOK_REVIEW_DOMAIN=review.atelier.house` and
    `KOMODO_STORYBOOK_REVIEW_ACTION=kizuna-storybook-review`, alongside the
