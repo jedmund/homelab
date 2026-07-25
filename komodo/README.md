@@ -66,6 +66,9 @@ Before enabling the app CI jobs:
    dedicated, unprotected, masked `KOMODO_STORYBOOK_API_KEY` and
    `KOMODO_STORYBOOK_API_SECRET`. Do not expose the protected production
    deployment key to merge-request pipelines.
+4. After DNS resolves, the wildcard certificate exists, and the Resource Sync
+   is applied, set `STORYBOOK_REVIEW_ENABLED=true` in `kizuna-app`. Until then,
+   CI builds the image but deliberately skips environment deployment.
 
 GitLab owns expiry and stop events. A deploy updates the deterministic
 `kizuna-storybook-mr-<iid>` Stack; a stop destroys its containers and deletes
