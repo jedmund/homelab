@@ -46,7 +46,7 @@ docker exec kizuna-worker sh -c \
 
 Garage continues to provide the private S3 API and presigned playback URLs,
 but its large object-block directory is stored under
-`Private/Kizuna/Garage` on the NAS. Garage's SQLite metadata stays in the
+`Files/Kizuna/Garage` on the NAS. Garage's SQLite metadata stays in the
 local `kizuna_kizuna-garage-meta` volume because database metadata should not
 live on NFS.
 
@@ -71,7 +71,7 @@ docker exec kizuna-garage /garage stats
 
 Because the object blocks now live on the NAS, the NUC-local Borg repository
 backs up only Garage metadata; it no longer duplicates the unbounded media
-library. The `Private/Kizuna/Garage` directory therefore needs to be included
+library. The `Files/Kizuna/Garage` directory therefore needs to be included
 in the NAS's own snapshot or offsite-backup policy.
 
 ## First acceptance pass
