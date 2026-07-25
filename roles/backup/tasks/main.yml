@@ -41,11 +41,12 @@
     mode: '0700'
   become: true
 
-- name: Create NAS mount point
+- name: Ensure NAS mount point exists
   ansible.builtin.file:
     path: "{{ nas_mount_host_path }}"
     state: directory
-    mode: '0755'
+    # Once mounted, this is the NAS export root. Its ownership and mode belong
+    # to the NAS and may be protected by root-squash, so manage only existence.
   become: true
 
 - name: Deploy systemd mount unit
