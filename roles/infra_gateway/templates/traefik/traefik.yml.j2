@@ -37,6 +37,9 @@ entryPoints:
           - main: "{{ traefik_domain }}"
             sans:
               - "*.{{ traefik_domain }}"
+          - main: "review.{{ traefik_domain }}"
+            sans:
+              - "*.review.{{ traefik_domain }}"
           - main: "*.sort.{{ traefik_domain }}"
           - main: "*.tun.{{ traefik_domain }}"
 # Providers
