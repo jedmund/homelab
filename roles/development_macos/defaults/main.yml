@@ -13,6 +13,9 @@ gitlab_root_url: "https://git.atelier.house"
 gitlab_runner_macos_name: mac-mini-xcode
 gitlab_runner_macos_concurrent: 2
 gitlab_runner_macos_log_level: info
+# Ansible commands run in a non-login shell, whose PATH does not include the
+# Apple Silicon Homebrew prefix even after the formula is installed.
+gitlab_runner_macos_binary: /opt/homebrew/bin/gitlab-runner
 # Generated in the GitLab admin UI as a separate runner registration
 # from the nuc-mini docker runner, then added to vault. Empty default
 # lets the first deploy render config.toml without failing; runner
