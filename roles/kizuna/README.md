@@ -16,10 +16,12 @@ vault_kizuna_youtube_api_key: your-restricted-server-key
 ```
 
 The role enables video archival by default and shares the resulting settings
-with both the Rails and Sidekiq containers. The worker uses yt-dlp and ffmpeg
-from the Kizuna API image to store an MP4, poster, and selected captions in the
-existing Garage bucket. Subtitle selection defaults to `en.*,en`; override
-`kizuna_video_archive_sub_langs` in inventory if needed.
+with Rails and both Sidekiq containers. `kizuna-worker` consumes only the
+default queue; `kizuna-media-worker` consumes only the media queue at
+concurrency 1. The media worker uses Deno, yt-dlp with its EJS support package,
+and ffmpeg from the Kizuna API image to store an MP4, poster, and selected
+captions in the existing Garage bucket. Subtitle selection defaults to
+`en.*,en`; override `kizuna_video_archive_sub_langs` in inventory if needed.
 
 For videos that require an authenticated YouTube session, optionally store the
 contents of a Netscape-format cookies file in the vault:
@@ -31,8 +33,9 @@ vault_kizuna_youtube_cookies: |
 ```
 
 The role writes that credential to a mode-`0600` host file and mounts it
-read-only into the worker. Leave it unset for anonymous yt-dlp access. Never
-commit the API key or cookie contents outside the encrypted vault.
+read-only into both worker containers. Leave it unset for anonymous yt-dlp
+access. Never commit the API key or cookie contents outside the encrypted
+vault.
 
 After deployment, verify the worker received the non-secret switches and a
 non-empty key without printing the credential:
@@ -40,6 +43,8 @@ non-empty key without printing the credential:
 ```sh
 docker exec kizuna-worker sh -c \
   'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1'
+docker exec kizuna-media-worker sh -c \
+  'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1 && deno --version >/dev/null && yt-dlp --version >/dev/null && python3 -m pip show yt-dlp-ejs >/dev/null'
 ```
 
 ## NAS-backed media storage
@@ -54,7 +59,7 @@ The first deployment performs a one-time, consistent migration:
 
 1. Create the NAS subdirectory and dedicated `kizuna-garage-data-nas` NFS
    volume.
-2. Stop the API, worker, and Garage briefly.
+2. Stop the API, both workers, and Garage briefly.
 3. Copy the existing `kizuna_kizuna-garage-data` contents to the NAS.
 4. Record a migration marker and start the stack against the NAS volume.
 
@@ -112,7 +117,7 @@ or its Open WebUI/Vane consumers.
 1. Deploy this role and the backup role, then merge one API or app change so its
    default-branch pipeline exercises the Komodo completion and revision gates.
 2. Confirm `docker compose ps` reports the API, Postgres, Redis, and
-   screenshotter as healthy. Confirm the worker is running.
+   screenshotter as healthy. Confirm both workers are running.
 3. Sign in through PocketID. Sign out and back in with the password path as a
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved

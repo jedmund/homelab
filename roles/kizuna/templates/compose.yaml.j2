@@ -45,7 +45,7 @@ services:
     # the docker-entrypoint skips db:prepare on this branch so it
     # never races a migration against kizuna-api.
     image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
-    command: ["bundle", "exec", "sidekiq"]
+    command: ["bundle", "exec", "sidekiq", "-q", "default"]
     restart: {{ restart_policy }}
     networks:
       # proxy (not just backend) is required for egress: `backend` is an
@@ -53,6 +53,37 @@ services:
       # enrichment jobs that fetch external URLs and call the embedding/LLM
       # host (ai.atelier.house). Without this the jobs fail with
       # "Network is unreachable". kizuna-api carries proxy for the same reason.
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+{% if kizuna_youtube_cookies | length > 0 %}
+    volumes:
+      - ./secrets/youtube-cookies.txt:{{ kizuna_youtube_cookies_container_path }}:ro
+{% endif %}
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-media-worker:
+    container_name: kizuna-media-worker
+    # Isolate yt-dlp/ffmpeg work from latency-sensitive default jobs and run
+    # one archive at a time to bound NUC CPU, scratch-disk, and NAS pressure.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    command: ["bundle", "exec", "sidekiq", "-q", "media", "-c", "{{ kizuna_media_worker_concurrency }}"]
+    restart: {{ restart_policy }}
+    networks:
+      # yt-dlp needs public egress over proxy; Rails and Garage remain
+      # reachable over the internal backend network.
       - proxy
       - backend
     env_file:

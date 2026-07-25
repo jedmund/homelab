@@ -144,6 +144,7 @@
             services:
               - kizuna-api
               - kizuna-worker
+              - kizuna-media-worker
               - kizuna-garage
             state: stopped
 
@@ -183,6 +184,8 @@
             - name: kizuna-api
               image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
             - name: kizuna-worker
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+            - name: kizuna-media-worker
               image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
 
         - name: Stop deployment after Garage migration failure
