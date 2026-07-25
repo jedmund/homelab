@@ -101,7 +101,8 @@ nfs_volumes:
       o: "{{ nfs_base_opts }}"
 
   # HuggingHack model library (staging; promoted to max by hand for serving).
-  # NAS export path Files/.data/HuggingHack must exist before first mount.
+  # NAS export path Files/.data/HuggingHack must exist before first mount and
+  # be writable by the container puid:pgid.
   - name: hugginghack-models
     driver: local
     driver_opts:

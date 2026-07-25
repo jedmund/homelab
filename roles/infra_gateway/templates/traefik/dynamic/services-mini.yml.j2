@@ -347,17 +347,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # HuggingHack - hf.{{ traefik_domain }}
-    hugginghack:
-      rule: "Host(`hf.{{ traefik_domain }}`)"
-      service: hugginghack
-      entryPoints:
-        - websecure
-      middlewares:
-        - tinyauth@file
-      tls:
-        certResolver: letsencrypt
-
     # Copyparty - files.{{ traefik_domain }}
     copyparty:
       rule: "Host(`files.{{ traefik_domain }}`)"
@@ -555,11 +544,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://changedetection:5000"
-
-    hugginghack:
-      loadBalancer:
-        servers:
-          - url: "http://hugginghack:7860"
 
     copyparty:
       loadBalancer:

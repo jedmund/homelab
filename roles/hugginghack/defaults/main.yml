@@ -15,8 +15,8 @@ hugginghack_git_repo: "https://github.com/tyedalwaves/hugginghack.git"
 hugginghack_version: "efb53edb7bdb9edf62a019d22784daec482eee8f"
 hugginghack_image: "hugginghack:{{ hugginghack_version[:12] }}"
 
-# Routed by infra_gateway (Traefik dynamic config + tinyauth@file), reached
-# in-network as http://hugginghack:7860, so no host port is published.
+# Routed by Traefik's Docker provider with tinyauth@file, so no host port is
+# published.
 hugginghack_domain: hf.atelier.house
 hugginghack_container_port: 7860
 

@@ -23,8 +23,16 @@ services:
       - ./env/hugginghack.env
     security_opt:
       - no-new-privileges:true
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.hugginghack.rule: "Host(`{{ hugginghack_domain }}`)"
+      traefik.http.routers.hugginghack.entrypoints: "websecure"
+      traefik.http.routers.hugginghack.tls.certresolver: "letsencrypt"
+      traefik.http.routers.hugginghack.middlewares: "tinyauth@file"
+      traefik.http.services.hugginghack.loadbalancer.server.port: "{{ hugginghack_container_port }}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ hugginghack_container_port }}/api/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:{{ hugginghack_container_port }}/api/health', timeout=5)); assert data['storage']['writable']"]
       interval: 30s
       timeout: 10s
       retries: 3

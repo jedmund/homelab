@@ -91,6 +91,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `n8n` | n8n, Postgres |
 | `changedetection` | ChangeDetection.io |
 | `copyparty` | Copyparty |
+| `hugginghack` | HuggingHack Hugging Face model browser |
 
 **Content and social (nuc-mini)**
 | Role | Services |
@@ -206,6 +207,12 @@ Shared secrets used by multiple stacks.
 | `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Dawarich) |
 | `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
 | `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
+
+### group_vars/hugginghack/vault.yml
+
+| Variable | Description |
+|----------|-------------|
+| `vault_hugginghack_hf_token` | Optional read-only Hugging Face token for private or gated models |
 
 ### group_vars/infra_core/vault.yml
 
@@ -541,6 +548,11 @@ make deploy-paseo-relay
 make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
+make deploy-hugginghack
+
+# Before the first HuggingHack deploy, create Files/.data/HuggingHack on the
+# NAS, make it writable by the configured puid:pgid, then create the NFS volume:
+make deploy-prerequisites
 
 # First Beszel bootstrap:
 # 1. Land DNS labels, then deploy the hub.
