@@ -62,7 +62,9 @@ Before enabling the app CI jobs:
    access to `kizuna-storybook-review`.
 3. In `kizuna-app`, set `STORYBOOK_REVIEW_DOMAIN=review.atelier.house` and
    `KOMODO_STORYBOOK_REVIEW_ACTION=kizuna-storybook-review`, alongside the
-   existing Komodo API credentials.
+   dedicated, unprotected, masked `KOMODO_STORYBOOK_API_KEY` and
+   `KOMODO_STORYBOOK_API_SECRET`. Do not expose the protected production
+   deployment key to merge-request pipelines.
 
 GitLab owns expiry and stop events. A deploy updates the deterministic
 `kizuna-storybook-mr-<iid>` Stack; a stop destroys its containers and deletes
