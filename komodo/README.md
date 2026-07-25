@@ -24,8 +24,12 @@ Create a Komodo Resource Sync that points at this file:
 resource_path = ["komodo/stacks.toml"]
 ```
 
-Use match tag `homelab` if you want this sync to own only the resources in
-this file. Apply the first sync from the UI after reviewing the diff.
+Enable both **Include Resources** and **Include User Groups** on the Resource
+Sync. Komodo ignores the `[[user_group]]` declarations when **Include User
+Groups** is disabled, even though the groups are present in `stacks.toml`.
+Use match tag `homelab` if you want this sync to own only the resources in this
+file. Apply the first sync from the UI after reviewing the resource and user
+group diffs.
 
 Expected Komodo Server resource names:
 
@@ -58,9 +62,10 @@ Before enabling the app CI jobs:
 
 1. Deploy `infra_gateway` so Cloudflare has
    `*.review.atelier.house` and Traefik has the nested wildcard certificate.
-2. Create the `kizuna-storybook-review-ci` Komodo service user, then apply this
-   Resource Sync. The declared user group grants that account execute-only
-   access to `kizuna-storybook-review`.
+2. Create the `kizuna-storybook-review-ci` Komodo service user. Confirm
+   **Include User Groups** is enabled, refresh the Resource Sync, review the
+   user group diff, and apply it. The declared user group grants that account
+   execute-only access to `kizuna-storybook-review`.
 3. In `kizuna-app`, set `STORYBOOK_REVIEW_DOMAIN=review.atelier.house` and
    `KOMODO_STORYBOOK_REVIEW_ACTION=kizuna-storybook-review`, alongside the
    dedicated, unprotected, masked `KOMODO_STORYBOOK_API_KEY` and
