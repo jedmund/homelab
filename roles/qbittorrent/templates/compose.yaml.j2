@@ -21,6 +21,7 @@ services:
     volumes:
       - ./config:/config
       - downloads:/downloads
+      - private:/Private
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080"]
       interval: {{ healthcheck_interval }}
@@ -35,6 +36,9 @@ services:
 volumes:
   downloads:
     name: downloads
+    external: true
+  private:
+    name: private
     external: true
 
 networks:
