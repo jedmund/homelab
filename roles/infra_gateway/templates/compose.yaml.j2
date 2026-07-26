@@ -160,31 +160,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  adguard:
-    container_name: adguard
-    image: {{ adguard_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    ports:
-      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_tcp }}:53/tcp"
-      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_udp }}:53/udp"
-      - "{{ adguard_port_setup }}:3000/tcp"
-    volumes:
-      - ./config/adguard/work:/opt/adguardhome/work
-      - ./config/adguard/conf:/opt/adguardhome/conf
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.adguard.rule: "Host(`dns.{{ traefik_domain }}`)"
-      traefik.http.routers.adguard.entrypoints: "websecure"
-      traefik.http.routers.adguard.tls.certresolver: "letsencrypt"
-      traefik.http.services.adguard.loadbalancer.server.port: "{{ adguard_port_http }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
 volumes:
   traefik-logs:
     name: {{ stack_name }}_traefik-logs

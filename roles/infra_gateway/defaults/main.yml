@@ -78,7 +78,6 @@ tinyauth_image: ghcr.io/steveiliop56/tinyauth:v4 # floating major channel
 ddclient_image: linuxserver/ddclient:latest # floating, tracks upstream
 # Upstream really does name the image "latest" (openspeedtest/latest)
 openspeedtest_image: openspeedtest/latest:latest
-adguard_image: adguard/adguardhome:latest # floating, tracks upstream
 
 # Traefik settings
 traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
@@ -141,14 +140,6 @@ line_oidc_issuer: "{{ pocketid_app_url }}"
 line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
 # line_admin_emails (comma-separated admin email list) - defined in vault
 line_admin_emails: "{{ vault_line_admin_emails }}"
-
-# AdGuard settings
-adguard_port_http: 80
-adguard_port_setup: 3000
-adguard_port_dns_tcp: 53
-adguard_port_dns_udp: 53
-# Bind DNS to the host LAN IP so it coexists with libvirt's dnsmasq on 192.168.122.1
-adguard_dns_bind_ip: "{{ ansible_host }}"
 
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.

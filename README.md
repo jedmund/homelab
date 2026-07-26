@@ -46,7 +46,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 **Infrastructure (nuc-mini)**
 | Role | Services |
 |------|----------|
-| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, Line `[in-house]` |
+| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, OpenSpeedTest, Line `[in-house]` |
 | `infra_core` | Komodo (Core + Periphery + MongoDB) |
 | `infra_periphery` | Komodo Periphery agent on `max` |
 | `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
