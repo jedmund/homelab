@@ -134,7 +134,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 
 ## Prerequisites
 
-- Ansible 2.9+
+- Ansible Core 2.15+
 - SSH access to target hosts
 - Python 3.x on target hosts
 

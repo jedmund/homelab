@@ -33,6 +33,7 @@
     name:
       - zsh
       - sqlite3
+      - python3-debian
     state: present
     update_cache: true
 
@@ -42,17 +43,35 @@
     state: directory
     mode: '0755'
 
-- name: Add eza GPG key
-  apt_key:
+- name: Download eza repository signing key
+  ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/eza-community/eza/main/deb.asc
-    keyring: /etc/apt/keyrings/gierens.gpg
-    state: present
+    dest: /etc/apt/keyrings/gierens.asc
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Add eza repository
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main"
+  ansible.builtin.deb822_repository:
+    name: gierens
+    types:
+      - deb
+    uris:
+      - http://deb.gierens.de
+    suites:
+      - stable
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/gierens.asc
     state: present
-    filename: gierens
+
+- name: Remove legacy eza repository files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/gierens.list
+    - /etc/apt/keyrings/gierens.gpg
 
 - name: Install eza
   apt:
@@ -80,17 +99,34 @@
     shell: /bin/zsh
 
 # GitHub CLI (gh)
-- name: Add GitHub CLI GPG key
-  apt_key:
+- name: Download GitHub CLI repository signing key
+  ansible.builtin.get_url:
     url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
-    keyring: /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    state: present
+    dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Add GitHub CLI repository
-  apt_repository:
-    repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+  ansible.builtin.deb822_repository:
+    name: github-cli
+    types:
+      - deb
+    uris:
+      - https://cli.github.com/packages
+    suites:
+      - stable
+    components:
+      - main
+    architectures:
+      - "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+    signed_by: /etc/apt/keyrings/githubcli-archive-keyring.gpg
     state: present
-    filename: github-cli
+
+- name: Remove legacy GitHub CLI repository definition
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/github-cli.list
+    state: absent
 
 - name: Install GitHub CLI
   apt:
