@@ -4,15 +4,21 @@
 
 - name: Create {{ stack_name }} directories
   file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
     owner: "{{ ansible_user }}"
-    mode: '0755'
+    mode: "{{ item.mode }}"
   loop:
-    - "{{ docker_base_path }}/{{ stack_name }}"
-    - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/backups"
-    - "{{ periphery_root_directory }}"
+    - path: "{{ docker_base_path }}/{{ stack_name }}"
+      mode: '0755'
+    - path: "{{ docker_base_path }}/{{ stack_name }}/env"
+      mode: '0700'
+    - path: "{{ docker_base_path }}/{{ stack_name }}/backups"
+      mode: '0755'
+    - path: "{{ periphery_root_directory }}"
+      mode: '0755'
+  loop_control:
+    label: "{{ item.path }}"
 
 - name: Deploy compose file
   template:
@@ -30,6 +36,7 @@
     mode: '0600'
   loop:
     - komodo
+    - mongo
   no_log: true
   notify: Restart {{ stack_name }} stack
 

@@ -32,7 +32,8 @@
 - name: Set permissions on Traefik ACME directory
   file:
     path: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/acme"
-    mode: '0600'
+    owner: "{{ ansible_user }}"
+    mode: '0700'
   when: traefik_enabled | bool
 
 - name: Create Traefik acme.json file

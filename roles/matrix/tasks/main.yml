@@ -4,46 +4,64 @@
 
 - name: Create {{ stack_name }} directories
   file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
     owner: "{{ ansible_user }}"
-    mode: '0755'
+    mode: "{{ item.mode }}"
   loop:
-    - "{{ docker_base_path }}/{{ stack_name }}"
-    - "{{ docker_base_path }}/{{ stack_name }}/env"
-    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - path: "{{ docker_base_path }}/{{ stack_name }}"
+      mode: '0755'
+    - path: "{{ docker_base_path }}/{{ stack_name }}/env"
+      mode: '0700'
+    - path: "{{ docker_base_path }}/{{ stack_name }}/config"
+      mode: '0700'
+  loop_control:
+    label: "{{ item.path }}"
 
 - name: Generate Synapse signing key
   shell: |
+    umask 077
     docker run --rm --entrypoint python {{ synapse_image }} -c \
       "from signedjson.key import generate_signing_key, write_signing_keys; import sys; key = generate_signing_key('a_kHbL'); write_signing_keys(sys.stdout, [key])" \
       > {{ docker_base_path }}/{{ stack_name }}/config/synapse-signing.key
   args:
     creates: "{{ docker_base_path }}/{{ stack_name }}/config/synapse-signing.key"
 
+- name: Secure Synapse signing key
+  ansible.builtin.file:
+    path: "{{ docker_base_path }}/{{ stack_name }}/config/synapse-signing.key"
+    owner: "{{ synapse_container_uid }}"
+    group: "{{ synapse_container_gid }}"
+    mode: '0600'
+
 - name: Generate MAS signing key
   community.crypto.openssl_privatekey:
     path: "{{ docker_base_path }}/{{ stack_name }}/config/mas-signing.key"
     type: RSA
     size: 4096
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    owner: "{{ mas_container_uid }}"
+    group: "{{ mas_container_gid }}"
+    mode: '0600'
     force: false
 
 - name: Generate Synapse homeserver config
   template:
     src: homeserver.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/homeserver.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    owner: "{{ synapse_container_uid }}"
+    group: "{{ synapse_container_gid }}"
+    mode: '0600'
+  no_log: true
   notify: Restart {{ stack_name }} stack
 
 - name: Generate MAS config
   template:
     src: mas-config.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/mas-config.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    owner: "{{ mas_container_uid }}"
+    group: "{{ mas_container_gid }}"
+    mode: '0600'
+  no_log: true
   notify: Restart {{ stack_name }} stack
 
 - name: Generate Element config
@@ -58,8 +76,10 @@
   template:
     src: livekit.yaml.j2
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/livekit.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy Synapse Dockerfile
@@ -88,6 +108,7 @@
     - synapse
     - postgres
     - mas-db
+    - livekit-jwt
   no_log: true
   notify: Restart {{ stack_name }} stack
 
