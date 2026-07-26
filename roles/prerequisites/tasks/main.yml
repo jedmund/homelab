@@ -105,7 +105,7 @@
 #   https://gitlab.com/gitlab-org/cli/-/releases
 - name: Install GitLab CLI (glab) from official .deb
   vars:
-    glab_version: "1.99.0"
+    glab_version: "1.109.0"
     glab_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
   block:
     - name: Download glab .deb
