@@ -84,7 +84,9 @@
   template:
     src: stream.conf.j2
     dest: "{{ netdata_config_dir }}/stream.conf"
-    mode: "0644"
+    owner: "{{ 'root' if ansible_facts['os_family'] == 'Debian' else ansible_user }}"
+    group: "{{ 'netdata' if ansible_facts['os_family'] == 'Debian' else omit }}"
+    mode: "{{ '0640' if ansible_facts['os_family'] == 'Debian' else '0600' }}"
   become: "{{ ansible_facts['os_family'] == 'Debian' }}"
   no_log: true
   notify: restart netdata

@@ -41,7 +41,7 @@
   ansible.builtin.file:
     path: "{{ pi_agent_dir }}"
     state: directory
-    mode: '0755'
+    mode: '0700'
 
 - name: Deploy Pi static config (settings)
   ansible.builtin.copy:
@@ -53,7 +53,8 @@
   ansible.builtin.template:
     src: pi-models.json.j2
     dest: "{{ pi_agent_dir }}/models.json"
-    mode: '0644'
+    mode: '0600'
+  no_log: true
 
 - name: Deploy Pi config trees (agents, prompts, skills, extensions)
   ansible.builtin.copy:
@@ -81,13 +82,14 @@
   ansible.builtin.file:
     path: "{{ opencode_config_dir }}"
     state: directory
-    mode: '0755'
+    mode: '0700'
 
 - name: Deploy opencode.jsonc (atelier key from vault, host-local paths)
   ansible.builtin.template:
     src: opencode.jsonc.j2
     dest: "{{ opencode_config_dir }}/opencode.jsonc"
-    mode: '0644'
+    mode: '0600'
+  no_log: true
 
 - name: Deploy opencode plugin manifest
   ansible.builtin.copy:
