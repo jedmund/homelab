@@ -1,5 +1,5 @@
 ---
-# Infra Gateway Stack - Traefik, PocketID, TinyAuth, DDClient, AdGuard
+# Infra Gateway Stack - Traefik, PocketID, TinyAuth, DDClient
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -15,8 +15,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/ddclient"
     - "{{ docker_base_path }}/{{ stack_name }}/config/line/data"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
     - "{{ docker_base_path }}/{{ stack_name }}/source"
 
 - name: Create Traefik config directories
