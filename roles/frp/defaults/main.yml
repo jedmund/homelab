@@ -4,7 +4,7 @@ stack_name: frp
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # frp settings
-frp_image: docker.io/fatedier/frps:v0.63.0
+frp_image: docker.io/fatedier/frps:v0.70.1
 frp_bind_port: 7000
 frp_dashboard_port: 7500
 # Internal HTTP vhost port for subdomain tunnels (type=http proxies).

@@ -473,8 +473,8 @@ searxng_secret_key: ""
 # bytes. The Microsoft Playwright image must match the Playwright
 # version pinned in OpenWebUI's backend/requirements.txt; bump
 # playwright_version (and the image tag) together when OpenWebUI does.
-playwright_image: mcr.microsoft.com/playwright:v1.58.0-noble
-playwright_version: "1.58.0"
+playwright_image: mcr.microsoft.com/playwright:v1.60.0-noble
+playwright_version: "1.60.0"
 playwright_port: 3000
 
 # Text Embeddings Inference (TEI) from HuggingFace
