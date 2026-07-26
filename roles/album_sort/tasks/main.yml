@@ -85,14 +85,6 @@
     - album_sort_container.container.State.Health.Status == 'healthy'
   changed_when: false
 
-- name: Remove retired Album Sort host-port firewall rule
-  community.general.ufw:
-    rule: allow
-    port: "5180"
-    proto: tcp
-    delete: true
-  when: firewall_enabled | default(true) | bool
-
 - name: Print native OIDC rollout state
   ansible.builtin.debug:
     msg: >-
