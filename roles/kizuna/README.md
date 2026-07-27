@@ -33,9 +33,11 @@ vault_kizuna_youtube_cookies: |
 ```
 
 The role writes that credential to a mode-`0600` host file and mounts it
-read-only into both worker containers. Leave it unset for anonymous yt-dlp
-access. Never commit the API key or cookie contents outside the encrypted
-vault.
+read-only into both worker containers. The media worker copies it to an
+ephemeral, mode-`0600` path before starting Sidekiq because yt-dlp persists
+refreshed cookies when it exits; the host credential remains protected from
+container writes. Leave it unset for anonymous yt-dlp access. Never commit the
+API key or cookie contents outside the encrypted vault.
 
 After deployment, verify the worker received the non-secret switches and a
 non-empty key without printing the credential:
@@ -44,7 +46,7 @@ non-empty key without printing the credential:
 docker exec kizuna-worker sh -c \
   'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1'
 docker exec kizuna-media-worker sh -c \
-  'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1 && deno --version >/dev/null && yt-dlp --version >/dev/null && python3 -m pip show yt-dlp-ejs >/dev/null'
+  'test -n "$KIZUNA_YOUTUBE_API_KEY" && test "$KIZUNA_VIDEO_ARCHIVE_ENABLED" = 1 && test -w /tmp/kizuna-youtube-cookies.txt && deno --version >/dev/null && yt-dlp --version >/dev/null && python3 -m pip show yt-dlp-ejs >/dev/null'
 ```
 
 ## NAS-backed media storage

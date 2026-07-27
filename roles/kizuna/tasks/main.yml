@@ -195,6 +195,47 @@
               against the retained local volume; inspect the migration error
               before retrying.
 
+- name: Prepare NAS-backed video archive scratch space
+  when: kizuna_video_scratch_nas_enabled
+  block:
+    - name: Create Files-root NFS bootstrap volume for video scratch
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_nas_seed_volume }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_video_scratch_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_root_device }}"
+        state: present
+
+    - name: Create writable Kizuna video scratch directory on the NAS
+      community.docker.docker_container:
+        name: kizuna-video-scratch-nas-init
+        image: "{{ kizuna_storage_init_image }}"
+        command:
+          - sh
+          - -ec
+          - >-
+            mkdir -p "/nas/{{ kizuna_video_scratch_nas_subdirectory }}";
+            chmod 0777 "/nas/{{ kizuna_video_scratch_nas_subdirectory }}"
+        volumes:
+          - "{{ kizuna_garage_data_nas_seed_volume }}:/nas"
+        network_mode: none
+        detach: false
+        cleanup: true
+        state: started
+      changed_when: false
+
+    - name: Create dedicated Kizuna video scratch NFS volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_video_scratch_volume_name }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_video_scratch_nfs_options }}"
+          device: "{{ kizuna_video_scratch_nfs_device }}"
+        state: present
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
