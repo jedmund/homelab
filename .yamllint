@@ -20,6 +20,6 @@ rules:
     max-spaces-inside: 1
   octal-values:
     forbid-implicit-octal: true
-    forbid-explicit-octal: false
+    forbid-explicit-octal: true
   document-start:
     present: true

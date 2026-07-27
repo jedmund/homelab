@@ -136,6 +136,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 ## Prerequisites
 
 - Ansible Core 2.15+
+- `ansible-lint` for `make lint` and `make check`
 - SSH access to target hosts
 - Python 3.x on target hosts
 
@@ -659,6 +660,11 @@ make decrypt FILE=group_vars/infra_core/vault.yml
 
 ### Validation
 
+Static validation is non-interactive. If `~/.ansible-vault-pass` is absent,
+syntax checks run without a vault argument because ignored vault files are not
+required to parse the playbooks. Deployment and dry-run targets still request
+vault access.
+
 ```bash
 # Check syntax of all playbooks
 make syntax
@@ -669,6 +675,19 @@ make lint
 # Run all checks
 make check
 ```
+
+### Dependency Maintenance
+
+`requirements.yml` contains Ansible Galaxy collections. Install them during
+setup or upgrade the installed collections explicitly:
+
+```bash
+make setup
+make update-collections
+```
+
+`make update-roles` remains as a compatibility alias for
+`make update-collections`.
 
 ### Information
 
