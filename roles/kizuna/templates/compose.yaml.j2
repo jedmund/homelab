@@ -101,9 +101,18 @@ services:
       - backend
     env_file:
       - ./env/api.env
-{% if kizuna_youtube_cookies | length > 0 %}
+{% if kizuna_video_scratch_nas_enabled %}
+    environment:
+      KIZUNA_VIDEO_SCRATCH_ROOT: {{ kizuna_video_scratch_container_path }}
+{% endif %}
+{% if kizuna_youtube_cookies | length > 0 or kizuna_video_scratch_nas_enabled %}
     volumes:
+{% if kizuna_youtube_cookies | length > 0 %}
       - ./secrets/youtube-cookies.txt:{{ kizuna_youtube_cookies_container_path }}:ro
+{% endif %}
+{% if kizuna_video_scratch_nas_enabled %}
+      - kizuna-video-scratch:{{ kizuna_video_scratch_container_path }}
+{% endif %}
 {% endif %}
     depends_on:
       kizuna-postgres:
@@ -248,6 +257,15 @@ volumes:
       type: nfs
       o: "{{ kizuna_garage_data_nfs_options }}"
       device: "{{ kizuna_garage_data_nfs_device }}"
+{% endif %}
+{% if kizuna_video_scratch_nas_enabled %}
+  kizuna-video-scratch:
+    name: {{ kizuna_video_scratch_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kizuna_video_scratch_nfs_options }}"
+      device: "{{ kizuna_video_scratch_nfs_device }}"
 {% endif %}
   kizuna-garage-meta:
 

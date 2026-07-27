@@ -109,6 +109,15 @@ kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
 kizuna_garage_data_volume_name: kizuna-garage-data-nas
 kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
 kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
+# yt-dlp needs scratch space for the selected stream plus its merged/re-encoded
+# output. Keep that transient data on the Files NAS as well so best-quality
+# archives are not constrained by the NUC's root filesystem.
+kizuna_video_scratch_nas_enabled: true
+kizuna_video_scratch_nas_subdirectory: Kizuna/Scratch
+kizuna_video_scratch_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_video_scratch_nas_subdirectory }}"
+kizuna_video_scratch_nfs_options: "{{ nfs_base_opts }}"
+kizuna_video_scratch_volume_name: kizuna-video-scratch-nas
+kizuna_video_scratch_container_path: /var/lib/kizuna-video-scratch
 kizuna_storage_init_image: alpine:3.20
 # Public S3 endpoint. Garage's S3 API is internal-only on the backend
 # network; Traefik fronts it at this host so the browser can fetch image
