@@ -8,6 +8,9 @@
 # Ansible retry files (created when playbooks fail)
 *.retry
 
+# Ansible local cache and temporary files
+/.ansible/
+
 # Backup files
 *.backup
 *.bak
@@ -53,5 +56,3 @@ __pycache__/
 # Stray root-level scratch files
 /curl
 /hot.rss
-
-# Ansible gathered facts
