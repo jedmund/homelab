@@ -64,17 +64,37 @@ here and `petlibro_kalay_mock_enabled: true` there.  See
 `group_vars/kibble/vault.yml` (encrypted) must define:
 
 ```yaml
-vault_feederhub_tutk_server: kalay-cloud.tutk.com         # or whatever the live host is
+vault_feederhub_tutk_server: kalay-cloud.tutk.com
 vault_feederhub_tutk_username: <kalay-account-username>
 vault_feederhub_tutk_password: <kalay-account-password>
 vault_feederhub_feeders: "<device_id>:<uid>:<name>,<device_id>:<uid>:<name>"
 
-# Registry auth (GitLab deploy token scoped to read_registry).
+# GitLab deploy token scoped to read_registry.
 vault_feederhub_registry_username: gitlab+deploy-token-N
 vault_feederhub_registry_password: <token>
+
+# Kibble's dedicated Garage instance.
+vault_feederhub_garage_rpc_secret: <32-byte-hex-secret>
+vault_feederhub_s3_access_key_id: <garage-access-key>
+vault_feederhub_s3_secret_access_key: <garage-secret-key>
+
+# PocketID. The secret and separate native client are optional.
+vault_feederhub_oidc_client_id: <public-client-id>
+vault_feederhub_oidc_client_secret: <optional-confidential-client-secret>
+vault_feederhub_oidc_native_client_id: <optional-ios-client-id>
+
+# ONVIF camera authentication.
+vault_feederhub_onvif_user: <onvif-user>
+vault_feederhub_onvif_pass: <onvif-password>
 ```
 
 Create with `make edit-vault FILE=group_vars/kibble/vault.yml`.
+
+The first Garage deploy can start with only
+`vault_feederhub_garage_rpc_secret`. Run
+`/opt/docker/feederhub/garage_bootstrap.sh`, copy the generated S3 key pair
+into the vault, and redeploy. Register the PocketID client with both callback
+URLs from `defaults/main.yml` before enabling OIDC.
 
 ## Komodo Stack setup (one-time, manual)
 

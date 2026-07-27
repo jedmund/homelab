@@ -108,12 +108,22 @@ and pushes `registry.atelier.house/jedmund/<app>:<tag>` (mirror what
 jedmund/Vane does). **CI credentials live in GitLab CI/CD Variables, never
 in this repo's Ansible vault.**
 
-Accepted exception: a handful of services layer a few extra packages onto
-an upstream image with a small `Dockerfile` built on the host (Borgmatic in
-`roles/backup`, Synapse in `roles/matrix`, catbro in `roles/petlibro`), and
-`album_sort` still builds the in-house Album Sort app plus Beets helper from
-a host clone. These stay build-on-host for now. New services should not
-adopt this pattern without reason.
+Accepted build-on-host exceptions:
+
+- `backup`, `matrix`, and `petlibro` layer small role-owned Dockerfiles onto
+  upstream Borgmatic, Synapse, and catbro images.
+- `strudel` builds a small in-house static image from role-owned files.
+- `infra_gateway` refreshes a Line source checkout and builds it on the host.
+- `hugginghack` builds directly from a pinned upstream Git commit because
+  upstream publishes no image.
+- `musicbrainz` clones the upstream Compose project and builds its images as
+  required by that project.
+- `agents_linux` clones and builds the native Edra MCP server used by
+  OpenCode; it is not a deployed container stack.
+
+These remain exceptions for operational or upstream reasons. New in-house
+container services should use CI-built images. `album_sort` previously built
+on the host but now pulls CI-published app and Beets images.
 
 ## Image tag policy
 
