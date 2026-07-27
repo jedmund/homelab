@@ -83,7 +83,8 @@ kizuna_video_archive_sub_langs: "en.*,en"
 kizuna_media_worker_concurrency: 1
 # Optional Netscape-format cookies for videos the instance is authorized to
 # access but that require a signed-in session. Store the file contents—not a
-# host path—in the vault; the role deploys and mounts it read-only.
+# host path—in the vault; the role mounts it read-only and gives yt-dlp an
+# ephemeral writable copy inside the media worker.
 kizuna_youtube_cookies: "{{ vault_kizuna_youtube_cookies | default('') }}"
 kizuna_youtube_cookies_container_path: /run/secrets/kizuna-youtube-cookies.txt
 

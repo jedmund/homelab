@@ -79,7 +79,20 @@ services:
     # Isolate yt-dlp/ffmpeg work from latency-sensitive default jobs and run
     # one archive at a time to bound NUC CPU, scratch-disk, and NAS pressure.
     image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+{% if kizuna_youtube_cookies | length > 0 %}
+    # yt-dlp updates its cookie jar on exit. Keep the mounted credential
+    # read-only and use a container-private copy for runtime refreshes.
+    command:
+      - sh
+      - -ec
+      - >-
+        cp {{ kizuna_youtube_cookies_container_path }} /tmp/kizuna-youtube-cookies.txt;
+        chmod 0600 /tmp/kizuna-youtube-cookies.txt;
+        export KIZUNA_YT_DLP_COOKIES_PATH=/tmp/kizuna-youtube-cookies.txt;
+        exec bundle exec sidekiq -q media -c {{ kizuna_media_worker_concurrency }}
+{% else %}
     command: ["bundle", "exec", "sidekiq", "-q", "media", "-c", "{{ kizuna_media_worker_concurrency }}"]
+{% endif %}
     restart: {{ restart_policy }}
     networks:
       # yt-dlp needs public egress over proxy; Rails and Garage remain
