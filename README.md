@@ -12,6 +12,8 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 ├── inventory/     # Host inventory (hosts.yml)
 ├── komodo/        # Komodo Resource Sync declarations
 ├── roles/         # One role per stack; see the roster below
+├── AGENTS.md      # Repository guidance for coding agents
+├── CLAUDE.md      # Claude Code entry point; imports AGENTS.md
 ├── CONVENTIONS.md # How services are wired up and how to add a new one
 └── Makefile       # Deployment commands
 ```
@@ -21,7 +23,8 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 Each stack is its own Ansible role under `roles/`, deployed by the matching
 `deploy/<role>.yml` playbook to the host group of the same name in
 `inventory/hosts.yml`. Before adding or changing a service, read
-[CONVENTIONS.md](CONVENTIONS.md).
+[CONVENTIONS.md](CONVENTIONS.md). Automated coding agents should also follow
+[AGENTS.md](AGENTS.md); `CLAUDE.md` imports the same shared guidance.
 
 Komodo Stack resources are declared in [komodo/stacks.toml](komodo/stacks.toml)
 for Resource Sync. See [komodo/README.md](komodo/README.md) before applying
@@ -135,6 +138,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 ## Prerequisites
 
 - Ansible Core 2.15+
+- `ansible-lint` for `make lint` and `make check`
 - SSH access to target hosts
 - Python 3.x on target hosts
 
@@ -618,6 +622,11 @@ make decrypt FILE=group_vars/infra_core/vault.yml
 
 ### Validation
 
+Static validation is non-interactive. If `~/.ansible-vault-pass` is absent,
+syntax checks run without a vault argument because ignored vault files are not
+required to parse the playbooks. Deployment and dry-run targets still request
+vault access.
+
 ```bash
 # Check syntax of all playbooks
 make syntax
@@ -628,6 +637,19 @@ make lint
 # Run all checks
 make check
 ```
+
+### Dependency Maintenance
+
+`requirements.yml` contains Ansible Galaxy collections. Install them during
+setup or upgrade the installed collections explicitly:
+
+```bash
+make setup
+make update-collections
+```
+
+`make update-roles` remains as a compatibility alias for
+`make update-collections`.
 
 ### Information
 

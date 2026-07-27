@@ -1,5 +1,6 @@
 # Homelab Ansible Makefile
-.PHONY: help deploy-all deploy-infra deploy-media check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags migrate-hugginghack-models migrate-hugginghack-models-apply
+# Every documented target is a command entry point, not a file to build.
+.PHONY: $(shell awk -F ':.*##' '/^[a-zA-Z_0-9-]+:.*##/ { print $$1 }' $(MAKEFILE_LIST))
 
 # Colors for output
 RED := \033[0;31m
@@ -12,11 +13,19 @@ NC := \033[0m # No Color
 ANSIBLE := ansible-playbook
 INVENTORY := inventory/hosts.yml
 VAULT_PASS := ~/.ansible-vault-pass
-ANSIBLE_CONFIG := ansible.cfg
+ANSIBLE_CONFIG := $(CURDIR)/ansible.cfg
+ANSIBLE_LOCAL_TEMP ?= $(CURDIR)/.ansible/tmp
 FILES_ROOT ?= /Volumes/Files
 
-# Check if vault password file exists
+# Keep Ansible configuration and temporary files scoped to this checkout.
+export ANSIBLE_CONFIG
+export ANSIBLE_LOCAL_TEMP
+
+# Deployments prompt when the password file is missing. Static validation does
+# not need decrypted vault data, so it must remain non-interactive for CI and
+# fresh checkouts.
 VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS),--ask-vault-pass)
+VALIDATION_VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS))
 
 ##@ General
 
@@ -25,18 +34,8 @@ help: ## Display this help message
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make $(GREEN)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-setup: ## Initial setup - create ansible.cfg and vault password file
+setup: ## Create the vault password file and install Ansible collections
 	@echo "$(BLUE)Setting up Ansible configuration...$(NC)"
-	@if [ ! -f ansible.cfg ]; then \
-		echo "[defaults]" > ansible.cfg; \
-		echo "inventory = $(INVENTORY)" >> ansible.cfg; \
-		echo "vault_password_file = $(VAULT_PASS)" >> ansible.cfg; \
-		echo "host_key_checking = False" >> ansible.cfg; \
-		echo "retry_files_enabled = False" >> ansible.cfg; \
-		echo "$(GREEN)Created ansible.cfg$(NC)"; \
-	else \
-		echo "$(YELLOW)ansible.cfg already exists$(NC)"; \
-	fi
 	@if [ ! -f $(VAULT_PASS) ]; then \
 		read -p "Enter vault password: " pass; \
 		echo $$pass > $(VAULT_PASS); \
@@ -343,7 +342,7 @@ syntax: ## Check playbook syntax
 	@echo "$(BLUE)Checking syntax...$(NC)"
 	@for playbook in deploy/*.yml; do \
 		echo "Checking $$playbook..."; \
-		ansible-playbook $$playbook --syntax-check $(VAULT_FLAG) || exit 1; \
+		ansible-playbook $$playbook --syntax-check $(VALIDATION_VAULT_FLAG) || exit 1; \
 	done
 	@echo "$(GREEN)All playbooks passed syntax check$(NC)"
 
@@ -475,13 +474,16 @@ deploy-step: ## Deploy with step-by-step confirmation (usage: make deploy-step P
 
 ##@ Maintenance
 
-update-roles: ## Update Ansible Galaxy roles
-	@echo "$(BLUE)Updating Ansible Galaxy roles...$(NC)"
+update-collections: ## Upgrade required Ansible Galaxy collections
+	@echo "$(BLUE)Updating Ansible Galaxy collections...$(NC)"
 	@if [ -f requirements.yml ]; then \
-		ansible-galaxy install -r requirements.yml --force; \
+		ansible-galaxy collection install -r requirements.yml \
+			-p $(HOME)/.ansible/collections --upgrade; \
 	else \
 		echo "$(YELLOW)No requirements.yml found$(NC)"; \
 	fi
+
+update-roles: update-collections ## Backward-compatible alias for update-collections
 
 clean: ## Clean up temporary files and caches
 	@echo "$(BLUE)Cleaning up...$(NC)"
