@@ -6,10 +6,11 @@
     - name: Display deployment plan
       ansible.builtin.debug:
         msg: |
-          Deploying the full homelab: prerequisites, infrastructure
-          (gateway, core, periphery), monitoring, then every product
-          stack in the import order below. Target a subset with
-          --tags <stack> (see: make list-tags).
+          Reconciling the routine homelab configuration: prerequisites,
+          infrastructure (gateway, core, periphery), monitoring, then
+          every routine product stack in the import order below. Target
+          a subset with --tags <stack> (see: make list-tags). Bootstrap
+          and explicit AI-profile workflows remain separate.
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -160,13 +161,18 @@
 - import_playbook: hugginghack.yml
   tags: [hugginghack]
 
-# Vane stack
+# Utility product stacks
 - import_playbook: vane.yml
   tags: [vane]
 
-# Kibble stack
+- import_playbook: petlibro.yml
+  tags: [petlibro]
+
 - import_playbook: kibble.yml
   tags: [kibble]
+
+- import_playbook: kizuna.yml
+  tags: [kizuna]
 
 # Social stack
 - import_playbook: social.yml
@@ -192,3 +198,13 @@
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]
+
+# Standalone playbooks intentionally excluded from the routine full deploy.
+# The deploy-all-exclude annotations are checked by bin/check-deploy-all.
+#
+# deploy-all-exclude: ai_split -- Explicitly switches the GPU allocation mode and starts a vLLM profile.
+# deploy-all-exclude: dokploy_host -- Provisions host networking and a VM; run as an explicit bootstrap.
+# deploy-all-exclude: dokploy -- Bootstraps the guest and requires first-run operator setup.
+# deploy-all-exclude: gpu_tools -- The gpu_tools role is already applied by ai.yml.
+# deploy-all-exclude: sglang -- Parked experimental stack; no model is deployed by default.
+# deploy-all-exclude: vllm -- Rendered and started by ai_split.yml when split-mode inference is requested.
