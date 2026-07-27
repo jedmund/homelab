@@ -217,8 +217,7 @@
           - -ec
           - >-
             mkdir -p "/nas/{{ kizuna_video_scratch_nas_subdirectory }}";
-            chown 1000:1000 "/nas/{{ kizuna_video_scratch_nas_subdirectory }}";
-            chmod 0700 "/nas/{{ kizuna_video_scratch_nas_subdirectory }}"
+            chmod 1777 "/nas/{{ kizuna_video_scratch_nas_subdirectory }}"
         volumes:
           - "{{ kizuna_garage_data_nas_seed_volume }}:/nas"
         network_mode: none
