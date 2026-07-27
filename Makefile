@@ -50,12 +50,12 @@ setup: ## Initial setup - create ansible.cfg and vault password file
 
 ##@ Deployment - Full Stack
 
-deploy-all: ## Deploy entire homelab infrastructure
-	@echo "$(BLUE)Deploying entire homelab...$(NC)"
+deploy-all: ## Reconcile routine homelab infrastructure and product stacks
+	@echo "$(BLUE)Reconciling routine homelab configuration...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG)
 
-deploy-all-check: ## Dry-run of full deployment
-	@echo "$(BLUE)Checking full deployment (dry-run)...$(NC)"
+deploy-all-check: ## Dry-run the routine deploy-all reconciliation
+	@echo "$(BLUE)Checking routine reconciliation (dry-run)...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --check --diff
 
 deploy-prerequisites: ## Deploy prerequisites (Docker, networks, volumes)
@@ -337,7 +337,11 @@ deploy-traefik: ## Deploy only Traefik
 
 ##@ Testing & Validation
 
-check: syntax lint ## Run all checks (syntax + lint)
+check: check-deploy-all syntax lint ## Run all static checks
+
+.PHONY: check-deploy-all
+check-deploy-all: ## Verify every standalone playbook is imported or explicitly excluded
+	@bin/check-deploy-all
 
 syntax: ## Check playbook syntax
 	@echo "$(BLUE)Checking syntax...$(NC)"
@@ -356,8 +360,8 @@ lint: ## Lint the whole repo with ansible-lint (config in .ansible-lint / .yamll
 		exit 1; \
 	fi
 
-dry-run: ## Dry-run full deployment (check mode)
-	@echo "$(BLUE)Running dry-run of full deployment...$(NC)"
+dry-run: ## Dry-run the routine deploy-all reconciliation
+	@echo "$(BLUE)Running routine reconciliation dry-run...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --check --diff
 
 test-connection: ## Test SSH connection to all hosts

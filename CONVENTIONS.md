@@ -11,6 +11,11 @@ A role renders a `compose.yaml` (and any env/config files) onto the host at
 Companion containers that are part of one product, such as an app database,
 worker, browser, search engine, or cache, stay in that product role.
 
+Routine inventory-backed stacks are also imported by `deploy/all.yml`.
+Bootstrap, experimental, and explicit mode-switch playbooks stay separate and
+must have a documented `deploy-all-exclude` annotation in that file.
+`make check-deploy-all` enforces this accounting.
+
 ## Service categories
 
 Every service falls into one of three categories. Pick the matching
@@ -130,7 +135,9 @@ roles):
 
 1. Pick the category above and the product role it belongs in. Create a new
    product role/playbook only for a new product boundary; otherwise add the
-   helper service to the existing product role that owns it.
+   helper service to the existing product role that owns it. Import new
+   routine playbooks from `deploy/all.yml`; if a playbook is intentionally
+   standalone, document it there with a `deploy-all-exclude` annotation.
 2. Add config to that role's `defaults/main.yml`: image/tag (or registry
    vars for a self-developed app), domain, ports. Reference secrets as
    `{{ <name> }}` with a `# <name> - defined in vault` comment; never paste

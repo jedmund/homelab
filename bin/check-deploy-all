@@ -1,0 +1,72 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(CDPATH='' cd "$(dirname "$0")/.." && pwd)
+deploy_dir="$repo_root/deploy"
+all_playbook="$deploy_dir/all.yml"
+tmp_root=${TMPDIR:-/tmp}
+tmp_dir=$(mktemp -d "$tmp_root/check-deploy-all.XXXXXX")
+
+trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
+
+available="$tmp_dir/available"
+imports="$tmp_dir/imports"
+exclusions="$tmp_dir/exclusions"
+accounted="$tmp_dir/accounted"
+
+for playbook in "$deploy_dir"/*.yml; do
+  name=${playbook##*/}
+  name=${name%.yml}
+  if [ "$name" != "all" ]; then
+    printf '%s\n' "$name"
+  fi
+done | sort -u > "$available"
+
+sed -n \
+  's/^[[:space:]]*-[[:space:]]*import_playbook:[[:space:]]*\([^[:space:]]*\)\.yml[[:space:]]*$/\1/p' \
+  "$all_playbook" | sort > "$imports"
+
+sed -n \
+  's/^[[:space:]]*#[[:space:]]*deploy-all-exclude:[[:space:]]*\([^[:space:]]*\).*/\1/p' \
+  "$all_playbook" | sort > "$exclusions"
+
+failed=false
+
+duplicates=$(uniq -d "$imports")
+if [ -n "$duplicates" ]; then
+  printf 'Duplicate imports in deploy/all.yml:\n%s\n' "$duplicates" >&2
+  failed=true
+fi
+
+duplicates=$(uniq -d "$exclusions")
+if [ -n "$duplicates" ]; then
+  printf 'Duplicate deploy-all exclusions:\n%s\n' "$duplicates" >&2
+  failed=true
+fi
+
+overlap=$(comm -12 "$imports" "$exclusions")
+if [ -n "$overlap" ]; then
+  printf 'Playbooks cannot be both imported and excluded:\n%s\n' "$overlap" >&2
+  failed=true
+fi
+
+sort -u "$imports" "$exclusions" > "$accounted"
+
+missing=$(comm -23 "$available" "$accounted")
+if [ -n "$missing" ]; then
+  printf 'Playbooks missing from deploy/all.yml reconciliation:\n%s\n' "$missing" >&2
+  printf 'Import each playbook or add a documented deploy-all-exclude annotation.\n' >&2
+  failed=true
+fi
+
+unknown=$(comm -13 "$available" "$accounted")
+if [ -n "$unknown" ]; then
+  printf 'deploy/all.yml references playbooks that do not exist:\n%s\n' "$unknown" >&2
+  failed=true
+fi
+
+if [ "$failed" = true ]; then
+  exit 1
+fi
+
+printf 'deploy/all.yml accounts for every standalone playbook.\n'
