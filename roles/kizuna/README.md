@@ -6,6 +6,52 @@ works, API credentialed CORS is correct, and the private Garage endpoint accepts
 the expected upload preflight. The checks below cover the authenticated and
 stateful behavior that should not be automated with production credentials.
 
+## Required vault entries
+
+Create `group_vars/kizuna/vault.yml` with independent credentials for each
+subsystem:
+
+```yaml
+# GitLab registry
+vault_kizuna_registry_username: <read-registry-deploy-token-user>
+vault_kizuna_registry_password: <read-registry-deploy-token>
+
+# Application and database
+vault_kizuna_postgres_password: <postgres-password>
+vault_kizuna_secret_key_base: <rails-secret>
+vault_kizuna_screenshotter_secret: <screenshotter-shared-secret>
+
+# Active Record encryption: generate once and never rotate in place
+vault_kizuna_ar_encryption_primary_key: <primary-key>
+vault_kizuna_ar_encryption_deterministic_key: <deterministic-key>
+vault_kizuna_ar_encryption_key_derivation_salt: <derivation-salt>
+
+# PocketID
+vault_kizuna_oidc_client_id: <client-id>
+vault_kizuna_oidc_client_secret: <client-secret>
+
+# Dedicated Garage
+vault_kizuna_garage_rpc_secret: <32-byte-hex-secret>
+vault_kizuna_garage_admin_token: <admin-token>
+vault_kizuna_garage_metrics_token: <metrics-token>
+vault_kizuna_garage_access_key_id: <s3-access-key>
+vault_kizuna_garage_secret_access_key: <s3-secret-key>
+
+# Integrations
+vault_kizuna_youtube_api_key: <restricted-server-key>
+vault_kizuna_youtube_cookies: <optional-netscape-cookie-file>
+vault_kizuna_searxng_api_key: <shared-search-api-key>
+```
+
+Generate the Rails value with `bin/rails secret`, the three Active Record
+values with `bin/rails db:encryption:init`, and random shared secrets with
+`openssl rand -hex 32`. Changing an Active Record encryption key after
+connections have been stored makes their ciphertext unreadable.
+
+The first Garage deployment can start with its RPC, admin, and metrics
+secrets. Run `/opt/docker/kizuna/garage_bootstrap.sh` on the host, store the
+generated access-key pair in the vault, and redeploy.
+
 ## YouTube enrichment and archival
 
 Add the server-side YouTube Data API v3 key to the Kizuna vault before
