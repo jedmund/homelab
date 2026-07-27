@@ -4,8 +4,8 @@ stack_name: romm
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # RomM settings
-romm_image: rommapp/romm:latest
-romm_db_image: mariadb:latest
+romm_image: rommapp/romm:5.0.0
+romm_db_image: mariadb:12.3.2
 romm_port: 8888
 romm_base_url: "https://rom.atelier.house"
 romm_db_host: romm-db
@@ -15,8 +15,8 @@ romm_db_user: romm-atelier
 romm_db_driver: mariadb
 romm_disable_userpass_login: "false"
 romm_disable_csrf_protection: "false"
+romm_disable_logs_viewer: "false"
 romm_kiosk_mode: "false"
-romm_upload_timeout: "600"
 romm_scan_timeout: "14400"
 romm_disable_emulator_js: "false"
 romm_disable_ruffle_rs: "false"
@@ -26,6 +26,7 @@ romm_hasheous_api_enabled: "true"
 romm_hltb_api_enabled: "true"
 romm_screenscraper_user: "jedmund"
 romm_oidc_enabled: "true"
+romm_oidc_allow_registration: "true"
 romm_oidc_provider: "pocketid"
 romm_oidc_redirect_uri: "{{ romm_base_url }}/api/oauth/openid"
 romm_oidc_server_application_url: "https://id.atelier.house"
