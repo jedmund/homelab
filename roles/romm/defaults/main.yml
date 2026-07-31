@@ -4,7 +4,8 @@ stack_name: romm
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # RomM settings
-romm_image: rommapp/romm:5.0.0
+# Floating major tag: track any 5.x release (docker_pull_policy is `always`)
+romm_image: rommapp/romm:5
 romm_db_image: mariadb:12.3.2
 romm_port: 8888
 romm_base_url: "https://rom.atelier.house"
