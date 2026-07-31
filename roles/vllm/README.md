@@ -118,6 +118,32 @@ weight loader, not a separate on-disk artifact we need to produce.
 Upstream documents no conversion step, but if the first load errors on
 the format, `LOAD_FORMAT=auto` is the fallback to isolate it.
 
+## Client configs
+
+`roles/agents_linux` deploys opencode and pi configs that point at
+`max:11437` directly. Two couplings matter when swapping profiles:
+
+- **Model id.** Both clients key off `DeepSeek-V4-Flash`. The 0731
+  entry pins `SERVED_MODEL_NAME` to that same value, so the clients
+  need no edit. Confirm on first start with
+  `curl -s localhost:11437/v1/models`, since the DS4 launcher's own
+  default is not readable from outside the image.
+- **Context window.** Both clients advertise `vllm_max_context`
+  (`roles/agents_linux/defaults/main.yml`), defaulting to 524288. The
+  0731 profile pins `MAX_MODEL_LEN=131072`, so **drop
+  `vllm_max_context` to 131072 in the same change that flips
+  `ai_split_vllm_profile`**, or clients will build contexts the server
+  rejects.
+
+Unresolved: 0731 adds low/high/max reasoning effort, and the preview
+baked `reasoning_effort: high` into `--default-chat-template-kwargs`.
+We no longer control argv under the launcher, and only the GLM
+launcher in the upstream repo is visibly setting chat-template-kwargs.
+Both clients currently declare `supportsReasoningEffort: false`. How
+effort is selected under `serve-ds4-flash.sh` needs checking on first
+start, and it matters: operators reported a material quality gap
+between `high` and `max` on audit-style tasks.
+
 ## VRAM budget
 
 0731 is about 167 GB of weights against the Max-Q pair's 192 GB, up
