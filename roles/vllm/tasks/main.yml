@@ -21,9 +21,9 @@
     - "{{ vllm_hf_cache_dir }}"
 
 # Launcher-style images write JIT caches and scratch into their own
-# bind-mounted directories. Docker would create these as root-owned if
-# they were missing at container start, which then breaks the launcher
-# running as a non-root user inside the image.
+# bind-mounted directories. Docker creates missing bind-mount sources
+# as root-owned on the host, which leaves dirs {{ ansible_user }} can't
+# prune without sudo. Create them up front with the right owner.
 - name: Ensure per-model cache dirs exist
   file:
     path: "{{ item }}"

@@ -78,15 +78,45 @@ provide the standard MTP serving contract. `MODE=dspark-mtp0` gives a
 no-speculation baseline on the 0731 weights, which is the right first
 bring-up step.
 
+## Download the weights first
+
+The 0731 weights are **not** on max as of 2026-07-31. The cache holds
+only the preview (149 GB). Starting the 0731 profile without staging
+the weights first makes the container download about 167 GB from HF
+Hub before it can serve, with the container sitting unhealthy for the
+duration (the 180s healthcheck `start_period` is nowhere near enough).
+
+Stage it out of band instead, so the transfer is resumable and
+decoupled from a container start:
+
+```bash
+# on max
+hf download deepseek-ai/DeepSeek-V4-Flash-0731
+```
+
+That lands in `~/.cache/huggingface/hub`, which the compose file
+bind-mounts, so the container then only re-validates the snapshot.
+
+Disk check before starting: 149 GB (preview) + 167 GB (0731) is 316 GB
+against 459 GB free on `/`, leaving roughly 143 GB. It fits, but evict
+the preview once 0731 is confirmed rather than keeping both
+indefinitely.
+
 ## Bring-up sequence for 0731
 
 1. `make deploy-vllm` to render the compose file (starts nothing).
 2. Pull the image on max. It is about 12.5 GB.
-3. First start with `MODE=dspark-mtp0` to take speculative decoding out
+3. Download the 0731 weights (see above). This is the long pole.
+4. First start with `MODE=dspark-mtp0` to take speculative decoding out
    of the picture entirely, and confirm coherent output.
-4. Switch back to `MODE=dspark` with `DSPARK_TOKENS=5` and re-check.
-5. Only then raise `MAX_NUM_SEQS`, re-checking output each step.
-6. Flip `ai_split_vllm_profile` once it holds.
+5. Switch back to `MODE=dspark` with `DSPARK_TOKENS=5` and re-check.
+6. Only then raise `MAX_NUM_SEQS`, re-checking output each step.
+7. Flip `ai_split_vllm_profile` once it holds.
+
+`LOAD_FORMAT: instanttensor` is upstream's default and is a faster
+weight loader, not a separate on-disk artifact we need to produce.
+Upstream documents no conversion step, but if the first load errors on
+the format, `LOAD_FORMAT=auto` is the fallback to isolate it.
 
 ## VRAM budget
 
