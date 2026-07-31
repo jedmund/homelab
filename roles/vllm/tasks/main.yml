@@ -20,6 +20,18 @@
     - "{{ vllm_cache_root }}"
     - "{{ vllm_hf_cache_dir }}"
 
+# Launcher-style images write JIT caches and scratch into their own
+# bind-mounted directories. Docker would create these as root-owned if
+# they were missing at container start, which then breaks the launcher
+# running as a non-root user inside the image.
+- name: Ensure per-model cache dirs exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop: "{{ vllm_model_cache_dirs }}"
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
