@@ -5,10 +5,10 @@ services:
   hugginghack:
     container_name: hugginghack
     image: {{ hugginghack_image }}
-    # Built from the pinned repo commit; no upstream image exists. BuildKit
-    # fetches the ref directly, so no host checkout is needed.
+    # Built from the fork's configured Git ref. BuildKit fetches the ref
+    # directly, so no host checkout is needed.
     build:
-      context: "{{ hugginghack_git_repo }}#{{ hugginghack_version }}"
+      context: "{{ hugginghack_git_repo }}#{{ hugginghack_git_ref }}"
       dockerfile: Dockerfile
     restart: {{ restart_policy }}
     user: "{{ puid }}:{{ pgid }}"

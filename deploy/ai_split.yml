@@ -7,6 +7,12 @@
 #   2. vllm.yml renders the vLLM compose at /opt/docker/vllm.
 #   3. The trailing play starts the configured vLLM model profile.
 #
+# The profile defaults to the known-good preview checkpoint. To run the
+# newer 0731 release instead, pass:
+#   -e ai_split_vllm_profile=deepseek-v4-flash-0731
+# Both profiles bind 11437, so only one runs at a time. See
+# roles/vllm/README.md for the 0731 bring-up sequence.
+#
 # The SGLang role and deploy/sglang.yml are kept in the repo for the
 # day someone gets the NVFP4 + dsv4 backend past the strict-config
 # loader; until then, vLLM is the path that actually serves DSV4 Flash.

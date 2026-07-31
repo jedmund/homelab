@@ -27,6 +27,12 @@ vllm_default_shm_size: "32gb"
 vllm_cache_root: "/home/{{ ansible_user }}/.cache/deepseek"
 vllm_hf_cache_dir: "/home/{{ ansible_user }}/.cache/huggingface"
 
+# Per-model scratch/JIT dirs bind-mounted by launcher-style images.
+# Created by tasks/main.yml so docker doesn't make them root-owned.
+vllm_model_cache_dirs:
+  - "{{ config_base }}/cache/ds4-v20-r15"
+  - "{{ config_base }}/cache/ds4-v20-r15/tmp"
+
 # Manual lifecycle: each model is a compose service gated behind a
 # profile, so `docker compose up` (and the ansible deploy) creates
 # nothing by default. Bring a model up:
@@ -89,3 +95,76 @@ vllm_models:
       - --no-enable-flashinfer-autotune
       - --host=0.0.0.0
       - --port=8000
+
+  # DeepSeek V4 Flash 0731, the official release that supersedes the
+  # preview entry above. Served by the voipmonitor gilded-gnosis
+  # v20-r15 image from local-inference-lab/blackwell-llm-docker, which
+  # is the same SM120 + b12x lineage as the lavd builds we ran before.
+  #
+  # This image works differently from the lavd one: its ENTRYPOINT is
+  # /usr/local/bin/serve-ds4-flash.sh and every serving choice comes
+  # from env vars, so there is no `args` list here. Upstream reference
+  # config is examples/docker-compose-ds4-v20-r15.yml in that repo.
+  #
+  # Both this and the preview bind 11437, so only one can run at a
+  # time. That is deliberate: it makes an accidental double-start fail
+  # loudly instead of silently splitting VRAM.
+  - name: deepseek-v4-flash-0731
+    image: voipmonitor/vllm:gilded-gnosis-v20-vllm0bc48c5-sieec30ff-fi801d57a-cu132-20260731-r15
+    host_port: 11437
+    container_port: 11437
+    entrypoint: ["/usr/local/bin/serve-ds4-flash.sh"]
+    # Upstream's reference compose runs this host-networked. We publish
+    # a port instead, matching the preview entry above, because docker
+    # port publishing installs a DOCKER-chain iptables rule that is
+    # traversed before ufw's INPUT rules. Host networking publishes
+    # nothing, so ufw's default deny applies and LAN clients get
+    # dropped unless 11437 is opened explicitly. Publishing keeps the
+    # reachability identical to the preview with no new firewall rule.
+    #
+    # Same host port as the preview (11437), so the two profiles remain
+    # mutually exclusive and no client config changes between them.
+    privileged: true
+    shm_size: "32gb"
+    cuda_visible_devices: "0,1"
+    extra_volumes:
+      - "{{ config_base }}/cache/ds4-v20-r15:/cache"
+      - "{{ config_base }}/cache/ds4-v20-r15/tmp:/container-tmp"
+    extra_env:
+      # Keep aligned with host_port: host networking means the
+      # launcher binds this directly, and the healthcheck uses it.
+      PORT: "11437"
+      # Pin the OpenAI model id to what the preview already serves, so
+      # opencode/pi keep working unchanged and swapping profiles is
+      # transparent to clients. This image family honours
+      # SERVED_MODEL_NAME (its GLM launchers export it with a default),
+      # but serve-ds4-flash.sh sets no default we can read from outside
+      # the image: confirm with `curl :11437/v1/models` on first start.
+      SERVED_MODEL_NAME: DeepSeek-V4-Flash
+      # dspark is the only speculative contract 0731 ships. The
+      # standard MTP path (MODE=mtp2/mtp3) silently selects the older
+      # preview checkpoint instead, because 0731 does not provide the
+      # standard MTP serving contract.
+      MODE: dspark
+      BACKEND: b12x-a8
+      TP_SIZE: "2"
+      DCP_SIZE: "1"
+      DSPARK_DEPTH_MODE: fixed
+      # 5, NOT 7. Both the DeepSeek model card and this image's own
+      # compose example default to 7, and 7 produces garbled output
+      # (confirmed by several operators on 2x Pro 6000 on release day,
+      # most visibly above ~16 concurrent sequences). 5 is safe.
+      DSPARK_TOKENS: "5"
+      # Upstream defaults this to 16. Starting low until output
+      # quality is validated on our box; raise deliberately and
+      # re-check output each step. The launcher derives its CUDA graph
+      # cap from this value.
+      MAX_NUM_SEQS: "4"
+      MAX_MODEL_LEN: "131072"
+      MAX_NUM_BATCHED_TOKENS: "8192"
+      # 0731 is ~167 GB against the pair's 192 GB, tighter than the
+      # preview's ~150 GB. Upstream runs 0.975 to claw back headroom;
+      # if this OOMs, pin cudagraph capture sizes before lowering it.
+      GPU_MEMORY_UTILIZATION: "0.975"
+      LOAD_FORMAT: instanttensor
+      INSTANTTENSOR_BACKEND: BUFFERED
