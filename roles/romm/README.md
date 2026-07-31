@@ -130,6 +130,14 @@ creates the directory and warns when it is empty, but cannot supply the
 file. Without it PCSX2 parks on an error dialog rather than crashing, so
 `/status` reports healthy while nothing plays.
 
+The role owns that directory as `puid`/`pgid` and re-chowns its contents
+on every run, because PCSX2 writes `.mec` and `.nvm` files next to the
+dump on first boot. A dump copied in by hand arrives owned by whoever
+copied it, and the image's init chowns `/config` without recursing into
+subdirectories, so the symptom is `Failed to write MEC file. Check your
+BIOS/permission settings.` in the emulator. Re-running the playbook is
+the fix.
+
 ### 4. PCSX2 memory card type
 
 In-game save sync needs the Slot 1 memory card to be `Folder` type, not
