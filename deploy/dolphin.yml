@@ -1,0 +1,6 @@
+---
+- name: Deploy Dolphin streaming stack
+  hosts: dolphin
+  become: true
+  roles:
+    - dolphin
