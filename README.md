@@ -213,6 +213,9 @@ Shared secrets used by multiple stacks.
 | Variable | Description |
 |----------|-------------|
 | `vault_hugginghack_hf_token` | Optional read-only Hugging Face token for private or gated models |
+| `vault_hugginghack_postgres_password` | Dedicated PostgreSQL password; use a long URL-safe value |
+| `vault_hugginghack_oidc_client_id` | PocketID confidential-client ID |
+| `vault_hugginghack_oidc_client_secret` | PocketID confidential-client secret |
 
 ### group_vars/infra_core/vault.yml
 
@@ -549,6 +552,15 @@ make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
 make deploy-hugginghack
+
+# PocketID client callbacks:
+#   Login:  https://hf.atelier.house/api/auth/oidc/callback
+#   Logout: https://hf.atelier.house/
+# The role starts PostgreSQL by itself, stops the old SQLite-backed app,
+# copies and verifies every persistent row, maps the legacy local owner to
+# PocketID user `jedmund`, and only then starts native OIDC. Models remain on
+# the existing filesystem/NFS volume; no Garage service is involved.
+# Keep data/hugginghack.pre-*.sqlite3 after the first successful deployment.
 
 # Before the first HuggingHack deploy, create HuggingHack at the root of the
 # visible Files share, make it writable by the configured puid:pgid, then

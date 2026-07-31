@@ -97,8 +97,6 @@ services:
       tinyauth.apps.pcsx2.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.dolphin.config.domain: "dolphin.{{ traefik_domain }}"
       tinyauth.apps.dolphin.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.hugginghack.config.domain: "hf.{{ traefik_domain }}"
-      tinyauth.apps.hugginghack.users.allow: "{{ tinyauth_atelier_users }}"
     logging:
       driver: {{ logging_driver }}
       options:

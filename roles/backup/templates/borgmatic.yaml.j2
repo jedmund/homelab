@@ -79,6 +79,10 @@ postgresql_databases:
       hostname: kizuna-postgres
       username: {{ kizuna_db_user }}
       password: "{{ kizuna_db_password }}"
+    - name: {{ hugginghack_db_name }}
+      hostname: hugginghack-postgres
+      username: {{ hugginghack_db_user }}
+      password: "{{ hugginghack_db_password }}"
 
 # Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
 # what's set on the container; mysqldump needs LOCK TABLES which the romm

@@ -24,6 +24,17 @@ romm_disable_ruffle_rs: "false"
 romm_web_concurrency: "2"
 romm_loglevel: "INFO"
 romm_hasheous_api_enabled: "true"
+# PlayMatch resolves the strongest hash first, then falls back to file
+# name plus size. That fallback is what Hasheous does not do, and it is
+# the reason this is worth enabling: the ROMs with no provider match at
+# all are overwhelmingly PSX titles that already failed hash matching
+# against the same No-Intro and Redump DATs both services import.
+# Public instance, no API key. romm_playmatch_api_url only needs setting
+# to point at a self-hosted instance.
+romm_playmatch_api_enabled: "true"
+# romm_retroachievements_api_key is defined in vault; the key had been
+# sitting there unused because the env template never referenced it.
+romm_retroachievements_cache_days: "30"
 romm_hltb_api_enabled: "true"
 romm_screenscraper_user: "jedmund"
 romm_oidc_enabled: "true"
