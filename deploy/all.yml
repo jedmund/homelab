@@ -75,6 +75,15 @@
 - import_playbook: romm.yml
   tags: [media, romm]
 
+# Emulator streaming containers RomM drives. These come after romm.yml
+# only for readability; the two halves are independent and either order
+# converges.
+- import_playbook: pcsx2.yml
+  tags: [media, romm, pcsx2, streaming]
+
+- import_playbook: dolphin.yml
+  tags: [media, romm, dolphin, streaming]
+
 - import_playbook: plex.yml
   tags: [media, plex]
 

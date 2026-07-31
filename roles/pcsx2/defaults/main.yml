@@ -1,0 +1,55 @@
+---
+# Stack identity
+stack_name: pcsx2
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# PCSX2 running headless on max, streamed to the browser via Selkies and
+# driven by RomM over the broker sidecar. See roles/romm for the client
+# half (the streaming block in config.yml).
+pcsx2_image: lscr.io/linuxserver/pcsx2:latest
+
+# Docker Mod that installs the RomM broker as an s6 service inside the
+# LinuxServer image. Pinned to a minor tag so patch releases land on
+# deploy but a breaking API change does not.
+# https://github.com/LoneAngelFayt/pcsx2-romm-integration
+pcsx2_broker_mod: ghcr.io/loneangelfayt/pcsx2-romm-integration-mod:v1.3
+
+# Host ports. The image's own defaults (3000/3001 for Selkies, 8000 for
+# the broker) are deliberately not reused: 8000 is Tunarr's port in the
+# shared firewall group, and leaving the defaults free keeps room for a
+# third emulator later. Container-side ports are fixed by the image.
+pcsx2_selkies_http_port: 3010
+pcsx2_selkies_https_port: 3011
+pcsx2_broker_port: 8010
+
+# GPU pinning. nvidia-smi index, matching the indices documented in
+# inventory/hosts.yml. Device 2 is the 600 W Workstation Edition card,
+# which llama-swap only occupies while a model is actually loaded, so it
+# is the least contended of the three. This is a real tradeoff, not a
+# free choice: see the VRAM note in roles/romm/README.md.
+pcsx2_gpu_device_id: "2"
+
+# Must match where RomM mounts the same library, or every launch 422s.
+# RomM's compose mounts the `games` volume at /romm/library.
+pcsx2_rom_root: /romm/library
+
+# Slot /save-and-exit writes to. 10 leaves 1-9 for the player.
+pcsx2_save_slot: "10"
+
+# Selkies needs a real chunk of shared memory for the framebuffer.
+pcsx2_shm_size: 1gb
+
+pcsx2_broker_log_level: INFO
+
+# Basic auth on the container's own Selkies listener. This is the second
+# gate, behind TinyAuth on the Traefik route; it covers direct LAN access
+# to max:3011 which does not pass through Traefik at all. Leaving it
+# unset means the image falls back to abc/abc.
+pcsx2_selkies_user: justin
+pcsx2_selkies_password: "{{ vault_pcsx2_selkies_password }}"
+
+# Must be byte-identical to romm_streaming_broker_secret. Both resolve to
+# the same vault entry in group_vars/compute_servers/vault.yml, which is
+# the point: RomM is on nuc-mini and this role is on max, so a per-group
+# vault would mean two copies free to drift apart.
+pcsx2_broker_secret: "{{ vault_romm_streaming_broker_secret }}"

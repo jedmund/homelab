@@ -17,6 +17,8 @@ firewall_group_kibble: true
 # Komodo Periphery agent port; only hosts running roles/infra_periphery
 # (standalone agent, not the core host) enable this in inventory.
 firewall_group_komodo_periphery: false
+# Emulator streaming containers (roles/pcsx2, roles/dolphin); max only.
+firewall_group_emulator_streaming: false
 
 # Explicitly remove retired rules; deleting an entry from the allow-list does
 # not remove a UFW rule that was created by an earlier playbook run.
@@ -99,6 +101,37 @@ firewall_ports_komodo_periphery:
     src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
     comment: "Komodo Periphery (core host only)"
 
+# Emulator streaming (roles/pcsx2, roles/dolphin on max)
+# The broker APIs are the sensitive half: an unauthenticated caller that
+# reaches them can launch and stop games, so they are pinned to the one
+# host that has any business calling them. The plain-HTTP Selkies ports
+# are Traefik's backends and get the same treatment. Only the containers'
+# own HTTPS listeners are open to the LAN, for direct access that skips
+# Traefik entirely.
+firewall_ports_emulator_streaming:
+  - port: 3010
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "PCSX2 Selkies HTTP (Traefik backend)"
+  - port: 3011
+    proto: tcp
+    comment: "PCSX2 Selkies HTTPS (direct LAN)"
+  - port: 8010
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "PCSX2 RomM broker API"
+  - port: 3020
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "Dolphin Selkies HTTP (Traefik backend)"
+  - port: 3021
+    proto: tcp
+    comment: "Dolphin Selkies HTTPS (direct LAN)"
+  - port: 8020
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "Dolphin RomM broker API"
+
 # Downloads (BitTorrent)
 firewall_ports_downloads:
   - { port: 6881, proto: tcp, comment: "BitTorrent" }
@@ -150,5 +183,6 @@ firewall_ports_all: >-
     (firewall_ports_social if firewall_group_social else []) +
     (firewall_ports_matrix if firewall_group_matrix else []) +
     (firewall_ports_kibble if firewall_group_kibble else []) +
-    (firewall_ports_komodo_periphery if firewall_group_komodo_periphery else [])
+    (firewall_ports_komodo_periphery if firewall_group_komodo_periphery else []) +
+    (firewall_ports_emulator_streaming if firewall_group_emulator_streaming else [])
   }}

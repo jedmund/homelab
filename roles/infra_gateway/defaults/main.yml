@@ -21,6 +21,7 @@ ddclient_atelier_subdomains:
   - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
+  - dolphin.atelier.house
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
@@ -43,6 +44,7 @@ ddclient_atelier_subdomains:
   - netdata.atelier.house
   - obsidian-sync.atelier.house
   - ov.atelier.house
+  - pcsx2.atelier.house
   - paseo.relay.atelier.house
   - photos.atelier.house
   - pi.atelier.house
