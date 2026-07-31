@@ -105,6 +105,7 @@ borg_networks:
 #   blinko_db_password
 #   dawarich_db_password
 #   vault_kizuna_postgres_password
+#   vault_hugginghack_postgres_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -135,6 +136,9 @@ dawarich_db_username: dawarich
 kizuna_db_name: kizuna_api_production
 kizuna_db_user: kizuna
 kizuna_db_password: "{{ vault_kizuna_postgres_password }}"
+hugginghack_db_name: hugginghack
+hugginghack_db_user: hugginghack
+hugginghack_db_password: "{{ vault_hugginghack_postgres_password }}"
 obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
