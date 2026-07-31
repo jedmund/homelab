@@ -24,6 +24,7 @@ ddclient_atelier_subdomains:
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
+  - ha.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - idea.atelier.house
@@ -147,3 +148,7 @@ mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
 mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
 dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"
+# Home Assistant OS box. Not in the inventory (HAOS has no usable Python
+# for the prerequisites/Docker plays), so unlike the IPs above this one
+# cannot be sourced from hostvars and is defined literally.
+home_assistant_ip: "192.168.1.5"

@@ -1,0 +1,44 @@
+# Other External Services (Home Assistant, etc.)
+#
+# Home Assistant runs on bare-metal Home Assistant OS at
+# {{ home_assistant_ip }}. It is deliberately absent from the inventory:
+# HAOS has no usable Python interpreter for the prerequisites/Docker
+# plays, so only the routing half of it lives in this repo.
+#
+# HA terminates its own TLS on :443 (configuration.yaml still carries an
+# `http: ssl_certificate` block), and in that mode it does not bind the
+# usual plain-HTTP :8123 at all — so the backend URL here must be https
+# on 443. Pointing this at :8123 yields a connection refusal and a 502.
+#
+# insecureSkipVerify is what keeps that arrangement from being fragile:
+# HA's own Let's Encrypt cert is renewed by an add-on that has failed
+# before, and Traefik would otherwise refuse the backend the moment that
+# cert lapsed. Clients still get the real, auto-renewing wildcard-era
+# cert Traefik holds for ha.{{ traefik_domain }}; the unverified hop is
+# LAN-internal between nuc-mini and the HA box.
+http:
+  routers:
+    # Home Assistant - ha.{{ traefik_domain }}
+    homeassistant:
+      rule: "Host(`ha.{{ traefik_domain }}`)"
+      service: homeassistant
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    homeassistant:
+      loadBalancer:
+        serversTransport: insecure-backend@file
+        # passHostHeader defaults to true, which HA requires so its
+        # internal/external URL handling and the websocket upgrade for
+        # the Lovelace UI both see the original Host.
+        servers:
+          - url: "https://{{ home_assistant_ip }}:443"
+
+  serversTransports:
+    # Shared by backends that terminate TLS themselves with a cert
+    # Traefik has no reason to validate (LAN-internal hop).
+    insecure-backend:
+      insecureSkipVerify: true
