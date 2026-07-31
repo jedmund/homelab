@@ -44,5 +44,8 @@ dolphin_broker_log_level: INFO
 # Basic auth on the container's own Selkies listener. Second gate behind
 # TinyAuth on the Traefik route; covers direct LAN access to max:3021.
 dolphin_selkies_user: justin
-# dolphin_selkies_password - defined in vault as vault_dolphin_selkies_password
-# dolphin_broker_secret - defined in vault as vault_romm_streaming_broker_secret
+dolphin_selkies_password: "{{ vault_dolphin_selkies_password }}"
+
+# Same shared vault entry as roles/pcsx2 and roles/romm; see the note
+# there for why it is not per-group.
+dolphin_broker_secret: "{{ vault_romm_streaming_broker_secret }}"

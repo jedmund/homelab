@@ -77,4 +77,11 @@ romm_streaming_containers:
     broker_host: "http://{{ hostvars['max'].ansible_host }}:8020"
     label: Dolphin
 
-# romm_streaming_broker_secret - defined in vault
+# Authenticates RomM's calls to the brokers. One secret shared by three
+# roles across two hosts, so it lives in the compute_servers vault rather
+# than a per-group one: group_vars/romm is not in scope on max, and
+# copying the same secret into three vaults invites them to drift.
+# No default(''): an empty secret makes the brokers accept every request,
+# so an absent vault entry should fail the deploy rather than quietly
+# open the launch API.
+romm_streaming_broker_secret: "{{ vault_romm_streaming_broker_secret }}"

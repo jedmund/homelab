@@ -114,15 +114,30 @@ derives automatically.
 
 ## Vault variables
 
+All three go in `group_vars/compute_servers/vault.yml`, not a per-group
+vault. RomM runs on nuc-mini and the emulators on max, so `group_vars/romm`
+is not in scope where the brokers are configured, and splitting the shared
+secret across per-group vaults would let the two copies drift.
+
 ```yaml
 vault_romm_streaming_broker_secret: <shared secret>
 vault_pcsx2_selkies_password: <basic auth password>
 vault_dolphin_selkies_password: <basic auth password>
 ```
 
-The broker secret has to be identical in all three roles. RomM sends it
-as `X-Broker-Secret` on every call; an empty value at the broker end
-means every request is accepted.
+```bash
+# generate one
+openssl rand -hex 32
+
+ansible-vault edit group_vars/compute_servers/vault.yml
+```
+
+The broker secret has to be byte-identical in all three roles; the three
+`*_broker_secret` variables deliberately resolve to the same vault entry.
+RomM sends it as `X-Broker-Secret` on every call, and an empty value at
+the broker end means every request is accepted, so none of these carry a
+`default('')`: a missing entry fails the deploy rather than quietly
+opening the launch API.
 
 ## Authentication
 

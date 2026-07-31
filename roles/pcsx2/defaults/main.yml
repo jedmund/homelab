@@ -46,5 +46,10 @@ pcsx2_broker_log_level: INFO
 # to max:3011 which does not pass through Traefik at all. Leaving it
 # unset means the image falls back to abc/abc.
 pcsx2_selkies_user: justin
-# pcsx2_selkies_password - defined in vault as vault_pcsx2_selkies_password
-# pcsx2_broker_secret - defined in vault as vault_romm_streaming_broker_secret
+pcsx2_selkies_password: "{{ vault_pcsx2_selkies_password }}"
+
+# Must be byte-identical to romm_streaming_broker_secret. Both resolve to
+# the same vault entry in group_vars/compute_servers/vault.yml, which is
+# the point: RomM is on nuc-mini and this role is on max, so a per-group
+# vault would mean two copies free to drift apart.
+pcsx2_broker_secret: "{{ vault_romm_streaming_broker_secret }}"
