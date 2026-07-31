@@ -1,0 +1,6 @@
+---
+- name: Deploy PCSX2 streaming stack
+  hosts: pcsx2
+  become: true
+  roles:
+    - pcsx2

@@ -1,0 +1,54 @@
+---
+# PCSX2 emulator streaming stack
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/config/bios"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/pcsx2.env.j2
+    dest: "{{ config_base }}/env/pcsx2.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Check for PS2 BIOS files
+  ansible.builtin.find:
+    paths: "{{ config_base }}/config/bios"
+    patterns: '*.bin,*.BIN,*.rom*,*.ROM*'
+  register: pcsx2_bios_files
+
+- name: Warn when no PS2 BIOS is present
+  ansible.builtin.debug:
+    msg: >-
+      No BIOS files found in {{ config_base }}/config/bios. PCSX2 will boot
+      to an error dialog rather than a game, and the broker cannot tell the
+      difference: /status will look healthy while nothing plays. Copy a PS2
+      BIOS dump there and restart the stack.
+  when: pcsx2_bios_files.matched | int == 0
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

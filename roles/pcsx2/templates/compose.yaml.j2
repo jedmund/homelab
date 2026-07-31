@@ -1,0 +1,60 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  pcsx2:
+    image: {{ pcsx2_image }}
+    container_name: pcsx2
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/pcsx2.env
+    ports:
+      # Selkies serves the same UI on both; Traefik proxies the plain
+      # HTTP one and terminates TLS itself, so the self-signed cert on
+      # 3001 is only in the path for direct LAN access.
+      - {{ pcsx2_selkies_http_port }}:3000
+      - {{ pcsx2_selkies_https_port }}:3001
+      # Broker API. RomM on nuc-mini calls this cross-host, so unlike a
+      # same-host setup it cannot stay on an internal Docker network.
+      # The shared secret is the only thing guarding it.
+      - {{ pcsx2_broker_port }}:8000
+    volumes:
+      # BIOS, memory cards, savestates and PCSX2.ini all live here.
+      # PS2 BIOS files have to be dropped into ./config/bios by hand.
+      - ./config:/config
+      # Read-only: the broker only ever reads ROMs, and everything it
+      # writes goes to /config.
+      - games:/romm/library:ro
+    # Required by Selkies for the framebuffer.
+    shm_size: {{ pcsx2_shm_size }}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['{{ pcsx2_gpu_device_id }}']
+              # `graphics` and `video` are the important ones and are NOT
+              # included by the shorthand `gpus: all` used elsewhere in
+              # this repo, which yields compute+utility only. Without
+              # them the container comes up but dies on EGL context
+              # creation, which reads like a broken image rather than a
+              # missing capability.
+              capabilities: [compute, video, graphics, utility]
+    healthcheck:
+      # The broker skips secret checks on /health specifically so it can
+      # be used here without baking the secret into the compose file.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  games:
+    name: games
+    external: true
