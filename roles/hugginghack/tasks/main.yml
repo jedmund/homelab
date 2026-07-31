@@ -15,10 +15,12 @@
       - hugginghack_legacy_owner_username | length >= 3
       - >-
         hugginghack_legacy_owner_username
-        | regex_search('^[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]$')
+        is match('^[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]$')
     fail_msg: >-
       Populate the HuggingHack PostgreSQL and PocketID vault values and set a
       valid PocketID preferred username before deploying.
+  tags:
+    - preflight
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
