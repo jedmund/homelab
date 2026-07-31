@@ -3,4 +3,6 @@
   hosts: pcsx2
   become: true
   roles:
+    # Installs the NVIDIA DRM modeset drop-in the Selkies image needs.
+    - gpu_tools
     - pcsx2

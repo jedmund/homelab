@@ -1,6 +1,33 @@
 ---
 # Dolphin emulator streaming stack
 
+# Same two preflight checks as roles/pcsx2; see the notes there.
+
+- name: Verify the NVIDIA driver is usable
+  ansible.builtin.command: nvidia-smi -L
+  register: dolphin_nvidia_smi
+  changed_when: false
+  # Read-only, so run it even under --check: a dry run is exactly when you
+  # want to find out the driver is unusable.
+  check_mode: false
+  failed_when: dolphin_nvidia_smi.rc != 0
+
+- name: Check NVIDIA DRM modeset state
+  ansible.builtin.slurp:
+    src: /sys/module/nvidia_drm/parameters/modeset
+  register: dolphin_drm_modeset
+  failed_when: false
+  changed_when: false
+
+- name: Require DRM modeset before starting Selkies
+  ansible.builtin.assert:
+    that: (dolphin_drm_modeset.content | default('') | b64decode | trim) == 'Y'
+    fail_msg: >-
+      nvidia_drm modeset is off on {{ inventory_hostname }}, so Selkies
+      cannot get a GL context and Dolphin will die on startup. Run the
+      gpu_tools role to install /etc/modprobe.d/nvidia-drm.conf, then
+      reboot. See roles/romm/README.md.
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

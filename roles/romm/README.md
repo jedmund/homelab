@@ -87,18 +87,29 @@ GL context. Modeset is currently off on max: `/proc/cmdline` has only
 `amd_iommu=pt iommu=pt`, and there is no NVIDIA drop-in under
 `/etc/modprobe.d`.
 
-Prefer the modprobe drop-in over editing GRUB. It keeps the hand-managed
-kernel command line alone, and the IOMMU flags already there are
+`roles/gpu_tools` handles the config half, and `deploy/pcsx2.yml` and
+`deploy/dolphin.yml` both run it before their own role. It writes
+`/etc/modprobe.d/nvidia-drm.conf` and rebuilds the initramfs on change,
+which is a drop-in rather than a kernel command line flag because
+`/etc/default/grub` on max is hand managed and its IOMMU flags are
 load-bearing for multi-GPU NCCL P2P.
 
+Writing the config is idempotent. Making it take effect is not: nvidia_drm
+is already resident whenever the AI stack is running, so the drop-in only
+applies on the next boot. That is the one manual step.
+
 ```bash
-echo 'options nvidia_drm modeset=1 fbdev=1' | \
-  sudo tee /etc/modprobe.d/nvidia-drm.conf
-sudo update-initramfs -u   # nvidia ships in the initramfs on this box
-sudo reboot
+ansible-playbook deploy/pcsx2.yml   # writes the drop-in, then stops on the assert
+sudo reboot                         # on max
+ansible-playbook deploy/pcsx2.yml   # assert passes, containers come up
 ```
 
-Verify after the reboot:
+Both emulator roles assert on the runtime value rather than trusting the
+config task, and both check `nvidia-smi` first. Either failure otherwise
+produces a container that starts and then dies, which is a much worse
+thing to debug than a failed assert.
+
+Verify by hand if you want:
 
 ```bash
 cat /sys/module/nvidia_drm/parameters/modeset   # Y

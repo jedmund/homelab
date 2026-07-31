@@ -3,4 +3,6 @@
   hosts: dolphin
   become: true
   roles:
+    # Installs the NVIDIA DRM modeset drop-in the Selkies image needs.
+    - gpu_tools
     - dolphin

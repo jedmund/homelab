@@ -1,6 +1,39 @@
 ---
 # PCSX2 emulator streaming stack
 
+# Both preflight checks fail on host state that a deploy cannot fix, and
+# both produce a container that starts and then dies rather than an
+# obvious error, so they are worth catching here.
+
+- name: Verify the NVIDIA driver is usable
+  ansible.builtin.command: nvidia-smi -L
+  register: pcsx2_nvidia_smi
+  changed_when: false
+  # Read-only, so run it even under --check: a dry run is exactly when you
+  # want to find out the driver is unusable.
+  check_mode: false
+  failed_when: pcsx2_nvidia_smi.rc != 0
+  # A driver upgraded in place without a reboot leaves userspace and the
+  # loaded kernel module on different versions. Containers started before
+  # the upgrade keep running on the old module, so the box looks healthy
+  # right up until something new asks for a GPU.
+
+- name: Check NVIDIA DRM modeset state
+  ansible.builtin.slurp:
+    src: /sys/module/nvidia_drm/parameters/modeset
+  register: pcsx2_drm_modeset
+  failed_when: false
+  changed_when: false
+
+- name: Require DRM modeset before starting Selkies
+  ansible.builtin.assert:
+    that: (pcsx2_drm_modeset.content | default('') | b64decode | trim) == 'Y'
+    fail_msg: >-
+      nvidia_drm modeset is off on {{ inventory_hostname }}, so Selkies
+      cannot get a GL context and PCSX2 will die on startup. Run the
+      gpu_tools role to install /etc/modprobe.d/nvidia-drm.conf, then
+      reboot. See roles/romm/README.md.
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"
