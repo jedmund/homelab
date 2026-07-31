@@ -124,16 +124,18 @@ the format, `LOAD_FORMAT=auto` is the fallback to isolate it.
 `max:11437` directly. Two couplings matter when swapping profiles:
 
 - **Model id.** Both clients key off `DeepSeek-V4-Flash`. The 0731
-  entry pins `SERVED_MODEL_NAME` to that same value, so the clients
-  need no edit. Confirm on first start with
-  `curl -s localhost:11437/v1/models`, since the DS4 launcher's own
-  default is not readable from outside the image.
+  entry pins `SERVED_MODEL_NAME` to that same value, and the launcher
+  honours it: the engine config reports
+  `served_model_name=DeepSeek-V4-Flash` on the 0731 profile. Clients
+  need no edit when swapping profiles, and equally cannot tell which
+  checkpoint they are talking to. Check server-side with
+  `docker ps --filter name=deepseek`.
 - **Context window.** Both clients advertise `vllm_max_context`
-  (`roles/agents_linux/defaults/main.yml`), defaulting to 524288. The
-  0731 profile pins `MAX_MODEL_LEN=131072`, so **drop
-  `vllm_max_context` to 131072 in the same change that flips
-  `ai_split_vllm_profile`**, or clients will build contexts the server
-  rejects.
+  (`roles/agents_linux/defaults/main.yml`), now 131072 to match the
+  0731 profile's `MAX_MODEL_LEN`. Raise it back to 524288 if
+  `ai_split_vllm_profile` goes back to the preview, which sets no cap.
+  A client value above the server's `max_seq_len` gets requests
+  rejected server-side rather than truncated locally.
 
 Unresolved: 0731 adds low/high/max reasoning effort, and the preview
 baked `reasoning_effort: high` into `--default-chat-template-kwargs`.

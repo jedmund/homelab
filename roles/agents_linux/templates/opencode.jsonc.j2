@@ -132,10 +132,13 @@
         // ai.atelier.house. Slower than the LAN-direct vllm-max
         // provider below because of TLS + proxy hops, but the only
         // way in when traveling. Still fails when the vLLM container
-        // isn't running on max; ssh in and `docker start ds4` first.
+        // isn't running on max; ssh in and start its compose profile:
+        //   cd /opt/docker/vllm && docker compose --profile <p> up -d
+        // Proxies to the same vLLM container as vllm-max below, so it
+        // shares the same context ceiling.
         "DeepSeek-V4-Flash": {
-          "name": "DeepSeek V4 Flash (via proxy, 284B/13B-A, reasoning)",
-          "limit": { "context": 524288, "output": 32768 }
+          "name": "DeepSeek V4 Flash (via proxy, reasoning)",
+          "limit": { "context": {{ vllm_max_context }}, "output": 32768 }
         }
       }
     },

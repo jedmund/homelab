@@ -50,8 +50,9 @@ atelier_vllm_api_key: ""
 # max-model-len, or requests that build a larger context get rejected
 # server-side rather than truncated client-side.
 #
-# The preview profile leaves --max-model-len unset and takes the model
-# native limit; the 0731 profile pins MAX_MODEL_LEN=131072. Drop this
-# to 131072 when flipping ai_split_vllm_profile to
-# deepseek-v4-flash-0731. See roles/vllm/README.md.
-vllm_max_context: 524288
+# Set to 131072 to match the 0731 profile's MAX_MODEL_LEN, confirmed
+# live in the engine config as max_seq_len=131072. The preview profile
+# leaves --max-model-len unset and takes the model native limit, so
+# this can go back to 524288 if ai_split_vllm_profile is switched back
+# to deepseek-v4-flash. See roles/vllm/README.md.
+vllm_max_context: 131072
