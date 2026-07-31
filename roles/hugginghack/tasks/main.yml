@@ -93,7 +93,7 @@
     wait: true
     wait_timeout: 120
 
-- name: Build the pinned HuggingHack fork image
+- name: Build the latest HuggingHack fork image
   ansible.builtin.command:
     argv:
       - docker

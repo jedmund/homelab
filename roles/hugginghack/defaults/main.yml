@@ -7,11 +7,10 @@
 stack_name: hugginghack
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Build the immutable revision from our fork. Bump the full merge SHA to roll
-# forward; the local image tag changes with it, preserving easy rollback.
+# Build the current main branch from our fork on every deployment.
 hugginghack_git_repo: "https://github.com/jedmund/HuggingHack.git"
-hugginghack_version: "faeec855c4699433ac46594f19fc9e94159afac6"
-hugginghack_image: "hugginghack:{{ hugginghack_version[:12] }}"
+hugginghack_git_ref: "main"
+hugginghack_image: "hugginghack:main"
 
 # Native PocketID OIDC protects this route, so no TinyAuth middleware or host
 # port is needed.
