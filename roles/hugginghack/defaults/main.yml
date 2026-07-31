@@ -1,30 +1,59 @@
 ---
-# HuggingHack: a local-first Hugging Face Hub browser/downloader (React +
-# FastAPI, single container on 7860, SQLite). Used as a staging library on
-# nuc-mini: models land on the NAS Files share and are promoted to max by
-# hand when we actually want to serve them.
+# HuggingHack: a local-first Hugging Face Hub browser/downloader. Used as a
+# staging library on nuc-mini: models remain on the NAS Files share and are
+# promoted to max by hand when we actually want to serve them.
 
 # Stack identity
 stack_name: hugginghack
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# No published image upstream, so the image is built from the pinned repo.
-# Bump hugginghack_version to a new commit SHA to roll forward; the tag
-# changes with it, so the next deploy rebuilds.
-hugginghack_git_repo: "https://github.com/tyedalwaves/hugginghack.git"
-hugginghack_version: "efb53edb7bdb9edf62a019d22784daec482eee8f"
+# Build the immutable revision from our fork. Bump the full merge SHA to roll
+# forward; the local image tag changes with it, preserving easy rollback.
+hugginghack_git_repo: "https://github.com/jedmund/HuggingHack.git"
+hugginghack_version: "faeec855c4699433ac46594f19fc9e94159afac6"
 hugginghack_image: "hugginghack:{{ hugginghack_version[:12] }}"
 
-# Routed by Traefik's Docker provider with tinyauth@file, so no host port is
-# published.
+# Native PocketID OIDC protects this route, so no TinyAuth middleware or host
+# port is needed.
 hugginghack_domain: hf.atelier.house
 hugginghack_container_port: 7860
+hugginghack_use_tinyauth: false
 
-# App config (rendered into env/hugginghack.env).
-# Accounts are disabled: TinyAuth is the only auth layer, so we skip
-# HuggingHack's own owner/login and avoid a double sign-in. Flip to true if
-# you want per-user identity inside the app as well.
-hugginghack_accounts_enabled: false
+# PostgreSQL. The one-time role migration copies the existing SQLite data
+# before the OIDC-enabled application is allowed to start.
+hugginghack_postgres_image: postgres:17-alpine
+hugginghack_db_name: hugginghack
+hugginghack_db_user: hugginghack
+hugginghack_db_password: "{{ vault_hugginghack_postgres_password | default('') }}"
+hugginghack_database_url: >-
+  postgresql://{{ hugginghack_db_user }}:{{ hugginghack_db_password }}@hugginghack-postgres:5432/{{ hugginghack_db_name }}
+hugginghack_database_migration_marker: "{{ config_base }}/data/.sqlite-postgres-migrated"
+hugginghack_identity_migration_marker: "{{ config_base }}/data/.pocketid-owner-linked"
+
+# PocketID. The verified legacy SQLite owner is local, while the primary
+# PocketID administrator's preferred_username is jedmund. Keeping the user ID
+# and changing only its username lets first login link that identity to all
+# existing downloads, collections, saved models, and uploads.
+hugginghack_auth_mode: oidc
+hugginghack_app_base_url: "https://{{ hugginghack_domain }}"
+hugginghack_oidc_provider_name: "Pocket ID"
+hugginghack_oidc_issuer: "https://id.atelier.house"
+hugginghack_oidc_client_id: "{{ vault_hugginghack_oidc_client_id | default('') }}"
+hugginghack_oidc_client_secret: "{{ vault_hugginghack_oidc_client_secret | default('') }}"
+hugginghack_oidc_scopes:
+  - openid
+  - profile
+  - email
+  - groups
+# PocketID's client allow-list is the primary access gate. Empty app-level
+# group lists avoid depending on local group names and preserve the migrated
+# administrator role; newly provisioned accounts remain members.
+hugginghack_oidc_allowed_groups: []
+hugginghack_oidc_admin_groups: []
+hugginghack_oidc_session_ttl_hours: 12
+hugginghack_legacy_user_id: local
+hugginghack_legacy_owner_username: jedmund
+
 # Behind Traefik TLS, so cookies are HTTPS-only.
 hugginghack_secure_cookies: true
 hugginghack_session_ttl_hours: 720
