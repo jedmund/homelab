@@ -28,7 +28,41 @@
     group: root
     mode: '0644'
   when: gpu_type | default('') == 'nvidia'
-  notify: Rebuild initramfs
+
+# Deliberately a state check rather than a handler notified by the task
+# above. Handlers flush at the end of a play, so a later role failing its
+# preflight would skip the rebuild entirely, and the re-run would not
+# notify again because the file already matches. That combination leaves
+# the drop-in on disk but absent from the initramfs, which is the one
+# state that looks configured and behaves as if it is not.
+#
+# -k all, not -u on its own: -u only touches the running kernel's image,
+# and a host with a newer kernel installed but not yet booted would build
+# the wrong one.
+- name: Check whether the initramfs images carry the modeset drop-in
+  ansible.builtin.shell:
+    # Process substitution rather than a pipe into `grep -q`. grep exits on
+    # the first match, lsinitramfs then dies of SIGPIPE, and `set -o
+    # pipefail` reports the whole pipeline as rc 141. The check would fail
+    # every run and rebuild the images every run, which looks like the
+    # drop-in never landing.
+    cmd: |
+      for img in /boot/initrd.img-*; do
+        grep -qx 'etc/modprobe.d/nvidia-drm.conf' <(lsinitramfs "$img") || exit 1
+      done
+    executable: /bin/bash
+  register: gpu_tools_initramfs_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Rebuild the initramfs images
+  ansible.builtin.command: update-initramfs -u -k all
+  changed_when: true
+  when:
+    - gpu_type | default('') == 'nvidia'
+    - gpu_tools_initramfs_state.rc | default(1) != 0
 
 - name: Report NVIDIA DRM modeset state
   ansible.builtin.slurp:

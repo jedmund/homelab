@@ -1,6 +1,0 @@
----
-# nvidia ships inside the initramfs on these hosts, so a modprobe drop-in
-# that is only written to /etc/modprobe.d would be ignored at boot.
-- name: Rebuild initramfs
-  ansible.builtin.command: update-initramfs -u
-  changed_when: true
