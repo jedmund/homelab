@@ -182,7 +182,7 @@ services:
     networks:
       - backend
     volumes:
-      - kizuna-pgdata:/var/lib/postgresql/data
+      - kizuna-pgdata:{{ kizuna_postgres_data_mount_path }}
     env_file:
       - ./env/postgres.env
     healthcheck:
@@ -248,6 +248,7 @@ services:
 
 volumes:
   kizuna-pgdata:
+    name: {{ kizuna_postgres_data_volume_name }}
   kizuna-redis:
   kizuna-garage-data:
 {% if kizuna_garage_data_nas_enabled %}

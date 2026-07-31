@@ -236,6 +236,9 @@
           device: "{{ kizuna_video_scratch_nfs_device }}"
         state: present
 
+- name: Apply PostgreSQL 18 storage migration
+  ansible.builtin.include_tasks: postgres_upgrade.yml
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
@@ -245,6 +248,28 @@
     wait: true
     wait_timeout: 180
   register: compose_result
+
+- name: Verify deployed PostgreSQL major
+  community.docker.docker_container_exec:
+    container: kizuna-postgres
+    command: >-
+      psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+      --tuples-only --no-align --command="SHOW server_version_num"
+  register: kizuna_postgres_deployed_version
+  changed_when: false
+  failed_when: >-
+    not (kizuna_postgres_deployed_version.stdout | trim).startswith(kizuna_postgres_expected_major)
+
+- name: Verify deployed pgvector extension
+  community.docker.docker_container_exec:
+    container: kizuna-postgres
+    command: >-
+      psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+      --tuples-only --no-align
+      --command="SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+  register: kizuna_postgres_vector_version
+  changed_when: false
+  failed_when: (kizuna_postgres_vector_version.stdout | trim) | length == 0
 
 - name: Provision Kizuna agent tool connections
   command:
