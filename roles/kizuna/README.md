@@ -167,7 +167,8 @@ On the first deploy after this change, the role automatically:
 1. detects the legacy volume and stops the API, both workers, and PostgreSQL;
 2. dumps the quiesced source through the pinned PostgreSQL 16/pgvector image;
 3. restores in one transaction into a fresh PostgreSQL 18 candidate volume;
-4. verifies the target major and exact row counts for every public table;
+4. verifies the target major, database locale, and exact row counts for every
+   public table;
 5. analyzes the restored database and writes
    `/opt/docker/kizuna/.postgresql-18-migrated` only after validation passes;
 6. starts the ordinary Compose stack against the accepted PostgreSQL 18

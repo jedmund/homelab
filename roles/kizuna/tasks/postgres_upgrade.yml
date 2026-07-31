@@ -121,6 +121,16 @@
       register: kizuna_postgres_source_counts
       changed_when: false
 
+    - name: Capture PostgreSQL 16 database locale
+      community.docker.docker_container_exec:
+        container: kizuna-postgres16-migration-source
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align
+          --command="SELECT pg_encoding_to_char(encoding) || '|' || datlocprovider || '|' || datcollate || '|' || datctype FROM pg_database WHERE datname = current_database()"
+      register: kizuna_postgres_source_locale
+      changed_when: false
+
     - name: Start isolated PostgreSQL 18 migration target
       community.docker.docker_container:
         name: kizuna-postgres18-migration-target
@@ -175,14 +185,27 @@
       register: kizuna_postgres_target_counts
       changed_when: false
 
+    - name: Capture PostgreSQL 18 database locale
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align
+          --command="SELECT pg_encoding_to_char(encoding) || '|' || datlocprovider || '|' || datcollate || '|' || datctype FROM pg_database WHERE datname = current_database()"
+      register: kizuna_postgres_target_locale
+      changed_when: false
+
     - name: Require exact PostgreSQL row-count parity
       ansible.builtin.assert:
         that:
           - kizuna_postgres_source_counts.stdout_lines == kizuna_postgres_target_counts.stdout_lines
+          - (kizuna_postgres_source_locale.stdout | trim) == (kizuna_postgres_target_locale.stdout | trim)
         fail_msg: >-
-          PostgreSQL 18 row counts differ from the quiesced PostgreSQL 16
-          source. The candidate will not be accepted.
-        success_msg: PostgreSQL 16 and 18 public-table row counts match exactly.
+          PostgreSQL 18 row counts or database locale differ from the
+          quiesced PostgreSQL 16 source. The candidate will not be accepted.
+        success_msg: >-
+          PostgreSQL 16 and 18 public-table row counts and database locale
+          match exactly.
 
     - name: Analyze restored PostgreSQL 18 database
       community.docker.docker_container_exec:
