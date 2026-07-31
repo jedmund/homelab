@@ -24,6 +24,9 @@ romm_disable_ruffle_rs: "false"
 romm_web_concurrency: "2"
 romm_loglevel: "INFO"
 romm_hasheous_api_enabled: "true"
+# romm_retroachievements_api_key is defined in vault; the key had been
+# sitting there unused because the env template never referenced it.
+romm_retroachievements_cache_days: "30"
 romm_hltb_api_enabled: "true"
 romm_screenscraper_user: "jedmund"
 romm_oidc_enabled: "true"
