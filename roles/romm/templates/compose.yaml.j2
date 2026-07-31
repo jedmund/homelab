@@ -39,6 +39,9 @@ services:
     image: {{ romm_db_image }}
     container_name: romm-db
     restart: {{ restart_policy }}
+    # 5.1 migrations create triggers as the app user; without SUPER/BINLOG ADMIN
+    # that is refused when binary logging is on.
+    command: --log-bin-trust-function-creators=1
     networks:
       - backend
     env_file:
