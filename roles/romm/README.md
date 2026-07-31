@@ -66,34 +66,51 @@ Failed to initialize NVML: Driver/library version mismatch
 ```
 
 The loaded kernel module is 580.159.03 while userspace is at 580.173.02:
-an apt upgrade landed a new driver without a reboot. Containers started
-before the upgrade still hold the old module and keep running, which is
-why the AI stack looks fine, but anything new that asks for a GPU will
-fail to start.
+an apt upgrade landed a new driver during the current 19-day uptime, and
+the old module stays resident until a reboot. Containers started before
+the upgrade still hold it and keep running, which is why the AI stack
+looks fine, but anything new that asks for a GPU will fail to start.
 
-Both `nvidia-dkms-580-server` (580.126.20) and
-`nvidia-dkms-580-server-open` (580.173.02) are installed, which is
-probably how the versions drifted apart in the first place. Worth
-resolving to one before rebooting.
+Nothing is actually broken in the package state. `nvidia-dkms-580-server-open`
+580.173.02 is the only DKMS package installed, and DKMS has already built
+it for both the running kernel and 6.8.0-136, which is installed but not
+booted. There is no `.run` installer in play. A reboot is the whole fix,
+and it picks up the newer kernel at the same time.
+
+(`nvidia-dkms-580-server` 580.126.20 shows up in `dpkg -l` but is in `rc`
+state, config residue from a removed package, not a competing install.)
 
 ### 2. DRM kernel parameters are missing
 
 LinuxServer's Selkies images need the NVIDIA DRM layer up for a headless
-GL context:
+GL context. Modeset is currently off on max: `/proc/cmdline` has only
+`amd_iommu=pt iommu=pt`, and there is no NVIDIA drop-in under
+`/etc/modprobe.d`.
 
-```
-nvidia-drm.modeset=1 nvidia_drm.fbdev=1
+Prefer the modprobe drop-in over editing GRUB. It keeps the hand-managed
+kernel command line alone, and the IOMMU flags already there are
+load-bearing for multi-GPU NCCL P2P.
+
+```bash
+echo 'options nvidia_drm modeset=1 fbdev=1' | \
+  sudo tee /etc/modprobe.d/nvidia-drm.conf
+sudo update-initramfs -u   # nvidia ships in the initramfs on this box
+sudo reboot
 ```
 
-`/proc/cmdline` on max currently has only `amd_iommu=pt iommu=pt`. GRUB
-is not managed by this repo, so add these to `GRUB_CMDLINE_LINUX_DEFAULT`
-in `/etc/default/grub`, run `update-grub`, and reboot. Keep the existing
-IOMMU flags: they are load-bearing for multi-GPU NCCL P2P.
+Verify after the reboot:
+
+```bash
+cat /sys/module/nvidia_drm/parameters/modeset   # Y
+cat /sys/module/nvidia_drm/parameters/fbdev     # Y
+nvidia-smi                                      # no NVML mismatch
+```
 
 LinuxServer also documents a dummy plug on headless systems for DRM to
-initialise properly. Whether that is actually required on a Blackwell
-with the open module is untested here. If the containers come up but the
-stream is black, that is the first thing to suspect.
+initialise properly. max already reports a connected `card0-Virtual-1`
+connector, which may cover it, but that is a guess and not a test. If the
+containers come up and the stream is black, this is the first thing to
+suspect.
 
 ### 3. PS2 BIOS
 
