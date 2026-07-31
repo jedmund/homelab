@@ -127,6 +127,13 @@ vllm_models:
       # Keep aligned with host_port: host networking means the
       # launcher binds this directly, and the healthcheck uses it.
       PORT: "11437"
+      # Pin the OpenAI model id to what the preview already serves, so
+      # opencode/pi keep working unchanged and swapping profiles is
+      # transparent to clients. This image family honours
+      # SERVED_MODEL_NAME (its GLM launchers export it with a default),
+      # but serve-ds4-flash.sh sets no default we can read from outside
+      # the image: confirm with `curl :11437/v1/models` on first start.
+      SERVED_MODEL_NAME: DeepSeek-V4-Flash
       # dspark is the only speculative contract 0731 ships. The
       # standard MTP path (MODE=mtp2/mtp3) silently selects the older
       # preview checkpoint instead, because 0731 does not provide the

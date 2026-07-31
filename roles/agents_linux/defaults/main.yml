@@ -44,3 +44,14 @@ edra_dir: "{{ ansible_user_dir }}/Developer/Personal/edra-mcp-server"
 # value comes from group_vars/agents_linux/vault.yml; empty default
 # keeps the templates rendering on a first run without the vault.
 atelier_vllm_api_key: ""
+
+# Context window advertised to opencode and pi for the LAN-direct vLLM
+# endpoint on max:11437. This must not exceed the running profile's
+# max-model-len, or requests that build a larger context get rejected
+# server-side rather than truncated client-side.
+#
+# The preview profile leaves --max-model-len unset and takes the model
+# native limit; the 0731 profile pins MAX_MODEL_LEN=131072. Drop this
+# to 131072 when flipping ai_split_vllm_profile to
+# deepseek-v4-flash-0731. See roles/vllm/README.md.
+vllm_max_context: 524288
