@@ -47,9 +47,20 @@ passes everything through `args` as argv.
 The voipmonitor gilded-gnosis image instead ships
 `/usr/local/bin/serve-ds4-flash.sh` as ENTRYPOINT and takes every
 serving choice from environment variables. That entry sets
-`entrypoint`, `network_mode: host`, `privileged: true`, and an
-`extra_env` block, and omits `args` entirely. The compose template
-branches on which fields are present, so both shapes coexist.
+`entrypoint`, `privileged: true`, and an `extra_env` block, and omits
+`args` entirely. The compose template branches on which fields are
+present, so both shapes coexist.
+
+We deliberately diverge from upstream's reference compose on one
+point: it runs host-networked, we publish `11437:11437` instead.
+Docker port publishing installs a DOCKER-chain iptables rule that is
+traversed before ufw's INPUT rules, so published ports are reachable
+on the LAN. Host networking publishes nothing, so ufw's default deny
+applies and LAN clients get dropped unless 11437 is opened explicitly
+in `roles/firewall`. Publishing keeps reachability identical to the
+preview with no new firewall rule. The template still supports
+`network_mode` for future launcher-style images; no model uses it
+today.
 
 Upstream reference for the 0731 entry is
 `examples/docker-compose-ds4-v20-r15.yml` in

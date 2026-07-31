@@ -114,9 +114,16 @@ vllm_models:
     host_port: 11437
     container_port: 11437
     entrypoint: ["/usr/local/bin/serve-ds4-flash.sh"]
-    # Upstream runs this host-networked and privileged; the launcher's
-    # PCIe calibration pass probes the interconnect directly.
-    network_mode: host
+    # Upstream's reference compose runs this host-networked. We publish
+    # a port instead, matching the preview entry above, because docker
+    # port publishing installs a DOCKER-chain iptables rule that is
+    # traversed before ufw's INPUT rules. Host networking publishes
+    # nothing, so ufw's default deny applies and LAN clients get
+    # dropped unless 11437 is opened explicitly. Publishing keeps the
+    # reachability identical to the preview with no new firewall rule.
+    #
+    # Same host port as the preview (11437), so the two profiles remain
+    # mutually exclusive and no client config changes between them.
     privileged: true
     shm_size: "32gb"
     cuda_visible_devices: "0,1"
