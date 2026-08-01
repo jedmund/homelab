@@ -102,20 +102,23 @@ firewall_ports_komodo_periphery:
     comment: "Komodo Periphery (core host only)"
 
 # Emulator streaming (roles/pcsx2, roles/dolphin on max)
-# The broker APIs are the sensitive half: an unauthenticated caller that
-# reaches them can launch and stop games, so they are pinned to the one
-# host that has any business calling them. The plain-HTTP Selkies ports
-# are Traefik's backends and get the same treatment. Only the containers'
-# own HTTPS listeners are open to the LAN, for direct access that skips
-# Traefik entirely.
+# Every port here is pinned to nuc-mini: RomM is the only legitimate
+# caller of the broker APIs (which launch and stop games), and the
+# plain-HTTP Selkies ports are Traefik's backends, so nothing else on the
+# LAN needs either. The containers' own HTTPS listeners used to be open
+# for direct access; they are no longer published at all now that Selkies
+# basic auth is off and TinyAuth on the Traefik route is the only gate.
+#
+# Caveat worth knowing: these rules do not actually contain a published
+# Docker port. Docker's own iptables chains run ahead of ufw's filter
+# rules and DOCKER-USER is empty, so 3010/8010 stay reachable from any
+# LAN host regardless of what ufw says here. Closing that properly means
+# managing DOCKER-USER, which no role does yet.
 firewall_ports_emulator_streaming:
   - port: 3010
     proto: tcp
     src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
     comment: "PCSX2 Selkies HTTP (Traefik backend)"
-  - port: 3011
-    proto: tcp
-    comment: "PCSX2 Selkies HTTPS (direct LAN)"
   - port: 8010
     proto: tcp
     src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
@@ -124,9 +127,6 @@ firewall_ports_emulator_streaming:
     proto: tcp
     src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
     comment: "Dolphin Selkies HTTP (Traefik backend)"
-  - port: 3021
-    proto: tcp
-    comment: "Dolphin Selkies HTTPS (direct LAN)"
   - port: 8020
     proto: tcp
     src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
