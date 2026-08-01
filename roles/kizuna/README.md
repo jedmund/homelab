@@ -155,6 +155,54 @@ is not sufficient evidence to enable deletion. Change the default to `"0"`
 only in a dedicated follow-up after at least one representative candidate has
 been reviewed.
 
+## PostgreSQL 18 cutover and rollback
+
+The role pins `pgvector/pgvector:0.8.2-pg18-bookworm`. PostgreSQL 18 stores its
+versioned data directory below `/var/lib/postgresql`, so Compose uses the named
+`kizuna-pgdata-pg18` volume at that parent path. The legacy PostgreSQL 16 volume
+remains `kizuna_kizuna-pgdata` at `/var/lib/postgresql/data`.
+
+On the first deploy after this change, the role automatically:
+
+1. detects the legacy volume and stops the API, both workers, and PostgreSQL;
+2. dumps the quiesced source through the pinned PostgreSQL 16/pgvector image;
+3. restores in one transaction into a fresh PostgreSQL 18 candidate volume;
+4. verifies the target major, database locale, and exact row counts for every
+   public table;
+5. analyzes the restored database and writes
+   `/opt/docker/kizuna/.postgresql-18-migrated` only after validation passes;
+6. starts the ordinary Compose stack against the accepted PostgreSQL 18
+   volume and verifies PostgreSQL 18 plus the `vector` extension again.
+
+The custom-format dump is retained in the
+`kizuna-postgres-16-to-18-upgrade` Docker volume. The source v16 volume is
+never removed. If dumping, restoring, or validation fails, temporary
+containers are removed and the existing database/API/worker containers are
+restarted on v16. A later run rebuilds the unaccepted v18 candidate. A marker
+without the target volume fails closed rather than initializing an empty
+database.
+
+For an immediate rollback, stop application writers and override all four
+version-coupled values before redeploying:
+
+```yaml
+kizuna_postgres_image: pgvector/pgvector:0.8.2-pg16-bookworm
+kizuna_postgres_expected_major: "16"
+kizuna_postgres_data_volume_name: kizuna_kizuna-pgdata
+kizuna_postgres_data_mount_path: /var/lib/postgresql/data
+```
+
+The retained v16 volume is a cutover snapshot. It does not contain writes
+accepted after PostgreSQL 18 started. Use this rollback only while the
+maintenance boundary is still valid; after material v18 writes, recover from a
+tested PostgreSQL 18 backup. Keep the marker in place during rollback so the
+role does not interpret the retained source as a new migration request.
+
+After cutover, verify representative node, Task, reminder, search, and vector
+queries, then complete the isolated restore drill below. Do not remove either
+retained migration volume until that drill passes and the rollback window is
+explicitly closed.
+
 ## Backup and restore drill
 
 After deploying the backup role, trigger a backup and confirm it contains both
@@ -174,7 +222,7 @@ docker run -d --rm --name kizuna-restore-drill --network backend-internal \
   -e POSTGRES_DB=kizuna_api_production \
   -e POSTGRES_USER=kizuna \
   -e POSTGRES_PASSWORD="$KIZUNA_DRILL_PASSWORD" \
-  pgvector/pgvector:pg16
+  pgvector/pgvector:0.8.2-pg18-bookworm
 until docker exec kizuna-restore-drill pg_isready -U kizuna \
   -d kizuna_api_production; do sleep 1; done
 docker exec borgmatic borgmatic restore --archive latest \
