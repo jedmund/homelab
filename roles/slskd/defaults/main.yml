@@ -8,3 +8,7 @@ slskd_image: slskd/slskd:latest
 slskd_domain: sl.atelier.house
 slskd_web_port: 5030
 slskd_listen_port: 50300
+
+# Primary API key used by Album Sort for searches, downloads, and cancellation.
+# A simple primary key receives slskd's Administrator role by default.
+slskd_album_sort_api_key: "{{ slskd_api_key | default('') }}"
