@@ -30,6 +30,7 @@
     - "{{ config_base }}/env"
     - "{{ config_base }}/data"
     - "{{ config_base }}/beets-data"
+    - "{{ config_base }}/quarantine"
 
 - name: Ensure non-root containers own existing state
   ansible.builtin.file:
@@ -40,6 +41,7 @@
   loop:
     - "{{ config_base }}/data"
     - "{{ config_base }}/beets-data"
+    - "{{ config_base }}/quarantine"
 
 - name: Deploy compose file
   ansible.builtin.template:
