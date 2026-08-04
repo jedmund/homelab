@@ -313,6 +313,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `slskd_slsk_password` | Soulseek password |
 | `slskd_web_username` | slskd web UI username |
 | `slskd_web_password` | slskd web UI password |
+| `slskd_api_key` | Primary API key shared with Album Sort (16-255 characters) |
 
 ### group_vars/qui/vault.yml
 
@@ -397,7 +398,6 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `vault_album_sort_prowlarr_api_key` | Prowlarr API key for acquisition search |
 | `vault_album_sort_qbittorrent_username` | qBittorrent WebUI username |
 | `vault_album_sort_qbittorrent_password` | qBittorrent WebUI password |
-| `vault_album_sort_slskd_api_key` | Shared slskd API key for Album Sort (16-255 characters) |
 
 See [`roles/album_sort/README.md`](roles/album_sort/README.md) for the connector,
 storage-zone, native-OIDC cutover, and one-time beta bootstrap procedure.

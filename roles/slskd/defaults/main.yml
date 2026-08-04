@@ -11,4 +11,4 @@ slskd_listen_port: 50300
 
 # Primary API key used by Album Sort for searches, downloads, and cancellation.
 # A simple primary key receives slskd's Administrator role by default.
-slskd_album_sort_api_key: "{{ vault_album_sort_slskd_api_key | default('') }}"
+slskd_album_sort_api_key: "{{ slskd_api_key | default('') }}"

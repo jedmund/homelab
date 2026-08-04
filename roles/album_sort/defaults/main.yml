@@ -40,7 +40,7 @@ album_sort_qbittorrent_url: "http://qbittorrent:8080"
 album_sort_qbittorrent_username: "{{ vault_album_sort_qbittorrent_username | default('') }}"
 album_sort_qbittorrent_password: "{{ vault_album_sort_qbittorrent_password | default('') }}"
 album_sort_slskd_url: "http://slskd:5030"
-album_sort_slskd_api_key: "{{ vault_album_sort_slskd_api_key | default('') }}"
+album_sort_slskd_api_key: "{{ slskd_api_key | default('') }}"
 
 # Native PocketID/OIDC is the application security boundary. Set this back to
 # true only as a temporary rollback if native login becomes unavailable.
@@ -57,4 +57,4 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret, vault_album_sort_prowlarr_api_key,
 # vault_album_sort_qbittorrent_username,
-# vault_album_sort_qbittorrent_password, vault_album_sort_slskd_api_key
+# vault_album_sort_qbittorrent_password

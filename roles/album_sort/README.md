@@ -25,7 +25,12 @@ Add these entries to `group_vars/album_sort/vault.yml`:
 vault_album_sort_prowlarr_api_key: "<Prowlarr Settings > General API key>"
 vault_album_sort_qbittorrent_username: "<qBittorrent WebUI username>"
 vault_album_sort_qbittorrent_password: "<qBittorrent WebUI password>"
-vault_album_sort_slskd_api_key: "<random secret, 16-255 characters>"
+```
+
+Add this entry to `group_vars/slskd/vault.yml`:
+
+```yaml
+slskd_api_key: "<random secret, 16-255 characters>"
 ```
 
 The slskd key is rendered into both containers. A simple primary slskd API key
@@ -59,4 +64,3 @@ One-time operator steps after deployment:
    qBittorrent source remains present and seeding after handoff.
 6. Run the global and per-area kill-switch drills, restore every switch, then
    create and archive an Album Sort backup before opening the cohort.
-
