@@ -18,6 +18,18 @@
     fail_msg: >-
       Populate the PocketID client ID and secret before deploying Album Sort.
 
+- name: Validate Album Sort acquisition connector configuration
+  ansible.builtin.assert:
+    that:
+      - album_sort_prowlarr_api_key | length > 0
+      - album_sort_qbittorrent_username | length > 0
+      - album_sort_qbittorrent_password | length > 0
+      - album_sort_slskd_api_key | length >= 16
+    fail_msg: >-
+      Populate the Prowlarr API key, qBittorrent WebUI credentials, and a
+      16-character-or-longer slskd API key in the Album Sort vault before
+      deploying the acquisition features.
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

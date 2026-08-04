@@ -31,6 +31,17 @@ album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
 album_sort_session_ttl_hours: "12"
 
+# Acquisition connectors. These resolve over the existing shared Docker
+# network; secrets are supplied from the Album Sort vault and rendered only
+# into the mode-0600 environment file.
+album_sort_prowlarr_url: "http://prowlarr:9696"
+album_sort_prowlarr_api_key: "{{ vault_album_sort_prowlarr_api_key | default('') }}"
+album_sort_qbittorrent_url: "http://qbittorrent:8080"
+album_sort_qbittorrent_username: "{{ vault_album_sort_qbittorrent_username | default('') }}"
+album_sort_qbittorrent_password: "{{ vault_album_sort_qbittorrent_password | default('') }}"
+album_sort_slskd_url: "http://slskd:5030"
+album_sort_slskd_api_key: "{{ vault_album_sort_slskd_api_key | default('') }}"
+
 # Keep the outer middleware during native-OIDC rollout. Set false only after
 # login, callback, logout, and unauthenticated rejection are verified.
 album_sort_use_tinyauth: true
@@ -44,4 +55,6 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
-# vault_album_sort_oidc_client_secret
+# vault_album_sort_oidc_client_secret, vault_album_sort_prowlarr_api_key,
+# vault_album_sort_qbittorrent_username,
+# vault_album_sort_qbittorrent_password, vault_album_sort_slskd_api_key
