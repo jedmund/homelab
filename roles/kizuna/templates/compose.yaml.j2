@@ -127,6 +127,38 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-pdf-worker:
+    container_name: kizuna-pdf-worker
+    # Isolate unbounded-page PDF extraction, passage embedding, and OCR from
+    # latency-sensitive jobs. Scratch shares the NAS-backed transient volume
+    # with media processing but uses a separate container path.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    command: ["bundle", "exec", "sidekiq", "-q", "pdf", "-c", "{{ kizuna_pdf_worker_concurrency }}"]
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+{% if kizuna_video_scratch_nas_enabled %}
+    environment:
+      KIZUNA_PDF_SCRATCH_ROOT: {{ kizuna_pdf_scratch_container_path }}
+    volumes:
+      - kizuna-video-scratch:{{ kizuna_pdf_scratch_container_path }}
+{% endif %}
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-screenshotter:
     container_name: kizuna-screenshotter
     # Node + Playwright sidecar. kizuna-api's CaptureScreenshotsJob (and the

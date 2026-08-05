@@ -348,6 +348,20 @@ ai_models:
     aliases:
       - "qwen3-embedding:4b"
 
+  # Page-image OCR for Kizuna PDF ingestion. Unlimited OCR is only loaded
+  # while scanned/image-only pages need it, and it coexists with chat and
+  # embedding workloads rather than evicting them.
+  - name: unlimited-ocr
+    file: Unlimited-OCR/Unlimited-OCR-BF16.gguf
+    group: ocr
+    args: >-
+      -ngl 999 -c 16384 --parallel 1 --flash-attn on
+      --mmproj /models/Unlimited-OCR/mmproj-Unlimited-OCR-F16.gguf
+      --jinja
+    ttl: 300
+    aliases:
+      - "baidu/Unlimited-OCR"
+
   # CPU-resident small model used as opencode's `small_model` for context
   # compaction / summarization. -ngl 0 keeps it off the GPU because the
   # larger chat models fill most of available VRAM; the `cpu` group below
@@ -432,6 +446,11 @@ ai_model_groups:
   # Qwen3 embed is the largest entry (~5GB at Q8); the rest are under
   # 1GB so cold-load tax on swap is small.
   embed:
+    swap: true
+    exclusive: false
+  # OCR is bursty: keep one vision model available on demand, then release
+  # its VRAM five minutes after the last scanned-page request.
+  ocr:
     swap: true
     exclusive: false
 

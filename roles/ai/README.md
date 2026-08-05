@@ -4,7 +4,7 @@ GPU-bound AI services on `max`. Seven containers in one stack:
 
 | Service | Container | Host port | OpenAI-compatible |
 |---|---|---|---|
-| llama-swap (+ llama.cpp) | `mostlygeek/llama-swap:cuda` | `11434` | yes (chat, embeddings in `embed` group) |
+| llama-swap (+ llama.cpp) | `mostlygeek/llama-swap:cuda` | `11434` | yes (chat, embeddings, page-image OCR) |
 | whisper STT (speaches) | `speaches-ai/speaches:latest-cuda` | `9000` | yes (`/v1/audio/transcriptions`) |
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
 | TEI embeddings (Qwen3) | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
@@ -61,6 +61,17 @@ Embeddings split across two surfaces:
 - **Swap-loaded (llama-swap)** for project experimentation. The `embed`
   group has `swap: true`, so only one of `bge-m3`, `qwen3-embed-0_6b`,
   `qwen3-embed-4b` is resident at a time, served at `:11434/v1/embeddings`.
+
+Kizuna's scanned-PDF fallback uses the swap-loaded `unlimited-ocr` vision
+model at `:11434/v1/chat/completions`. It has a five-minute idle TTL and a
+non-exclusive `ocr` group, so it loads on demand without displacing chat or
+embedding models. Install the community llama.cpp conversion before deploy:
+
+```sh
+mkdir -p /opt/docker/ai/models/Unlimited-OCR
+cd /opt/docker/ai/models/Unlimited-OCR
+hf download sahilchachra/Unlimited-OCR-GGUF Unlimited-OCR-BF16.gguf mmproj-Unlimited-OCR-F16.gguf --local-dir .
+```
 
 ## Hardware notes
 
