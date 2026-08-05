@@ -81,6 +81,10 @@ kizuna_video_archive_sub_langs: "en.*,en"
 # Keep CPU-, network-, and disk-heavy yt-dlp/ffmpeg work serialized while the
 # default worker remains responsive to enrichment and application jobs.
 kizuna_media_worker_concurrency: 1
+# PDF extraction has its own queue because rendering/OCR is CPU-, disk-, and
+# GPU-service-heavy. Two jobs can make progress concurrently while each job
+# claims pages in small resumable batches.
+kizuna_pdf_worker_concurrency: 2
 # Optional Netscape-format cookies for videos the instance is authorized to
 # access but that require a signed-in session. Store the file contents—not a
 # host path—in the vault; the role mounts it read-only and gives yt-dlp an
@@ -118,6 +122,7 @@ kizuna_video_scratch_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ ki
 kizuna_video_scratch_nfs_options: "{{ nfs_base_opts }}"
 kizuna_video_scratch_volume_name: kizuna-video-scratch-nas
 kizuna_video_scratch_container_path: /var/lib/kizuna-video-scratch
+kizuna_pdf_scratch_container_path: /var/lib/kizuna-pdf-scratch
 kizuna_storage_init_image: alpine:3.20
 # Public S3 endpoint. Garage's S3 API is internal-only on the backend
 # network; Traefik fronts it at this host so the browser can fetch image
@@ -186,6 +191,10 @@ kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '')
 # SearXNG is owned by the ai stack on max. Kizuna consumes that service;
 # this role must not deploy a second search container on nuc-mini.
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
+kizuna_pdf_ocr_port: 11434
+kizuna_pdf_ocr_base_url: "http://{{ max_server_ip }}:{{ kizuna_pdf_ocr_port }}"
+kizuna_pdf_ocr_model: unlimited-ocr
+kizuna_pdf_ocr_timeout_seconds: 180
 kizuna_searxng_port: 8889
 kizuna_searxng_base_url: "http://{{ max_server_ip }}:{{ kizuna_searxng_port }}"
 kizuna_searxng_name: "Atelier SearXNG"

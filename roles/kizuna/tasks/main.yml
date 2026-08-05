@@ -145,6 +145,7 @@
               - kizuna-api
               - kizuna-worker
               - kizuna-media-worker
+              - kizuna-pdf-worker
               - kizuna-garage
             state: stopped
 
