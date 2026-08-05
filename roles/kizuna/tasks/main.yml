@@ -325,7 +325,7 @@
                 allowed_origins: ["{{ kizuna_web_origin }}"],
                 allowed_methods: %w[GET PUT POST DELETE],
                 allowed_headers: ["Content-Type"],
-                expose_headers: ["ETag"]
+                expose_headers: ["ETag", "Accept-Ranges", "Content-Range"]
               }]}
             )
       changed_when: false
