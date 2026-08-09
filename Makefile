@@ -1,5 +1,5 @@
 # Homelab Ansible Makefile
-.PHONY: help deploy-all deploy-infra deploy-media check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags
+.PHONY: help deploy-all deploy-infra deploy-media deploy-kaneo check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags
 
 # Colors for output
 RED := \033[0;31m
@@ -112,6 +112,10 @@ deploy-dev: ## Deploy development stack
 deploy-productivity: ## Deploy productivity stack
 	@echo "$(BLUE)Deploying productivity stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/productivity.yml $(VAULT_FLAG)
+
+deploy-kaneo: ## Deploy Kaneo project management stack
+	@echo "$(BLUE)Deploying Kaneo stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kaneo.yml $(VAULT_FLAG)
 
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"

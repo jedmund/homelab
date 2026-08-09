@@ -16,6 +16,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── content_management.yml
 │   ├── development.yml
 │   ├── productivity.yml
+│   ├── kaneo.yml
 │   └── group_vars -> ../group_vars  # Symlink for variable resolution
 ├── group_vars/           # Host group variables and vault files
 ├── inventory/            # Host inventory
@@ -32,6 +33,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 │   ├── development/      # GitLab, GitLab Runner, Renovate, Open WebUI
 │   ├── utilities/        # n8n, ChangeDetection, Copyparty
 │   ├── productivity/     # Strudel, Silverbullet, Blinko, CouchDB, Draftboard, Ideon
+│   ├── kaneo/            # Kaneo, PostgreSQL, Redis
 │   ├── social/           # Mastodon
 │   └── matrix/           # Synapse, MAS, Element, LiveKit
 └── Makefile              # Deployment commands
@@ -247,6 +249,98 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 
 Ideon's SMTP password reuses the shared `sendgrid_api_key` (see `group_vars/compute_servers/vault.yml`). OIDC against PocketID is configured **after first boot** via the Ideon admin panel at `https://idea.atelier.house/management` (Ideon does not accept OIDC settings via environment variables). Register the resulting redirect URI manually in PocketID.
 
+### group_vars/kaneo/vault.yml
+
+Kaneo is deployed at `https://kaneo.atelier.house` with PocketID as its only
+login method. The GitHub credentials below configure repository synchronization;
+they do not enable GitHub sign-in.
+
+| Variable | Description |
+|----------|-------------|
+| `kaneo_db_password` | Kaneo PostgreSQL password |
+| `kaneo_redis_password` | Redis password; use 32 or more hexadecimal characters |
+| `kaneo_auth_secret` | Kaneo session/JWT secret; at least 32 characters |
+| `kaneo_oidc_client_id` | Client ID from the PocketID OIDC client |
+| `kaneo_oidc_client_secret` | Client secret from the PocketID OIDC client |
+| `kaneo_smtp_password` | Google App Password for `atelier.nas@gmail.com` |
+| `kaneo_github_app_id` | Numeric GitHub App ID |
+| `kaneo_github_app_name` | GitHub App slug, for example `kaneo-atelier-house` |
+| `kaneo_github_webhook_secret` | GitHub App webhook signing secret |
+| `kaneo_github_private_key_base64` | Base64-encoded GitHub App private key PEM |
+
+Create the ignored, encrypted Vault file before deploying:
+
+```bash
+mkdir -p group_vars/kaneo
+ansible-vault create group_vars/kaneo/vault.yml
+```
+
+Generate the locally managed secrets with:
+
+```bash
+openssl rand -hex 32  # kaneo_db_password
+openssl rand -hex 32  # kaneo_redis_password
+openssl rand -hex 32  # kaneo_auth_secret
+openssl rand -hex 32  # kaneo_github_webhook_secret
+```
+
+#### PocketID setup
+
+1. In PocketID, add an OIDC client named `Kaneo`.
+2. Register callback URL
+   `https://kaneo.atelier.house/api/auth/oauth2/callback/custom`.
+3. Put its client ID and client secret in the Kaneo Vault. The role supplies
+   the PocketID authorization, token, userinfo, discovery, and logout URLs and
+   requests `openid profile email` with PKCE.
+
+Kaneo disables guest and local login, then redirects directly to PocketID.
+PocketID users permitted by that client can create a Kaneo account on first
+sign-in.
+
+#### Gmail setup
+
+Enable two-step verification on `atelier.nas@gmail.com`, create a Google App
+Password, remove the display spaces, and store it as `kaneo_smtp_password`.
+Kaneo uses `smtp.gmail.com:587` with STARTTLS and sends as
+`Kaneo <atelier.nas@gmail.com>`.
+
+#### GitHub App setup
+
+Create a GitHub App with:
+
+- Homepage URL: `https://kaneo.atelier.house`
+- Webhook URL: `https://kaneo.atelier.house/api/github-integration/webhook`
+- Repository permissions: Issues read/write; Pull requests, Metadata, and
+  Contents read
+- Webhook events: Issues, Issue comments, Pull requests, and Push
+
+Copy the App ID and slug into the Vault. Generate a private key and encode it
+as one line before adding it to `kaneo_github_private_key_base64`:
+
+```bash
+openssl base64 -A -in kaneo-app.private-key.pem
+```
+
+Install the App on the desired repositories. After Kaneo is deployed, connect
+each repository from the Kaneo project's integration settings.
+
+For the first deployment, refresh the gateway first so ddclient publishes the
+new hostname, then deploy Kaneo and the updated backup configuration:
+
+```bash
+make deploy-infra-gateway
+make deploy-kaneo
+make deploy-backup
+```
+
+Kaneo currently has upstream repository adapters for GitHub and Gitea, but not
+GitLab. The Gitea adapter is not compatible with GitLab's API or webhook
+payloads, so `git.atelier.house` integration is intentionally deferred rather
+than depending on an unmaintained local fork.
+
+Object storage is not configured in this stack; Kaneo attachment uploads require
+a future S3-compatible storage addition.
+
 ### group_vars/development/vault.yml
 
 | Variable | Description |
@@ -301,6 +395,7 @@ make deploy-infra-core
 make deploy-infra-gateway
 make deploy-media-acquisition
 make deploy-media-consumption
+make deploy-kaneo
 
 # Deploy prerequisites only (Docker, networks, volumes)
 make deploy-prerequisites
@@ -390,6 +485,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | n8n | `n8n-db` | `n8n` | `n8n` |
 | Blinko | `blinko-db` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
+| Kaneo | `kaneo_postgres` | `kaneo` | `kaneo` |
 
 GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/development/tasks/main.yml`.
 
@@ -405,6 +501,7 @@ docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec n8n-db pg_dump -U n8n n8n > n8n_backup.sql
 docker exec blinko-db pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
+docker exec kaneo_postgres pg_dump -U kaneo kaneo > kaneo_backup.sql
 ```
 
 ### Restore (pg_restore)

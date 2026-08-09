@@ -1,0 +1,19 @@
+#!/bin/sh
+# {{ ansible_managed }}
+set -eu
+
+# Keep the password out of both the rendered compose file and redis-server's
+# process arguments. The generated file lives only in the ephemeral container.
+umask 077
+redis_config="$(mktemp /tmp/kaneo-redis.conf.XXXXXX)"
+
+{
+  printf 'bind 0.0.0.0\n'
+  printf 'protected-mode yes\n'
+  printf 'port %s\n' "${REDIS_PORT:-{{ kaneo_redis_port }}}"
+  printf 'save ""\n'
+  printf 'appendonly no\n'
+  printf 'requirepass %s\n' "$REDIS_PASSWORD"
+} > "$redis_config"
+
+exec redis-server "$redis_config"

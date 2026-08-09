@@ -17,10 +17,11 @@
           8. Development
           9. Utilities
           10. Productivity
-          11. Social
-          12. Matrix
-          13. AI (max only)
-          14. Backup
+          11. Kaneo
+          12. Social
+          13. Matrix
+          14. AI (max only)
+          15. Backup
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -70,6 +71,10 @@
 # Productivity stack
 - import_playbook: productivity.yml
   tags: [productivity]
+
+# Kaneo project management stack
+- import_playbook: kaneo.yml
+  tags: [kaneo]
 
 # Social stack
 - import_playbook: social.yml

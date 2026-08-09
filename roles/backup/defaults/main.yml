@@ -84,7 +84,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, draftboard, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, blinko, draftboard, kaneo, miniflux, romm
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -101,6 +101,7 @@ borg_networks:
 #   draftboard_db_password
 #   dawarich_db_password
 #   ideon_db_password
+#   kaneo_db_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   couchdb_user, couchdb_password
@@ -132,6 +133,8 @@ dawarich_db_name: dawarich_production
 dawarich_db_username: dawarich
 ideon_db_name: ideon
 ideon_db_user: ideon
+kaneo_db_name: kaneo
+kaneo_db_user: kaneo
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
 # period at https://healthchecks.io and put its ping URL in the vault.

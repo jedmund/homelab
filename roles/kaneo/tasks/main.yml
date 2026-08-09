@@ -1,0 +1,67 @@
+---
+- name: Validate Kaneo Vault configuration
+  ansible.builtin.assert:
+    that:
+      - (kaneo_db_password | default('') | length) > 0
+      - (kaneo_redis_password | default('') | length) >= 32
+      - (kaneo_redis_password | default('')) is match('^[A-Fa-f0-9]+$')
+      - (kaneo_auth_secret | default('') | length) >= 32
+      - (kaneo_oidc_client_id | default('') | string | length) > 0
+      - (kaneo_oidc_client_secret | default('') | length) > 0
+      - (kaneo_smtp_password | default('') | length) > 0
+      - (kaneo_github_app_id | default('') | string | length) > 0
+      - (kaneo_github_app_name | default('') | length) > 0
+      - (kaneo_github_webhook_secret | default('') | length) > 0
+      - (kaneo_github_private_key_base64 | default('') | length) > 0
+    fail_msg: >-
+      Kaneo requires database, Redis, auth, PocketID, Gmail, and GitHub App
+      values in group_vars/kaneo/vault.yml. See README.md for setup details.
+  no_log: true
+
+- name: Create Kaneo stack directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ kaneo_config_base }}"
+    - "{{ kaneo_config_base }}/config"
+    - "{{ kaneo_config_base }}/env"
+
+- name: Deploy Kaneo compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ kaneo_config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart Kaneo stack
+
+- name: Deploy Kaneo environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ kaneo_config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - kaneo
+    - postgres
+    - redis
+  no_log: true
+  notify: Restart Kaneo stack
+
+- name: Deploy Redis entrypoint
+  ansible.builtin.template:
+    src: redis-entrypoint.sh.j2
+    dest: "{{ kaneo_config_base }}/config/redis-entrypoint.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  notify: Restart Kaneo stack
+
+- name: Deploy Kaneo stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ kaneo_config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: kaneo_compose_result

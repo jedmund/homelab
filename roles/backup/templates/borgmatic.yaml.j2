@@ -83,6 +83,10 @@ postgresql_databases:
       hostname: ideon_postgres
       username: {{ ideon_db_user }}
       password: "{{ ideon_db_password }}"
+    - name: {{ kaneo_db_name }}
+      hostname: kaneo_postgres
+      username: {{ kaneo_db_user }}
+      password: "{{ kaneo_db_password }}"
 
 # Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
 # what's set on the container; mysqldump needs LOCK TABLES which the romm
