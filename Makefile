@@ -209,10 +209,6 @@ deploy-strudel: ## Deploy Strudel
 	@echo "$(BLUE)Deploying Strudel...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/strudel.yml $(VAULT_FLAG)
 
-deploy-blinko: ## Deploy Blinko
-	@echo "$(BLUE)Deploying Blinko...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/blinko.yml $(VAULT_FLAG)
-
 deploy-obsidian-livesync: ## Deploy Obsidian LiveSync
 	@echo "$(BLUE)Deploying Obsidian LiveSync...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/obsidian_livesync.yml $(VAULT_FLAG)

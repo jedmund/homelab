@@ -388,18 +388,6 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "blinko"
-description = "Blinko"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
-[stack.config]
-server = "Atelier"
-files_on_host = true
-run_directory = "/opt/docker/blinko"
-file_paths = ["compose.yaml"]
-poll_for_updates = false
-auto_update = false
-
-[[stack]]
 name = "obsidian-livesync"
 description = "CouchDB backend for Obsidian LiveSync"
 tags = ["homelab", "ansible", "nuc-mini", "product"]

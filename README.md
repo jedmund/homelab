@@ -86,7 +86,6 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `karakeep` | Karakeep, Chrome, Meilisearch |
 | `kavita` | Kavita |
 | `strudel` | Strudel `[in-house]` |
-| `blinko` | Blinko, Postgres |
 | `obsidian_livesync` | CouchDB backend for Obsidian LiveSync |
 | `n8n` | n8n, Postgres |
 | `changedetection` | ChangeDetection.io |
@@ -424,13 +423,6 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `karakeep_oauth_client_secret` | Karakeep OIDC client secret |
 | `karakeep_openai_api_key` | OpenAI API key (for AI features) |
 
-### group_vars/blinko/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `blinko_db_password` | Blinko PostgreSQL password |
-| `blinko_nextauth_secret` | Blinko NextAuth secret (optional) |
-
 ### group_vars/obsidian_livesync/vault.yml
 
 | Variable | Description |
@@ -543,7 +535,6 @@ make deploy-stash
 make deploy-immich
 make deploy-miniflux
 make deploy-karakeep
-make deploy-blinko
 make deploy-obsidian-livesync
 make deploy-gitlab
 make deploy-open-webui
@@ -679,7 +670,6 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Immich | `immich-database` | `immich` | `postgres` |
 | Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
 | n8n | `n8n_postgres` | `n8n` | `n8n` |
-| Blinko | `blinko_postgres` | `blinko` | `blinko` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
 
 GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/gitlab/tasks/main.yml`.
@@ -695,7 +685,6 @@ docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
 docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
 docker exec n8n_postgres pg_dump -U n8n n8n > n8n_backup.sql
-docker exec blinko_postgres pg_dump -U blinko blinko > blinko_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
 ```
 

@@ -124,9 +124,6 @@
 - import_playbook: strudel.yml
   tags: [strudel]
 
-- import_playbook: blinko.yml
-  tags: [blinko]
-
 - import_playbook: obsidian_livesync.yml
   tags: [obsidian_livesync]
 
