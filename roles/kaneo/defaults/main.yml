@@ -3,9 +3,13 @@
 stack_name: kaneo
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Kaneo application
-kaneo_image: ghcr.io/usekaneo/kaneo
-kaneo_image_tag: latest  # floating, tracks upstream
+# Kaneo application. The private fork image is published by GitLab CI with an
+# immutable full commit SHA; never use a floating tag for this deployment.
+kaneo_image: registry.atelier.house/jedmund/kaneo
+kaneo_image_tag: 67564094223febe4668fe34f04524d44ca0d91f8
+kaneo_registry_url: https://registry.atelier.house
+kaneo_registry_username: "{{ vault_kaneo_registry_username | default('') }}"
+kaneo_registry_password: "{{ vault_kaneo_registry_password | default('') }}"
 kaneo_domain: kaneo.atelier.house
 kaneo_client_url: "https://{{ kaneo_domain }}"
 kaneo_api_url: "{{ kaneo_client_url }}/api"
@@ -39,6 +43,16 @@ kaneo_oidc_pkce: "true"
 kaneo_oidc_client_id: "{{ vault_kaneo_oidc_client_id | default('') }}"
 kaneo_oidc_client_secret: "{{ vault_kaneo_oidc_client_secret | default('') }}"
 kaneo_auth_secret: "{{ vault_kaneo_auth_secret | default('') }}"
+
+# GitLab repository integration. Browser redirects and webhook URLs use the
+# public origin; Kaneo reaches the colocated GitLab container over the shared
+# backend network. The application only permits this internal origin when it
+# is paired with the server-configured public origin.
+kaneo_gitlab_public_url: https://git.atelier.house
+kaneo_gitlab_internal_url: http://gitlab
+kaneo_gitlab_oauth_client_id: "{{ vault_kaneo_gitlab_oauth_client_id | default('') }}"
+kaneo_gitlab_oauth_client_secret: "{{ vault_kaneo_gitlab_oauth_client_secret | default('') }}"
+kaneo_scm_secret_encryption_key: "{{ vault_kaneo_scm_secret_encryption_key | default('') }}"
 
 # PocketID-only access. PocketID controls who can authenticate; any permitted
 # PocketID user may create a Kaneo account on first sign-in.

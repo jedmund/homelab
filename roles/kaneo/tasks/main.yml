@@ -6,8 +6,14 @@
       - (kaneo_redis_password | default('') | length) >= 32
       - (kaneo_redis_password | default('')) is match('^[A-Fa-f0-9]+$')
       - (kaneo_auth_secret | default('') | length) >= 32
+      - (kaneo_scm_secret_encryption_key | default('') | length) >= 32
       - (kaneo_oidc_client_id | default('') | string | length) > 0
       - (kaneo_oidc_client_secret | default('') | length) > 0
+      - (kaneo_gitlab_oauth_client_id | default('') | string | length) > 0
+      - (kaneo_gitlab_oauth_client_secret | default('') | length) > 0
+      - (kaneo_registry_username | default('') | length) > 0
+      - (kaneo_registry_password | default('') | length) > 0
+      - (kaneo_image_tag | default('')) is match('^[A-Fa-f0-9]{40}$')
       - (kaneo_smtp_user | default('') | length) > 0
       - (kaneo_smtp_password | default('') | length) > 0
       - (kaneo_smtp_from | default('') | length) > 0
@@ -16,8 +22,9 @@
       - (kaneo_github_webhook_secret | default('') | length) > 0
       - (kaneo_github_private_key_base64 | default('') | length) > 0
     fail_msg: >-
-      Kaneo requires database, Redis, auth, PocketID, GitHub App, and the
-      shared SendGrid values documented in roles/kaneo/README.md.
+      Kaneo requires database, Redis, auth, PocketID, GitHub App, GitLab OAuth,
+      SCM encryption, registry, and shared SendGrid values documented in
+      roles/kaneo/README.md. kaneo_image_tag must be a full commit SHA.
   no_log: true
   tags:
     - preflight
@@ -61,6 +68,13 @@
     owner: "{{ ansible_user }}"
     mode: '0755'
   notify: Restart Kaneo stack
+
+- name: Authenticate with Kaneo image registry
+  community.docker.docker_login:
+    registry_url: "{{ kaneo_registry_url }}"
+    username: "{{ kaneo_registry_username }}"
+    password: "{{ kaneo_registry_password }}"
+  no_log: true
 
 - name: Deploy Kaneo stack
   community.docker.docker_compose_v2:
