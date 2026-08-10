@@ -48,15 +48,15 @@ kaneo_disable_password_registration: "true"
 kaneo_disable_login_form: "true"
 kaneo_custom_oauth_auto_login: "true"
 
-# Gmail SMTP. Use a Google App Password for kaneo_smtp_password.
-kaneo_smtp_host: smtp.gmail.com
+# SendGrid SMTP via the shared compute_servers Vault key.
+kaneo_smtp_host: smtp.sendgrid.net
 kaneo_smtp_port: "587"
 kaneo_smtp_secure: "false"
 kaneo_smtp_require_tls: "true"
 kaneo_smtp_ignore_tls: "false"
-kaneo_smtp_user: "{{ vault_kaneo_smtp_user | default('') }}"
-kaneo_smtp_password: "{{ vault_kaneo_smtp_password | default('') }}"
-kaneo_smtp_from: "{{ vault_kaneo_smtp_from | default('') }}"
+kaneo_smtp_user: apikey
+kaneo_smtp_password: "{{ sendgrid_api_key | default('') }}"
+kaneo_smtp_from: "noreply@atelier.house"
 
 # GitHub App repository integration (not GitHub SSO).
 kaneo_github_app_id: "{{ vault_kaneo_github_app_id | default('') }}"

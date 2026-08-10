@@ -2,8 +2,8 @@
 
 This role deploys Kaneo, PostgreSQL, and Redis on `nuc-mini`, exposes the app
 at `https://kaneo.atelier.house`, uses PocketID for OIDC, and sends mail through
-Google SMTP. Repository synchronization uses a GitHub App. All credentials and
-account-specific values are loaded from an Ansible Vault file.
+the shared SendGrid account. Repository synchronization uses a GitHub App. All
+credentials and account-specific values are loaded from Ansible Vault files.
 
 Kaneo does not currently provide an upstream GitLab integration. Its Gitea
 adapter is not compatible with GitLab's API and webhook payloads, so the
@@ -14,8 +14,8 @@ self-hosted GitLab instance is intentionally not configured here.
 - The repository's normal Ansible setup is complete (`make setup`).
 - The `proxy-network` and `backend-internal` Docker networks exist; a normal
   prerequisites deployment creates them.
-- The Google account used for SMTP has two-step verification enabled and an
-  App Password created for Kaneo.
+- `sendgrid_api_key` exists in `group_vars/compute_servers/vault.yml`; Kaneo
+  reuses the same key as Mastodon and Dawarich.
 - A PocketID OIDC client and a GitHub App have been created as described below.
 
 ## Create the Vault
@@ -38,10 +38,6 @@ vault_kaneo_auth_secret: "<openssl rand -hex 32>"
 
 vault_kaneo_oidc_client_id: "<PocketID client ID>"
 vault_kaneo_oidc_client_secret: "<PocketID client secret>"
-
-vault_kaneo_smtp_user: "<Google account address>"
-vault_kaneo_smtp_password: "<Google App Password without spaces>"
-vault_kaneo_smtp_from: "Kaneo <same Google account address>"
 
 vault_kaneo_github_app_id: "<numeric GitHub App ID>"
 vault_kaneo_github_app_name: "<GitHub App slug>"
@@ -83,12 +79,12 @@ authorization, token, user-info, discovery, and logout endpoints, requests the
 registration, and the local login form are disabled; successful PocketID users
 are provisioned by Kaneo on first sign-in.
 
-## Google SMTP
+## SendGrid SMTP
 
-Create a Google App Password under the SMTP account, remove its display spaces,
-and store it in `vault_kaneo_smtp_password`. Put the account address in
-`vault_kaneo_smtp_user` and use the same address in the From value. The role
-connects to `smtp.gmail.com:587` with STARTTLS.
+Kaneo reuses `sendgrid_api_key` from `group_vars/compute_servers/vault.yml`.
+No Kaneo-specific SMTP secret is required. The role connects to
+`smtp.sendgrid.net:587` with STARTTLS, authenticates as `apikey`, and sends from
+the same verified `noreply@atelier.house` address used by Dawarich.
 
 ## GitHub App
 

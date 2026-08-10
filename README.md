@@ -204,7 +204,7 @@ Shared secrets used by multiple stacks.
 
 | Variable | Description |
 |----------|-------------|
-| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon and Dawarich) |
+| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon, Dawarich, and Kaneo) |
 | `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
 | `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
 
@@ -441,7 +441,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 ### group_vars/kaneo/vault.yml
 
 Kaneo is deployed at `https://kaneo.atelier.house` with PostgreSQL, Redis,
-PocketID OIDC, Google SMTP, and a GitHub App integration. See the
+PocketID OIDC, shared SendGrid SMTP, and a GitHub App integration. See the
 [Kaneo deployment runbook](roles/kaneo/README.md) for the exact Vault schema,
 provider callbacks, first-deploy order, and verification commands.
 
@@ -452,9 +452,6 @@ provider callbacks, first-deploy order, and verification commands.
 | `vault_kaneo_auth_secret` | Kaneo session/JWT secret; at least 32 characters |
 | `vault_kaneo_oidc_client_id` | PocketID OIDC client ID |
 | `vault_kaneo_oidc_client_secret` | PocketID OIDC client secret |
-| `vault_kaneo_smtp_user` | Google SMTP account address |
-| `vault_kaneo_smtp_password` | Google App Password |
-| `vault_kaneo_smtp_from` | Message From value |
 | `vault_kaneo_github_app_id` | Numeric GitHub App ID |
 | `vault_kaneo_github_app_name` | GitHub App slug |
 | `vault_kaneo_github_webhook_secret` | GitHub App webhook signing secret |
