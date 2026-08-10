@@ -2,12 +2,9 @@
 
 This role deploys Kaneo, PostgreSQL, and Redis on `nuc-mini`, exposes the app
 at `https://kaneo.atelier.house`, uses PocketID for OIDC, and sends mail through
-the shared SendGrid account. Repository synchronization uses a GitHub App. All
-credentials and account-specific values are loaded from Ansible Vault files.
-
-Kaneo does not currently provide an upstream GitLab integration. Its Gitea
-adapter is not compatible with GitLab's API and webhook payloads, so the
-self-hosted GitLab instance is intentionally not configured here.
+the shared SendGrid account. Repository synchronization uses a GitHub App and
+the private fork's GitLab integration. All credentials and account-specific
+values are loaded from Ansible Vault files.
 
 ## Prerequisites
 
@@ -16,7 +13,10 @@ self-hosted GitLab instance is intentionally not configured here.
   prerequisites deployment creates them.
 - `sendgrid_api_key` exists in `group_vars/compute_servers/vault.yml`; Kaneo
   reuses the same key as Mastodon and Dawarich.
-- A PocketID OIDC client and a GitHub App have been created as described below.
+- A PocketID OIDC client, GitHub App, and GitLab OAuth application have been
+  created as described below.
+- GitLab CI has published the full SHA configured as `kaneo_image_tag` to
+  `registry.atelier.house/jedmund/kaneo`.
 
 ## Create the Vault
 
@@ -35,6 +35,10 @@ Populate it with this complete schema:
 vault_kaneo_db_password: "<openssl rand -hex 32>"
 vault_kaneo_redis_password: "<openssl rand -hex 32>"
 vault_kaneo_auth_secret: "<openssl rand -hex 32>"
+vault_kaneo_scm_secret_encryption_key: "<openssl rand -base64 32>"
+
+vault_kaneo_registry_username: "<GitLab deploy-token username>"
+vault_kaneo_registry_password: "<read_registry deploy token>"
 
 vault_kaneo_oidc_client_id: "<PocketID client ID>"
 vault_kaneo_oidc_client_secret: "<PocketID client secret>"
@@ -43,6 +47,9 @@ vault_kaneo_github_app_id: "<numeric GitHub App ID>"
 vault_kaneo_github_app_name: "<GitHub App slug>"
 vault_kaneo_github_webhook_secret: "<openssl rand -hex 32>"
 vault_kaneo_github_private_key_base64: "<single-line base64 PEM>"
+
+vault_kaneo_gitlab_oauth_client_id: "<GitLab application ID>"
+vault_kaneo_gitlab_oauth_client_secret: "<GitLab application secret>"
 ```
 
 Generate the locally managed secrets independently:
@@ -52,6 +59,7 @@ openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 32
 openssl rand -hex 32
+openssl rand -base64 32
 ```
 
 The Redis password must remain hexadecimal because the entrypoint safely writes
@@ -102,6 +110,26 @@ After deployment, connect repositories from each Kaneo project's integration
 settings. These credentials enable repository synchronization, not GitHub
 sign-in; PocketID remains the only login provider.
 
+## GitLab integration
+
+Create a confidential GitLab OAuth application for the `api` scope with this
+redirect URI:
+
+```text
+https://kaneo.atelier.house/api/gitlab-integration/oauth/callback
+```
+
+Store the application ID and secret in the Kaneo Vault. Create a separate
+project or group deploy token with only `read_registry`, then store its
+username and token in the same Vault. The deploy token is used only by Docker
+on `nuc-mini`; Kaneo workspace connections use OAuth or encrypted group access
+tokens entered through the application.
+
+Kaneo advertises `https://git.atelier.house` to browsers and webhooks but calls
+GitLab at `http://gitlab` over `backend-internal`. This exact mapping is set by
+the role and avoids enabling private destinations for user-controlled SCM
+URLs.
+
 ## First deployment
 
 Run the gateway first so ddclient publishes the Kaneo hostname, then deploy the
@@ -134,8 +162,23 @@ curl -fsS https://kaneo.atelier.house/api/health
 ```
 
 Then sign in through PocketID, send a test email, and connect a repository on
-which the GitHub App is installed. Borgmatic includes `kaneo_postgres` in its
-native PostgreSQL dumps after `make deploy-backup`.
+which the GitHub App is installed. Also authorize the GitLab workspace
+connection, attach a disposable repository, and confirm that Kaneo provisions
+its signed project webhook. Borgmatic includes `kaneo_postgres` in its native
+PostgreSQL dumps after `make deploy-backup`.
+
+## Rollout and rollback
+
+Before changing `kaneo_image_tag`, run `make deploy-backup` and verify the
+latest PostgreSQL dump. Deploy a new SHA to a disposable GitLab repository
+first, then attach production repositories after issue, note, branch, merge
+request, and duplicate-webhook smoke tests pass.
+
+To roll back to an older fork image, restore the previous full SHA and run
+`make deploy-kaneo`. Before running an upstream image, disable all SCM
+integrations in Kaneo; upstream releases do not understand multi-repository or
+GitLab external links. The additive database migration is intentionally left
+in place during an image rollback.
 
 Object storage is not configured in this stack. Kaneo attachment uploads need a
 future S3-compatible storage addition.
