@@ -1,0 +1,91 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  kaneo:
+    image: "{{ kaneo_image }}:{{ kaneo_image_tag }}"
+    container_name: kaneo
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/kaneo.env
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      kaneo-postgres:
+        condition: service_healthy
+      kaneo-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:{{ kaneo_port }}/api/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.kaneo.rule: "Host(`{{ kaneo_domain }}`)"
+      traefik.http.routers.kaneo.entrypoints: "websecure"
+      traefik.http.routers.kaneo.tls.certresolver: "letsencrypt"
+      traefik.http.services.kaneo.loadbalancer.server.port: "{{ kaneo_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kaneo-postgres:
+    image: {{ kaneo_db_image }}
+    container_name: kaneo_postgres
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/postgres.env
+    networks:
+      - backend
+    volumes:
+      - kaneo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ kaneo_db_user }}", "-d", "{{ kaneo_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kaneo-redis:
+    image: {{ kaneo_redis_image }}
+    container_name: kaneo_redis
+    restart: {{ restart_policy }}
+    user: redis
+    entrypoint: ["/usr/local/bin/kaneo-redis-entrypoint.sh"]
+    env_file:
+      - ./env/redis.env
+    networks:
+      - backend
+    volumes:
+      - ./config/redis-entrypoint.sh:/usr/local/bin/kaneo-redis-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  kaneo-pgdata:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

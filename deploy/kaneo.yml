@@ -1,0 +1,6 @@
+---
+- name: Deploy Kaneo stack
+  hosts: kaneo
+  become: true
+  roles:
+    - kaneo

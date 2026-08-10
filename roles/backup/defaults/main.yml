@@ -89,7 +89,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, kaneo, miniflux, romm
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -103,6 +103,7 @@ borg_networks:
 #   n8n_db_password
 #   miniflux_db_password
 #   dawarich_db_password
+#   vault_kaneo_db_password
 #   vault_kizuna_postgres_password
 #   vault_hugginghack_postgres_password
 #   komodo_db_username, komodo_db_password
@@ -130,6 +131,9 @@ miniflux_db_name: miniflux
 miniflux_db_user: miniflux
 dawarich_db_name: dawarich_production
 dawarich_db_username: dawarich
+kaneo_db_name: kaneo
+kaneo_db_user: kaneo
+kaneo_db_password: "{{ vault_kaneo_db_password }}"
 kizuna_db_name: kizuna_api_production
 kizuna_db_user: kizuna
 kizuna_db_password: "{{ vault_kizuna_postgres_password }}"

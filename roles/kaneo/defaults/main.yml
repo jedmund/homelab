@@ -1,0 +1,65 @@
+---
+# Stack identity
+stack_name: kaneo
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Kaneo application
+kaneo_image: ghcr.io/usekaneo/kaneo
+kaneo_image_tag: latest  # floating, tracks upstream
+kaneo_domain: kaneo.atelier.house
+kaneo_client_url: "https://{{ kaneo_domain }}"
+kaneo_api_url: "{{ kaneo_client_url }}/api"
+kaneo_port: 5173
+
+# PostgreSQL
+kaneo_db_image: postgres:16-alpine
+kaneo_db_host: kaneo-postgres
+kaneo_db_port: "5432"
+kaneo_db_name: kaneo
+kaneo_db_user: kaneo
+kaneo_db_password: "{{ vault_kaneo_db_password | default('') }}"
+
+# Redis is used for Kaneo's WebSocket Pub/Sub adapter. It is intentionally
+# non-durable; PostgreSQL remains the source of truth.
+kaneo_redis_image: redis:7-alpine
+kaneo_redis_host: kaneo-redis
+kaneo_redis_port: "6379"
+kaneo_redis_url: "redis://:{{ kaneo_redis_password }}@{{ kaneo_redis_host }}:{{ kaneo_redis_port }}"
+kaneo_redis_password: "{{ vault_kaneo_redis_password | default('') }}"
+
+# PocketID custom OIDC provider
+kaneo_oidc_authorization_url: https://id.atelier.house/authorize
+kaneo_oidc_token_url: https://id.atelier.house/api/oidc/token
+kaneo_oidc_user_info_url: https://id.atelier.house/api/oidc/userinfo
+kaneo_oidc_discovery_url: https://id.atelier.house/.well-known/openid-configuration
+kaneo_oidc_logout_url: https://id.atelier.house/api/oidc/logout
+kaneo_oidc_scopes: openid,profile,email
+kaneo_oidc_response_type: code
+kaneo_oidc_pkce: "true"
+kaneo_oidc_client_id: "{{ vault_kaneo_oidc_client_id | default('') }}"
+kaneo_oidc_client_secret: "{{ vault_kaneo_oidc_client_secret | default('') }}"
+kaneo_auth_secret: "{{ vault_kaneo_auth_secret | default('') }}"
+
+# PocketID-only access. PocketID controls who can authenticate; any permitted
+# PocketID user may create a Kaneo account on first sign-in.
+kaneo_disable_guest_access: "true"
+kaneo_disable_registration: "false"
+kaneo_disable_password_registration: "true"
+kaneo_disable_login_form: "true"
+kaneo_custom_oauth_auto_login: "true"
+
+# Gmail SMTP. Use a Google App Password for kaneo_smtp_password.
+kaneo_smtp_host: smtp.gmail.com
+kaneo_smtp_port: "587"
+kaneo_smtp_secure: "false"
+kaneo_smtp_require_tls: "true"
+kaneo_smtp_ignore_tls: "false"
+kaneo_smtp_user: "{{ vault_kaneo_smtp_user | default('') }}"
+kaneo_smtp_password: "{{ vault_kaneo_smtp_password | default('') }}"
+kaneo_smtp_from: "{{ vault_kaneo_smtp_from | default('') }}"
+
+# GitHub App repository integration (not GitHub SSO).
+kaneo_github_app_id: "{{ vault_kaneo_github_app_id | default('') }}"
+kaneo_github_app_name: "{{ vault_kaneo_github_app_name | default('') }}"
+kaneo_github_webhook_secret: "{{ vault_kaneo_github_webhook_secret | default('') }}"
+kaneo_github_private_key_base64: "{{ vault_kaneo_github_private_key_base64 | default('') }}"

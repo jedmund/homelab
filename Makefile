@@ -1,5 +1,5 @@
 # Homelab Ansible Makefile
-.PHONY: help deploy-all deploy-infra deploy-media check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags migrate-hugginghack-models migrate-hugginghack-models-apply
+.PHONY: help deploy-all deploy-infra deploy-media deploy-kaneo check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags migrate-hugginghack-models migrate-hugginghack-models-apply
 
 # Colors for output
 RED := \033[0;31m
@@ -256,6 +256,10 @@ migrate-hugginghack-models-apply: ## Apply migration of Files/models into Huggin
 deploy-dev: ## Deploy development product stacks on nuc-mini
 	@echo "$(BLUE)Deploying development product stacks...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags gitlab,open_webui,paseo_relay
+
+deploy-kaneo: ## Deploy Kaneo project management stack
+	@echo "$(BLUE)Deploying Kaneo stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kaneo.yml $(VAULT_FLAG)
 
 deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"

@@ -91,6 +91,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `changedetection` | ChangeDetection.io |
 | `copyparty` | Copyparty |
 | `hugginghack` | HuggingHack Hugging Face model browser |
+| `kaneo` | Kaneo, PostgreSQL, Redis |
 
 **Content and social (nuc-mini)**
 | Role | Services |
@@ -437,6 +438,28 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `n8n_db_password` | n8n PostgreSQL password |
 | `n8n_encryption_key` | n8n encryption key (optional if already initialized without one) |
 
+### group_vars/kaneo/vault.yml
+
+Kaneo is deployed at `https://kaneo.atelier.house` with PostgreSQL, Redis,
+PocketID OIDC, Google SMTP, and a GitHub App integration. See the
+[Kaneo deployment runbook](roles/kaneo/README.md) for the exact Vault schema,
+provider callbacks, first-deploy order, and verification commands.
+
+| Variable | Description |
+|----------|-------------|
+| `vault_kaneo_db_password` | Kaneo PostgreSQL password |
+| `vault_kaneo_redis_password` | Redis password; 32 or more hexadecimal characters |
+| `vault_kaneo_auth_secret` | Kaneo session/JWT secret; at least 32 characters |
+| `vault_kaneo_oidc_client_id` | PocketID OIDC client ID |
+| `vault_kaneo_oidc_client_secret` | PocketID OIDC client secret |
+| `vault_kaneo_smtp_user` | Google SMTP account address |
+| `vault_kaneo_smtp_password` | Google App Password |
+| `vault_kaneo_smtp_from` | Message From value |
+| `vault_kaneo_github_app_id` | Numeric GitHub App ID |
+| `vault_kaneo_github_app_name` | GitHub App slug |
+| `vault_kaneo_github_webhook_secret` | GitHub App webhook signing secret |
+| `vault_kaneo_github_private_key_base64` | Base64-encoded GitHub App private key PEM |
+
 ### group_vars/gitlab/vault.yml
 
 | Variable | Description |
@@ -543,6 +566,7 @@ make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
 make deploy-hugginghack
+make deploy-kaneo
 
 # PocketID client callbacks:
 #   Login:  https://hf.atelier.house/api/auth/oidc/callback
@@ -671,6 +695,7 @@ Services using PostgreSQL store metadata in Docker volumes. To migrate to a new 
 | Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
 | n8n | `n8n_postgres` | `n8n` | `n8n` |
 | Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
+| Kaneo | `kaneo_postgres` | `kaneo` | `kaneo` |
 
 GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/gitlab/tasks/main.yml`.
 
@@ -686,6 +711,7 @@ docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
 docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
 docker exec n8n_postgres pg_dump -U n8n n8n > n8n_backup.sql
 docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
+docker exec kaneo_postgres pg_dump -U kaneo kaneo > kaneo_backup.sql
 ```
 
 ### Restore (pg_restore)

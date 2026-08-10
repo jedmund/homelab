@@ -71,6 +71,10 @@ postgresql_databases:
       hostname: dawarich_postgres
       username: {{ dawarich_db_username }}
       password: "{{ dawarich_db_password }}"
+    - name: {{ kaneo_db_name }}
+      hostname: kaneo_postgres
+      username: {{ kaneo_db_user }}
+      password: "{{ kaneo_db_password }}"
     - name: {{ kizuna_db_name }}
       hostname: kizuna-postgres
       username: {{ kizuna_db_user }}
