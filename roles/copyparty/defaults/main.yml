@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: copyparty
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Copyparty settings
+copyparty_image: copyparty/ac
+copyparty_domain: files.atelier.house
+copyparty_port: 3923

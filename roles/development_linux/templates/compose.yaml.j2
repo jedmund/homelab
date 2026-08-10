@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  gitlab-runner:
+    container_name: gitlab_runner
+    image: {{ gitlab_runner_linux_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - cibuild
+    volumes:
+      - ./runner/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+{% for h in gitlab_runner_linux_extra_hosts %}
+      - "{{ h }}"
+{% endfor %}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  cibuild:
+    name: {{ cibuild_network }}
+    external: true

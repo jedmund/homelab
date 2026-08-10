@@ -1,0 +1,51 @@
+---
+# Development (Linux) stack: GitLab Runner with the Docker executor on max.
+
+# CI jobs (Vite/Vitest, webpack, tsc --watch, etc.) each open many per-file
+# inotify watchers. See gitlab_runner_linux_inotify_max_user_instances in
+# defaults for why the kernel default of 128 is not survivable. Applied via
+# a sysctl.d drop-in so it persists across reboots.
+- name: Raise inotify instance limit for CI runner file watchers
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: "{{ gitlab_runner_linux_inotify_max_user_instances }}"
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/99-gitlab-runner-inotify.conf
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/runner"
+    - "{{ config_base }}/runner/config"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  # The docker_compose_v2 task below applies image and compose changes. A
+  # handler here would immediately recreate the freshly deployed runner again.
+
+- name: Deploy GitLab Runner config
+  ansible.builtin.template:
+    src: gitlab-runner/config.toml.j2
+    dest: "{{ config_base }}/runner/config/config.toml"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"

@@ -11,8 +11,21 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
-- name: Restart NAS automount
-  ansible.builtin.systemd:
+- name: Stop NAS automount before restart
+  ansible.builtin.systemd_service:
     name: "{{ nas_systemd_unit_basename }}.automount"
-    state: restarted
+    state: stopped
+  listen: Restart NAS automount
+
+- name: Stop NAS mount before restarting automount
+  ansible.builtin.systemd_service:
+    name: "{{ nas_systemd_unit_basename }}.mount"
+    state: stopped
+  listen: Restart NAS automount
+
+- name: Start NAS automount after restart
+  ansible.builtin.systemd_service:
+    name: "{{ nas_systemd_unit_basename }}.automount"
+    state: started
     enabled: true
+  listen: Restart NAS automount

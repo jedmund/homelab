@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: radarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Radarr settings
+radarr_image: linuxserver/radarr
+radarr_port: 7878

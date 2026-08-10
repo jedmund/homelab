@@ -1,0 +1,6 @@
+---
+- name: Deploy strudel stack
+  hosts: strudel
+  become: true
+  roles:
+    - strudel

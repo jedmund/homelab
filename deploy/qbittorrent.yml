@@ -1,0 +1,6 @@
+---
+- name: Deploy qbittorrent stack
+  hosts: qbittorrent
+  become: true
+  roles:
+    - qbittorrent

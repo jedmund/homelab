@@ -1,20 +1,26 @@
 # petlibro
 
 Local Mosquitto broker for PLAF203 feeders, plus an opt-in catbro-server
-container for protocol research.
+container for protocol research. The Kalay/TUTK master server is served
+in-process by kibble (`roles/kibble`); the legacy kalay-mock systemd
+unit is retired and this role removes it from hosts that still have it.
 
 Runs on `nuc-mini` (NUC15). Home Assistant on NUC8 connects to it over MQTT.
+
+When something breaks, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) — has
+the dependency graph, diagnostic playbook, and the 2026-06-03 NVMe-swap
+postmortem.
 
 ## What this deploys
 
 By default, **one container** at `/opt/docker/petlibro/`:
 
-- **mosquitto** — Eclipse Mosquitto 2.x, anonymous, listening on `1883`. Both
-  feeders (via DNS rewrite) and HA-on-NUC8 connect here.
+- **mosquitto** (container) — Eclipse Mosquitto 2.x, anonymous, listening on
+  `1883`.  Both feeders (via DNS rewrite) and HA-on-NUC8 connect here.
 
-The live MQTT bridge + video plane that catbro used to provide is now handled
-by **feederhub** (`roles/utilities`).  Catbro is deployed only when the
-`petlibro_catbro_enabled` flag is on — see "Enabling catbro" below.
+The MQTT bridge / feeding-schedule plane and the Kalay/TUTK master (UDP
+`:10001`/`:10240`) are owned by **kibble** (`roles/kibble`).  Catbro
+is opt-in for protocol-capture sessions; see "Enabling catbro" below.
 
 ### catbro-server (opt-in, default off)
 
@@ -26,11 +32,11 @@ the Petlibro MQTT cloud; embeds go2rtc with the `pkg/tutk/`
 reimplementation that speaks PLAF203 video directly. Exposes RTSP on `8554`
 and a WebUI on `1984`.
 
-Catbro's remaining purpose post-feederhub is **protocol research**: its
+Catbro's remaining purpose post-kibble is **protocol research**: its
 `--mode record` writes every observed MQTT frame to a JSONL log file, which
 is how we found `DEVICE_LOG_REPORT_EVENT` carries the Kalay UID, the real
 `MANUAL_FEEDING_SERVICE` cmd, etc.  Enable for capture sessions, then disable
-so it stops fighting feederhub for `:8554` / `:8555` / `:1984`.
+so it stops fighting kibble for `:8554` / `:8555` / `:1984`.
 
 ### Enabling catbro
 
@@ -52,12 +58,18 @@ catbro container when the flag flips back to false.
 
 Ports exposed on NUC15:
 
-| Port | Protocol | Purpose |
-|---|---|---|
-| 1883 | TCP | MQTT broker (feeders + HA both connect) |
-| 1984 | TCP | go2rtc WebUI / HTTP API |
-| 8554 | TCP | RTSP streams (HA cameras source from here) |
-| 8555 | TCP | WebRTC TCP fallback |
+| Port | Protocol | Owner | Purpose |
+|---|---|---|---|
+| 1883 | TCP | mosquitto | MQTT broker (feeders + HA both connect) |
+| 1984 | TCP | catbro (opt-in) | go2rtc WebUI / HTTP API |
+| 8554 | TCP | catbro (opt-in) | RTSP streams (HA cameras source from here) |
+| 8555 | TCP | catbro (opt-in) | WebRTC TCP fallback |
+
+Kalay/TUTK ports (UDP `:10001`/`:10240`) are bound by kibble's
+in-process Kalay master; see `roles/kibble`.  The retired standalone
+mock's scripts live in
+[`PetLibro/feeder-re/mock-kalay/`](https://github.com/jedmund/petlibro)
+if a fallback is ever needed again.
 
 ## Manual prerequisites (deliberately NOT automated)
 
@@ -65,8 +77,8 @@ Ports exposed on NUC15:
 
 In UDM / AdGuard / whatever DNS the IoT VLAN resolves through, override
 `mqtt.us.petlibro.com` to point at the NUC15 LAN IP (`192.168.1.6` at time of
-writing). Without this, feeders connect to the real Petlibro cloud and the
-local catbro never sees them.
+writing). Without this, feeders connect to the real Petlibro cloud and our
+local mosquitto + kibble never see them.
 
 UDM controller path: Settings → Networks → iot.local → DHCP Settings → Custom
 DHCP options OR via the Site Manager DNS overrides. AdGuard alternative: add a

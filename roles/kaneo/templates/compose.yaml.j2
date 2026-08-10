@@ -1,9 +1,9 @@
 # {{ ansible_managed }}
-name: {{ kaneo_stack_name }}
+name: {{ stack_name }}
 
 services:
   kaneo:
-    image: {{ kaneo_image }}
+    image: "{{ kaneo_image }}:{{ kaneo_image_tag }}"
     container_name: kaneo
     restart: {{ restart_policy }}
     env_file:

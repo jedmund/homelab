@@ -1,6 +1,6 @@
 ---
 - name: Deploy musicbrainz stack
   hosts: musicbrainz
-  become: yes
+  become: true
   roles:
     - musicbrainz

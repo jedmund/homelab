@@ -1,0 +1,35 @@
+---
+# Shared GitLab CI distributed-cache (Garage S3) connection details.
+#
+# Read by both runner roles: gitlab (nuc-mini docker runner) and
+# development_linux (max docker runner). Lives here, at the compute_servers
+# group level, because both hosts need identical S3 client config and
+# duplicating it per-role would let the two drift.
+#
+# The Garage instance backing this is deployed by roles/gitlab on nuc-mini.
+# The runners reach it by LAN IP:port (no DNS, no Traefik) so the cache path
+# survives infra_gateway/AdGuard redeploys. Cache misses are non-fatal:
+# a job warns and rebuilds, so an unpopulated or down cache never breaks CI.
+#
+# Secrets (access key id + secret) live in group_vars/compute_servers/vault.yml:
+#   gitlab_cache_s3_access_key_id
+#   gitlab_cache_s3_secret_access_key
+# Empty defaults below keep runner config.toml rendering before the vault is
+# populated; each runner's S3 cache block is gated on the access key being
+# present, so a pre-bootstrap host cleanly falls back to local cache.
+
+gitlab_cache_s3_port: 3910
+# Job containers on max reach Garage through nuc-mini's LAN-published port.
+gitlab_cache_s3_lan_endpoint: "{{ hostvars['nuc-mini'].ansible_host }}:{{ gitlab_cache_s3_port }}"
+# Job containers on nuc-mini cannot hairpin through that host-published LAN
+# address. Both the runner and its job containers share cibuild-network with
+# Garage, so use Docker DNS and Garage's container port locally.
+gitlab_cache_s3_nuc_endpoint: "gitlab-cache-garage:3900"
+gitlab_cache_s3_bucket: ci-cache
+gitlab_cache_s3_region: garage
+# Plain HTTP over private networks. The LAN endpoint has no TLS certificate;
+# the bucket is private and credentialed, and traffic stays on either the
+# wired LAN or the host-local Docker network.
+gitlab_cache_s3_insecure: true
+gitlab_cache_s3_access_key_id: ""
+gitlab_cache_s3_secret_access_key: ""

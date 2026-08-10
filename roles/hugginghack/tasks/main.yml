@@ -1,0 +1,289 @@
+---
+# HuggingHack stack: Hugging Face model browser/downloader on nuc-mini.
+# The hugginghack-models NFS volume is created by the docker-volumes role
+# (group_vars/compute_servers/storage.yml); run deploy-prerequisites first
+# on a fresh setup. Create HuggingHack at the visible Files share root (the
+# internal export path is Files/.data/HuggingHack) and make it writable by
+# {{ puid }}:{{ pgid }}.
+
+- name: Validate HuggingHack database and PocketID configuration
+  ansible.builtin.assert:
+    that:
+      - hugginghack_db_password | length >= 32
+      - hugginghack_oidc_client_id | length > 0
+      - hugginghack_oidc_client_secret | length > 0
+      - hugginghack_legacy_owner_username | length >= 3
+      - >-
+        hugginghack_legacy_owner_username
+        is match('^[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]$')
+    fail_msg: >-
+      Populate the HuggingHack PostgreSQL and PocketID vault values and set a
+      valid PocketID preferred username before deploying.
+  tags:
+    - preflight
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Create {{ stack_name }} data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/data/.cache/huggingface"
+
+- name: Ensure {{ stack_name }} owns existing data
+  ansible.builtin.file:
+    path: "{{ config_base }}/data"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    recurse: true
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/hugginghack.env.j2
+    dest: "{{ config_base }}/env/hugginghack.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+
+- name: Deploy PostgreSQL environment file
+  ansible.builtin.template:
+    src: env/postgres.env.j2
+    dest: "{{ config_base }}/env/postgres.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+
+- name: Check for the existing SQLite database
+  ansible.builtin.stat:
+    path: "{{ config_base }}/data/hugginghack.sqlite3"
+  register: hugginghack_sqlite_database
+
+- name: Check PostgreSQL migration state
+  ansible.builtin.stat:
+    path: "{{ hugginghack_database_migration_marker }}"
+  register: hugginghack_database_migration
+
+- name: Start only HuggingHack PostgreSQL
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    services:
+      - hugginghack-postgres
+    state: present
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 120
+
+- name: Build the latest HuggingHack fork image
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - build
+      - hugginghack
+    chdir: "{{ config_base }}"
+  changed_when: false
+
+- name: Migrate existing HuggingHack SQLite data to PostgreSQL
+  when:
+    - not ansible_check_mode
+    - hugginghack_sqlite_database.stat.exists
+    - not hugginghack_database_migration.stat.exists
+  block:
+    - name: Stop HuggingHack before taking the migration snapshot
+      community.docker.docker_compose_v2:
+        project_src: "{{ config_base }}"
+        services:
+          - hugginghack
+        state: stopped
+
+    - name: Copy and verify SQLite data in PostgreSQL
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - run
+          - --rm
+          - --no-deps
+          - hugginghack
+          - python
+          - -m
+          - app.migrate_database
+          - --source
+          - /data/hugginghack.sqlite3
+          - --backup
+          - >-
+            /data/hugginghack.pre-postgres-{{ ansible_date_time.iso8601_basic_short }}.sqlite3
+        chdir: "{{ config_base }}"
+      register: hugginghack_migration_result
+      changed_when: true
+
+    - name: Record successful PostgreSQL migration
+      ansible.builtin.copy:
+        dest: "{{ hugginghack_database_migration_marker }}"
+        content: |
+          migrated_at={{ ansible_date_time.iso8601 }}
+          {{ hugginghack_migration_result.stdout }}
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: '0644'
+
+- name: Check PocketID owner-link migration state
+  ansible.builtin.stat:
+    path: "{{ hugginghack_identity_migration_marker }}"
+  register: hugginghack_identity_migration
+
+- name: Link the migrated owner to the PocketID preferred username
+  when:
+    - not ansible_check_mode
+    - hugginghack_sqlite_database.stat.exists
+    - not hugginghack_identity_migration.stat.exists
+  block:
+    - name: Rename only the migrated compatibility user
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - hugginghack-postgres
+          - psql
+          - -v
+          - ON_ERROR_STOP=1
+          - -U
+          - "{{ hugginghack_db_user }}"
+          - -d
+          - "{{ hugginghack_db_name }}"
+          - -c
+          - >-
+            UPDATE users
+            SET username = '{{ hugginghack_legacy_owner_username }}',
+                updated_at = NOW()::text
+            WHERE id = '{{ hugginghack_legacy_user_id }}'
+              AND username <> '{{ hugginghack_legacy_owner_username }}';
+      register: hugginghack_owner_rename
+      changed_when: "'UPDATE 1' in hugginghack_owner_rename.stdout"
+
+    - name: Verify the migrated owner mapping
+      ansible.builtin.command:
+        argv:
+          - docker
+          - exec
+          - hugginghack-postgres
+          - psql
+          - -tA
+          - -U
+          - "{{ hugginghack_db_user }}"
+          - -d
+          - "{{ hugginghack_db_name }}"
+          - -c
+          - >-
+            SELECT COUNT(*) FROM users
+            WHERE id = '{{ hugginghack_legacy_user_id }}'
+              AND username = '{{ hugginghack_legacy_owner_username }}';
+      register: hugginghack_owner_mapping
+      changed_when: false
+
+    - name: Require the migrated owner mapping
+      ansible.builtin.assert:
+        that:
+          - hugginghack_owner_mapping.stdout | trim == '1'
+        fail_msg: >-
+          PostgreSQL data was migrated, but the legacy owner could not be
+          mapped to the configured PocketID preferred username. HuggingHack
+          remains stopped to prevent a new account from claiming the data.
+
+    - name: Record successful PocketID owner mapping
+      ansible.builtin.copy:
+        dest: "{{ hugginghack_identity_migration_marker }}"
+        content: |
+          linked_at={{ ansible_date_time.iso8601 }}
+          user_id={{ hugginghack_legacy_user_id }}
+          username={{ hugginghack_legacy_owner_username }}
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: '0644'
+
+- name: Verify retained PostgreSQL owner before every application start
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - hugginghack-postgres
+      - psql
+      - -tA
+      - -U
+      - "{{ hugginghack_db_user }}"
+      - -d
+      - "{{ hugginghack_db_name }}"
+      - -c
+      - >-
+        SELECT COUNT(*) FROM users
+        WHERE id = '{{ hugginghack_legacy_user_id }}'
+          AND username = '{{ hugginghack_legacy_owner_username }}';
+  when:
+    - not ansible_check_mode
+    - hugginghack_sqlite_database.stat.exists
+  register: hugginghack_retained_owner
+  changed_when: false
+
+- name: Refuse to start without the retained owner
+  ansible.builtin.assert:
+    that:
+      - hugginghack_retained_owner.stdout | trim == '1'
+    fail_msg: >-
+      The migrated PostgreSQL owner is missing or has the wrong username.
+      HuggingHack remains stopped so PocketID cannot provision a replacement
+      account disconnected from the existing data.
+  when:
+    - not ansible_check_mode
+    - hugginghack_sqlite_database.stat.exists
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    build: policy
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 180
+
+- name: Verify PostgreSQL, PocketID, and filesystem storage health
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - hugginghack
+      - python
+      - -c
+      - >-
+        import json, urllib.request;
+        data = json.load(urllib.request.urlopen(
+          'http://127.0.0.1:{{ hugginghack_container_port }}/api/health', timeout=5));
+        assert data['database_backend'] == 'postgresql';
+        assert data['auth_mode'] == 'oidc';
+        assert data['object_storage']['backend'] == 'filesystem';
+        print(json.dumps({
+          'database': data['database_backend'],
+          'auth': data['auth_mode'],
+          'storage': data['object_storage']['backend'],
+        }, sort_keys=True))
+  changed_when: false

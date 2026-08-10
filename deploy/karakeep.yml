@@ -1,0 +1,6 @@
+---
+- name: Deploy karakeep stack
+  hosts: karakeep
+  become: true
+  roles:
+    - karakeep

@@ -1,0 +1,197 @@
+---
+# Stack identity
+stack_name: kibble
+# On-disk data identity kept as "feederhub" so the rename does not migrate the
+# live SQLite DB or the Garage volumes. stack_name (kibble) is the logical /
+# Komodo / image / container name; data_name (feederhub) is where data lives on
+# disk (config_base, the /data mount subdir, the DB filename, Garage volumes).
+data_name: feederhub
+config_base: "{{ docker_base_path }}/{{ data_name }}"
+
+# Kibble — local-first PetLibro PLAF203 control plane.  Built from
+# /Users/justin/Developer/PetLibro/kibble; CI in that repo builds the
+# image, pushes it to registry.atelier.house/jedmund/kibble, and calls
+# the Komodo API on successful main builds to redeploy this stack
+# (KOMODO_KIBBLE_STACK CI var must equal the Komodo Stack resource
+# name; "kibble" is the convention here).  Bumping the tag by hand
+# still works for a forced roll-forward or rollback.
+#
+# `latest` is published only on the default branch, so it tracks main.
+# To pin a known-good sha for a deploy freeze, set the tag to the short
+# sha CI emitted.  Available tags: <short-sha>, <branch-slug>, `latest`.
+#
+# Host networking is intentional: WebRTC ICE candidates need to advertise
+# a LAN-reachable address, and the bundled go2rtc binds UDP on every
+# interface it can see.  MQTT points at 127.0.0.1:1883 — the host port
+# `petlibro-mosquitto` publishes — so there's no need to share a Compose
+# network with it either.  Traefik routes via the file provider
+# (services-mini.yml) since the docker provider can't see host-networked
+# containers.
+kibble_image: registry.atelier.house/jedmund/kibble
+kibble_image_tag: latest
+
+# Registry auth.  Use a single GitLab deploy token scoped to
+# `read_registry` on jedmund/kibble.
+#   vault_feederhub_registry_username  (e.g. gitlab+deploy-token-N)
+#   vault_feederhub_registry_password
+kibble_registry_url: https://registry.atelier.house
+kibble_registry_username: "{{ vault_feederhub_registry_username | default('') }}"
+kibble_registry_password: "{{ vault_feederhub_registry_password | default('') }}"
+
+kibble_domain: cat.atelier.house
+kibble_host_port: 18080
+
+# Distroless `nonroot` is uid 65532; the data dir must be writable by
+# that uid for the SQLite DB to land.
+kibble_data_uid: 65532
+kibble_data_gid: 65532
+
+# Cat-photo object storage: kibble's OWN Garage instance, a
+# sibling service in this stack (deliberately not kizuna's — the two
+# stacks stay independently deployable). The S3 API is published on
+# host loopback only, because kibble runs network_mode: host and
+# can't resolve compose-network hostnames; nothing off-host can reach
+# it. Bucket + key are created by garage_bootstrap.sh (deployed to
+# {{ config_base }}), and the whole garage sub-stack is gated on the
+# vault rpc secret so a pre-vault deploy simply runs without photos
+# (the server answers 503 on photo endpoints and is otherwise
+# unchanged).
+#
+# Vault entries:
+#   vault_feederhub_garage_rpc_secret       openssl rand -hex 32
+#   vault_feederhub_s3_access_key_id        printed by garage_bootstrap.sh
+#   vault_feederhub_s3_secret_access_key    printed by garage_bootstrap.sh
+kibble_garage_image: dxflrs/garage:v2.3.0
+kibble_garage_rpc_secret: "{{ vault_feederhub_garage_rpc_secret | default('') }}"
+kibble_garage_s3_port: 3900   # published on 127.0.0.1 only
+kibble_s3_endpoint: "http://127.0.0.1:{{ kibble_garage_s3_port }}"
+# data_name (feederhub), not stack_name: the existing Garage bucket + app key
+# were bootstrapped under "feederhub"; renaming would orphan every stored photo.
+kibble_s3_bucket: "{{ data_name }}"
+kibble_s3_region: garage
+kibble_s3_access_key_id: "{{ vault_feederhub_s3_access_key_id | default('') }}"
+kibble_s3_secret_access_key: "{{ vault_feederhub_s3_secret_access_key | default('') }}"
+
+# OIDC auth via the household PocketID (https://id.atelier.house).
+# One PUBLIC client serves both surfaces: the server's web BFF flow
+# runs authorization-code + PKCE (no secret needed — see the
+# kibble provider), and the iOS app runs its own PKCE flow against
+# the same client. Register it in PocketID with BOTH callback URLs:
+#   https://cat.atelier.house/api/auth/callback
+#   kibble://oauth-callback
+# Gated on the vault client id: absent → the env block isn't rendered
+# and kibble runs with auth disabled (open LAN API), the pre-OIDC
+# posture.
+#
+# Vault entries:
+#   vault_feederhub_oidc_client_id
+#   vault_feederhub_oidc_client_secret      (optional — only for a
+#                                            confidential web client)
+#   vault_feederhub_oidc_native_client_id   (optional — only if the
+#                                            iOS app gets a separate
+#                                            client)
+kibble_oidc_issuer: "https://id.atelier.house"
+kibble_oidc_redirect_url: "https://{{ kibble_domain }}/api/auth/callback"
+kibble_oidc_client_id: "{{ vault_feederhub_oidc_client_id | default('') }}"
+kibble_oidc_client_secret: "{{ vault_feederhub_oidc_client_secret | default('') }}"
+kibble_oidc_native_client_id: "{{ vault_feederhub_oidc_native_client_id | default('') }}"
+
+# TUTK + feeders inventory continue to come from the vault.  Keys
+# moved verbatim from the old utilities vault when this role
+# was split out of utilities.
+kibble_tutk_server: "{{ vault_feederhub_tutk_server | default('') }}"
+kibble_tutk_username: "{{ vault_feederhub_tutk_username | default('') }}"
+kibble_tutk_password: "{{ vault_feederhub_tutk_password | default('') }}"
+kibble_video_audio_enabled: true
+kibble_feeders: "{{ vault_feederhub_feeders | default('') }}"
+
+# In-process Kalay master (kibble's internal/kalay).  When enabled,
+# kibble binds UDP 10001 + 10240 and impersonates ThroughTek's Kalay
+# cloud itself, so feeders register locally and pkg/tutk can dial them.
+# This REPLACES the external `kalay-mock` systemd unit shipped by
+# roles/petlibro/: this role's "take over Kalay" task stops + disables
+# it, and roles/petlibro gates it behind `petlibro_kalay_mock_enabled`
+# (default false) so a petlibro redeploy won't fight for the UDP ports.
+#
+# HOST_LAN_IP is advertised to feeders as the relay endpoint and used as
+# the PUNCH_TO2 source — it's the nuc's LAN address (same as the ONVIF
+# advertise host).  With Kalay on and TUTK_SERVER left blank, kibble
+# auto-targets its own 127.0.0.1:10001 listener (see loadKalay).
+kibble_kalay_enabled: true
+kibble_kalay_bind: "0.0.0.0"
+kibble_kalay_host_lan_ip: "{{ kibble_onvif_advertise_host }}"
+
+# Feeder LAN IPs that seed the Kalay registry so GET_RIP answers on boot
+# instead of waiting for the feeder's first KEEPALIVE.  Each `uid` must
+# match a 20-char TUTK UID present in `kibble_feeders` (vault); the
+# `ip` is the feeder's real DHCP address (mirror of roles/petlibro's
+# `petlibro_feeders` local_ip — same physical feeders on nuc-mini).
+kibble_feeder_ips:
+  - uid: "JNGT5PBUAF61NKVS111A"
+    ip: "192.168.1.180"   # left_feeder
+  - uid: "HFEY837GWWHWC27U111A"
+    ip: "192.168.1.181"   # right_feeder
+  - uid: "B8NGCEB9X15GGWJ3111A"
+    ip: "192.168.1.182"   # kiki_feeder
+
+# Cloud bridge — off.  Round-trips MQTT through Petlibro's real cloud;
+# only read when KIBBLE_CLOUD_BRIDGE_ENABLED=true, kept here so the
+# full env surface lives in one place.
+kibble_cloud_bridge_enabled: false
+kibble_cloud_host: ""
+kibble_cloud_port: 1883
+kibble_cloud_creds_file: ""
+
+# ONVIF Profile-S responder.  Each feeder is exposed as an independent
+# ONVIF camera at its own LAN VIP on port 80.
+#
+# The VIPs MUST live on macvlan child interfaces of br0 — not as alias
+# IPs on br0 itself — because UniFi Protect (and most other ONVIF
+# consumers) dedupe adopted cameras on the link-layer MAC obtained
+# via ARP, NOT on the MAC reported via SOAP GetNetworkInterfaces.
+# Alias IPs on br0 all ARP back with the bridge's real MAC, so a
+# second adoption replaces the first.  Macvlan children give each
+# VIP its own MAC, and Protect adopts both as distinct cameras.
+#
+# Each entry below maps a feeder name to its VIP + the synthesised
+# locally-administered MAC the macvlan child will advertise.  MACs
+# are arbitrary as long as they:
+#   * start with 02 (locally-administered + unicast),
+#   * are unique within the LAN,
+#   * are stable across reboots so Protect doesn't think the camera
+#     changed identity and re-adopt it.
+kibble_onvif_enabled: true
+kibble_onvif_user: "{{ vault_feederhub_onvif_user | default('') }}"
+kibble_onvif_pass: "{{ vault_feederhub_onvif_pass | default('') }}"
+kibble_onvif_port: 80
+kibble_onvif_devices:
+  - name: left_feeder
+    ip: 192.168.1.184
+    mac: "02:F1:CB:8A:74:01"
+  - name: right_feeder
+    ip: 192.168.1.185
+    mac: "02:F1:CB:8A:74:02"
+  # Kiki (B8NGCEB9X15GGWJ3111A, .182). Requires a matching KIBBLE_FEEDERS
+  # entry in the vault (one bind IP per ONVIF device), and a registered stream
+  # named kiki_feeder. onvif2 macvlan child, /32.
+  - name: kiki_feeder
+    ip: 192.168.1.186
+    mac: "02:F1:CB:8A:74:03"
+  # Temporary duplicate identity for testing Protect audio without removing
+  # kiki_feeder (and risking its existing recording history). The alias below
+  # points this camera at the original kiki_feeder stream.
+  - name: kiki_audio_test
+    ip: 192.168.1.188
+    mac: "02:F1:CB:8A:74:04"
+kibble_onvif_bridge: br0
+kibble_onvif_advertise_host: "192.168.1.6"
+
+kibble_onvif_aliases:
+  - source: kiki_feeder
+    name: kiki_audio_test
+
+# Backwards-compat: derived from the structured devices list above so the env
+# template can keep emitting a flat comma-separated bind IPs string into the
+# kibble binary. Real feeders come first; aliases are appended in the same
+# order as kibble_onvif_aliases.
+kibble_onvif_bind_ips: "{{ kibble_onvif_devices | map(attribute='ip') | list }}"

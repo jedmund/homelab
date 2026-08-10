@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  homebox:
+    container_name: homebox
+    image: {{ homebox_image }}
+    restart: {{ restart_policy }}
+    ports:
+      - "{{ homebox_external_port }}:{{ homebox_port }}"
+    volumes:
+      - ./config/homebox:/data
+    env_file:
+      - ./env/homebox.env
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  default:
+    name: {{ shared_network }}
+    external: true

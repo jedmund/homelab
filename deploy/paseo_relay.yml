@@ -1,0 +1,6 @@
+---
+- name: Deploy paseo_relay stack
+  hosts: paseo_relay
+  become: true
+  roles:
+    - paseo_relay

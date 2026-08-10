@@ -1,0 +1,93 @@
+---
+# Stack identity
+stack_name: gitlab
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Vault secrets consumed by this role:
+#   gitlab_initial_root_password
+#   gitlab_oidc_client_id, gitlab_oidc_client_secret
+#   gitlab_runner_auth_token
+#   renovate_gitlab_token, renovate_github_token (optional)
+
+# GitLab CE settings
+gitlab_image: gitlab/gitlab-ce:19.2.0-ce.0
+gitlab_domain: git.atelier.house
+gitlab_registry_domain: registry.atelier.house
+gitlab_ssh_port: "2222"
+gitlab_web_port: 80
+gitlab_registry_port: 5050
+gitlab_root_url: "https://{{ gitlab_domain }}"
+gitlab_registry_url: "https://{{ gitlab_registry_domain }}"
+gitlab_shm_size: "256m"
+gitlab_initial_root_password: ""
+gitlab_oidc_client_id: ""
+gitlab_oidc_client_secret: ""
+
+# GitLab Runner settings
+gitlab_runner_image: gitlab/gitlab-runner:v19.2.0
+gitlab_runner_name: nuc-mini-docker
+gitlab_runner_concurrent: 4
+# Host inotify instance cap for CI file watchers (see tasks/main.yml). Kernel
+# default is 128, which Vite/Vitest jobs blow past → EMFILE. 1024 gives ample
+# headroom for the concurrent jobs above.
+gitlab_runner_inotify_max_user_instances: 1024
+gitlab_runner_default_image: alpine:latest
+gitlab_runner_log_level: info
+gitlab_runner_url: "http://gitlab"
+gitlab_runner_auth_token: ""
+gitlab_runner_extra_hosts:
+  - "{{ gitlab_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+  - "{{ gitlab_registry_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+
+# CI distributed cache (Garage S3). An isolated single-node Garage on
+# nuc-mini, backing the shared runner cache so the nuc-mini and max runners
+# stop cold-building node_modules independently. Kept separate from the
+# kizuna/kibble Garage instances (own container, network, bucket, keys)
+# because CI jobs run arbitrary code and their cache credentials must not
+# reach application object storage.
+#
+# The S3 client connection details (endpoint, bucket, keys) are shared with
+# the max runner and live in group_vars/compute_servers (ci_cache.yml +
+# vault.yml), since both runner roles need them. Only the Garage *server*
+# tokens live here, because Garage itself runs only on this host.
+#
+# Vault secrets consumed for the cache Garage (nuc-mini only):
+#   gitlab_cache_garage_rpc_secret
+#   gitlab_cache_garage_admin_token
+gitlab_cache_garage_image: dxflrs/garage:v2.3.0
+# Host-published S3 API port. Bound to the LAN IP (not 0.0.0.0) so it sits
+# beside Traefik's pinned bind without grabbing the wildcard address, and so
+# the max runner can reach it at {{ ansible_host }}:{{ port }} over the LAN.
+gitlab_cache_garage_s3_host_port: "{{ gitlab_cache_s3_port }}"
+gitlab_cache_garage_bind_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+gitlab_cache_garage_rpc_secret: ""
+gitlab_cache_garage_admin_token: ""
+
+# Cache object expiry. GitLab never deletes its own S3 cache objects: a
+# changed cache:key orphans the old archive, so the bucket grows unbounded.
+# A native Garage S3 lifecycle rule expires objects older than this many days
+# (Garage enforces it internally, no cron). The default pull-push cache policy
+# refreshes an actively-used key's timestamp on every job, so hot caches
+# survive and only abandoned keys age out. A quota is deliberately NOT used:
+# it caps size by rejecting new writes once full, which freezes the cache on
+# stale content instead of recycling it.
+gitlab_cache_s3_expiry_days: 14
+# One-shot S3 client used only to apply the lifecycle rule (Garage's own CLI
+# has no lifecycle command). Unpinned: it is a throwaway client invocation,
+# not a running service.
+gitlab_cache_mc_image: minio/mc
+
+# Renovate settings
+renovate_image: renovate/renovate:39
+renovate_log_level: info
+renovate_platform: gitlab
+renovate_endpoint: "http://gitlab/api/v4/"
+renovate_git_author: "Renovate Bot <renovate-bot@{{ gitlab_domain }}>"
+renovate_autodiscover: "true"
+renovate_onboarding: "true"
+renovate_schedule_cron: "0 8 * * 1"
+renovate_gitlab_token: ""
+
+# GitLab backup dump consumed by Borgmatic's /opt/docker source path.
+gitlab_backup_cron: "50 1 * * *"
+gitlab_backup_skip: "registry,artifacts"

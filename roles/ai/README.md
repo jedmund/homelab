@@ -13,7 +13,7 @@ GPU-bound AI services on `max`. Seven containers in one stack:
 | Playwright | `mcr.microsoft.com/playwright` | `3000` | n/a (WebSocket only) |
 
 OpenWebUI (running on `nuc-mini`) is wired to all of these via env vars in
-`roles/development`. Most env vars take effect on first deploy only —
+`roles/open_webui`. Most env vars take effect on first deploy only —
 OpenWebUI persists them to its database and subsequent restarts use the
 DB value, so changing an env var on an existing install requires either
 editing it in Admin -> Settings or a one-shot start with

@@ -1,0 +1,6 @@
+---
+- name: Deploy gluetun stack
+  hosts: gluetun
+  become: true
+  roles:
+    - gluetun

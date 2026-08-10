@@ -1,5 +1,5 @@
 ---
-# Infra Gateway Stack - Traefik, PocketID, TinyAuth, DDClient, AdGuard
+# Infra Gateway Stack - Traefik, PocketID, TinyAuth, DDClient
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -15,8 +15,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
     - "{{ docker_base_path }}/{{ stack_name }}/config/ddclient"
     - "{{ docker_base_path }}/{{ stack_name }}/config/line/data"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/work"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/adguard/conf"
     - "{{ docker_base_path }}/{{ stack_name }}/source"
 
 - name: Create Traefik config directories
@@ -34,7 +32,8 @@
 - name: Set permissions on Traefik ACME directory
   file:
     path: "{{ docker_base_path }}/{{ stack_name }}/config/traefik/acme"
-    mode: '0600'
+    owner: "{{ ansible_user }}"
+    mode: '0700'
   when: traefik_enabled | bool
 
 - name: Create Traefik acme.json file
@@ -87,6 +86,7 @@
   loop:
     - services-mini.yml.j2
     - services-max.yml.j2
+    - services-other.yml.j2
   when: traefik_enabled | bool
   notify: Restart {{ stack_name }} stack
 
@@ -152,9 +152,10 @@
     repo: "{{ line_repo }}"
     dest: "{{ line_source_path }}"
     version: "{{ line_version }}"
-    force: yes
+    force: true
     accept_hostkey: true
   become: false
+  register: line_git
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
@@ -162,6 +163,8 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
+    # Rebuild only when the line source moved; `policy` still builds the
+    # image when it's missing.
+    build: "{{ 'always' if line_git.changed else 'policy' }}"
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

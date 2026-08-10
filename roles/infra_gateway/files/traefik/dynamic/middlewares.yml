@@ -1,3 +1,4 @@
+---
 # Shared Middleware Definitions
 http:
   middlewares:

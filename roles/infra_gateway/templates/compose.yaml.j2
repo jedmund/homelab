@@ -10,8 +10,8 @@ services:
       - proxy
       - backend
     ports:
-      - "80:80"
-      - "443:443"
+      - "{{ traefik_bind_ip }}:80:80"
+      - "{{ traefik_bind_ip }}:443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -35,7 +35,7 @@ services:
 
   pocketid:
     container_name: pocketid
-    image: ghcr.io/pocket-id/pocket-id:latest
+    image: {{ pocketid_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -57,7 +57,7 @@ services:
 
   tinyauth:
     container_name: tinyauth
-    image: ghcr.io/steveiliop56/tinyauth:v4
+    image: {{ tinyauth_image }}
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -71,8 +71,6 @@ services:
       traefik.http.services.tinyauth.loadbalancer.server.port: "{{ tinyauth_port }}"
       tinyauth.apps.stash.config.domain: "z.{{ traefik_domain }}"
       tinyauth.apps.stash.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.silverbullet.config.domain: "notes.{{ traefik_domain }}"
-      tinyauth.apps.silverbullet.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.pinchflat.config.domain: "pi.{{ traefik_domain }}"
       tinyauth.apps.pinchflat.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.changedetection.config.domain: "track.{{ traefik_domain }}"
@@ -95,6 +93,10 @@ services:
       tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.searxng.config.domain: "search.{{ traefik_domain }}"
       tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
+      tinyauth.apps.pcsx2.config.domain: "pcsx2.{{ traefik_domain }}"
+      tinyauth.apps.pcsx2.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.dolphin.config.domain: "dolphin.{{ traefik_domain }}"
+      tinyauth.apps.dolphin.users.allow: "{{ tinyauth_allowed_user }}"
     logging:
       driver: {{ logging_driver }}
       options:
@@ -104,7 +106,7 @@ services:
   ddclient:
     container_name: ddclient
     restart: {{ restart_policy }}
-    image: linuxserver/ddclient
+    image: {{ ddclient_image }}
     networks:
       - proxy
     environment:
@@ -121,7 +123,7 @@ services:
   openspeedtest:
     container_name: openspeedtest
     restart: {{ restart_policy }}
-    image: openspeedtest/latest
+    image: {{ openspeedtest_image }}
     networks:
       - proxy
     labels:
@@ -154,31 +156,6 @@ services:
       traefik.http.routers.line.entrypoints: "websecure"
       traefik.http.routers.line.tls.certresolver: "letsencrypt"
       traefik.http.services.line.loadbalancer.server.port: "{{ line_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
-  adguard:
-    container_name: adguard
-    image: adguard/adguardhome:latest
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    ports:
-      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_tcp }}:53/tcp"
-      - "{{ adguard_dns_bind_ip }}:{{ adguard_port_dns_udp }}:53/udp"
-      - "{{ adguard_port_setup }}:3000/tcp"
-    volumes:
-      - ./config/adguard/work:/opt/adguardhome/work
-      - ./config/adguard/conf:/opt/adguardhome/conf
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.adguard.rule: "Host(`dns.{{ traefik_domain }}`)"
-      traefik.http.routers.adguard.entrypoints: "websecure"
-      traefik.http.routers.adguard.tls.certresolver: "letsencrypt"
-      traefik.http.services.adguard.loadbalancer.server.port: "{{ adguard_port_http }}"
     logging:
       driver: {{ logging_driver }}
       options:

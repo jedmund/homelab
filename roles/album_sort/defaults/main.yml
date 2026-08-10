@@ -1,0 +1,44 @@
+---
+# Stack identity
+stack_name: album-sort
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Album Sort images are built by GitLab CI and published as a short SHA, branch
+# slug, and `latest`. `latest` is published only from the default branch, then CI
+# calls Komodo to redeploy this stack. Set this to a short SHA for a deploy freeze
+# or rollback.
+album_sort_image: registry.atelier.house/jedmund/album-sort
+album_sort_beets_image: registry.atelier.house/jedmund/album-sort/beets
+album_sort_image_tag: latest
+album_sort_registry_url: https://registry.atelier.house
+album_sort_registry_username: "{{ vault_album_sort_registry_username | default('') }}"
+album_sort_registry_password: "{{ vault_album_sort_registry_password | default('') }}"
+album_sort_container_port: 3000
+album_sort_domain: music.sort.atelier.house
+album_sort_origin: "https://{{ album_sort_domain }}"
+album_sort_unsorted_path: /music/Sort
+album_sort_sorted_path: /music/Sorted
+album_sort_data_path: /data
+album_sort_watch_interval: "30000"
+album_sort_scan_concurrency: "4"
+album_sort_auth_required: "true"
+album_sort_mutations_enabled: "true"
+album_sort_oidc_issuer_url: "https://id.atelier.house"
+album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
+album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
+album_sort_session_ttl_hours: "12"
+
+# Keep the outer middleware during native-OIDC rollout. Set false only after
+# login, callback, logout, and unauthenticated rejection are verified.
+album_sort_use_tinyauth: true
+
+# Multi-Scrobbler integration
+album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
+
+# Secrets defined in vault:
+# album_sort_apple_music_team_id, album_sort_apple_music_key_id,
+# album_sort_apple_music_private_key, album_sort_discogs_token,
+# album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
+# vault_album_sort_registry_username, vault_album_sort_registry_password,
+# vault_album_sort_oidc_client_id,
+# vault_album_sort_oidc_client_secret

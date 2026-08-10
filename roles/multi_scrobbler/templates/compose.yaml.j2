@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  multi-scrobbler:
+    image: {{ multi_scrobbler_image }}
+    container_name: multi-scrobbler
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ multi_scrobbler_port }}:9078
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - BASE_URL={{ multi_scrobbler_base_url }}
+    volumes:
+      - ./config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:9078"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

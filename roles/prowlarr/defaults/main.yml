@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: prowlarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Prowlarr settings
+prowlarr_image: linuxserver/prowlarr
+prowlarr_port: 9696

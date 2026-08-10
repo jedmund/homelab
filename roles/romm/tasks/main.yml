@@ -1,0 +1,64 @@
+---
+# RomM product stack
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/romm.env.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/romm.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+
+# config.yml is co-owned: RomM's Library Management UI is a two-way
+# editor of the same file, so templating it wholesale would silently
+# discard the exclude rules and emulatorjs settings saved through the UI.
+# Read it, merge only the `streaming` key, write it back.
+- name: Read existing RomM config.yml
+  ansible.builtin.slurp:
+    src: "{{ config_base }}/config/config.yml"
+  register: romm_config_raw
+  failed_when: false
+  changed_when: false
+
+- name: Merge streaming settings into config.yml
+  ansible.builtin.copy:
+    content: |
+      # Partly managed by Ansible. The `streaming` block is templated from
+      # roles/romm/defaults/main.yml and is overwritten on every deploy.
+      # Every other key belongs to RomM's Library Management UI and is
+      # preserved as-is, so edit those in the UI, not here.
+      {{ ((romm_config_raw.content | default('') | b64decode | from_yaml) or {})
+         | combine({'streaming': {'enabled': romm_streaming_enabled, 'containers': romm_streaming_containers}})
+         | to_nice_yaml(indent=2) }}
+    dest: "{{ config_base }}/config/config.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 600
+  register: compose_result

@@ -391,7 +391,7 @@ on `:11434`.
   serde-alias bug in newer nomic config revisions).
 - **Endpoint**: `http://192.168.1.100:11435/v1/embeddings`. Consumed by
   OpenWebUI via `open_webui_rag_embedding_base_url` in
-  `roles/development/defaults/main.yml`.
+  `roles/open_webui/defaults/main.yml`.
 - **Re-embed on switch**: collections embedded under one model can't be
   searched with another. Reset OpenWebUI vector storage (Admin -> Documents)
   and re-ingest after the migration.

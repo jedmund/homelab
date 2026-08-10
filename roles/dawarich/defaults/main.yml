@@ -1,0 +1,57 @@
+---
+# Stack identity
+stack_name: dawarich
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Dawarich settings (location timeline)
+dawarich_image: freikin/dawarich:latest
+dawarich_external_port: 3030
+dawarich_domain: "where.atelier.house"
+dawarich_base_url: "https://{{ dawarich_domain }}"
+dawarich_self_hosted: "true"
+dawarich_store_geodata: "true"
+dawarich_rails_env: production
+dawarich_log_to_stdout: "true"
+dawarich_background_processing_concurrency: "5"
+
+# Dawarich database (PostGIS, required for geospatial queries)
+dawarich_db_image: postgis/postgis:17-3.5-alpine
+dawarich_db_host: dawarich-db
+dawarich_db_port: "5432"
+dawarich_db_username: dawarich
+dawarich_db_name: dawarich_production
+
+# Dawarich Redis
+dawarich_redis_image: redis:7.4-alpine
+dawarich_redis_host: dawarich-redis
+dawarich_redis_url: "redis://{{ dawarich_redis_host }}:6379"
+
+# Dawarich OIDC (PocketID)
+dawarich_oidc_provider_name: PocketID
+dawarich_oidc_issuer: "https://id.atelier.house"
+dawarich_oidc_redirect_uri: "{{ dawarich_base_url }}/users/auth/openid_connect/callback"
+dawarich_oidc_auto_register: "true"
+dawarich_allow_email_password_registration: "false"
+# 1.7.8+: login is gated separately from registration; defaults true upstream
+dawarich_allow_email_password_login: "false"
+
+# Dawarich SMTP (SendGrid via shared key from compute_servers vault)
+dawarich_smtp_server: smtp.sendgrid.net
+dawarich_smtp_port: "587"
+dawarich_smtp_username: apikey
+dawarich_smtp_from: "noreply@atelier.house"
+dawarich_smtp_domain: "atelier.house"
+dawarich_smtp_starttls: "true"
+dawarich_smtp_authentication: plain
+
+# Dawarich Photon (self-hosted worldwide reverse geocoder, ~90 GB on disk)
+dawarich_photon_image: rtuszik/photon-docker:latest
+dawarich_photon_region: planet
+dawarich_photon_initial_download: "TRUE"
+dawarich_photon_api_host: "dawarich-photon:2322"
+dawarich_photon_api_use_https: "false"
+
+# Dawarich secrets defined in vault:
+# dawarich_db_password, dawarich_secret_key_base
+# dawarich_oidc_client_id, dawarich_oidc_client_secret
+# sendgrid_api_key (shared across stacks, defined in compute_servers vault)

@@ -1,0 +1,28 @@
+---
+# Stack identity
+stack_name: infra-periphery
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Standalone Komodo Periphery agent for hosts that are not the Komodo
+# Core host (Core + its local periphery live in roles/infra_core on
+# nuc-mini). Core connects inbound to this agent over HTTPS on
+# {{ periphery_port }}; the matching Komodo Server resource (e.g. `max`)
+# must point at https://<host>:{{ periphery_port }}.
+#
+# Same division of labor as infra_core: Ansible renders and deploys the
+# compose files under /opt/docker, Periphery observes them read-only via
+# files_on_host and may redeploy on demand. Keep the image tag matched to
+# roles/infra_core's komodo_image_tag when bumping.
+komodo_periphery_image: ghcr.io/moghtech/komodo-periphery
+komodo_periphery_image_tag: "2.2.0"
+periphery_root_directory: /etc/komodo
+periphery_port: 8120
+
+# Periphery settings (mirror roles/infra_core)
+periphery_disable_terminals: "false"
+periphery_ssl_enabled: "true"
+periphery_include_disk_mounts: /etc/hostname
+periphery_logging_pretty: "false"
+periphery_pretty_startup_config: "false"
+
+# komodo_passkey - defined in vault (must equal infra_core's komodo_passkey)

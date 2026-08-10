@@ -67,26 +67,22 @@ postgresql_databases:
       hostname: miniflux-db
       username: {{ miniflux_db_user }}
       password: "{{ miniflux_db_password }}"
-    - name: {{ blinko_db_name }}
-      hostname: blinko_postgres
-      username: {{ blinko_db_user }}
-      password: "{{ blinko_db_password }}"
-    - name: {{ draftboard_db_name }}
-      hostname: draftboard_postgres
-      username: {{ draftboard_db_user }}
-      password: "{{ draftboard_db_password }}"
     - name: {{ dawarich_db_name }}
       hostname: dawarich_postgres
       username: {{ dawarich_db_username }}
       password: "{{ dawarich_db_password }}"
-    - name: {{ ideon_db_name }}
-      hostname: ideon_postgres
-      username: {{ ideon_db_user }}
-      password: "{{ ideon_db_password }}"
     - name: {{ kaneo_db_name }}
       hostname: kaneo_postgres
       username: {{ kaneo_db_user }}
       password: "{{ kaneo_db_password }}"
+    - name: {{ kizuna_db_name }}
+      hostname: kizuna-postgres
+      username: {{ kizuna_db_user }}
+      password: "{{ kizuna_db_password }}"
+    - name: {{ hugginghack_db_name }}
+      hostname: hugginghack-postgres
+      username: {{ hugginghack_db_user }}
+      password: "{{ hugginghack_db_password }}"
 
 # Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
 # what's set on the container; mysqldump needs LOCK TABLES which the romm

@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: lidarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Lidarr settings
+lidarr_image: linuxserver/lidarr
+lidarr_port: 8686

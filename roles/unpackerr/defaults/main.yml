@@ -1,0 +1,7 @@
+---
+# Stack identity
+stack_name: unpackerr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Unpackerr settings
+unpackerr_image: golift/unpackerr

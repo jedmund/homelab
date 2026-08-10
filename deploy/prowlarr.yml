@@ -1,0 +1,6 @@
+---
+- name: Deploy prowlarr stack
+  hosts: prowlarr
+  become: true
+  roles:
+    - prowlarr

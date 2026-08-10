@@ -4,9 +4,9 @@
   become: true
   gather_facts: false
   pre_tasks:
-    - name: Skip deprecated hosts
+    - name: Skip hosts that are not Docker prerequisite targets
       meta: end_host
-      when: deprecated | default(false)
+      when: skip_prerequisites | default(false)
     - name: Gather facts
       setup:
   roles:

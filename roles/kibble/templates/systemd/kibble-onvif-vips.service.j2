@@ -1,0 +1,48 @@
+# {{ ansible_managed }}
+# Creates one macvlan child of {{ kibble_onvif_bridge }} per feeder
+# ONVIF VIP.  Each child gets its own MAC (set per-feeder in
+# defaults/main.yml) so UniFi Protect's adoption flow doesn't dedupe
+# both feeders into one entry — Protect reads MACs via ARP at the
+# link layer, so synthesising distinct MACs is what makes two feeder
+# IPs adopted as two cameras.
+#
+# Interface names are index-based (onvif0, onvif1, ...) rather than
+# name-based (onvif-<feeder name>): Linux caps interface names at 15
+# chars (IFNAMSIZ), and onvif-left_feeder (17) / onvif-right_feeder
+# (18) overflow it, so the kernel rejects `ip link add` with "not a
+# valid ifname".  Per-camera identity comes from the MAC (set below),
+# not the ifname, so an index is sufficient.
+#
+# VIPs are added as /32, NOT /24.  A /24 makes the kernel install a
+# scope-link route for the whole subnet via each macvlan child at
+# metric 0, which outranks {{ kibble_onvif_bridge }}'s own route and
+# steals egress for the entire LAN (the NAS ends up reached from a VIP
+# that isn't in its NFS access list -> "access denied by server", plus
+# any other LAN traffic sourced from the wrong address).  A /32 gives
+# the VIP an address that answers ARP for adoption without owning any
+# subnet route.
+#
+# Idempotent: link + address creation is prefixed with `-` so systemd
+# ignores "File exists" on a re-run after a reboot (where the parent
+# bridge is already up but this oneshot hasn't yet touched the
+# children).
+
+[Unit]
+Description=kibble ONVIF VIPs (macvlan children of {{ kibble_onvif_bridge }})
+After=network-online.target sys-subsystem-net-devices-{{ kibble_onvif_bridge }}.device
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+{% for dev in kibble_onvif_devices %}
+ExecStart=-/usr/sbin/ip link add link {{ kibble_onvif_bridge }} name onvif{{ loop.index0 }} address {{ dev.mac }} type macvlan mode bridge
+ExecStart=-/usr/sbin/ip address add {{ dev.ip }}/32 dev onvif{{ loop.index0 }}
+ExecStart=/usr/sbin/ip link set onvif{{ loop.index0 }} up
+{% endfor %}
+{% for dev in kibble_onvif_devices %}
+ExecStop=-/usr/sbin/ip link delete onvif{{ loop.index0 }}
+{% endfor %}
+
+[Install]
+WantedBy=multi-user.target

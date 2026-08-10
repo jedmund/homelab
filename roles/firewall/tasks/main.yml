@@ -17,6 +17,15 @@
     - { direction: outgoing, policy: allow }
   when: firewall_enabled | bool
 
+- name: Remove retired firewall ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    delete: true
+  loop: "{{ firewall_ports_revoked }}"
+  when: firewall_enabled | bool
+
 - name: Allow firewall ports
   community.general.ufw:
     rule: allow
@@ -29,6 +38,21 @@
     comment: "{{ item.comment }}"
   loop: "{{ firewall_ports_all }}"
   when: firewall_enabled | bool
+
+# kibble P2P: allow all UDP from each feeder's LAN IP. The TUTK video
+# handshake has the feeder connect back on an ephemeral (random) UDP port,
+# so this is source-scoped rather than port-scoped. See
+# firewall_kibble_p2p_srcs in defaults for the full rationale.
+- name: Allow kibble feeder P2P (source-scoped UDP)
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    proto: udp
+    comment: "petlibro feeder P2P KNOCK"
+  loop: "{{ firewall_kibble_p2p_srcs }}"
+  when:
+    - firewall_enabled | bool
+    - firewall_group_kibble | bool
 
 - name: Enable UFW
   community.general.ufw:

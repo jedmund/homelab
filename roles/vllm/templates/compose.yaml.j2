@@ -10,8 +10,25 @@ services:
     # startup so `docker compose up` with no --profile starts nothing.
     restart: "no"
     profiles: ["{{ m.name }}", "all"]
+{% if m.entrypoint is defined %}
+    # Launcher-style images (voipmonitor gilded-gnosis) ship a serve
+    # script as ENTRYPOINT and take all their configuration from env
+    # vars rather than argv. Those entries set `entrypoint` and omit
+    # `args`; see the deepseek-v4-flash-0731 model in defaults.
+    entrypoint: {{ m.entrypoint | to_json }}
+{% endif %}
+{% if m.network_mode is defined %}
+    # Host networking: the launcher binds PORT itself, so there is no
+    # published-port block. Keep PORT in extra_env aligned with
+    # host_port so the healthcheck below still resolves.
+    network_mode: {{ m.network_mode }}
+{% else %}
     ports:
       - {{ m.host_port }}:{{ m.container_port }}
+{% endif %}
+{% if m.privileged | default(false) %}
+    privileged: true
+{% endif %}
     volumes:
       # Bind-mount the existing on-host caches so the ~235 GB HF Hub
       # download is reused across compose recreates. The HF cache is
@@ -19,6 +36,9 @@ services:
       - {{ vllm_cache_root }}:/root/.cache
       - {{ vllm_hf_cache_dir }}:/root/.cache/huggingface
       - /dev/shm:/dev/shm
+{% for vol in m.extra_volumes | default([]) %}
+      - {{ vol }}
+{% endfor %}
     ipc: host
     shm_size: {{ m.shm_size | default(vllm_default_shm_size) }}
     ulimits:
@@ -40,6 +60,7 @@ services:
     # deploy.resources.reservations syntax has bitten us with NCCL on
     # this image family before; keep the legacy field.
     gpus: all
+{% if m.args is defined %}
     # The lavd vllm image's ENTRYPOINT already invokes `vllm serve`,
     # so we pass args via `command:` (positional model id first, then
     # flags). Matches the known-good docker run argv order.
@@ -47,6 +68,7 @@ services:
 {% for arg in m.args %}
       - {{ arg | to_json }}
 {% endfor %}
+{% endif %}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:{{ m.container_port }}/health"]
       interval: {{ healthcheck_interval }}

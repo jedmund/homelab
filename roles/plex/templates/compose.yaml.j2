@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  plex:
+    image: {{ plex_image }}
+    container_name: plex
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - TZ={{ timezone }}
+      - VERSION=docker
+{% if plex_claim is defined %}
+      - PLEX_CLAIM={{ plex_claim }}
+{% endif %}
+      - ADVERTISE_IP={{ plex_advertise_ip }}
+      - LIBVA_DRIVER_NAME={{ plex_libva_driver_name }}
+    volumes:
+      - ./config:/config
+      - {{ plex_transcode_path }}:/transcode
+      - videos:/data/videos
+      - television:/data/television
+      - anime:/data/anime
+      - movies:/data/movies
+      - music:/data/music
+    ports:
+      - {{ plex_port }}:32400
+    devices:
+      - /dev/dri:/dev/dri
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  videos:
+    name: videos
+    external: true
+  television:
+    name: television
+    external: true
+  anime:
+    name: anime
+    external: true
+  movies:
+    name: movies
+    external: true
+  music:
+    name: music
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

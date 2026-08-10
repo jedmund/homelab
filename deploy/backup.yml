@@ -1,6 +1,6 @@
 ---
 - name: Deploy backup stack
   hosts: backup
-  become: yes
+  become: true
   roles:
     - backup

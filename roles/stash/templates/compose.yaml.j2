@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  stash:
+    image: {{ stash_image }}
+    container_name: stash
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ stash_port }}:9999
+    env_file:
+      - ./env/stash.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config:/root/.stash
+      - private:/data
+      - ./config/metadata:/metadata
+      - ./config/cache:/cache
+      - ./config/blobs:/blobs
+      - ./config/generated:/generated
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9999/healthz"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  private:
+    name: private
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

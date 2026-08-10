@@ -13,3 +13,8 @@
     remove_orphans: true
     recreate: always
     build: always
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true

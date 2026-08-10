@@ -9,6 +9,11 @@ log:
 accessLog:
   filePath: /var/log/traefik/access.log
   bufferingSize: 100
+  # Presigned S3 URLs carry bearer credentials in their query string. Keep
+  # request paths for diagnostics, but never persist query parameters.
+  fields:
+    queryParameters:
+      defaultMode: drop
   filters:
     statusCodes:
       - "400-499"
@@ -32,7 +37,11 @@ entryPoints:
           - main: "{{ traefik_domain }}"
             sans:
               - "*.{{ traefik_domain }}"
+          - main: "review.{{ traefik_domain }}"
+            sans:
+              - "*.review.{{ traefik_domain }}"
           - main: "*.sort.{{ traefik_domain }}"
+          - main: "*.tun.{{ traefik_domain }}"
 # Providers
 providers:
   docker:

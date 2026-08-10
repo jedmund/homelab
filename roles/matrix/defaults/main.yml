@@ -11,6 +11,9 @@ synapse_port_http: 8008
 synapse_enable_registration: false
 synapse_report_stats: false
 synapse_max_upload_size: 50M
+# Official Synapse image drops privileges to this uid/gid at startup.
+synapse_container_uid: 991
+synapse_container_gid: 991
 
 # PostgreSQL configuration
 synapse_db_image: postgres:17-alpine
@@ -60,6 +63,9 @@ mas_db_name: mas
 mas_db_user: mas
 mas_db_host: mas-db
 mas_db_port: 5432
+# MAS uses the distroless nonroot identity.
+mas_container_uid: 65532
+mas_container_gid: 65532
 # mas_db_password - defined in vault
 # mas_synapse_shared_secret - defined in vault
 # mas_encryption_key - defined in vault (64 hex chars)

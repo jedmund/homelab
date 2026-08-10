@@ -13,6 +13,7 @@ ddclient_atelier_subdomains:
   - atelier.house
   - ai.atelier.house
   - auth.atelier.house
+  - beszel.atelier.house
   - bl.atelier.house
   - box.atelier.house
   - cat.atelier.house
@@ -20,9 +21,11 @@ ddclient_atelier_subdomains:
   - claw.atelier.house
   - dl.atelier.house
   - docs.atelier.house
+  - dolphin.atelier.house
   - files.atelier.house
   - flood.atelier.house
   - git.atelier.house
+  - ha.atelier.house
   - hu.atelier.house
   - id.atelier.house
   - idea.atelier.house
@@ -40,14 +43,15 @@ ddclient_atelier_subdomains:
   - models.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
-  - notes.atelier.house
-  - obsidian.sync.atelier.house
+  - obsidian-sync.atelier.house
   - ov.atelier.house
+  - pcsx2.atelier.house
   - paseo.relay.atelier.house
   - photos.atelier.house
   - pi.atelier.house
   - ra.atelier.house
   - read.atelier.house
+  - "*.review.atelier.house"
   - rom.atelier.house
   - rss.atelier.house
   - scrobble.atelier.house
@@ -59,6 +63,9 @@ ddclient_atelier_subdomains:
   - strudel.atelier.house
   - track.atelier.house
   - tr.atelier.house
+  - tun.atelier.house
+  - "*.tun.atelier.house"
+  - frp.tun.atelier.house
   - tv.atelier.house
   - ups.atelier.house
   - watch.atelier.house
@@ -68,6 +75,14 @@ ddclient_fireplace_zone: "fireplace.cafe"
 ddclient_fireplace_subdomains:
   - fireplace.cafe
 
+# Other stack images. Floating tags are intentional where noted: these
+# services track upstream and roll forward on redeploy.
+pocketid_image: ghcr.io/pocket-id/pocket-id:latest # floating, tracks upstream
+tinyauth_image: ghcr.io/steveiliop56/tinyauth:v4 # floating major channel
+ddclient_image: linuxserver/ddclient:latest # floating, tracks upstream
+# Upstream really does name the image "latest" (openspeedtest/latest)
+openspeedtest_image: openspeedtest/latest:latest
+
 # Traefik settings
 traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
 traefik_image: traefik:v3.6
@@ -76,6 +91,14 @@ traefik_log_level: INFO
 traefik_domain: atelier.house
 traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
 # Use staging for testing: "https://acme-staging-v02.api.letsencrypt.org/directory"
+#
+# Bind traefik to a specific host IP rather than 0.0.0.0 so other
+# host services (e.g. kibble's per-feeder ONVIF VIPs at .184/.185)
+# can bind their own :80 listeners on alias IPs without colliding
+# with the docker-proxy wildcard bind that 0.0.0.0:80 would create.
+# Override per host in inventory or host_vars when needed; default
+# preserves the legacy any-iface behaviour.
+traefik_bind_ip: "0.0.0.0"
 
 # PocketID settings
 pocketid_port: 1411
@@ -122,17 +145,13 @@ line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
 # line_admin_emails (comma-separated admin email list) - defined in vault
 line_admin_emails: "{{ vault_line_admin_emails }}"
 
-# AdGuard settings
-adguard_port_http: 80
-adguard_port_setup: 3000
-adguard_port_dns_tcp: 53
-adguard_port_dns_udp: 53
-# Bind DNS to the host LAN IP so it coexists with libvirt's dnsmasq on 192.168.122.1
-adguard_dns_bind_ip: "{{ ansible_host }}"
-
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.
 mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
 mac_mini_ip: "{{ hostvars['mac-mini'].ansible_host }}"
 dokploy_vm_ip: "{{ hostvars['dokploy-vm'].ansible_host }}"
+# Home Assistant OS box. Not in the inventory (HAOS has no usable Python
+# for the prerequisites/Docker plays), so unlike the IPs above this one
+# cannot be sourced from hostvars and is defined literally.
+home_assistant_ip: "192.168.1.5"

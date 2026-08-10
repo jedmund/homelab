@@ -41,6 +41,42 @@ http:
         - websecure
       tls:
         certResolver: letsencrypt
+    # Emulator streaming (RomM 5.1+). Selkies needs a secure context for
+    # WebRTC, which is the whole reason these are proxied rather than hit
+    # directly on the LAN: Traefik supplies the HTTPS the browser demands.
+    #
+    # TinyAuth-gated, with a caveat. RomM embeds the stream in its player
+    # view, and a forward-auth redirect cannot complete inside that frame,
+    # so the first visit of a session has to be to the host directly.
+    # After that the cookie covers the embed.
+    #
+    # Only the Selkies UI is routed. The brokers on max:8010 and max:8020
+    # are deliberately absent: RomM calls them server-side over the LAN
+    # with a shared secret, and giving them a public hostname would put an
+    # unauthenticated launch API on the internet.
+    #
+    # Ports match pcsx2_selkies_http_port and dolphin_selkies_http_port;
+    # same cross-role hardcoding caveat as llamaswap above.
+    pcsx2:
+      rule: "Host(`pcsx2.{{ traefik_domain }}`)"
+      service: pcsx2
+      middlewares:
+        - tinyauth@file
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    # Serves both GameCube and Wii; one container, one hostname.
+    dolphin:
+      rule: "Host(`dolphin.{{ traefik_domain }}`)"
+      service: dolphin
+      middlewares:
+        - tinyauth@file
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
   services:
     minecraft:
       loadBalancer:
@@ -54,3 +90,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ max_server_ip }}:8889"
+    pcsx2:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:3010"
+    dolphin:
+      loadBalancer:
+        servers:
+          - url: "http://{{ max_server_ip }}:3020"

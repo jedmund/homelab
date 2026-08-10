@@ -1,0 +1,98 @@
+---
+# Stack identity
+stack_name: romm
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# RomM settings
+# Floating major tag: track any 5.x release (docker_pull_policy is `always`)
+romm_image: rommapp/romm:5
+romm_db_image: mariadb:12.3.2
+romm_port: 8888
+romm_base_url: "https://rom.atelier.house"
+romm_db_host: romm-db
+romm_db_port: "3306"
+romm_db_name: romm
+romm_db_user: romm-atelier
+romm_db_driver: mariadb
+romm_disable_userpass_login: "false"
+romm_disable_csrf_protection: "false"
+romm_disable_logs_viewer: "false"
+romm_kiosk_mode: "false"
+romm_scan_timeout: "14400"
+romm_disable_emulator_js: "false"
+romm_disable_ruffle_rs: "false"
+romm_web_concurrency: "2"
+romm_loglevel: "INFO"
+romm_hasheous_api_enabled: "true"
+# PlayMatch resolves the strongest hash first, then falls back to file
+# name plus size. That fallback is what Hasheous does not do, and it is
+# the reason this is worth enabling: the ROMs with no provider match at
+# all are overwhelmingly PSX titles that already failed hash matching
+# against the same No-Intro and Redump DATs both services import.
+# Public instance, no API key. romm_playmatch_api_url only needs setting
+# to point at a self-hosted instance.
+romm_playmatch_api_enabled: "true"
+# romm_retroachievements_api_key is defined in vault; the key had been
+# sitting there unused because the env template never referenced it.
+romm_retroachievements_cache_days: "30"
+romm_hltb_api_enabled: "true"
+romm_screenscraper_user: "jedmund"
+romm_oidc_enabled: "true"
+romm_oidc_allow_registration: "true"
+romm_oidc_provider: "pocketid"
+romm_oidc_redirect_uri: "{{ romm_base_url }}/api/oauth/openid"
+romm_oidc_server_application_url: "https://id.atelier.house"
+romm_enable_rescan_on_filesystem_change: "false"
+romm_rescan_on_filesystem_change_delay: "5"
+romm_enable_scheduled_rescan: "false"
+romm_scheduled_rescan_cron: "0 3 * * *"
+romm_enable_scheduled_update_switch_titledb: "false"
+romm_scheduled_update_switch_titledb_cron: "0 4 * * *"
+
+# Emulator streaming (RomM 5.1+)
+# Native emulators run in their own containers on max and stream to the
+# browser over WebRTC; RomM drives them through each container's broker
+# sidecar. See roles/pcsx2, roles/dolphin, and roles/romm/README.md.
+romm_streaming_enabled: true
+# Seconds RomM waits for a broker's Save & Exit to finish. The default is
+# 45; PS2 savestates on a loaded box can outrun that.
+romm_streaming_save_timeout: "90"
+
+# `host` is browser-facing and must be HTTPS: Selkies uses WebRTC, which
+# browsers only allow from a secure context. These go through Traefik on
+# nuc-mini (see roles/infra_gateway services-max.yml.j2).
+#
+# `broker_host` is called server-side from RomM, so plain HTTP is fine.
+# It cannot be a container name here the way the upstream examples show,
+# because RomM is on nuc-mini and the emulators are on max.
+#
+# Ports match pcsx2_broker_port and dolphin_broker_port in those roles.
+# They are repeated rather than referenced because those roles' variables
+# are not in scope from here, the same cross-role caveat the Traefik
+# dynamic configs carry.
+romm_streaming_containers:
+  - platform: ps2
+    host: "https://pcsx2.atelier.house"
+    broker_host: "http://{{ hostvars['max'].ansible_host }}:8010"
+    label: PCSX2
+  # One Dolphin container serves both platforms. memory_card_sync belongs
+  # on the ngc entry only: Wii saves live in NAND, not on a card, so the
+  # wii entry syncs through the broker's /save-file path instead.
+  - platform: ngc
+    host: "https://dolphin.atelier.house"
+    broker_host: "http://{{ hostvars['max'].ansible_host }}:8020"
+    label: Dolphin
+    memory_card_sync: true
+  - platform: wii
+    host: "https://dolphin.atelier.house"
+    broker_host: "http://{{ hostvars['max'].ansible_host }}:8020"
+    label: Dolphin
+
+# Authenticates RomM's calls to the brokers. One secret shared by three
+# roles across two hosts, so it lives in the compute_servers vault rather
+# than a per-group one: group_vars/romm is not in scope on max, and
+# copying the same secret into three vaults invites them to drift.
+# No default(''): an empty secret makes the brokers accept every request,
+# so an absent vault entry should fail the deploy rather than quietly
+# open the launch API.
+romm_streaming_broker_secret: "{{ vault_romm_streaming_broker_secret }}"

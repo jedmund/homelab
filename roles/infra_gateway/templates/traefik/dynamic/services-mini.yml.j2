@@ -154,17 +154,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Album Sort - music.sort.{{ traefik_domain }}
-    album-sort:
-      rule: "Host(`music.sort.{{ traefik_domain }}`)"
-      service: album-sort
-      entryPoints:
-        - websecure
-      middlewares:
-        - tinyauth@file
-      tls:
-        certResolver: letsencrypt
-
     # Overseerr - ov.{{ traefik_domain }}
     overseerr:
       rule: "Host(`ov.{{ traefik_domain }}`)"
@@ -210,29 +199,6 @@ http:
     slskd:
       rule: "Host(`sl.{{ traefik_domain }}`)"
       service: slskd
-      entryPoints:
-        - websecure
-      middlewares:
-        - tinyauth@file
-      tls:
-        certResolver: letsencrypt
-
-    # ========== Productivity ==========
-
-    # Silverbullet service worker bypass (no auth)
-    silverbullet-sw:
-      rule: "Host(`notes.{{ traefik_domain }}`) && Path(`/service_worker.js`)"
-      service: silverbullet
-      entryPoints:
-        - websecure
-      priority: 100
-      tls:
-        certResolver: letsencrypt
-
-    # Silverbullet - notes.{{ traefik_domain }}
-    silverbullet:
-      rule: "Host(`notes.{{ traefik_domain }}`)"
-      service: silverbullet
       entryPoints:
         - websecure
       middlewares:
@@ -392,14 +358,14 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # feederhub - cat.{{ traefik_domain }}.  Runs with
-    # network_mode: host (see roles/utilities/defaults/main.yml for
+    # kibble - cat.{{ traefik_domain }}.  Runs with
+    # network_mode: host (see roles/kibble/defaults/main.yml for
     # why), so we route by file provider + IP rather than docker
     # provider labels.  LAN-only homelab today — no tinyauth
     # middleware until the auth posture firms up.
-    feederhub:
+    kibble:
       rule: "Host(`cat.{{ traefik_domain }}`)"
-      service: feederhub
+      service: kibble
       entryPoints:
         - websecure
       tls:
@@ -482,11 +448,6 @@ http:
         servers:
           - url: "http://{{ mini_server_ip }}:9078"
 
-    album-sort:
-      loadBalancer:
-        servers:
-          - url: "http://{{ mini_server_ip }}:5180"
-
     overseerr:
       loadBalancer:
         servers:
@@ -502,12 +463,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:5030"
-
-    # Productivity
-    silverbullet:
-      loadBalancer:
-        servers:
-          - url: "http://silverbullet:3000"
 
     karakeep:
       loadBalancer:
@@ -595,12 +550,12 @@ http:
         servers:
           - url: "http://copyparty:3923"
 
-    # feederhub (host-networked on nuc-mini).  Port 18080 also
-    # declared as feederhub_host_port in roles/utilities/defaults
+    # kibble (host-networked on nuc-mini).  Port 18080 also
+    # declared as kibble_host_port in roles/kibble/defaults
     # — hardcoded here because the infra_gateway role doesn't pull
-    # in utilities' defaults.  Mirrors how sonarr/radarr/etc. do it
+    # in kibble's defaults.  Mirrors how sonarr/radarr/etc. do it
     # above.
-    feederhub:
+    kibble:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:18080"

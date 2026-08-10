@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: qbittorrent
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# qBittorrent settings
+qbittorrent_image: lscr.io/linuxserver/qbittorrent:latest
+qbittorrent_web_port: 8080
+qbittorrent_torrenting_port: 6882

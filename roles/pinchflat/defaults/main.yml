@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: pinchflat
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Pinchflat settings
+pinchflat_image: ghcr.io/kieraneglin/pinchflat:dev
+pinchflat_port: 8945

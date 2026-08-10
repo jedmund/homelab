@@ -41,11 +41,12 @@
     mode: '0700'
   become: true
 
-- name: Create NAS mount point
+- name: Ensure NAS mount point exists
   ansible.builtin.file:
     path: "{{ nas_mount_host_path }}"
     state: directory
-    mode: '0755'
+    # Once mounted, this is the NAS export root. Its ownership and mode belong
+    # to the NAS and may be protected by root-squash, so manage only existence.
   become: true
 
 - name: Deploy systemd mount unit
@@ -71,12 +72,26 @@
     - Reload systemd
     - Restart NAS automount
 
+- name: Inspect NAS automount state
+  ansible.builtin.systemd_service:
+    name: "{{ nas_systemd_unit_basename }}.automount"
+    daemon_reload: true
+  register: nas_automount_service
+  changed_when: false
+  become: true
+
+- name: Stop direct NAS mount before activating automount
+  ansible.builtin.systemd_service:
+    name: "{{ nas_systemd_unit_basename }}.mount"
+    state: stopped
+  when: nas_automount_service.status.ActiveState != 'active'
+  become: true
+
 - name: Enable and start NAS automount
-  ansible.builtin.systemd:
+  ansible.builtin.systemd_service:
     name: "{{ nas_systemd_unit_basename }}.automount"
     enabled: true
     state: started
-    daemon_reload: true
   become: true
 
 - name: Deploy build Dockerfile
@@ -85,6 +100,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/build/Dockerfile"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  register: backup_dockerfile
   notify: Restart {{ stack_name }} stack
 
 - name: Deploy borgmatic config
@@ -142,6 +158,8 @@
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
     remove_orphans: true
-    build: always
+    # Rebuild only when the Dockerfile changed; `policy` still builds the
+    # image when it's missing, so first runs work and re-runs are no-ops.
+    build: "{{ 'always' if backup_dockerfile.changed else 'policy' }}"
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result

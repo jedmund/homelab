@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: jdownloader
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# JDownloader settings
+jdownloader_image: jlesage/jdownloader-2
+jdownloader_domain: jdl.atelier.house
+jdownloader_port: 5800

@@ -1,0 +1,84 @@
+---
+# Stash product stack
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ docker_base_path }}/{{ stack_name }}"
+    - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/metadata"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/cache"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/blobs"
+    - "{{ docker_base_path }}/{{ stack_name }}/config/generated"
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/stash.env.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/env/stash.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result
+
+# Stash writes config.yml itself on first run, so these patches only apply
+# once that file exists. Stash sits behind the TinyAuth authwall, so its own
+# auth is redundant: we allow public-without-auth, reset the tripwire if it
+# fired, and clear stored credentials. A restart makes Stash reload config.yml.
+- name: Check for an existing Stash config.yml
+  ansible.builtin.stat:
+    path: "{{ config_base }}/config/config.yml"
+  register: _stash_config
+
+- name: Allow Stash to serve behind the reverse-proxy authwall
+  ansible.builtin.lineinfile:
+    path: "{{ config_base }}/config/config.yml"
+    regexp: '^dangerous_allow_public_without_auth:'
+    line: 'dangerous_allow_public_without_auth: true'
+    create: false
+  when:
+    - stash_public_without_auth
+    - _stash_config.stat.exists
+  notify: Restart {{ stack_name }} stack
+
+- name: Reset the tripped public-internet security tripwire
+  ansible.builtin.lineinfile:
+    path: "{{ config_base }}/config/config.yml"
+    regexp: '^security_tripwire_accessed_from_public_internet:'
+    state: absent
+  when:
+    - stash_public_without_auth
+    - _stash_config.stat.exists
+  notify: Restart {{ stack_name }} stack
+
+- name: Disable Stash built-in authentication (credentials handled by the authwall)
+  ansible.builtin.lineinfile:
+    path: "{{ config_base }}/config/config.yml"
+    regexp: "{{ item }}"
+    state: absent
+  loop:
+    - '^username:'
+    - '^password:'
+  when:
+    - stash_public_without_auth
+    - _stash_config.stat.exists
+  notify: Restart {{ stack_name }} stack

@@ -1,0 +1,6 @@
+---
+- name: Deploy seerr stack
+  hosts: seerr
+  become: true
+  roles:
+    - seerr

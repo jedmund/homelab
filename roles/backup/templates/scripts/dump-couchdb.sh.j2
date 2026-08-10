@@ -9,7 +9,7 @@ set -euo pipefail
 
 DUMP_DIR="{{ borg_dumps_container_path }}/couchdb"
 HOST="obsidian_livesync"
-PORT="{{ couchdb_port | default(5984) }}"
+PORT="{{ obsidian_livesync_couchdb_port | default(5984) }}"
 
 mkdir -p "$DUMP_DIR"
 

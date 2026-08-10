@@ -1,0 +1,11 @@
+---
+# Stack identity
+stack_name: kavita
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Floating dev-channel tag is intentional: nightly is upstream's
+# recommended image and rolls forward on redeploy.
+kavita_image: jvmilazz0/kavita:nightly
+
+# Kavita settings
+kavita_port: 5353

@@ -1,0 +1,198 @@
+---
+# Stack identity
+stack_name: kizuna
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Kizuna is built by GitLab CI in jedmund/kizuna-api and jedmund/kizuna-app
+# and pushed to the project container registries. This role pulls by tag —
+# CI also calls the Komodo API on successful main builds to redeploy this
+# stack (KOMODO_KIZUNA_STACK CI var must equal the Komodo Stack resource
+# name; "kizuna" is the convention here). Bumping these tags by hand still
+# works for a forced roll-forward or rollback.
+#
+# `latest` is published only on the default branch, so it tracks main. To
+# pin a known-good sha for a deploy freeze, set the tag to the short sha
+# CI emitted (e.g. "abc1234"). Available tags: <short-sha>, <branch-slug>,
+# `latest`.
+kizuna_api_image: registry.atelier.house/kizuna/kizuna-api
+kizuna_api_image_tag: latest
+kizuna_app_image: registry.atelier.house/kizuna/kizuna-app
+kizuna_app_image_tag: latest
+
+# ---- Screenshotter sidecar (Node + Playwright) ----
+# Captures URL screenshots + reader-mode page text for CaptureScreenshotsJob
+# / FetchNodeContentJob; the browser is quarantined here, out of the Rails
+# image. Built by kizuna-app CI from apps/screenshotter/Dockerfile and pushed
+# to a nested path under the kizuna-app project registry (same read_registry
+# deploy token covers it). Internal-only — no Traefik route; kizuna-api and
+# the worker reach it over the backend network at http://kizuna-screenshotter:4000.
+kizuna_screenshotter_image: registry.atelier.house/kizuna/kizuna-app/screenshotter
+kizuna_screenshotter_image_tag: latest
+# Shared secret: the API sends it as the X-Screenshot-Secret header and the
+# sidecar checks it. Generate once (`openssl rand -hex 32`) and store in the
+# vault; api.env and screenshotter.env read the same value. Blank leaves the
+# sidecar unauthenticated (dev only) and still lets the API call it.
+kizuna_screenshotter_secret: "{{ vault_kizuna_screenshotter_secret | default('') }}"
+
+# Registry auth. Use a single GitLab deploy token scoped to
+# `read_registry` at the kizuna group level so one credential covers
+# both project registries.
+#   vault_kizuna_registry_username  (e.g. gitlab+deploy-token-N)
+#   vault_kizuna_registry_password
+kizuna_registry_url: https://registry.atelier.house
+kizuna_registry_username: "{{ vault_kizuna_registry_username | default('') }}"
+kizuna_registry_password: "{{ vault_kizuna_registry_password | default('') }}"
+
+# Public domains. CI bakes PUBLIC_KIZUNA_API_URL into the SPA bundle at
+# build time (see kizuna-app/.gitlab-ci.yml), so changing this here is
+# only half the story — also update the CI variable, then rebuild.
+kizuna_web_domain: kizuna.fm
+kizuna_api_domain: api.kizuna.fm
+kizuna_web_port: 80
+kizuna_api_port: 80
+kizuna_api_origin: "https://{{ kizuna_api_domain }}"
+kizuna_web_origin: "https://{{ kizuna_web_domain }}"
+
+# Container internals — the API listens on 80 inside the container (set
+# via the Dockerfile CMD: `bin/thrust bin/rails server -p 80`).
+kizuna_api_internal_port: 80
+
+# ---- Postgres (per-stack, matches the n8n role pattern) ----
+# 16-pgvector because the API code uses pgvector for embeddings.
+kizuna_postgres_image: pgvector/pgvector:pg16
+kizuna_postgres_db: kizuna_api_production
+kizuna_postgres_user: kizuna
+kizuna_postgres_password: "{{ vault_kizuna_postgres_password | default('') }}"
+
+# ---- Redis ----
+kizuna_redis_image: redis:7-alpine
+
+# ---- YouTube enrichment + archival ----
+# Server-side YouTube Data API v3 key used by the Sidekiq enrichment worker
+# for titles, duration, thumbnails, channel details, and availability. Keep
+# this out of the SPA; populate vault_kizuna_youtube_api_key in the Kizuna
+# vault. A blank key leaves YouTube blocks playable but skips rich metadata.
+kizuna_youtube_api_key: "{{ vault_kizuna_youtube_api_key | default('') }}"
+# Archival is enabled for production so newly enriched YouTube blocks are
+# downloaded by yt-dlp, normalized by ffmpeg, and stored in Garage. The same
+# api.env is consumed by Rails and Sidekiq, as required by the application.
+kizuna_video_archive_enabled: "1"
+kizuna_video_archive_sub_langs: "en.*,en"
+# Keep CPU-, network-, and disk-heavy yt-dlp/ffmpeg work serialized while the
+# default worker remains responsive to enrichment and application jobs.
+kizuna_media_worker_concurrency: 1
+# Optional Netscape-format cookies for videos the instance is authorized to
+# access but that require a signed-in session. Store the file contents—not a
+# host path—in the vault; the role mounts it read-only and gives yt-dlp an
+# ephemeral writable copy inside the media worker.
+kizuna_youtube_cookies: "{{ vault_kizuna_youtube_cookies | default('') }}"
+kizuna_youtube_cookies_container_path: /run/secrets/kizuna-youtube-cookies.txt
+
+# ---- Garage (S3) ----
+# Per-stack Garage instance. The dev rpc_secret in
+# kizuna-api/garage_config/garage.toml is for the local docker-compose
+# only; this template ships its own from the vault.
+kizuna_garage_image: dxflrs/garage:v2.3.0
+kizuna_garage_bucket: kizuna
+# Garage keeps its small SQLite metadata volume on the NUC, while the large
+# immutable object blocks live on the Files NAS share. This moves
+# uploaded media and archived videos off the NUC without changing the S3 API
+# consumed by Rails or the browser. Set false for an immediate rollback to the
+# retained Compose-managed local volume.
+kizuna_garage_data_nas_enabled: true
+kizuna_garage_data_nas_share: Files
+kizuna_garage_data_nas_seed_volume: kizuna-files-nas-root
+kizuna_garage_data_nas_subdirectory: Kizuna/Garage
+kizuna_garage_data_nfs_root_device: ":{{ nfs_base_path }}/{{ kizuna_garage_data_nas_share }}/.data"
+kizuna_garage_data_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_garage_data_nas_subdirectory }}"
+kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
+kizuna_garage_data_volume_name: kizuna-garage-data-nas
+kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
+kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
+# yt-dlp needs scratch space for the selected stream plus its merged/re-encoded
+# output. Keep that transient data on the Files NAS as well so best-quality
+# archives are not constrained by the NUC's root filesystem.
+kizuna_video_scratch_nas_enabled: true
+kizuna_video_scratch_nas_subdirectory: Kizuna/Scratch
+kizuna_video_scratch_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_video_scratch_nas_subdirectory }}"
+kizuna_video_scratch_nfs_options: "{{ nfs_base_opts }}"
+kizuna_video_scratch_volume_name: kizuna-video-scratch-nas
+kizuna_video_scratch_container_path: /var/lib/kizuna-video-scratch
+kizuna_storage_init_image: alpine:3.20
+# Public S3 endpoint. Garage's S3 API is internal-only on the backend
+# network; Traefik fronts it at this host so the browser can fetch image
+# bytes from the presigned GET URLs the API mints. Server-side object ops
+# still use the internal kizuna-garage:3900. Needs a DNS record for this
+# host pointing at the homelab, plus a Let's Encrypt cert (auto via Traefik).
+kizuna_garage_domain: files.kizuna.fm
+kizuna_garage_public_endpoint: "https://{{ kizuna_garage_domain }}"
+# Garage credentials. Generate with `garage key create` on first deploy
+# (see roles/kizuna/files/garage_bootstrap.sh) and store the output in
+# the vault; the API container reads these values straight from its env.
+kizuna_garage_access_key_id: "{{ vault_kizuna_garage_access_key_id | default('') }}"
+kizuna_garage_secret_access_key: "{{ vault_kizuna_garage_secret_access_key | default('') }}"
+# The rpc_secret seeds Garage's internal cluster-RPC HMAC. Even with a
+# single-node deploy Garage refuses to start without one; generate a
+# random 32-byte hex once with `openssl rand -hex 32` and store it.
+kizuna_garage_rpc_secret: "{{ vault_kizuna_garage_rpc_secret | default('') }}"
+# Garage admin token for the bootstrap script and any future ops calls.
+kizuna_garage_admin_token: "{{ vault_kizuna_garage_admin_token | default('') }}"
+kizuna_garage_metrics_token: "{{ vault_kizuna_garage_metrics_token | default('') }}"
+
+# ---- Rails secrets ----
+# `bin/rails secret` once; store in vault.
+kizuna_secret_key_base: "{{ vault_kizuna_secret_key_base | default('') }}"
+
+# ---- Active Record Encryption ----
+# Encrypts AI-connection API keys at rest (the only `encrypts` column).
+# Generate the three values ONCE with `bin/rails db:encryption:init` and
+# store in vault; the api + worker share them via api.env. NEVER rotate
+# once any connection is saved — changing a key orphans the ciphertext.
+#   vault_kizuna_ar_encryption_primary_key
+#   vault_kizuna_ar_encryption_deterministic_key
+#   vault_kizuna_ar_encryption_key_derivation_salt
+kizuna_ar_encryption_primary_key: "{{ vault_kizuna_ar_encryption_primary_key | default('') }}"
+kizuna_ar_encryption_deterministic_key: "{{ vault_kizuna_ar_encryption_deterministic_key | default('') }}"
+kizuna_ar_encryption_key_derivation_salt: "{{ vault_kizuna_ar_encryption_key_derivation_salt | default('') }}"
+
+# ---- OIDC against PocketID ----
+# Same shape as the Vane role. Register a Kizuna client in PocketID's
+# admin UI (https://id.atelier.house) with the redirect URI below, then
+# populate the vault entries:
+#   vault_kizuna_oidc_client_id
+#   vault_kizuna_oidc_client_secret
+kizuna_oidc_issuer: https://id.atelier.house
+kizuna_oidc_client_id: "{{ vault_kizuna_oidc_client_id | default('') }}"
+kizuna_oidc_client_secret: "{{ vault_kizuna_oidc_client_secret | default('') }}"
+kizuna_oidc_redirect_uri: "{{ kizuna_api_origin }}/auth/pocketid/callback"
+
+# The API callback is a top-level browser navigation, so it must return to
+# the SPA rather than render JSON. Keep target selection separate from its
+# security boundary even though production currently has one app origin.
+kizuna_app_url: "{{ kizuna_web_origin }}"
+kizuna_app_redirect_allowlist: "{{ kizuna_web_origin }}"
+
+# ---- CORS allowlist ----
+# Comma-separated list consumed by config/initializers/cors.rb; fail-
+# closed if empty.
+kizuna_allowed_origins: "{{ kizuna_web_origin }}"
+
+# ---- Cookie scope ----
+# Cookies are set on the parent domain so the SPA at kizuna.fm and the
+# API at api.kizuna.fm share session state.
+kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
+
+# ---- Shared web search ----
+# SearXNG is owned by the ai stack on max. Kizuna consumes that service;
+# this role must not deploy a second search container on nuc-mini.
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+kizuna_searxng_port: 8889
+kizuna_searxng_base_url: "http://{{ max_server_ip }}:{{ kizuna_searxng_port }}"
+kizuna_searxng_name: "Atelier SearXNG"
+kizuna_searxng_enabled: "true"
+kizuna_searxng_api_key: "{{ vault_kizuna_searxng_api_key | default('') }}"
+
+# The upload reaper is the stack's one scheduled hard-delete path. New
+# deployments start in audit-only mode; flip this to "0" in a dedicated
+# follow-up only after the production DRY_RUN output has been reviewed.
+kizuna_reaper_dry_run: "1"

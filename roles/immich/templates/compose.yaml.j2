@@ -1,0 +1,70 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: {{ immich_server_image }}
+    volumes:
+      - photos:{{ immich_media_location }}
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./env/immich.env
+    ports:
+      - '{{ immich_port }}:2283'
+    depends_on:
+      - immich-redis
+      - immich-database
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: {{ immich_ml_image }}
+{% if immich_ml_backend == 'openvino' %}
+    # Intel Arc iGPU. Upstream's openvino fragment also passes /dev/bus/usb and a
+    # 189:* cgroup rule for discontinued Myriad VPU sticks; omitted, no VPU here.
+    # The container runs as root so it needs no group_add to reach renderD128.
+    devices:
+      - /dev/dri:/dev/dri
+{% endif %}
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - ./env/immich.env
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-redis:
+    container_name: immich_redis
+    image: {{ immich_redis_image }}
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+
+  immich-database:
+    container_name: immich_postgres
+    image: {{ immich_db_image }}
+    env_file:
+      - ./env/immich.env
+    volumes:
+      - immich-pgdata:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: always
+
+volumes:
+  immich-pgdata:
+    external: true
+    name: immich-pgdata
+  model-cache:
+    name: immich-model-cache
+
+  photos:
+    external: true
+
+networks:
+  default:
+    name: {{ shared_network }}
+    external: true

@@ -1,0 +1,29 @@
+---
+# Stack identity
+stack_name: papra
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Papra settings
+papra_image: ghcr.io/papra-hq/papra:latest
+papra_port: 1221
+papra_external_port: 8787
+papra_base_url: "https://docs.atelier.house"
+papra_process_mode: all
+papra_database_url: "file:/app/app-data/db/db.sqlite"
+papra_storage_driver: filesystem
+papra_storage_root: /app/app-data/documents
+papra_registration_enabled: "false"
+papra_first_user_admin: "true"
+papra_ocr_languages: eng
+
+# Papra OIDC
+papra_oidc_provider_id: pocketid
+papra_oidc_provider_name: PocketID
+papra_oidc_discovery_url: "https://id.atelier.house/.well-known/openid-configuration"
+papra_oidc_scopes:
+  - openid
+  - profile
+  - email
+
+# Secrets defined in vault:
+# papra_auth_secret, papra_oidc_client_id, papra_oidc_client_secret

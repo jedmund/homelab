@@ -1,0 +1,11 @@
+---
+# Stack identity
+stack_name: plex
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Plex settings
+plex_image: lscr.io/linuxserver/plex:latest
+plex_port: 32400
+plex_transcode_path: "{{ config_base }}/transcode"
+plex_advertise_ip: "http://{{ ansible_host }}:{{ plex_port }}/"
+plex_libva_driver_name: "iHD"

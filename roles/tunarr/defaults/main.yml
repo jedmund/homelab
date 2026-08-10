@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: tunarr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Tunarr settings
+tunarr_image: chrisbenincasa/tunarr:latest
+tunarr_port: 8000
+tunarr_database_url: "file:/config/tunarr.db"

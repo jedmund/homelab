@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  gluetun:
+    image: {{ gluetun_image }}
+    container_name: gluetun
+    restart: {{ restart_policy }}
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    networks:
+      - vpn
+    env_file:
+      - ./env/gluetun.env
+    volumes:
+      - ./config:/gluetun
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/v1/openvpn/status"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  vpn:
+    name: vpn-network
+    internal: false

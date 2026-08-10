@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# SUPERSEDED / UNUSED: this is the legacy alias-IP-on-{{ kibble_onvif_bridge }}
+# approach.  tasks/main.yml no longer renders this template — it installs
+# the macvlan-child systemd unit (systemd/kibble-onvif-vips.service.j2)
+# and actively removes the deployed drop-in this once produced.  Kept for
+# reference only; do not re-enable without reworking adoption (alias IPs
+# all ARP back with the bridge MAC, so UniFi Protect can't tell the
+# feeders apart).  Addresses are /32 to avoid stealing the LAN subnet
+# route — see the systemd template for the full rationale.
+[Match]
+Name={{ kibble_onvif_bridge }}
+
+[Network]
+{% for ip in kibble_onvif_bind_ips %}
+Address={{ ip }}/32
+{% endfor %}

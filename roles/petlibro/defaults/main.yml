@@ -6,10 +6,10 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # ---------------------------------------------------------------------------
 # catbro-server (mock Petlibro cloud + embedded go2rtc) — github bobobo1618
 #
-# Disabled by default since feederhub (roles/utilities) now handles the live
+# Disabled by default since kibble now handles the live
 # MQTT bridge + video plane.  Catbro's only remaining purpose is protocol
 # research — flip this to true for capture sessions, then back to false so it
-# stops fighting feederhub for :8554 (RTSP) and :1984/8555.
+# stops fighting kibble for :8554 (RTSP) and :1984/8555.
 #
 # When enabled the repo gets cloned into <config_base>/src on the NUC and a
 # multi-stage Dockerfile builds it into a single binary container image.  Pin
@@ -54,10 +54,19 @@ petlibro_subnets:
 #   - one creds.toml block (binds device_sn -> tutk_uid)
 #   - one go2rtc stream named "petlibro_<friendly_name>" -> petlibro://<uid>
 #   - one Home Assistant camera entity (auto-discovered via MQTT)
+# local_ip lets a Kalay master answer "where is UID X?" without waiting
+# for the feeder's first KEEPALIVE; roles/kibble mirrors this list.
 petlibro_feeders:
   - device_sn: "AF03013D11C574RN1"
     tutk_uid: "JNGT5PBUAF61NKVS111A"
     friendly_name: "left_feeder"
+    local_ip: "192.168.1.180"
   - device_sn: "AF0301374F9901C5B"
     tutk_uid: "HFEY837GWWHWC27U111A"
     friendly_name: "right_feeder"
+    local_ip: "192.168.1.181"
+
+# The external kalay-mock systemd unit is retired: kibble runs Kalay
+# in-process (internal/kalay, `kibble_kalay_enabled: true` in
+# roles/kibble/).  The mock's scripts live in the petlibro app repo
+# (feeder-re/mock-kalay) if a standalone fallback is ever needed again.

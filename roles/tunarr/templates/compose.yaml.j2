@@ -1,0 +1,47 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  tunarr:
+    image: {{ tunarr_image }}
+    container_name: tunarr
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - {{ tunarr_port }}:8000
+    volumes:
+      - ./config:/config/tunarr
+      - videos:/data/videos:ro
+      - television:/data/television:ro
+      - anime:/data/anime:ro
+      - movies:/data/movies:ro
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - TZ={{ timezone }}
+      - DATABASE_URL={{ tunarr_database_url }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  videos:
+    name: videos
+    external: true
+  television:
+    name: television
+    external: true
+  anime:
+    name: anime
+    external: true
+  movies:
+    name: movies
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

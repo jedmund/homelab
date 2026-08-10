@@ -1,0 +1,28 @@
+---
+# Stack identity
+stack_name: homebox
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Homebox settings
+homebox_image: ghcr.io/sysadminsmedia/homebox:latest
+homebox_port: "7745"
+homebox_external_port: 3100
+homebox_domain: "box.atelier.house"
+homebox_log_level: "info"
+homebox_log_format: "text"
+homebox_max_upload_size: "10"
+homebox_allow_analytics: "false"
+homebox_allow_registration: "true"
+homebox_trust_proxy: "true"
+homebox_allow_local_login: "false"
+
+# Homebox OIDC
+homebox_oidc_enabled: "true"
+homebox_oidc_issuer_url: "https://id.atelier.house"
+homebox_oidc_scope: "openid profile email"
+homebox_oidc_button_text: "Sign in with PocketID"
+homebox_oidc_auto_redirect: "false"
+homebox_oidc_verify_email: "false"
+
+# Secrets defined in vault:
+# homebox_oidc_client_id, homebox_oidc_client_secret

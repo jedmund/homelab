@@ -1,0 +1,6 @@
+---
+- name: Deploy Tunarr stack
+  hosts: tunarr
+  become: true
+  roles:
+    - tunarr

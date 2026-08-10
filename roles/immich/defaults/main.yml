@@ -1,0 +1,47 @@
+---
+# Stack identity
+stack_name: immich
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Immich settings
+# Major-version metatag, not a point release: Komodo pulls new point updates
+# (v3.0.4, v3.1.0, ...) without an Ansible deploy. Bumping the major is a
+# deliberate change here, so v4's one-way schema migrations can't land
+# unreviewed.
+immich_version: v3
+immich_server_image: "ghcr.io/immich-app/immich-server:{{ immich_version }}"
+
+# Machine learning inference backend, appended to the ML image tag. nuc-mini has
+# an Intel Arc iGPU (Arrow Lake-P, /dev/dri/renderD128) that was sitting unused,
+# so CLIP and face detection run through OpenVINO rather than on the CPU.
+#
+# Not cuda: max's Blackwell cards are sm_120, and the onnxruntime-gpu wheels
+# Immich pins ship kernels only up to sm_90, so CUDAExecutionProvider fails to
+# load there and inference silently falls back to the CPU. Revisit if upstream
+# onnxruntime starts shipping sm_120.
+#
+# Set to "" for the plain CPU image.
+immich_ml_backend: openvino
+immich_ml_image: "ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}{{ '-' + immich_ml_backend if immich_ml_backend else '' }}"
+immich_db_image: "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23"
+immich_redis_image: "docker.io/valkey/valkey:9@sha256:4963247afc4cd33c7d3b2d2816b9f7f8eeebab148d29056c2ca4d7cbc966f2d9"
+immich_port: 2283
+immich_server_url: "https://photos.atelier.house"
+
+# Media location. Upstream's default is /data; this stack predates that move and
+# still holds every DB path under the legacy /usr/src/app/upload prefix. Pinning
+# the value drives both the volume mount and IMMICH_MEDIA_LOCATION from one place
+# and short-circuits the server's boot-time path detection, which otherwise
+# guesses between /data and /usr/src/app/upload. Changing this var to /data
+# triggers an automatic one-shot rewrite of the stored paths on next boot; do
+# that on its own, not alongside a version bump.
+immich_media_location: /usr/src/app/upload
+
+# Immich database
+immich_db_hostname: immich-database
+immich_db_username: postgres
+immich_db_name: immich
+immich_redis_hostname: immich-redis
+
+# Secrets defined in vault:
+# immich_db_password

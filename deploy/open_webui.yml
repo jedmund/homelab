@@ -1,0 +1,6 @@
+---
+- name: Deploy open_webui stack
+  hosts: open_webui
+  become: true
+  roles:
+    - open_webui

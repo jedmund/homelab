@@ -1,0 +1,351 @@
+---
+# Kizuna stack — SvelteKit SPA (kizuna-app) + Rails API (kizuna-api)
+# + Sidekiq worker + Postgres + Redis + Garage S3.  Images are built
+# in GitLab CI and pulled here; this role does not build from source.
+#
+# Bootstrap ordering (one-time, manual):
+#   1. Populate vault entries — see roles/kizuna/defaults/main.yml.
+#   2. First `make deploy-kizuna` brings up the stack.  Garage starts
+#      with no cluster layout, no key, no bucket — the SPA can boot
+#      but media uploads fail until step 3.
+#   3. SSH to the host and run `roles/kizuna/files/garage_bootstrap.sh`
+#      to assign a cluster layout, create the Kizuna bucket, and
+#      either import the vault-supplied access key or print one to
+#      add to the vault.  Idempotent; re-run after any vault edit.
+#   4. Register a Komodo Stack resource named `kizuna` (the value of
+#      KOMODO_KIZUNA_STACK in CI) pointing at /opt/docker/kizuna with
+#      files_on_host=true so CI-triggered redeploys land on the same
+#      compose Ansible just rendered.
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/secrets"
+    - "{{ config_base }}/config/garage"
+
+- name: Deploy Garage config
+  template:
+    src: garage.toml.j2
+    dest: "{{ config_base }}/config/garage/garage.toml"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - api
+    - postgres
+    - garage
+    - screenshotter
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy optional YouTube cookies
+  template:
+    src: secrets/youtube-cookies.txt.j2
+    dest: "{{ config_base }}/secrets/youtube-cookies.txt"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Stage Garage bootstrap script
+  copy:
+    src: garage_bootstrap.sh
+    dest: "{{ config_base }}/garage_bootstrap.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0750'
+
+- name: Authenticate with Kizuna image registry
+  community.docker.docker_login:
+    registry_url: "{{ kizuna_registry_url }}"
+    username: "{{ kizuna_registry_username }}"
+    password: "{{ kizuna_registry_password }}"
+  when: kizuna_registry_username | length > 0 and kizuna_registry_password | length > 0
+  no_log: true
+
+- name: Prepare NAS-backed Garage object storage
+  when: kizuna_garage_data_nas_enabled
+  block:
+    - name: Create Files-root NFS bootstrap volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_nas_seed_volume }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_garage_data_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_root_device }}"
+        state: present
+
+    - name: Create Kizuna Garage data directory on the NAS
+      community.docker.docker_container:
+        name: kizuna-garage-nas-init
+        image: "{{ kizuna_storage_init_image }}"
+        command:
+          - mkdir
+          - -p
+          - "/nas/{{ kizuna_garage_data_nas_subdirectory }}"
+        volumes:
+          - "{{ kizuna_garage_data_nas_seed_volume }}:/nas"
+        network_mode: none
+        detach: false
+        cleanup: true
+        state: started
+      changed_when: false
+
+    - name: Create dedicated Kizuna Garage NFS volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_volume_name }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_garage_data_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_device }}"
+        state: present
+
+    - name: Inspect legacy local Garage data volume
+      community.docker.docker_volume_info:
+        name: "{{ kizuna_garage_legacy_data_volume_name }}"
+      register: kizuna_garage_legacy_data_volume
+
+    - name: Check whether Garage data already migrated to the NAS
+      ansible.builtin.stat:
+        path: "{{ kizuna_garage_data_migration_marker }}"
+      register: kizuna_garage_data_migration
+
+    - name: Migrate existing Garage object blocks to the NAS
+      when:
+        - kizuna_garage_legacy_data_volume.exists
+        - not kizuna_garage_data_migration.stat.exists
+      block:
+        - name: Stop Kizuna services for a consistent Garage data copy
+          community.docker.docker_compose_v2:
+            project_src: "{{ config_base }}"
+            services:
+              - kizuna-api
+              - kizuna-worker
+              - kizuna-media-worker
+              - kizuna-garage
+            state: stopped
+
+        - name: Copy legacy Garage object blocks to the NAS
+          community.docker.docker_container:
+            name: kizuna-garage-data-migration
+            image: "{{ kizuna_storage_init_image }}"
+            command:
+              - sh
+              - -c
+              - cp -R /source/. /destination/ && sync
+            volumes:
+              - "{{ kizuna_garage_legacy_data_volume_name }}:/source:ro"
+              - "{{ kizuna_garage_data_volume_name }}:/destination"
+            network_mode: none
+            detach: false
+            cleanup: true
+            state: started
+
+        - name: Record successful Garage NAS migration
+          ansible.builtin.file:
+            path: "{{ kizuna_garage_data_migration_marker }}"
+            state: touch
+            owner: "{{ ansible_user }}"
+            mode: '0600'
+      rescue:
+        - name: Restart existing Kizuna containers after migration failure
+          community.docker.docker_container:
+            name: "{{ item.name }}"
+            image: "{{ item.image }}"
+            state: started
+            comparisons:
+              image: ignore
+          loop:
+            - name: kizuna-garage
+              image: "{{ kizuna_garage_image }}"
+            - name: kizuna-api
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+            - name: kizuna-worker
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+            - name: kizuna-media-worker
+              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+
+        - name: Stop deployment after Garage migration failure
+          ansible.builtin.fail:
+            msg: >-
+              Garage data migration failed. Existing containers were restarted
+              against the retained local volume; inspect the migration error
+              before retrying.
+
+- name: Prepare NAS-backed video archive scratch space
+  when: kizuna_video_scratch_nas_enabled
+  block:
+    - name: Create Files-root NFS bootstrap volume for video scratch
+      community.docker.docker_volume:
+        name: "{{ kizuna_garage_data_nas_seed_volume }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_video_scratch_nfs_options }}"
+          device: "{{ kizuna_garage_data_nfs_root_device }}"
+        state: present
+
+    - name: Create writable Kizuna video scratch directory on the NAS
+      community.docker.docker_container:
+        name: kizuna-video-scratch-nas-init
+        image: "{{ kizuna_storage_init_image }}"
+        command:
+          - sh
+          - -ec
+          - >-
+            mkdir -p "/nas/{{ kizuna_video_scratch_nas_subdirectory }}";
+            chmod 0777 "/nas/{{ kizuna_video_scratch_nas_subdirectory }}"
+        volumes:
+          - "{{ kizuna_garage_data_nas_seed_volume }}:/nas"
+        network_mode: none
+        detach: false
+        cleanup: true
+        state: started
+      changed_when: false
+
+    - name: Create dedicated Kizuna video scratch NFS volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_video_scratch_volume_name }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ kizuna_video_scratch_nfs_options }}"
+          device: "{{ kizuna_video_scratch_nfs_device }}"
+        state: present
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 180
+  register: compose_result
+
+- name: Provision Kizuna agent tool connections
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - agent_tools:provision
+  register: kizuna_agent_tools_provision
+  changed_when: >-
+    'created searxng' in kizuna_agent_tools_provision.stdout or
+    'updated searxng' in kizuna_agent_tools_provision.stdout
+
+# Search documents are a rebuildable projection. Running this after every
+# healthy deploy covers both first-time migrations and any rows missed while
+# the projection was unavailable; the Rails task only saves changed rows.
+- name: Backfill Kizuna search documents
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - search:backfill
+  changed_when: false
+
+# The one-time garage_bootstrap.sh handles layout + bucket + key creation
+# (the key secret has to be captured into the vault by a human). But its two
+# idempotent, declarative steps — granting the key access and setting CORS —
+# are wired here so every deploy self-heals them. This is what was missing in
+# prod: the key existed with NO bucket permission (so the app couldn't store
+# media) and CORS was unset (so browser presigned-PUT uploads would fail).
+# Both `allow` and `set-cors` are no-ops once applied. Gated on the vault key
+# being present and the bucket existing, so a pre-bootstrap host skips cleanly.
+- name: Ensure Garage bucket access + CORS
+  when: kizuna_garage_access_key_id | length > 0
+  block:
+    - name: Check the Garage bucket exists
+      command: docker exec kizuna-garage /garage bucket info {{ kizuna_garage_bucket }}
+      register: kizuna_garage_bucket_info
+      changed_when: false
+      failed_when: false
+
+    - name: Grant the API key read+write+owner on the bucket
+      command: >-
+        docker exec kizuna-garage /garage bucket allow
+        --read --write --owner {{ kizuna_garage_bucket }}
+        --key {{ kizuna_garage_access_key_id }}
+      changed_when: false
+      when: kizuna_garage_bucket_info.rc == 0
+
+    # Garage v2.3.0's CLI has no `bucket set-cors`; CORS is an S3-API config
+    # (PutBucketCors). Set it through the API's own aws-sdk client (already in
+    # the image) so the SPA's cross-origin presigned PUT uploads are allowed.
+    # argv form avoids shell/shlex quoting of the inline script. Idempotent.
+    - name: Allow the SPA origin to upload via CORS (S3 PutBucketCors)
+      command:
+        argv:
+          - docker
+          - exec
+          - kizuna-api
+          - bin/rails
+          - runner
+          - |
+            require "aws-sdk-s3"
+            client = Aws::S3::Client.new(
+              endpoint: ENV.fetch("KIZUNA_S3_ENDPOINT"),
+              region: ENV.fetch("KIZUNA_S3_REGION", "garage"),
+              access_key_id: ENV.fetch("KIZUNA_S3_ACCESS_KEY_ID"),
+              secret_access_key: ENV.fetch("KIZUNA_S3_SECRET_ACCESS_KEY"),
+              force_path_style: true
+            )
+            client.put_bucket_cors(
+              bucket: ENV.fetch("KIZUNA_S3_BUCKET"),
+              cors_configuration: {cors_rules: [{
+                allowed_origins: ["{{ kizuna_web_origin }}"],
+                allowed_methods: %w[GET PUT POST DELETE],
+                allowed_headers: ["Content-Type"],
+                expose_headers: ["ETag"]
+              }]}
+            )
+      changed_when: false
+      when: kizuna_garage_bucket_info.rc == 0
+
+- name: Print post-deploy reminder
+  debug:
+    msg: |
+      {{ stack_name }} stack deployed.
+
+      If this is the first deploy:
+        1. ssh into the host and run:
+             cd {{ config_base }} && ./garage_bootstrap.sh
+           Re-run any time vault Garage credentials change.
+        2. Register a Komodo Stack named "kizuna" (files_on_host=true,
+           project_src={{ config_base }}) so CI-triggered redeploys
+           target the same compose.
+        3. Set CI variables in BOTH GitLab projects (kizuna-api and
+           kizuna-app):
+             KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
+             KOMODO_KIZUNA_STACK=kizuna
+        4. kizuna-app additionally needs:
+             FONTAWESOME_NPM_AUTH_TOKEN
+             PUBLIC_KIZUNA_API_URL={{ kizuna_api_origin }}

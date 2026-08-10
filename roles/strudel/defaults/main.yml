@@ -1,0 +1,9 @@
+---
+# Stack identity
+stack_name: strudel
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Strudel settings
+strudel_image: strudel:local
+strudel_port: 80
+strudel_domain: strudel.atelier.house

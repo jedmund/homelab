@@ -1,6 +1,0 @@
----
-- name: Deploy productivity stack
-  hosts: productivity
-  become: yes
-  roles:
-    - productivity

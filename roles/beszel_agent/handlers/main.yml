@@ -1,0 +1,15 @@
+---
+- name: Restart Beszel agent stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_agent_config_base }}"
+    state: present
+    remove_orphans: true
+    recreate: always
+  when: ansible_facts['os_family'] != 'Darwin'
+  listen: Restart Beszel agent
+
+- name: Restart Beszel agent Homebrew service
+  ansible.builtin.command: brew services restart beszel-agent
+  changed_when: true
+  when: ansible_facts['os_family'] == 'Darwin'
+  listen: Restart Beszel agent

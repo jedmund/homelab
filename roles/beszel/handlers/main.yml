@@ -1,0 +1,7 @@
+---
+- name: Restart Beszel stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_config_base }}"
+    state: present
+    remove_orphans: true
+    recreate: always

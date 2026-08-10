@@ -1,5 +1,5 @@
 # Homelab Ansible Makefile
-.PHONY: help deploy-all deploy-infra deploy-media deploy-kaneo check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags
+.PHONY: help deploy-all deploy-infra deploy-media deploy-kaneo check syntax lint encrypt decrypt edit-vault clean test list-hosts list-tags migrate-hugginghack-models migrate-hugginghack-models-apply
 
 # Colors for output
 RED := \033[0;31m
@@ -13,6 +13,7 @@ ANSIBLE := ansible-playbook
 INVENTORY := inventory/hosts.yml
 VAULT_PASS := ~/.ansible-vault-pass
 ANSIBLE_CONFIG := ansible.cfg
+FILES_ROOT ?= /Volumes/Files
 
 # Check if vault password file exists
 VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS),--ask-vault-pass)
@@ -44,6 +45,8 @@ setup: ## Initial setup - create ansible.cfg and vault password file
 	else \
 		echo "$(YELLOW)Vault password file already exists$(NC)"; \
 	fi
+	@echo "$(BLUE)Installing required collections (user scope)...$(NC)"
+	@ansible-galaxy collection install -r requirements.yml -p $(HOME)/.ansible/collections
 
 ##@ Deployment - Full Stack
 
@@ -69,49 +72,190 @@ deploy-infra-core: ## Deploy infrastructure core (Komodo, MongoDB)
 	@echo "$(BLUE)Deploying infrastructure core...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_core.yml $(VAULT_FLAG)
 
+deploy-infra-periphery: ## Deploy Komodo Periphery agent (max)
+	@echo "$(BLUE)Deploying Komodo Periphery agent...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_periphery.yml $(VAULT_FLAG)
+
 deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
 
+deploy-beszel: ## Deploy Beszel monitoring hub
+	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
+
+deploy-beszel-agents: ## Deploy Beszel agents on monitored machines
+	@echo "$(BLUE)Deploying Beszel agents...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
+
+deploy-monitoring: ## Deploy Beszel hub and agents
+	@echo "$(BLUE)Deploying monitoring stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
+	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
+
 ##@ Deployment - Media
 
-deploy-media: ## Deploy all media services (acquisition + musicbrainz + consumption)
+deploy-media: ## Deploy all media services
 	@echo "$(BLUE)Deploying media stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags media
-
-deploy-media-acquisition: ## Deploy media acquisition (Sonarr, Radarr, etc.)
-	@echo "$(BLUE)Deploying media acquisition...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG)
 
 deploy-musicbrainz: ## Deploy MusicBrainz mirror
 	@echo "$(BLUE)Deploying MusicBrainz mirror...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/musicbrainz.yml $(VAULT_FLAG)
 
-deploy-media-consumption: ## Deploy media consumption (Plex, Kavita, etc.)
-	@echo "$(BLUE)Deploying media consumption...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG)
+##@ Deployment - Product Stacks
 
-deploy-reading: ## Deploy reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
-	@echo "$(BLUE)Deploying reading stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG)
+deploy-gluetun: ## Deploy Gluetun
+	@echo "$(BLUE)Deploying Gluetun...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gluetun.yml $(VAULT_FLAG)
 
-deploy-reading-check: ## Dry-run of reading stack deployment
-	@echo "$(BLUE)Checking reading deployment (dry-run)...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/reading.yml $(VAULT_FLAG) --check --diff
+deploy-prowlarr: ## Deploy Prowlarr
+	@echo "$(BLUE)Deploying Prowlarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/prowlarr.yml $(VAULT_FLAG)
 
-##@ Deployment - Future Stacks
+deploy-qbittorrent: ## Deploy qBittorrent
+	@echo "$(BLUE)Deploying qBittorrent...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/qbittorrent.yml $(VAULT_FLAG)
 
-deploy-content-management: ## Deploy content management stack
-	@echo "$(BLUE)Deploying content management...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/content_management.yml $(VAULT_FLAG)
+deploy-sonarr: ## Deploy Sonarr
+	@echo "$(BLUE)Deploying Sonarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sonarr.yml $(VAULT_FLAG)
 
-deploy-dev: ## Deploy development stack
-	@echo "$(BLUE)Deploying development stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/development.yml $(VAULT_FLAG)
+deploy-radarr: ## Deploy Radarr
+	@echo "$(BLUE)Deploying Radarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/radarr.yml $(VAULT_FLAG)
 
-deploy-productivity: ## Deploy productivity stack
-	@echo "$(BLUE)Deploying productivity stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/productivity.yml $(VAULT_FLAG)
+deploy-lidarr: ## Deploy Lidarr
+	@echo "$(BLUE)Deploying Lidarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/lidarr.yml $(VAULT_FLAG)
+
+deploy-seerr: ## Deploy Seerr
+	@echo "$(BLUE)Deploying Seerr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/seerr.yml $(VAULT_FLAG)
+
+deploy-unpackerr: ## Deploy Unpackerr
+	@echo "$(BLUE)Deploying Unpackerr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/unpackerr.yml $(VAULT_FLAG)
+
+deploy-jdownloader: ## Deploy JDownloader
+	@echo "$(BLUE)Deploying JDownloader...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/jdownloader.yml $(VAULT_FLAG)
+
+deploy-pinchflat: ## Deploy Pinchflat
+	@echo "$(BLUE)Deploying Pinchflat...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/pinchflat.yml $(VAULT_FLAG)
+
+deploy-slskd: ## Deploy slskd
+	@echo "$(BLUE)Deploying slskd...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/slskd.yml $(VAULT_FLAG)
+
+deploy-qui: ## Deploy Qui
+	@echo "$(BLUE)Deploying Qui...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/qui.yml $(VAULT_FLAG)
+
+deploy-immich: ## Deploy Immich
+	@echo "$(BLUE)Deploying Immich...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/immich.yml $(VAULT_FLAG)
+
+deploy-papra: ## Deploy Papra
+	@echo "$(BLUE)Deploying Papra...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/papra.yml $(VAULT_FLAG)
+
+deploy-homebox: ## Deploy Homebox
+	@echo "$(BLUE)Deploying Homebox...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/homebox.yml $(VAULT_FLAG)
+
+deploy-album-sort: ## Deploy Album Sort
+	@echo "$(BLUE)Deploying Album Sort...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+
+deploy-romm: ## Deploy RomM
+	@echo "$(BLUE)Deploying RomM...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/romm.yml $(VAULT_FLAG)
+
+deploy-plex: ## Deploy Plex
+	@echo "$(BLUE)Deploying Plex...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/plex.yml $(VAULT_FLAG)
+
+deploy-multi-scrobbler: ## Deploy Multi-Scrobbler
+	@echo "$(BLUE)Deploying Multi-Scrobbler...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/multi_scrobbler.yml $(VAULT_FLAG)
+
+deploy-tunarr: ## Deploy Tunarr
+	@echo "$(BLUE)Deploying Tunarr...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/tunarr.yml $(VAULT_FLAG)
+
+deploy-stash: ## Deploy Stash
+	@echo "$(BLUE)Deploying Stash...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/stash.yml $(VAULT_FLAG)
+
+deploy-dawarich: ## Deploy Dawarich
+	@echo "$(BLUE)Deploying Dawarich...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/dawarich.yml $(VAULT_FLAG)
+
+deploy-miniflux: ## Deploy Miniflux, Reactflux, and FiveFilters
+	@echo "$(BLUE)Deploying Miniflux...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/miniflux.yml $(VAULT_FLAG)
+
+deploy-karakeep: ## Deploy Karakeep
+	@echo "$(BLUE)Deploying Karakeep...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/karakeep.yml $(VAULT_FLAG)
+
+deploy-kavita: ## Deploy Kavita
+	@echo "$(BLUE)Deploying Kavita...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kavita.yml $(VAULT_FLAG)
+
+deploy-strudel: ## Deploy Strudel
+	@echo "$(BLUE)Deploying Strudel...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/strudel.yml $(VAULT_FLAG)
+
+deploy-obsidian-livesync: ## Deploy Obsidian LiveSync
+	@echo "$(BLUE)Deploying Obsidian LiveSync...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/obsidian_livesync.yml $(VAULT_FLAG)
+
+deploy-gitlab: ## Deploy GitLab, Docker runner, and Renovate
+	@echo "$(BLUE)Deploying GitLab...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gitlab.yml $(VAULT_FLAG)
+
+deploy-open-webui: ## Deploy Open WebUI
+	@echo "$(BLUE)Deploying Open WebUI...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/open_webui.yml $(VAULT_FLAG)
+
+deploy-paseo-relay: ## Deploy Paseo Relay
+	@echo "$(BLUE)Deploying Paseo Relay...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/paseo_relay.yml $(VAULT_FLAG)
+
+deploy-agents-linux: ## Deploy agent tooling (Linux) on nuc-mini
+	@echo "$(BLUE)Deploying agent tooling (Linux)...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/agents_linux.yml $(VAULT_FLAG)
+
+deploy-n8n: ## Deploy n8n
+	@echo "$(BLUE)Deploying n8n...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/n8n.yml $(VAULT_FLAG)
+
+deploy-changedetection: ## Deploy ChangeDetection
+	@echo "$(BLUE)Deploying ChangeDetection...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/changedetection.yml $(VAULT_FLAG)
+
+deploy-copyparty: ## Deploy Copyparty
+	@echo "$(BLUE)Deploying Copyparty...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/copyparty.yml $(VAULT_FLAG)
+
+deploy-hugginghack: ## Deploy HuggingHack (HF model browser) on nuc-mini
+	@echo "$(BLUE)Deploying HuggingHack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/hugginghack.yml $(VAULT_FLAG)
+
+migrate-hugginghack-models: ## Preview migration of Files/models into HuggingHack
+	@./scripts/migrate-hugginghack-models.sh --files-root "$(FILES_ROOT)"
+
+migrate-hugginghack-models-apply: ## Apply migration of Files/models into HuggingHack
+	@./scripts/migrate-hugginghack-models.sh --files-root "$(FILES_ROOT)" --apply
+
+##@ Deployment - Application Stacks
+
+deploy-dev: ## Deploy development product stacks on nuc-mini
+	@echo "$(BLUE)Deploying development product stacks...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags gitlab,open_webui,paseo_relay
 
 deploy-kaneo: ## Deploy Kaneo project management stack
 	@echo "$(BLUE)Deploying Kaneo stack...$(NC)"
@@ -121,9 +265,21 @@ deploy-social: ## Deploy social stack
 	@echo "$(BLUE)Deploying social stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/social.yml $(VAULT_FLAG)
 
-deploy-utilities: ## Deploy utilities stack (n8n, changedetection, copyparty, feederhub, Vane)
-	@echo "$(BLUE)Deploying utilities stack...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/utilities.yml $(VAULT_FLAG)
+deploy-vane: ## Deploy Vane stack
+	@echo "$(BLUE)Deploying Vane stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/vane.yml $(VAULT_FLAG)
+
+deploy-kibble: ## Deploy kibble stack
+	@echo "$(BLUE)Deploying kibble stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kibble.yml $(VAULT_FLAG)
+
+deploy-kizuna: ## Deploy Kizuna stack (kizuna-api + kizuna-app + worker + pg + redis + garage)
+	@echo "$(BLUE)Deploying Kizuna stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/kizuna.yml $(VAULT_FLAG)
+
+deploy-frp: ## Deploy frp tunnel proxy
+	@echo "$(BLUE)Deploying frp tunnel proxy...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/frp.yml $(VAULT_FLAG)
 
 deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
@@ -133,8 +289,8 @@ deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 
-deploy-ai-split: ## Deploy AI stack in split mode and bring SGLang DeepSeek V4 Flash up on GPUs 0,1
-	@echo "$(BLUE)Deploying AI stack in split mode + starting SGLang...$(NC)"
+deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM DeepSeek V4 Flash up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
+	@echo "$(BLUE)Deploying AI stack in split mode + starting vLLM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
 
 deploy-ai-shared: ## Deploy AI stack in shared mode (llama-swap on all 3 GPUs, split stacks torn down)
@@ -148,6 +304,14 @@ deploy-vllm: ## Deploy vLLM stack on max (compose rendered; bring DeepSeek up vi
 deploy-sglang: ## Deploy SGLang stack on max (parked: DSV4 NVFP4 fails strict-config load; see roles/sglang/README.md)
 	@echo "$(BLUE)Deploying SGLang stack (parked, see role README)...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/sglang.yml $(VAULT_FLAG)
+
+deploy-development-macos: ## Deploy GitLab Runner (shell executor) on mac-mini
+	@echo "$(BLUE)Deploying development (macOS) stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/development_macos.yml $(VAULT_FLAG)
+
+deploy-development-linux: ## Deploy GitLab Runner (docker executor) on max
+	@echo "$(BLUE)Deploying development (Linux) stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/development_linux.yml $(VAULT_FLAG)
 
 deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"
@@ -171,18 +335,6 @@ deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
 
-deploy-plex: ## Deploy only Plex
-	@echo "$(BLUE)Deploying Plex...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_consumption.yml $(VAULT_FLAG) --tags plex
-
-deploy-sonarr: ## Deploy only Sonarr
-	@echo "$(BLUE)Deploying Sonarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags sonarr
-
-deploy-radarr: ## Deploy only Radarr
-	@echo "$(BLUE)Deploying Radarr...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/media_acquisition.yml $(VAULT_FLAG) --tags radarr
-
 ##@ Testing & Validation
 
 check: syntax lint ## Run all checks (syntax + lint)
@@ -195,12 +347,13 @@ syntax: ## Check playbook syntax
 	done
 	@echo "$(GREEN)All playbooks passed syntax check$(NC)"
 
-lint: ## Lint playbooks with ansible-lint
-	@echo "$(BLUE)Linting playbooks...$(NC)"
+lint: ## Lint the whole repo with ansible-lint (config in .ansible-lint / .yamllint)
+	@echo "$(BLUE)Linting repo...$(NC)"
 	@if command -v ansible-lint >/dev/null 2>&1; then \
-		ansible-lint deploy/*.yml || true; \
+		ansible-lint; \
 	else \
-		echo "$(YELLOW)ansible-lint not installed. Install with: pip install ansible-lint$(NC)"; \
+		echo "$(RED)ansible-lint not installed. Install with: brew install ansible-lint$(NC)"; \
+		exit 1; \
 	fi
 
 dry-run: ## Dry-run full deployment (check mode)

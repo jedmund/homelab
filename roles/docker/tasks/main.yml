@@ -1,7 +1,7 @@
 ---
 - name: Update apt cache
   apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Install prerequisites
@@ -12,6 +12,7 @@
       - curl
       - gnupg
       - lsb-release
+      - python3-debian
     state: present
 
 - name: Create keyrings directory
@@ -20,11 +21,13 @@
     state: directory
     mode: '0755'
 
-- name: Add Docker GPG key
-  apt_key:
+- name: Download Docker repository signing key
+  ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    keyring: /etc/apt/keyrings/docker.gpg
-    state: present
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Get architecture
   command: dpkg --print-architecture
@@ -32,10 +35,34 @@
   changed_when: false
 
 - name: Add Docker repository
-  apt_repository:
-    repo: "deb [arch={{ arch_output.stdout }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+  ansible.builtin.deb822_repository:
+    name: docker
+    types:
+      - deb
+    uris:
+      - https://download.docker.com/linux/ubuntu
+    suites:
+      - "{{ ansible_facts['distribution_release'] }}"
+    components:
+      - stable
+    architectures:
+      - "{{ arch_output.stdout }}"
+    signed_by: /etc/apt/keyrings/docker.asc
     state: present
-    filename: docker
+  register: docker_repository
+
+- name: Remove legacy Docker repository files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/keyrings/docker.gpg
+
+- name: Update apt cache for Docker repository
+  ansible.builtin.apt:
+    update_cache: true
+  when: docker_repository is changed
 
 - name: Install Docker packages
   apt:
@@ -46,7 +73,7 @@
       - docker-compose-plugin
       - python3-docker
     state: present
-  notify: restart docker
+  notify: Restart docker
 
 - name: Ensure docker group exists
   group:
@@ -57,7 +84,7 @@
   user:
     name: "{{ ansible_user }}"
     groups: docker
-    append: yes
+    append: true
 
 - name: Configure Docker daemon
   copy:
@@ -79,7 +106,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: restart docker
+  notify: Restart docker
 
 - name: Install nas-reachable.service
   template:
@@ -89,8 +116,8 @@
     group: root
     mode: '0644'
   notify:
-    - reload systemd
-    - restart docker
+    - Reload systemd
+    - Restart docker
 
 - name: Create docker.service.d drop-in directory
   file:
@@ -108,14 +135,14 @@
     group: root
     mode: '0644'
   notify:
-    - reload systemd
-    - restart docker
+    - Reload systemd
+    - Restart docker
 
 - name: Enable nas-reachable.service
   systemd:
     name: nas-reachable
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Install docker-stacks-up.service
   template:
@@ -124,19 +151,19 @@
     owner: root
     group: root
     mode: '0644'
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Enable docker-stacks-up.service
   systemd:
     name: docker-stacks-up
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Enable Docker is running
   service:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Schedule weekly Docker prune
   ansible.builtin.cron:

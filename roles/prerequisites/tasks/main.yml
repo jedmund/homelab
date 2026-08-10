@@ -2,7 +2,7 @@
 # Ensure host has working DNS (fixes systemd-resolved issues with AdGuard)
 # This runs first to ensure we can download packages and keys
 - name: Check if DNS resolution is working
-  shell: getent hosts registry-1.docker.io
+  command: getent hosts registry-1.docker.io
   register: dns_check
   failed_when: false
   changed_when: false
@@ -33,8 +33,9 @@
     name:
       - zsh
       - sqlite3
+      - python3-debian
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Ensure keyrings directory exists
   file:
@@ -42,23 +43,41 @@
     state: directory
     mode: '0755'
 
-- name: Add eza GPG key
-  apt_key:
+- name: Download eza repository signing key
+  ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/eza-community/eza/main/deb.asc
-    keyring: /etc/apt/keyrings/gierens.gpg
-    state: present
+    dest: /etc/apt/keyrings/gierens.asc
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Add eza repository
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main"
+  ansible.builtin.deb822_repository:
+    name: gierens
+    types:
+      - deb
+    uris:
+      - http://deb.gierens.de
+    suites:
+      - stable
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/gierens.asc
     state: present
-    filename: gierens
+
+- name: Remove legacy eza repository files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/gierens.list
+    - /etc/apt/keyrings/gierens.gpg
 
 - name: Install eza
   apt:
     name: eza
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Check if oh-my-zsh is installed
   stat:
@@ -66,6 +85,7 @@
   register: ohmyzsh_installed
 
 - name: Install oh-my-zsh
+  become: true
   become_user: "{{ ansible_user }}"
   shell: |
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
@@ -79,23 +99,40 @@
     shell: /bin/zsh
 
 # GitHub CLI (gh)
-- name: Add GitHub CLI GPG key
-  apt_key:
+- name: Download GitHub CLI repository signing key
+  ansible.builtin.get_url:
     url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
-    keyring: /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    state: present
+    dest: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Add GitHub CLI repository
-  apt_repository:
-    repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+  ansible.builtin.deb822_repository:
+    name: github-cli
+    types:
+      - deb
+    uris:
+      - https://cli.github.com/packages
+    suites:
+      - stable
+    components:
+      - main
+    architectures:
+      - "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+    signed_by: /etc/apt/keyrings/githubcli-archive-keyring.gpg
     state: present
-    filename: github-cli
+
+- name: Remove legacy GitHub CLI repository definition
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/github-cli.list
+    state: absent
 
 - name: Install GitHub CLI
   apt:
     name: gh
     state: present
-    update_cache: yes
+    update_cache: true
 
 # GitLab CLI (glab). Installed from the official .deb on GitLab
 # releases rather than packages.gitlab.com — the latter stopped
@@ -104,7 +141,7 @@
 #   https://gitlab.com/gitlab-org/cli/-/releases
 - name: Install GitLab CLI (glab) from official .deb
   vars:
-    glab_version: "1.99.0"
+    glab_version: "1.109.0"
     glab_arch: "{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
   block:
     - name: Download glab .deb
@@ -125,12 +162,14 @@
     state: present
 
 - name: Install HuggingFace CLI via pipx
+  become: true
   become_user: "{{ ansible_user }}"
   command: pipx install "huggingface_hub[cli]"
   args:
     creates: "/home/{{ ansible_user }}/.local/bin/hf"
 
 - name: Ensure pipx bin dir is on PATH
+  become: true
   become_user: "{{ ansible_user }}"
   command: pipx ensurepath
   register: pipx_ensurepath

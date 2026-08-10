@@ -1,0 +1,6 @@
+---
+- name: Deploy Stash stack
+  hosts: stash
+  become: true
+  roles:
+    - stash

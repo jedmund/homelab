@@ -1,0 +1,278 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  kizuna-api:
+    container_name: kizuna-api
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-garage:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    labels:
+      # SPA + API split: Traefik routes api.kizuna.fm here, and the
+      # SPA at kizuna.fm hits this origin directly (CORS allowlists
+      # the SPA origin server-side, see config/initializers/cors.rb).
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-api.rule: "Host(`{{ kizuna_api_domain }}`)"
+      traefik.http.routers.kizuna-api.entrypoints: "websecure"
+      traefik.http.routers.kizuna-api.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-api.loadbalancer.server.port: "{{ kizuna_api_internal_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-worker:
+    container_name: kizuna-worker
+    # Same image as the API.  CMD override → Sidekiq worker process;
+    # the docker-entrypoint skips db:prepare on this branch so it
+    # never races a migration against kizuna-api.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    command: ["bundle", "exec", "sidekiq", "-q", "default"]
+    restart: {{ restart_policy }}
+    networks:
+      # proxy (not just backend) is required for egress: `backend` is an
+      # internal: true network with no gateway, and the worker runs the
+      # enrichment jobs that fetch external URLs and call the embedding/LLM
+      # host (ai.atelier.house). Without this the jobs fail with
+      # "Network is unreachable". kizuna-api carries proxy for the same reason.
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+{% if kizuna_youtube_cookies | length > 0 %}
+    volumes:
+      - ./secrets/youtube-cookies.txt:{{ kizuna_youtube_cookies_container_path }}:ro
+{% endif %}
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-media-worker:
+    container_name: kizuna-media-worker
+    # Isolate yt-dlp/ffmpeg work from latency-sensitive default jobs and run
+    # one archive at a time to bound NUC CPU, scratch-disk, and NAS pressure.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+{% if kizuna_youtube_cookies | length > 0 %}
+    # yt-dlp updates its cookie jar on exit. Keep the mounted credential
+    # read-only and use a container-private copy for runtime refreshes.
+    command:
+      - sh
+      - -ec
+      - >-
+        cp {{ kizuna_youtube_cookies_container_path }} /tmp/kizuna-youtube-cookies.txt;
+        chmod 0600 /tmp/kizuna-youtube-cookies.txt;
+        export KIZUNA_YT_DLP_COOKIES_PATH=/tmp/kizuna-youtube-cookies.txt;
+        exec bundle exec sidekiq -q media -c {{ kizuna_media_worker_concurrency }}
+{% else %}
+    command: ["bundle", "exec", "sidekiq", "-q", "media", "-c", "{{ kizuna_media_worker_concurrency }}"]
+{% endif %}
+    restart: {{ restart_policy }}
+    networks:
+      # yt-dlp needs public egress over proxy; Rails and Garage remain
+      # reachable over the internal backend network.
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+{% if kizuna_video_scratch_nas_enabled %}
+    environment:
+      KIZUNA_VIDEO_SCRATCH_ROOT: {{ kizuna_video_scratch_container_path }}
+{% endif %}
+{% if kizuna_youtube_cookies | length > 0 or kizuna_video_scratch_nas_enabled %}
+    volumes:
+{% if kizuna_youtube_cookies | length > 0 %}
+      - ./secrets/youtube-cookies.txt:{{ kizuna_youtube_cookies_container_path }}:ro
+{% endif %}
+{% if kizuna_video_scratch_nas_enabled %}
+      - kizuna-video-scratch:{{ kizuna_video_scratch_container_path }}
+{% endif %}
+{% endif %}
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-screenshotter:
+    container_name: kizuna-screenshotter
+    # Node + Playwright sidecar. kizuna-api's CaptureScreenshotsJob (and the
+    # text-only FetchNodeContentJob) POST /capture here; the headless browser
+    # lives in this image, not the Rails one.
+    image: "{{ kizuna_screenshotter_image }}:{{ kizuna_screenshotter_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      # proxy for egress: the sidecar navigates arbitrary user-supplied URLs
+      # with a real browser, so it needs to reach the public internet (same
+      # reason kizuna-api/worker carry proxy; `backend` is internal: true with
+      # no gateway). backend so kizuna-api + kizuna-worker can reach it on the
+      # internal hostname. NOT fronted by Traefik — no public route; the shared
+      # secret + backend-only ingress are the guard.
+      - proxy
+      - backend
+    env_file:
+      - ./env/screenshotter.env
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-web:
+    container_name: kizuna-web
+    image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-web.rule: "Host(`{{ kizuna_web_domain }}`)"
+      traefik.http.routers.kizuna-web.entrypoints: "websecure"
+      traefik.http.routers.kizuna-web.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-web.loadbalancer.server.port: "{{ kizuna_web_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  kizuna-postgres:
+    container_name: kizuna-postgres
+    image: {{ kizuna_postgres_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - kizuna-pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./env/postgres.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kizuna-redis:
+    container_name: kizuna-redis
+    image: {{ kizuna_redis_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    volumes:
+      - kizuna-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  kizuna-garage:
+    container_name: kizuna-garage
+    image: {{ kizuna_garage_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - ./config/garage/garage.toml:/etc/garage.toml:ro
+      - kizuna-garage-data:/var/lib/garage/data
+      - kizuna-garage-meta:/var/lib/garage/meta
+    env_file:
+      - ./env/garage.env
+    labels:
+      # Public S3 endpoint, browser-reachable, used ONLY for presigned image
+      # URLs (the API signs GETs against {{ kizuna_garage_domain }} via
+      # KIZUNA_S3_PUBLIC_ENDPOINT). Server-side object ops stay on the internal
+      # kizuna-garage:3900 over `backend`. Only the S3 API port (3900) is
+      # routed — the admin (3903) and metrics (3904) ports stay internal. The
+      # bucket is private (presigned-only), so anonymous hits get 403.
+      traefik.enable: "true"
+      traefik.http.routers.kizuna-garage.rule: "Host(`{{ kizuna_garage_domain }}`)"
+      traefik.http.routers.kizuna-garage.entrypoints: "websecure"
+      traefik.http.routers.kizuna-garage.tls.certresolver: "letsencrypt"
+      traefik.http.services.kizuna-garage.loadbalancer.server.port: "3900"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  kizuna-pgdata:
+  kizuna-redis:
+  kizuna-garage-data:
+{% if kizuna_garage_data_nas_enabled %}
+    name: {{ kizuna_garage_data_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kizuna_garage_data_nfs_options }}"
+      device: "{{ kizuna_garage_data_nfs_device }}"
+{% endif %}
+{% if kizuna_video_scratch_nas_enabled %}
+  kizuna-video-scratch:
+    name: {{ kizuna_video_scratch_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kizuna_video_scratch_nfs_options }}"
+      device: "{{ kizuna_video_scratch_nfs_device }}"
+{% endif %}
+  kizuna-garage-meta:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

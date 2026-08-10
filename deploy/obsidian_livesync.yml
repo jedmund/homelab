@@ -1,0 +1,6 @@
+---
+- name: Deploy obsidian_livesync stack
+  hosts: obsidian_livesync
+  become: true
+  roles:
+    - obsidian_livesync

@@ -1,0 +1,6 @@
+---
+- name: Deploy RomM stack
+  hosts: romm
+  become: true
+  roles:
+    - romm

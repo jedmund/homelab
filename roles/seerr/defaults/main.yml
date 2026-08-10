@@ -1,0 +1,8 @@
+---
+# Stack identity
+stack_name: seerr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Seerr settings
+seerr_image: ghcr.io/v3djg6gl/seerr:feat-oidc-jellyfin-quickconnect
+seerr_port: 5055

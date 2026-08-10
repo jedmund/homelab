@@ -1,6 +1,0 @@
----
-- name: Deploy utilities stack
-  hosts: utilities
-  become: yes
-  roles:
-    - utilities

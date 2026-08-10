@@ -1,0 +1,47 @@
+---
+# Stack identity
+stack_name: open-webui
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Server IPs
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+
+# Vault secrets consumed by this role:
+#   open_webui_secret_key
+#   open_webui_oauth_client_id
+#   open_webui_oauth_client_secret
+
+# Open WebUI settings
+open_webui_image: ghcr.io/open-webui/open-webui:main
+open_webui_domain: ai.atelier.house
+open_webui_port: 8080
+open_webui_host_port: 8080
+open_webui_ollama_base_url: "http://{{ max_server_ip }}:11434"
+open_webui_openai_api_base_url: "http://{{ max_server_ip }}:11434/v1"
+open_webui_auth: "true"
+open_webui_url: "https://{{ open_webui_domain }}"
+open_webui_oauth_signup: "true"
+open_webui_oauth_merge_accounts: "true"
+open_webui_oauth_provider_name: PocketID
+open_webui_oidc_provider_url: "https://id.atelier.house/.well-known/openid-configuration"
+open_webui_oauth_scopes: "openid email profile"
+
+# Voice + web-search wiring for OpenWebUI. Services run in the `ai` stack
+# on max; keep these ports in sync with roles/ai/defaults/main.yml.
+open_webui_whisper_port: 9000
+open_webui_kokoro_port: 8880
+open_webui_searxng_port: 8889
+open_webui_audio_stt_base_url: "http://{{ max_server_ip }}:{{ open_webui_whisper_port }}/v1"
+open_webui_audio_tts_base_url: "http://{{ max_server_ip }}:{{ open_webui_kokoro_port }}/v1"
+open_webui_audio_tts_voice: af_sky
+open_webui_searxng_query_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}/search?q=<query>&format=json"
+
+# Playwright sidecar in the ai stack on max.
+open_webui_playwright_port: 3000
+open_webui_web_loader_engine: playwright
+open_webui_playwright_ws_url: "ws://{{ max_server_ip }}:{{ open_webui_playwright_port }}"
+
+# RAG embeddings via TEI on max.
+open_webui_tei_port: 11435
+open_webui_rag_embedding_base_url: "http://{{ max_server_ip }}:{{ open_webui_tei_port }}/v1"
+open_webui_rag_embedding_model: Qwen3-Embedding-0.6B

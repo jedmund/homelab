@@ -1,0 +1,91 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  hugginghack:
+    container_name: hugginghack
+    image: {{ hugginghack_image }}
+    # Built from the fork's configured Git ref. BuildKit fetches the ref
+    # directly, so no host checkout is needed.
+    build:
+      context: "{{ hugginghack_git_repo }}#{{ hugginghack_git_ref }}"
+      dockerfile: Dockerfile
+    restart: {{ restart_policy }}
+    user: "{{ puid }}:{{ pgid }}"
+    depends_on:
+      hugginghack-postgres:
+        condition: service_healthy
+    networks:
+      - proxy
+      - backend
+    volumes:
+      # Model library on the NAS Files share (external NFS volume, see
+      # group_vars/compute_servers/storage.yml). Disable Docker's copy-up so it
+      # does not try to chmod the root-squashed NFS directory.
+      - type: volume
+        source: hugginghack-models
+        target: /models
+        volume:
+          nocopy: true
+      - ./data:/data
+    env_file:
+      - ./env/hugginghack.env
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.hugginghack.rule: "Host(`{{ hugginghack_domain }}`)"
+      traefik.http.routers.hugginghack.entrypoints: "websecure"
+      traefik.http.routers.hugginghack.tls.certresolver: "letsencrypt"
+{% if hugginghack_use_tinyauth %}
+      traefik.http.routers.hugginghack.middlewares: "tinyauth@file"
+{% endif %}
+      traefik.http.services.hugginghack.loadbalancer.server.port: "{{ hugginghack_container_port }}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:{{ hugginghack_container_port }}/api/health', timeout=5)); assert data['storage']['writable'] and data['database_backend'] == 'postgresql' and data['auth_mode'] == 'oidc'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  hugginghack-postgres:
+    container_name: hugginghack-postgres
+    image: {{ hugginghack_postgres_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - backend
+    env_file:
+      - ./env/postgres.env
+    volumes:
+      - hugginghack-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ hugginghack_db_user }} -d {{ hugginghack_db_name }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true
+
+volumes:
+  hugginghack-models:
+    external: true
+  hugginghack-pgdata:

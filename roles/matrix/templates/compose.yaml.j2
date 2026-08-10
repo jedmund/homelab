@@ -7,6 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.synapse
+    # Local-only tag for the host-built image above, never pulled
     image: synapse-custom:latest
     restart: {{ restart_policy }}
     networks:
@@ -193,12 +194,8 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
-    environment:
-      - LIVEKIT_URL=wss://{{ livekit_domain }}
-      - LIVEKIT_KEY={{ livekit_api_key }}
-      - LIVEKIT_SECRET={{ livekit_api_secret }}
-      - LIVEKIT_JWT_BIND=:8080
-      - LIVEKIT_FULL_ACCESS_HOMESERVERS={{ synapse_server_name }}
+    env_file:
+      - ./env/livekit-jwt.env
     labels:
       traefik.enable: "true"
       traefik.http.routers.lk-jwt.rule: "Host(`{{ livekit_domain }}`) && PathPrefix(`/jwt`)"

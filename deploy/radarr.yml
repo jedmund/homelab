@@ -1,0 +1,6 @@
+---
+- name: Deploy radarr stack
+  hosts: radarr
+  become: true
+  roles:
+    - radarr

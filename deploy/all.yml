@@ -4,24 +4,12 @@
   gather_facts: false
   tasks:
     - name: Display deployment plan
-      debug:
+      ansible.builtin.debug:
         msg: |
-          Deploying homelab infrastructure in the following order:
-          1. Prerequisites (networks, volumes)
-          2. Infrastructure Gateway (Traefik, PocketID)
-          3. Infrastructure Core (Komodo)
-          4. Media Acquisition
-          5. MusicBrainz mirror
-          6. Media Consumption
-          7. Content Management
-          8. Development
-          9. Utilities
-          10. Productivity
-          11. Kaneo
-          12. Social
-          13. Matrix
-          14. AI (max only)
-          15. Backup
+          Deploying the full homelab: prerequisites, infrastructure
+          (gateway, core, periphery), monitoring, then every product
+          stack in the import order below. Target a subset with
+          --tags <stack> (see: make list-tags).
 
 # Prerequisites - Run once at the beginning
 - import_playbook: prerequisites.yml
@@ -34,43 +22,157 @@
 - import_playbook: infra_core.yml
   tags: [infra, infra_core]
 
+- import_playbook: infra_periphery.yml
+  tags: [infra, infra_periphery]
+
+# Monitoring
+- import_playbook: beszel.yml
+  tags: [monitoring, beszel]
+
+- import_playbook: beszel_agents.yml
+  tags: [monitoring, beszel_agents]
+
 # Media stack
-- import_playbook: media_acquisition.yml
-  tags: [media, media_acquisition]
+- import_playbook: gluetun.yml
+  tags: [media, gluetun]
+
+- import_playbook: prowlarr.yml
+  tags: [media, prowlarr]
+
+- import_playbook: qbittorrent.yml
+  tags: [media, qbittorrent]
+
+- import_playbook: sonarr.yml
+  tags: [media, sonarr]
+
+- import_playbook: radarr.yml
+  tags: [media, radarr]
+
+- import_playbook: lidarr.yml
+  tags: [media, lidarr]
+
+- import_playbook: seerr.yml
+  tags: [media, seerr]
+
+- import_playbook: unpackerr.yml
+  tags: [media, unpackerr]
+
+- import_playbook: jdownloader.yml
+  tags: [media, jdownloader]
+
+- import_playbook: pinchflat.yml
+  tags: [media, pinchflat]
+
+- import_playbook: slskd.yml
+  tags: [media, slskd]
+
+- import_playbook: qui.yml
+  tags: [media, qui]
 
 - import_playbook: musicbrainz.yml
   tags: [media, musicbrainz]
 
-- import_playbook: media_consumption.yml
-  tags: [media, media_consumption]
+- import_playbook: romm.yml
+  tags: [media, romm]
 
-# Reading stack (Miniflux, Reactflux, FiveFilters, Karakeep, Kavita)
-- import_playbook: reading.yml
-  tags: [reading]
+# Emulator streaming containers RomM drives. These come after romm.yml
+# only for readability; the two halves are independent and either order
+# converges.
+- import_playbook: pcsx2.yml
+  tags: [media, romm, pcsx2, streaming]
 
-# Content stack
-- import_playbook: content_management.yml
-  tags: [content, content_management]
+- import_playbook: dolphin.yml
+  tags: [media, romm, dolphin, streaming]
 
-# Development stack
-- import_playbook: development.yml
-  tags: [dev, development]
+- import_playbook: plex.yml
+  tags: [media, plex]
+
+- import_playbook: multi_scrobbler.yml
+  tags: [media, multi_scrobbler]
+
+- import_playbook: tunarr.yml
+  tags: [media, tunarr]
+
+- import_playbook: stash.yml
+  tags: [media, stash]
+
+# Product stacks
+- import_playbook: immich.yml
+  tags: [immich]
+
+- import_playbook: papra.yml
+  tags: [papra]
+
+- import_playbook: homebox.yml
+  tags: [homebox]
+
+- import_playbook: album_sort.yml
+  tags: [album_sort]
+
+- import_playbook: dawarich.yml
+  tags: [dawarich]
+
+- import_playbook: miniflux.yml
+  tags: [miniflux]
+
+- import_playbook: karakeep.yml
+  tags: [karakeep]
+
+- import_playbook: kavita.yml
+  tags: [kavita]
+
+- import_playbook: strudel.yml
+  tags: [strudel]
+
+- import_playbook: obsidian_livesync.yml
+  tags: [obsidian_livesync]
+
+# Development product stacks
+- import_playbook: gitlab.yml
+  tags: [dev, gitlab]
+
+- import_playbook: open_webui.yml
+  tags: [dev, open_webui]
+
+- import_playbook: paseo_relay.yml
+  tags: [dev, paseo_relay]
 
 # Development (macOS) stack - GitLab Runner on mac-mini for iOS builds
 - import_playbook: development_macos.yml
   tags: [dev, development_macos]
 
+# Agent tooling (Linux) - Pi + Opencode on nuc-mini
+- import_playbook: agents_linux.yml
+  tags: [dev, agents_linux]
+
+# Development (Linux) stack - GitLab Runner on max for Docker CI jobs
+- import_playbook: development_linux.yml
+  tags: [dev, development_linux]
+
 # Paseo daemon (native macOS install on mac-mini)
 - import_playbook: paseo_daemon.yml
   tags: [dev, paseo_daemon]
 
-# Utilities stack
-- import_playbook: utilities.yml
-  tags: [utilities]
+# Utility product stacks
+- import_playbook: n8n.yml
+  tags: [n8n]
 
-# Productivity stack
-- import_playbook: productivity.yml
-  tags: [productivity]
+- import_playbook: changedetection.yml
+  tags: [changedetection]
+
+- import_playbook: copyparty.yml
+  tags: [copyparty]
+
+- import_playbook: hugginghack.yml
+  tags: [hugginghack]
+
+# Vane stack
+- import_playbook: vane.yml
+  tags: [vane]
+
+# Kibble stack
+- import_playbook: kibble.yml
+  tags: [kibble]
 
 # Kaneo project management stack
 - import_playbook: kaneo.yml
@@ -92,6 +194,10 @@
 # Openclaw (targets the `openclaw` group, currently `mac-mini` only)
 - import_playbook: openclaw.yml
   tags: [openclaw]
+
+# frp tunnel proxy
+- import_playbook: frp.yml
+  tags: [frp]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

@@ -9,3 +9,76 @@
   loop:
     - hwsummary
     - gpu-burn
+
+# Selkies (roles/pcsx2, roles/dolphin) needs the NVIDIA DRM layer up to
+# get a GL context on a headless box. A modprobe drop-in rather than a
+# kernel command line flag: /etc/default/grub on max is hand managed and
+# carries IOMMU flags that are load-bearing for multi-GPU NCCL P2P, so
+# there is no reason to go near it for this.
+#
+# Writing the file is idempotent; taking effect is not. nvidia_drm is
+# already resident whenever the AI stack is running, so the drop-in only
+# applies on the next boot. Roles that actually depend on modeset assert
+# on the runtime value rather than trusting this task's ok/changed.
+- name: Enable NVIDIA DRM modeset
+  ansible.builtin.template:
+    src: nvidia-drm.conf.j2
+    dest: /etc/modprobe.d/nvidia-drm.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: gpu_type | default('') == 'nvidia'
+
+# Deliberately a state check rather than a handler notified by the task
+# above. Handlers flush at the end of a play, so a later role failing its
+# preflight would skip the rebuild entirely, and the re-run would not
+# notify again because the file already matches. That combination leaves
+# the drop-in on disk but absent from the initramfs, which is the one
+# state that looks configured and behaves as if it is not.
+#
+# -k all, not -u on its own: -u only touches the running kernel's image,
+# and a host with a newer kernel installed but not yet booted would build
+# the wrong one.
+- name: Check whether the initramfs images carry the modeset drop-in
+  ansible.builtin.shell:
+    # Process substitution rather than a pipe into `grep -q`. grep exits on
+    # the first match, lsinitramfs then dies of SIGPIPE, and `set -o
+    # pipefail` reports the whole pipeline as rc 141. The check would fail
+    # every run and rebuild the images every run, which looks like the
+    # drop-in never landing.
+    cmd: |
+      for img in /boot/initrd.img-*; do
+        grep -qx 'etc/modprobe.d/nvidia-drm.conf' <(lsinitramfs "$img") || exit 1
+      done
+    executable: /bin/bash
+  register: gpu_tools_initramfs_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Rebuild the initramfs images
+  ansible.builtin.command: update-initramfs -u -k all
+  changed_when: true
+  when:
+    - gpu_type | default('') == 'nvidia'
+    - gpu_tools_initramfs_state.rc | default(1) != 0
+
+- name: Report NVIDIA DRM modeset state
+  ansible.builtin.slurp:
+    src: /sys/module/nvidia_drm/parameters/modeset
+  register: gpu_tools_drm_modeset
+  failed_when: false
+  changed_when: false
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Warn when a reboot is needed for DRM modeset
+  ansible.builtin.debug:
+    msg: >-
+      nvidia_drm modeset is not active on {{ inventory_hostname }}. The
+      drop-in at /etc/modprobe.d/nvidia-drm.conf is in place but only
+      applies on the next boot. Emulator streaming containers will fail to
+      get a GL context until then.
+  when:
+    - gpu_type | default('') == 'nvidia'
+    - (gpu_tools_drm_modeset.content | default('') | b64decode | trim) != 'Y'

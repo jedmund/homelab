@@ -1,0 +1,6 @@
+---
+- name: Deploy sonarr stack
+  hosts: sonarr
+  become: true
+  roles:
+    - sonarr

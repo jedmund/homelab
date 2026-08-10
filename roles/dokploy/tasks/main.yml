@@ -29,19 +29,26 @@
   # dokploy-postgres, dokploy-redis, dokploy, and dokploy-traefik. The
   # script is deliberately not idempotent so we gate it on dokploy_present.
 
+# No `--force`: `docker service update --image repo:tag` resolves the
+# tag to a digest at update time, so Swarm rolls the service only when
+# canary actually moved to a new sha (or the env changed) and re-runs
+# are a true no-op. Spec-hash comparison keeps the changed status honest.
 - name: Swap dokploy service image and apply env vars
-  command: >
-    docker service update
-    --image {{ dokploy_image }}
-    --env-add DOKPLOY_ENABLE_SELF_HOSTED_SSO={{ dokploy_enable_sso | string | lower }}
-    --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }}
-    --force
-    dokploy
-  changed_when: true
-  # `--force` is the standard way to redeploy a service even when the
-  # image tag is unchanged (e.g. when canary moves to a new sha). The
-  # update is rolling; Swarm handles the transition. --env-add is
-  # idempotent: re-applying the same env vars is a no-op.
+  shell: |
+    set -o pipefail
+    before=$(docker service inspect dokploy --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
+    docker service update \
+      --image {{ dokploy_image }} \
+      --env-add DOKPLOY_ENABLE_SELF_HOSTED_SSO={{ dokploy_enable_sso | string | lower }} \
+      --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }} \
+      --quiet \
+      dokploy
+    after=$(docker service inspect dokploy --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
+    [ "$before" != "$after" ] && echo SPEC_CHANGED || true
+  args:
+    executable: /bin/bash
+  register: dokploy_service_update
+  changed_when: "'SPEC_CHANGED' in dokploy_service_update.stdout"
 
 - name: Template Traefik static config (DNS-01 via Cloudflare)
   template:

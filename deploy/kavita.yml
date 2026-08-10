@@ -1,0 +1,6 @@
+---
+- name: Deploy kavita stack
+  hosts: kavita
+  become: true
+  roles:
+    - kavita

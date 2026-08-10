@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  vane:
+    container_name: vane
+    image: "{{ vane_image }}:{{ vane_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - vane-data:/home/vane/data
+    env_file:
+      - ./env/vane.env
+    labels:
+      # Native OIDC handles auth; no tinyauth middleware on this route.
+      traefik.enable: "true"
+      traefik.http.routers.vane.rule: "Host(`{{ vane_domain }}`)"
+      traefik.http.routers.vane.entrypoints: "websecure"
+      traefik.http.routers.vane.tls.certresolver: "letsencrypt"
+      traefik.http.services.vane.loadbalancer.server.port: "{{ vane_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  vane-data:
+    name: {{ vane_data_volume }}
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

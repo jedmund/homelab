@@ -1,0 +1,6 @@
+---
+- name: Deploy qui stack
+  hosts: qui
+  become: true
+  roles:
+    - qui
