@@ -57,9 +57,20 @@ kizuna_web_origin: "https://{{ kizuna_web_domain }}"
 # via the Dockerfile CMD: `bin/thrust bin/rails server -p 80`).
 kizuna_api_internal_port: 80
 
-# ---- Postgres (per-stack, matches the n8n role pattern) ----
-# 16-pgvector because the API code uses pgvector for embeddings.
-kizuna_postgres_image: pgvector/pgvector:pg16
+# ---- PostgreSQL (per-stack, matches the n8n role pattern) ----
+# Pin both the PostgreSQL major and pgvector release. PostgreSQL 18 changed the
+# official image's persistent mount to /var/lib/postgresql; the legacy v16
+# volume remains mounted at /var/lib/postgresql/data during migration/rollback.
+kizuna_postgres_image: pgvector/pgvector:0.8.2-pg18-bookworm
+kizuna_postgres_legacy_image: pgvector/pgvector:0.8.2-pg16-bookworm
+kizuna_postgres_expected_major: "18"
+kizuna_postgres_data_volume_name: kizuna-pgdata-pg18
+kizuna_postgres_data_mount_path: /var/lib/postgresql
+kizuna_postgres_legacy_data_volume_name: "{{ stack_name }}_kizuna-pgdata"
+kizuna_postgres_legacy_data_mount_path: /var/lib/postgresql/data
+kizuna_postgres_upgrade_volume_name: kizuna-postgres-16-to-18-upgrade
+kizuna_postgres_upgrade_marker: "{{ config_base }}/.postgresql-18-migrated"
+kizuna_postgres_upgrade_dump_name: kizuna-postgresql-16.dump
 kizuna_postgres_db: kizuna_api_production
 kizuna_postgres_user: kizuna
 kizuna_postgres_password: "{{ vault_kizuna_postgres_password | default('') }}"

@@ -1,0 +1,283 @@
+---
+- name: Stage PostgreSQL migration validation query
+  ansible.builtin.copy:
+    src: postgres_row_counts.sql
+    dest: "{{ config_base }}/postgres_row_counts.sql"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Inspect legacy PostgreSQL 16 data volume
+  community.docker.docker_volume_info:
+    name: "{{ kizuna_postgres_legacy_data_volume_name }}"
+  register: kizuna_postgres_legacy_volume
+
+- name: Inspect PostgreSQL 18 data volume
+  community.docker.docker_volume_info:
+    name: "{{ kizuna_postgres_data_volume_name }}"
+  register: kizuna_postgres_target_volume
+
+- name: Check whether PostgreSQL 18 migration completed
+  ansible.builtin.stat:
+    path: "{{ kizuna_postgres_upgrade_marker }}"
+  register: kizuna_postgres_upgrade_state
+
+- name: Refuse a PostgreSQL 18 marker without its data volume
+  ansible.builtin.fail:
+    msg: >-
+      {{ kizuna_postgres_upgrade_marker }} exists but Docker volume
+      {{ kizuna_postgres_data_volume_name }} does not. The role will not
+      initialize an empty production database; restore the volume or remove
+      the marker only as part of a reviewed recovery.
+  when:
+    - kizuna_postgres_upgrade_state.stat.exists
+    - not kizuna_postgres_target_volume.exists
+
+- name: Upgrade Kizuna PostgreSQL 16 data to PostgreSQL 18
+  when:
+    - kizuna_postgres_legacy_volume.exists
+    - not kizuna_postgres_upgrade_state.stat.exists
+  block:
+    - name: Remove interrupted PostgreSQL migration containers
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: absent
+        force_kill: true
+      loop:
+        - kizuna-postgres16-migration-source
+        - kizuna-postgres18-migration-target
+
+    - name: Stop Kizuna writers and the legacy database
+      community.docker.docker_compose_v2:
+        project_src: "{{ config_base }}"
+        services:
+          - kizuna-api
+          - kizuna-worker
+          - kizuna-media-worker
+          - kizuna-postgres
+        state: stopped
+
+    # The marker is the acceptance boundary. Without it the v18 volume has
+    # never served production, so rebuilding it is safer than attempting to
+    # infer how far an interrupted restore progressed.
+    - name: Reset the unaccepted PostgreSQL 18 candidate volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_postgres_data_volume_name }}"
+        state: absent
+
+    - name: Reset the PostgreSQL cutover archive volume
+      community.docker.docker_volume:
+        name: "{{ kizuna_postgres_upgrade_volume_name }}"
+        state: absent
+
+    - name: Create PostgreSQL migration volumes
+      community.docker.docker_volume:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - "{{ kizuna_postgres_data_volume_name }}"
+        - "{{ kizuna_postgres_upgrade_volume_name }}"
+
+    - name: Start isolated PostgreSQL 16 migration source
+      community.docker.docker_container:
+        name: kizuna-postgres16-migration-source
+        image: "{{ kizuna_postgres_legacy_image }}"
+        env_file: "{{ config_base }}/env/postgres.env"
+        restart_policy: 'no'
+        network_mode: none
+        volumes:
+          - "{{ kizuna_postgres_legacy_data_volume_name }}:{{ kizuna_postgres_legacy_data_mount_path }}"
+          - "{{ kizuna_postgres_upgrade_volume_name }}:/upgrade"
+          - "{{ config_base }}/postgres_row_counts.sql:/migration/postgres_row_counts.sql:ro"
+        state: started
+      no_log: true
+
+    - name: Wait for isolated PostgreSQL 16 source
+      community.docker.docker_container_exec:
+        container: kizuna-postgres16-migration-source
+        command: >-
+          pg_isready -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+      register: kizuna_postgres_source_ready
+      until: kizuna_postgres_source_ready.rc == 0
+      retries: 60
+      delay: 2
+      changed_when: false
+
+    - name: Dump the quiesced PostgreSQL 16 database
+      community.docker.docker_container_exec:
+        container: kizuna-postgres16-migration-source
+        command: >-
+          pg_dump -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --format=custom --no-owner --no-acl
+          --file=/upgrade/{{ kizuna_postgres_upgrade_dump_name }}
+      changed_when: true
+
+    - name: Capture PostgreSQL 16 public-table row counts
+      community.docker.docker_container_exec:
+        container: kizuna-postgres16-migration-source
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align --field-separator=|
+          --file=/migration/postgres_row_counts.sql
+      register: kizuna_postgres_source_counts
+      changed_when: false
+
+    - name: Capture PostgreSQL 16 database locale
+      community.docker.docker_container_exec:
+        container: kizuna-postgres16-migration-source
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align
+          --command="SELECT pg_encoding_to_char(encoding) || '|' || datlocprovider || '|' || datcollate || '|' || datctype FROM pg_database WHERE datname = current_database()"
+      register: kizuna_postgres_source_locale
+      changed_when: false
+
+    - name: Start isolated PostgreSQL 18 migration target
+      community.docker.docker_container:
+        name: kizuna-postgres18-migration-target
+        image: "{{ kizuna_postgres_image }}"
+        env_file: "{{ config_base }}/env/postgres.env"
+        restart_policy: 'no'
+        network_mode: none
+        volumes:
+          - "{{ kizuna_postgres_data_volume_name }}:{{ kizuna_postgres_data_mount_path }}"
+          - "{{ kizuna_postgres_upgrade_volume_name }}:/upgrade:ro"
+          - "{{ config_base }}/postgres_row_counts.sql:/migration/postgres_row_counts.sql:ro"
+        state: started
+      no_log: true
+
+    - name: Wait for isolated PostgreSQL 18 target
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          pg_isready -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+      register: kizuna_postgres_target_ready
+      until: kizuna_postgres_target_ready.rc == 0
+      retries: 60
+      delay: 2
+      changed_when: false
+
+    - name: Verify migration target is PostgreSQL 18
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align --command="SHOW server_version_num"
+      register: kizuna_postgres_target_version
+      changed_when: false
+      failed_when: not (kizuna_postgres_target_version.stdout | trim).startswith('18')
+
+    - name: Restore PostgreSQL 16 archive into PostgreSQL 18
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          pg_restore -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --exit-on-error --single-transaction --no-owner --no-acl
+          /upgrade/{{ kizuna_postgres_upgrade_dump_name }}
+      changed_when: true
+
+    - name: Capture PostgreSQL 18 public-table row counts
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align --field-separator=|
+          --file=/migration/postgres_row_counts.sql
+      register: kizuna_postgres_target_counts
+      changed_when: false
+
+    - name: Capture PostgreSQL 18 database locale
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          psql -X -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+          --tuples-only --no-align
+          --command="SELECT pg_encoding_to_char(encoding) || '|' || datlocprovider || '|' || datcollate || '|' || datctype FROM pg_database WHERE datname = current_database()"
+      register: kizuna_postgres_target_locale
+      changed_when: false
+
+    - name: Require exact PostgreSQL row-count parity
+      ansible.builtin.assert:
+        that:
+          - kizuna_postgres_source_counts.stdout_lines == kizuna_postgres_target_counts.stdout_lines
+          - (kizuna_postgres_source_locale.stdout | trim) == (kizuna_postgres_target_locale.stdout | trim)
+        fail_msg: >-
+          PostgreSQL 18 row counts or database locale differ from the
+          quiesced PostgreSQL 16 source. The candidate will not be accepted.
+        success_msg: >-
+          PostgreSQL 16 and 18 public-table row counts and database locale
+          match exactly.
+
+    - name: Analyze restored PostgreSQL 18 database
+      community.docker.docker_container_exec:
+        container: kizuna-postgres18-migration-target
+        command: >-
+          vacuumdb -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }} --analyze-only
+      changed_when: true
+
+    - name: Remove successful PostgreSQL migration containers
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - kizuna-postgres16-migration-source
+        - kizuna-postgres18-migration-target
+
+    - name: Record accepted PostgreSQL 18 migration
+      ansible.builtin.copy:
+        dest: "{{ kizuna_postgres_upgrade_marker }}"
+        owner: "{{ ansible_user }}"
+        mode: '0600'
+        content: |
+          PostgreSQL 16 to 18 dump/restore completed with exact public-table row-count parity.
+          Legacy volume: {{ kizuna_postgres_legacy_data_volume_name }}
+          PostgreSQL 18 volume: {{ kizuna_postgres_data_volume_name }}
+          Cutover archive volume: {{ kizuna_postgres_upgrade_volume_name }}
+
+  rescue:
+    - name: Remove failed PostgreSQL migration containers
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: absent
+        force_kill: true
+      loop:
+        - kizuna-postgres16-migration-source
+        - kizuna-postgres18-migration-target
+
+    - name: Restart retained PostgreSQL 16 container
+      community.docker.docker_container:
+        name: kizuna-postgres
+        image: "{{ kizuna_postgres_legacy_image }}"
+        state: started
+        comparisons:
+          image: ignore
+
+    - name: Wait for retained PostgreSQL 16 container
+      community.docker.docker_container_exec:
+        container: kizuna-postgres
+        command: >-
+          pg_isready -U {{ kizuna_postgres_user }} -d {{ kizuna_postgres_db }}
+      register: kizuna_postgres_legacy_ready
+      until: kizuna_postgres_legacy_ready.rc == 0
+      retries: 60
+      delay: 2
+      changed_when: false
+
+    - name: Restart Kizuna writers after PostgreSQL migration failure
+      community.docker.docker_container:
+        name: "{{ item }}"
+        image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+        state: started
+        comparisons:
+          image: ignore
+      loop:
+        - kizuna-api
+        - kizuna-worker
+        - kizuna-media-worker
+
+    - name: Stop deployment after PostgreSQL migration failure
+      ansible.builtin.fail:
+        msg: >-
+          PostgreSQL 18 migration failed. Kizuna was restarted against the
+          retained PostgreSQL 16 volume. The PostgreSQL 18 candidate and
+          cutover archive volumes remain for inspection; a retry rebuilds the
+          unaccepted candidate from the quiesced legacy source.
