@@ -16,9 +16,8 @@
       - (kaneo_github_webhook_secret | default('') | length) > 0
       - (kaneo_github_private_key_base64 | default('') | length) > 0
     fail_msg: >-
-      Kaneo requires database, Redis, auth, PocketID, Gmail, and GitHub App
-      values in group_vars/kaneo/vault.yml. See roles/kaneo/README.md for the
-      complete Vault schema and provider setup.
+      Kaneo requires database, Redis, auth, PocketID, GitHub App, and the
+      shared SendGrid values documented in roles/kaneo/README.md.
   no_log: true
   tags:
     - preflight
