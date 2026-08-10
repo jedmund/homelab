@@ -6,7 +6,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # Kaneo application. The private fork image is published by GitLab CI with an
 # immutable full commit SHA; never use a floating tag for this deployment.
 kaneo_image: registry.atelier.house/jedmund/kaneo
-kaneo_image_tag: de3157ce00963b231b4336ac109c4171298907e8
+kaneo_image_tag: 31fb45418fea2241703adf2e4ca1740332b10f9f
 kaneo_registry_url: https://registry.atelier.house
 kaneo_registry_username: "{{ vault_kaneo_registry_username | default('') }}"
 kaneo_registry_password: "{{ vault_kaneo_registry_password | default('') }}"
