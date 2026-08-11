@@ -247,40 +247,14 @@
     wait_timeout: 180
   register: compose_result
 
-- name: Provision Kizuna agent tool connections
-  command:
-    argv:
-      - docker
-      - exec
-      - kizuna-api
-      - bin/rails
-      - agent_tools:provision
-  register: kizuna_agent_tools_provision
-  changed_when: >-
-    'created searxng' in kizuna_agent_tools_provision.stdout or
-    'updated searxng' in kizuna_agent_tools_provision.stdout
-
-# Search documents are a rebuildable projection. Running this after every
-# healthy deploy covers both first-time migrations and any rows missed while
-# the projection was unavailable; the Rails task only saves changed rows.
-- name: Backfill Kizuna search documents
-  command:
-    argv:
-      - docker
-      - exec
-      - kizuna-api
-      - bin/rails
-      - search:backfill
-  changed_when: false
-
+# Apply storage access before optional external-tool provisioning so a
+# SearXNG outage cannot leave browser uploads or PDF range reads broken after
+# the stack itself has already deployed.
 # The one-time garage_bootstrap.sh handles layout + bucket + key creation
-# (the key secret has to be captured into the vault by a human). But its two
+# (the key secret has to be captured into the vault by a human). Its two
 # idempotent, declarative steps — granting the key access and setting CORS —
-# are wired here so every deploy self-heals them. This is what was missing in
-# prod: the key existed with NO bucket permission (so the app couldn't store
-# media) and CORS was unset (so browser presigned-PUT uploads would fail).
-# Both `allow` and `set-cors` are no-ops once applied. Gated on the vault key
-# being present and the bucket existing, so a pre-bootstrap host skips cleanly.
+# are wired here so every deploy self-heals them. Gated on the vault key being
+# present and the bucket existing, so a pre-bootstrap host skips cleanly.
 - name: Ensure Garage bucket access + CORS
   when: kizuna_garage_access_key_id | length > 0
   block:
@@ -332,6 +306,32 @@
             )
       changed_when: false
       when: kizuna_garage_bucket_info.rc == 0
+
+- name: Provision Kizuna agent tool connections
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - agent_tools:provision
+  register: kizuna_agent_tools_provision
+  changed_when: >-
+    'created searxng' in kizuna_agent_tools_provision.stdout or
+    'updated searxng' in kizuna_agent_tools_provision.stdout
+
+# Search documents are a rebuildable projection. Running this after every
+# healthy deploy covers both first-time migrations and any rows missed while
+# the projection was unavailable; the Rails task only saves changed rows.
+- name: Backfill Kizuna search documents
+  command:
+    argv:
+      - docker
+      - exec
+      - kizuna-api
+      - bin/rails
+      - search:backfill
+  changed_when: false
 
 - name: Print post-deploy reminder
   debug:
