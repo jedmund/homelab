@@ -300,7 +300,9 @@
     # Garage v2.3.0's CLI has no `bucket set-cors`; CORS is an S3-API config
     # (PutBucketCors). Set it through the API's own aws-sdk client (already in
     # the image) so the SPA's cross-origin presigned PUT uploads are allowed.
-    # argv form avoids shell/shlex quoting of the inline script. Idempotent.
+    # argv form avoids shell/shlex quoting of the inline script. Garage 2.3.0
+    # compares allowed header names case-sensitively even though browsers
+    # serialize CORS preflight header names in lowercase. Idempotent.
     - name: Allow the SPA origin to upload via CORS (S3 PutBucketCors)
       command:
         argv:
@@ -323,7 +325,7 @@
               cors_configuration: {cors_rules: [{
                 allowed_origins: ["{{ kizuna_web_origin }}"],
                 allowed_methods: %w[GET PUT POST DELETE],
-                allowed_headers: ["Content-Type"],
+                allowed_headers: ["content-type"],
                 expose_headers: ["ETag"]
               }]}
             )

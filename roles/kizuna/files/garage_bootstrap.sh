@@ -106,7 +106,9 @@ g bucket allow --read --write --owner "${BUCKET}" --key "${ACCESS_KEY_ID}"
 # CLI has no `bucket set-cors` — CORS is an S3-API config (PutBucketCors), so
 # set it through the API container's aws-sdk client (matches the Ansible role).
 # The Ansible deploy also applies this idempotently; this keeps the standalone
-# script correct for a manual first-time bootstrap.
+# script correct for a manual first-time bootstrap. Garage 2.3.0 compares
+# allowed header names case-sensitively, while browser preflights serialize
+# them in lowercase.
 echo "Setting CORS on ${BUCKET} for ${SPA_ORIGIN}..."
 docker exec kizuna-api bin/rails runner "
   require \"aws-sdk-s3\"
@@ -121,7 +123,7 @@ docker exec kizuna-api bin/rails runner "
     cors_configuration: {cors_rules: [{
       allowed_origins: [\"${SPA_ORIGIN}\"],
       allowed_methods: %w[GET PUT POST DELETE],
-      allowed_headers: [\"Content-Type\"],
+      allowed_headers: [\"content-type\"],
       expose_headers: [\"ETag\"]
     }]}
   )
