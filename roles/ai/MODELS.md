@@ -329,6 +329,23 @@ embedding is on TEI (see Embeddings section below).
 - **TTL**: 300s per entry: embedding workloads tend to be bursty so the
   short TTL releases VRAM quickly between sessions.
 
+### unlimited-ocr: on-demand PDF page OCR
+
+- **Files**:
+  - Weights: `Unlimited-OCR/Unlimited-OCR-BF16.gguf`
+  - mmproj: `Unlimited-OCR/mmproj-Unlimited-OCR-F16.gguf`
+- **Source**: `sahilchachra/Unlimited-OCR-GGUF`, a llama.cpp conversion of
+  `baidu/Unlimited-OCR` (the upstream repository publishes Transformers
+  weights, not GGUF).
+- **Pull**:
+  `hf download sahilchachra/Unlimited-OCR-GGUF Unlimited-OCR-BF16.gguf mmproj-Unlimited-OCR-F16.gguf --local-dir ./Unlimited-OCR/`
+- **Why**: Kizuna renders only PDF pages without a usable text layer and
+  submits those page images to the OpenAI-compatible llama.cpp endpoint.
+  Local Tesseract remains the availability fallback.
+- **Runtime**: `ocr` is a non-exclusive swap group with a 300-second TTL.
+  The model therefore coexists with chat/embedding work and releases VRAM
+  shortly after an ingestion burst.
+
 ### qwen3-small: CPU-resident compaction model
 
 - **File**: `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
