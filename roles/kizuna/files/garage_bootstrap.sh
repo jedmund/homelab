@@ -124,7 +124,7 @@ docker exec kizuna-api bin/rails runner "
       allowed_origins: [\"${SPA_ORIGIN}\"],
       allowed_methods: %w[GET PUT POST DELETE],
       allowed_headers: [\"content-type\"],
-      expose_headers: [\"ETag\"]
+      expose_headers: [\"ETag\", \"Accept-Ranges\", \"Content-Range\"]
     }]}
   )
 "
