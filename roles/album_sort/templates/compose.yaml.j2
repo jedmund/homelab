@@ -23,6 +23,8 @@ services:
       DATA_PATH: "{{ album_sort_data_path }}"
       WATCH_INTERVAL: "{{ album_sort_watch_interval }}"
       SCAN_CONCURRENCY: "{{ album_sort_scan_concurrency }}"
+      MUSICBRAINZ_BASE_URL: "{{ album_sort_musicbrainz_base_url }}"
+      COVER_ART_ARCHIVE_BASE_URL: "{{ album_sort_cover_art_archive_base_url }}"
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
     volumes:

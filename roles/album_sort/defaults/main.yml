@@ -21,6 +21,8 @@ album_sort_sorted_path: /music/Sorted
 album_sort_data_path: /data
 album_sort_watch_interval: "30000"
 album_sort_scan_concurrency: "4"
+album_sort_musicbrainz_base_url: "http://musicbrainz:5000/ws/2"
+album_sort_cover_art_archive_base_url: "https://coverartarchive.org"
 album_sort_auth_required: "true"
 album_sort_mutations_enabled: "true"
 album_sort_oidc_issuer_url: "https://id.atelier.house"

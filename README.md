@@ -380,7 +380,7 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 
 ### group_vars/album_sort/vault.yml
 
-[album-sort](https://github.com/jedmund/album-sort) is built by GitLab CI. Successful default-branch builds publish `latest` for the app and beets images, then ask Komodo to redeploy the stack. The Ansible role renders the stack and defaults to `latest`; set `album_sort_image_tag` to a published short SHA for a rollback or deploy freeze.
+[album-sort](https://github.com/jedmund/album-sort) is built by GitLab CI. Successful default-branch builds publish `latest` for the app and beets images, then ask Komodo to redeploy the stack. The Ansible role renders the stack and defaults to `latest`; set `album_sort_image_tag` to a published short SHA for a rollback or deploy freeze. Album Sort uses the shared-network MusicBrainz mirror at `http://musicbrainz:5000/ws/2` and the public Cover Art Archive by default; override `album_sort_musicbrainz_base_url` or `album_sort_cover_art_archive_base_url` in inventory when needed.
 
 | Variable | Description |
 |----------|-------------|
