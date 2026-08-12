@@ -187,14 +187,19 @@ kizuna_allowed_origins: "{{ kizuna_web_origin }}"
 # API at api.kizuna.fm share session state.
 kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
 
-# ---- Shared web search ----
-# SearXNG is owned by the ai stack on max. Kizuna consumes that service;
-# this role must not deploy a second search container on nuc-mini.
+# ---- Shared AI services ----
+# OCR and SearXNG are owned by the ai stack on max. Kizuna consumes those
+# services; this role must not deploy duplicate containers on nuc-mini.
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
 kizuna_pdf_ocr_port: 11434
 kizuna_pdf_ocr_base_url: "http://{{ max_server_ip }}:{{ kizuna_pdf_ocr_port }}"
 kizuna_pdf_ocr_model: unlimited-ocr
 kizuna_pdf_ocr_timeout_seconds: 180
+# Enable semantic page descriptions and page-image retrieval in production.
+# Keep the controls independent so either stage can be rolled back without
+# disabling OCR or discarding previously enriched content.
+kizuna_pdf_visual_enrichment_mode: "on"
+kizuna_pdf_visual_retrieval_enabled: "true"
 kizuna_searxng_port: 8889
 kizuna_searxng_base_url: "http://{{ max_server_ip }}:{{ kizuna_searxng_port }}"
 kizuna_searxng_name: "Atelier SearXNG"

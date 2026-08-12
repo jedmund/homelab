@@ -114,6 +114,57 @@ skips the probe, disables the instance connection, and Kizuna stops
 advertising `web_search`. This does not change the shared SearXNG deployment
 or its Open WebUI/Vane consumers.
 
+## PDF visual understanding
+
+The Kizuna role points PDF OCR at the shared Unlimited-OCR service on `max`.
+It also controls the two later stages of visual PDF support independently:
+
+- `kizuna_pdf_visual_enrichment_mode` controls semantic descriptions of page
+  images. Supported rollout values are `off`, `report`, and `on`.
+- `kizuna_pdf_visual_retrieval_enabled` controls whether chat may inspect a
+  rendered source page when the retrieved text is insufficient.
+
+Production enables both settings (`on` and `true`). They are non-secret
+settings in `roles/kizuna/defaults/main.yml`; no vault update is required.
+Before deploying, configure and enable the PDF visual enrichment task in
+Kizuna Admin with a shared image-capable model, and configure an image-capable
+chat model for page-image retrieval.
+
+Validate the deployment as follows:
+
+1. Deploy the defaults and verify the API and PDF worker received their
+   settings without printing the full environment:
+
+   ```sh
+   docker exec kizuna-api sh -c \
+     'test "$KIZUNA_PDF_VISUAL_ENRICHMENT_MODE" = on && test "$KIZUNA_PDF_VISUAL_RETRIEVAL_ENABLED" = true'
+   docker exec kizuna-pdf-worker sh -c \
+     'test -n "$KIZUNA_PDF_OCR_BASE_URL" && test "$KIZUNA_PDF_OCR_MODEL" = unlimited-ocr'
+   ```
+
+2. Run a content-free canary against an image-heavy PDF. The known production
+   canary is node `019ff533-1897-704a-b3ee-f4d5f29436ed`:
+
+   ```sh
+   docker exec kizuna-api env ACTION=ocr_repair NODE_ID=019ff533-1897-704a-b3ee-f4d5f29436ed bin/rails pdfs:visual_backfill
+   docker exec kizuna-api env ACTION=ocr_repair NODE_ID=019ff533-1897-704a-b3ee-f4d5f29436ed APPLY=1 bin/rails pdfs:visual_backfill
+   docker exec kizuna-api env ACTION=visual NODE_ID=019ff533-1897-704a-b3ee-f4d5f29436ed bin/rails pdfs:visual_backfill
+   docker exec kizuna-api env ACTION=visual NODE_ID=019ff533-1897-704a-b3ee-f4d5f29436ed APPLY=1 bin/rails pdfs:visual_backfill
+   docker exec kizuna-api env NODE_ID=019ff533-1897-704a-b3ee-f4d5f29436ed PAGE_NUMBERS=5,7,8,9 bin/rails pdfs:visual_probe
+   ```
+
+   The commands report opaque IDs, counts, and cursors rather than document
+   content. Review the probe result and worker health before continuing.
+
+3. Verify that image-heavy PDFs build useful passages and answer questions
+   from their semantic descriptions.
+4. Verify chat can inspect an actual page when needed and that the answer cites
+   the PDF.
+
+To stop new semantic enrichment, restore the mode to `off`. To disable page
+inspection independently, restore retrieval to `false`. Existing OCR text and
+semantic descriptions remain available for retrieval after either rollback.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
