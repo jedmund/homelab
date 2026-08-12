@@ -48,6 +48,7 @@ __pycache__/
 # Agent/tooling working dirs
 .claude/
 .conductor/
+.omo/
 .playwright-mcp/
 
 # Stray root-level scratch files
