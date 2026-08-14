@@ -90,10 +90,12 @@ bundled llama-server is recent enough; if MTP-enabled models fail to start
 with a flag error in `docker logs llama-swap`, the image is stale and a
 pull will fix it.
 
-The `qwen3.8` entry is the Qwen3.5-lineage hybrid architecture (`qwen35`
-in the GGUF metadata) and needs a llama.cpp build that knows it. Same
-symptom and same fix: an unknown-architecture error at load means the
-image is stale.
+The `qwen3.8` / `qwen3.8-q8` entries use `--spec-type draft-mtp` too
+(MTP is built into the base GGUF there, so there is no separate MTP
+repo to pull), and they are the Qwen3.5-lineage hybrid architecture
+(`qwen35` in the GGUF metadata), which needs a llama.cpp build that
+knows it. Same symptom and same fix: an unknown-architecture or
+unknown-flag error at load means the image is stale.
 
 The MiniMax M2.7 entry pins flash-attn, q8_0 KV quantisation, and MiniMax's
 recommended sampling params. Without `--jinja` the chat template and

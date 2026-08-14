@@ -51,8 +51,9 @@ chat models sized for coexistence with the code group still apply in
 shared mode:
 
 - `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
-- `qwen3.8` (dense Q6) at `-c 131072 --parallel 2` -> under ~36 GB live
-  (hybrid attention, so cheaper KV; not yet measured).
+- `qwen3.8` (dense Q6 MTP) at `-c 131072 --parallel 2` -> under ~36 GB
+  live (hybrid attention, so cheaper KV; not yet measured). The
+  `qwen3.8-q8` variant adds ~6 GB of weights on top.
 - `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
 
 The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
@@ -151,36 +152,48 @@ fit individually.
 
 ### qwen3.8: Qwen3.6 successor, on trial
 
-- **Files**:
-  - Weights: `Qwen3.8-27B-UD-Q6_K_XL.gguf` (top-level)
-  - mmproj: `Qwen3.8-27B/mmproj-F16.gguf` (per-model subdir)
+Two entries off the same repo, one per quant tier. Both live in the
+`chat` group (`swap: true`), so only one is resident at a time and the
+second costs disk only.
+
+| llama-swap entry | Quant | File | ~Disk |
+|---|---|---|---|
+| `qwen3.8` (alias `qwen3.8:27b`) | UD-Q6_K_XL | `Qwen3.8-27B-UD-Q6_K_XL.gguf` | ~26 GB |
+| `qwen3.8-q8` (alias `qwen3.8:27b-q8`) | UD-Q8_K_XL | `Qwen3.8-27B-UD-Q8_K_XL.gguf` | ~32 GB |
+
+- **Files**: weights at the top level per the table above; mmproj at
+  `Qwen3.8-27B/mmproj-F16.gguf` (per-model subdir, shared by both
+  entries).
 - **Source**: `unsloth/Qwen3.8-27B-GGUF`
 - **Pull**:
   - `hf download unsloth/Qwen3.8-27B-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
+  - `hf download unsloth/Qwen3.8-27B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.8-27B-GGUF --include "mmproj-F16.gguf" --local-dir ./Qwen3.8-27B/`
 - **Why**: Dense 27B successor to `qwen3.6`, multimodal, 256K native
   context (1M with YaRN, not configured here). Added alongside the 3.6
   entry rather than replacing it so both can be compared on real work
   before any consumer default (openclaw, opencode, pi-agents) moves
-  over. Q6_K_XL for the same reason as `qwen3.6`: dense decode reads all
-  weights, so Q8 costs roughly half the throughput for a smaller quality
-  gain than it buys on the MoE entries.
-- **VRAM**: ~26 GB on disk; live footprint not yet measured. The
-  `-c 131072 --parallel 2` sizing (two sticky 64K slots, q8_0 KV)
-  mirrors `qwen3.6` and should land under its ~36 GB live, because the
-  Qwen3.5-lineage hybrid layout (three Gated DeltaNet blocks per
-  full-attention block) means only a quarter of the layers carry a
-  growing KV cache. Widen `-c` once the real number is known.
-- **Notes**: GGUF architecture is `qwen35`; if the model fails to load
-  with an unknown-architecture error in `docker logs llama-swap`, the
-  bundled llama.cpp is stale and `docker pull
-  ghcr.io/mostlygeek/llama-swap:cuda` on `max` will fix it. No
-  `--spec-type draft-mtp`: Qwen3.8 is trained with MTP, but
-  `unsloth/Qwen3.8-27B-GGUF` is not the MTP build (`qwen3.6` pulls from
-  a separate `-MTP-GGUF` repo); add the flags when Unsloth publishes an
-  MTP GGUF for this model. Sampling uses Qwen's thinking-mode values;
-  for instruct-style use Qwen recommends `--temp 0.7 --top-p 0.80` with
-  a presence penalty instead. `--mmproj` wires up vision.
+  over. Q6 is the everyday tier for the same reason as on `qwen3.6`
+  (dense decode reads all weights, so bigger quants cost real
+  throughput); Q8 is there to be picked by name when quality matters
+  more than tok/s, and should run near half the Q6 decode speed, with
+  MTP clawing some of that back on accepted drafts.
+- **VRAM**: live footprint not yet measured. The `-c 131072 --parallel 2`
+  sizing (two sticky 64K slots, q8_0 KV) mirrors `qwen3.6` and the Q6
+  entry should land under its ~36 GB live, because the Qwen3.5-lineage
+  hybrid layout (three Gated DeltaNet blocks per full-attention block)
+  means only a quarter of the layers carry a growing KV cache. Q8 adds
+  ~6 GB of weights on top. Widen `-c` once the real numbers are known.
+- **Notes**: MTP is built into the base GGUF (unlike Qwen3.6, which
+  needs the separate `-MTP-GGUF` repo), so both entries run
+  `--spec-type draft-mtp --spec-draft-n-max 6` and carry the same
+  llama.cpp floor as `qwen3.6`: 2026-05-16 or newer. GGUF architecture
+  is `qwen35`; an unknown-architecture or unknown-flag error in
+  `docker logs llama-swap` means the bundled llama.cpp is stale, and
+  `docker pull ghcr.io/mostlygeek/llama-swap:cuda` on `max` fixes it.
+  Sampling uses Qwen's thinking-mode values; for instruct-style use
+  Qwen recommends `--temp 0.7 --top-p 0.80` with a presence penalty
+  instead. `--mmproj` wires up vision.
 
 ### gemma4: different lineage from Qwen
 
