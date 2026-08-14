@@ -19,6 +19,7 @@ komodo_image_tag: "2.2.0"
 # MongoDB major pin; Komodo upstream tracks mongo 8
 komodo_mongo_image: mongo:8
 periphery_root_directory: /etc/komodo
+periphery_registry_config_directory: "{{ periphery_root_directory }}/docker"
 
 # Komodo Core configuration
 komodo_host: "https://ko.atelier.house"

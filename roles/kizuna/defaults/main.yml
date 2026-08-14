@@ -42,6 +42,7 @@ kizuna_screenshotter_secret: "{{ vault_kizuna_screenshotter_secret | default('')
 kizuna_registry_url: https://registry.atelier.house
 kizuna_registry_username: "{{ vault_kizuna_registry_username | default('') }}"
 kizuna_registry_password: "{{ vault_kizuna_registry_password | default('') }}"
+kizuna_registry_config_path: /etc/komodo/docker/config.json
 
 # Public domains. CI bakes PUBLIC_KIZUNA_API_URL into the SPA bundle at
 # build time (see kizuna-app/.gitlab-ci.yml), so changing this here is

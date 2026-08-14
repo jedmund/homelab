@@ -63,6 +63,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - {{ periphery_root_directory }}:{{ periphery_root_directory }}
+      - {{ periphery_registry_config_directory }}:/root/.docker:ro
       - {{ docker_base_path }}:{{ docker_base_path }}:ro
       - /home/{{ ansible_user }}/Docker:/home/{{ ansible_user }}/Docker
     logging:
