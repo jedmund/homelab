@@ -20,6 +20,14 @@
   loop_control:
     label: "{{ item.path }}"
 
+- name: Create Periphery registry config directory
+  file:
+    path: "{{ periphery_registry_config_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2

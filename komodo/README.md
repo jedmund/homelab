@@ -53,10 +53,11 @@ operational boundary:
 - authentication: Traefik's `tinyauth@file` middleware, backed by PocketID;
 - TLS: the `letsencrypt` resolver.
 
-The Kizuna Ansible role already logs the host in to
-`registry.atelier.house` with its read-only deploy token. Keep that credential
-current because the ephemeral stacks deliberately do not contain registry
-secrets.
+The Kizuna Ansible role writes its read-only deploy token to a dedicated Docker
+config under `/etc/komodo/docker`. The infra-core role mounts that directory
+read-only into Periphery so Komodo's `docker compose pull` can authenticate to
+`registry.atelier.house`. Keep that credential current because the ephemeral
+stacks deliberately do not contain registry secrets.
 
 Before enabling the app CI jobs:
 

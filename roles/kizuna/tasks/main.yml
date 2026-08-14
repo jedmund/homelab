@@ -76,11 +76,21 @@
     owner: "{{ ansible_user }}"
     mode: '0750'
 
+- name: Create Komodo registry config directory
+  file:
+    path: "{{ kizuna_registry_config_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
 - name: Authenticate with Kizuna image registry
   community.docker.docker_login:
     registry_url: "{{ kizuna_registry_url }}"
     username: "{{ kizuna_registry_username }}"
     password: "{{ kizuna_registry_password }}"
+    config_path: "{{ kizuna_registry_config_path }}"
+    reauthorize: true
   when: kizuna_registry_username | length > 0 and kizuna_registry_password | length > 0
   no_log: true
 
