@@ -30,6 +30,7 @@ services:
   komodo-core:
     image: ghcr.io/moghtech/komodo-core:{{ komodo_image_tag }}
     container_name: komodo_core
+    init: true
     labels:
       komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     restart: {{ restart_policy }}
@@ -43,6 +44,7 @@ services:
       - 9120:9120
     env_file: ./env/komodo.env
     volumes:
+      - komodo-keys:/config/keys
       - {{ config_base }}/backups:/backups
     logging:
       driver: {{ logging_driver }}
@@ -53,13 +55,17 @@ services:
   komodo-periphery:
     image: ghcr.io/moghtech/komodo-periphery:{{ komodo_image_tag }}
     container_name: komodo_periphery
+    init: true
     labels:
       komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     restart: {{ restart_policy }}
+    depends_on:
+      - komodo-core
     networks:
       - backend
     env_file: ./env/komodo.env
     volumes:
+      - komodo-keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - {{ periphery_root_directory }}:{{ periphery_root_directory }}
@@ -73,6 +79,8 @@ services:
         max-file: {{ logging_max_file }}
 
 volumes:
+  komodo-keys:
+    name: komodo-keys
   mongo-data:
     name: komodo-mongo-data
     external: true

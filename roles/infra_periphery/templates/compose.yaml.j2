@@ -5,6 +5,7 @@ services:
   komodo-periphery:
     image: {{ komodo_periphery_image }}:{{ komodo_periphery_image_tag }}
     container_name: komodo_periphery
+    init: true
     labels:
       komodo.skip: # Prevent Komodo from stopping with StopAllContainers
     restart: {{ restart_policy }}
@@ -14,6 +15,7 @@ services:
       - {{ periphery_port }}:8120
     env_file: ./env/periphery.env
     volumes:
+      - komodo-periphery-keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - {{ periphery_root_directory }}:{{ periphery_root_directory }}
@@ -24,3 +26,7 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+volumes:
+  komodo-periphery-keys:
+    name: komodo-periphery-keys
