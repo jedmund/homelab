@@ -1,0 +1,10 @@
+---
+# Stack identity
+stack_name: openspeedtest
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# OpenSpeedTest settings
+# Upstream really does name the image "latest" (openspeedtest/latest)
+openspeedtest_image: openspeedtest/latest:latest
+openspeedtest_port: 3000
+openspeedtest_domain: "speed.atelier.house"

@@ -1,0 +1,6 @@
+---
+- name: Deploy openspeedtest stack
+  hosts: openspeedtest
+  become: true
+  roles:
+    - openspeedtest

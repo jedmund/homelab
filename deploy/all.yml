@@ -203,6 +203,10 @@
 - import_playbook: line.yml
   tags: [line]
 
+# OpenSpeedTest (speed.atelier.house)
+- import_playbook: openspeedtest.yml
+  tags: [openspeedtest]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]

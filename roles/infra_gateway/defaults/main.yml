@@ -80,8 +80,6 @@ ddclient_fireplace_subdomains:
 pocketid_image: ghcr.io/pocket-id/pocket-id:latest # floating, tracks upstream
 tinyauth_image: ghcr.io/steveiliop56/tinyauth:v4 # floating major channel
 ddclient_image: linuxserver/ddclient:latest # floating, tracks upstream
-# Upstream really does name the image "latest" (openspeedtest/latest)
-openspeedtest_image: openspeedtest/latest:latest
 
 # Traefik settings
 traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
@@ -129,9 +127,6 @@ tinyauth_allowed_user: "{{ vault_tinyauth_allowed_user }}"
 # reference tinyauth_allowed_user directly and remain single-user.
 # tinyauth_atelier_users (comma-separated email list) - defined in vault
 tinyauth_atelier_users: "{{ vault_tinyauth_atelier_users }}"
-
-# OpenSpeedTest settings
-openspeedtest_port: 3000
 
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.

@@ -1,0 +1,46 @@
+---
+# OpenSpeedTest - LAN speed test at speed.atelier.house
+# Intentionally unauthenticated: no TinyAuth middleware, no OIDC.
+
+# The container was previously part of the infra-gateway compose project.
+# It holds no state, so releasing the container_name is the whole
+# migration. Guarded on the compose project label so it only fires while a
+# legacy container is still around; removable once every host has run this
+# role.
+- name: Inspect any existing OpenSpeedTest container
+  community.docker.docker_container_info:
+    name: openspeedtest
+  register: openspeedtest_existing
+
+- name: Remove OpenSpeedTest container from the legacy infra-gateway project
+  community.docker.docker_container:
+    name: openspeedtest
+    state: absent
+  when:
+    - openspeedtest_existing.exists
+    - openspeedtest_existing.container.Config.Labels['com.docker.compose.project'] | default('') == 'infra-gateway'
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

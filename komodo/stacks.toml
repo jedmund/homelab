@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik, PocketID, TinyAuth, ddclient, and OpenSpeedTest"
+description = "Traefik, PocketID, TinyAuth, and ddclient"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -31,6 +31,18 @@ auto_update = false
 # stack builds instead.
 auto_pull = false
 run_build = true
+
+[[stack]]
+name = "openspeedtest"
+description = "LAN speed test at speed.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/openspeedtest"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
 
 [[stack]]
 name = "infra-core"

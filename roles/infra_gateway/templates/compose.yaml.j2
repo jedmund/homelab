@@ -120,24 +120,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  openspeedtest:
-    container_name: openspeedtest
-    restart: {{ restart_policy }}
-    image: {{ openspeedtest_image }}
-    networks:
-      - proxy
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.speedtest.rule: "Host(`speed.{{ traefik_domain }}`)"
-      traefik.http.routers.speedtest.entrypoints: "websecure"
-      traefik.http.routers.speedtest.tls.certresolver: "letsencrypt"
-      traefik.http.services.speedtest.loadbalancer.server.port: "{{ openspeedtest_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
 volumes:
   traefik-logs:
     name: {{ stack_name }}_traefik-logs
