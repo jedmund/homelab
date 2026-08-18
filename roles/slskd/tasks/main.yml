@@ -1,6 +1,14 @@
 ---
 # slskd product stack
 
+- name: Validate slskd Album Sort API key
+  ansible.builtin.assert:
+    that:
+      - slskd_album_sort_api_key | length >= 16
+    fail_msg: >-
+      Populate slskd_api_key in the slskd vault with a
+      16-character-or-longer secret before deploying slskd.
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

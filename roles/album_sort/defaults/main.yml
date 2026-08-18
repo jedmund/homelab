@@ -19,6 +19,9 @@ album_sort_origin: "https://{{ album_sort_domain }}"
 album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
 album_sort_data_path: /data
+album_sort_quarantine_path: /quarantine
+album_sort_downloads_path: /downloads
+album_sort_slskd_download_dir: /downloads/music
 album_sort_watch_interval: "30000"
 album_sort_scan_concurrency: "4"
 album_sort_musicbrainz_base_url: "http://musicbrainz:5000/ws/2"
@@ -30,9 +33,20 @@ album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
 album_sort_session_ttl_hours: "12"
 
-# Keep the outer middleware during native-OIDC rollout. Set false only after
-# login, callback, logout, and unauthenticated rejection are verified.
-album_sort_use_tinyauth: true
+# Acquisition connectors. These resolve over the existing shared Docker
+# network; secrets are supplied from the Album Sort vault and rendered only
+# into the mode-0600 environment file.
+album_sort_prowlarr_url: "http://prowlarr:9696"
+album_sort_prowlarr_api_key: "{{ vault_album_sort_prowlarr_api_key | default('') }}"
+album_sort_qbittorrent_url: "http://qbittorrent:8080"
+album_sort_qbittorrent_username: "{{ vault_album_sort_qbittorrent_username | default('') }}"
+album_sort_qbittorrent_password: "{{ vault_album_sort_qbittorrent_password | default('') }}"
+album_sort_slskd_url: "http://slskd:5030"
+album_sort_slskd_api_key: "{{ slskd_api_key | default('') }}"
+
+# Native PocketID/OIDC is the application security boundary. Set this back to
+# true only as a temporary rollback if native login becomes unavailable.
+album_sort_use_tinyauth: false
 
 # Multi-Scrobbler integration
 album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
@@ -43,4 +57,6 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
-# vault_album_sort_oidc_client_secret
+# vault_album_sort_oidc_client_secret, vault_album_sort_prowlarr_api_key,
+# vault_album_sort_qbittorrent_username,
+# vault_album_sort_qbittorrent_password
