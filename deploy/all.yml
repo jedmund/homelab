@@ -16,8 +16,8 @@
   tags: [always, prerequisites]
 
 # Infrastructure layer
-- import_playbook: infra_gateway.yml
-  tags: [infra, infra_gateway]
+- import_playbook: traefik.yml
+  tags: [infra, traefik]
 
 # PocketID OIDC provider. Deploys before TinyAuth and before any app that
 # authenticates against it.

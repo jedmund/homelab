@@ -1,0 +1,158 @@
+---
+# Traefik - reverse proxy, TLS termination, and ACME certificates
+
+# --- One-time migration off the infra-gateway stack -----------------------
+# Traefik used to be one service inside the infra-gateway compose project.
+# Every config file below is re-templated, so acme.json is the only state
+# that has to survive: losing it means re-requesting the wildcard
+# certificates and burning Let's Encrypt rate limit. It is copied rather
+# than moved so the legacy tree stays a usable fallback until the new stack
+# is proven. The legacy container is removed first to release the `traefik`
+# container_name for the new project. This block can be deleted, along with
+# /opt/docker/infra-gateway, once every host has run the role.
+
+- name: Check for the ACME store under the legacy infra-gateway stack
+  stat:
+    path: "{{ traefik_legacy_base }}/config/traefik/acme/acme.json"
+  register: traefik_legacy_acme
+
+- name: Check for the ACME store under the {{ stack_name }} stack
+  stat:
+    path: "{{ config_base }}/config/traefik/acme/acme.json"
+  register: traefik_current_acme
+
+- name: Create the ACME directory for the migrated store
+  file:
+    path: "{{ config_base }}/config/traefik/acme"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0700'
+  when:
+    - traefik_legacy_acme.stat.exists
+    - not traefik_current_acme.stat.exists
+
+- name: Copy the ACME store out of the legacy infra-gateway stack
+  copy:
+    src: "{{ traefik_legacy_base }}/config/traefik/acme/acme.json"
+    dest: "{{ config_base }}/config/traefik/acme/acme.json"
+    remote_src: true
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - traefik_legacy_acme.stat.exists
+    - not traefik_current_acme.stat.exists
+
+- name: Inspect any existing Traefik container
+  community.docker.docker_container_info:
+    name: traefik
+  register: traefik_existing
+
+- name: Remove Traefik container from the legacy infra-gateway project
+  community.docker.docker_container:
+    name: traefik
+    state: absent
+  when:
+    - traefik_existing.exists
+    - traefik_existing.container.Config.Labels['com.docker.compose.project'] | default('') == 'infra-gateway'
+
+# --- Normal deploy --------------------------------------------------------
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Create Traefik config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}/config/traefik"
+    - "{{ config_base }}/config/traefik/dynamic"
+    - "{{ config_base }}/config/traefik/acme"
+  when: traefik_enabled | bool
+
+- name: Set permissions on Traefik ACME directory
+  file:
+    path: "{{ config_base }}/config/traefik/acme"
+    owner: "{{ ansible_user }}"
+    mode: '0700'
+  when: traefik_enabled | bool
+
+- name: Create Traefik acme.json file
+  file:
+    path: "{{ config_base }}/config/traefik/acme/acme.json"
+    state: touch
+    mode: '0600'
+    owner: "{{ ansible_user }}"
+    modification_time: preserve
+    access_time: preserve
+  when: traefik_enabled | bool
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - traefik
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik static config
+  template:
+    src: traefik/traefik.yml.j2
+    dest: "{{ config_base }}/config/traefik/traefik.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik dynamic configs
+  template:
+    src: "traefik/dynamic/{{ item }}"
+    dest: "{{ config_base }}/config/traefik/dynamic/{{ item | regex_replace('.j2$', '') }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - services-mini.yml.j2
+    - services-max.yml.j2
+    - services-other.yml.j2
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Traefik static files
+  copy:
+    src: "traefik/dynamic/{{ item }}"
+    dest: "{{ config_base }}/config/traefik/dynamic/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - middlewares.yml
+    - tls.yml
+  when: traefik_enabled | bool
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

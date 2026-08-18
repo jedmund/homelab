@@ -12,7 +12,7 @@ http:
     # llama-swap web UI - models.{{ traefik_domain }}
     # Port 11434 matches llama_swap_port in roles/ai/defaults/main.yml;
     # kept hardcoded here because the ai role's variables are not in scope
-    # from infra_gateway. TinyAuth gates the browser UI; OpenAI-compatible
+    # from the traefik role. TinyAuth gates the browser UI; OpenAI-compatible
     # API clients (opencode etc.) still reach llama-swap directly via the
     # LAN port on max:11434 without going through Traefik.
     llamaswap:

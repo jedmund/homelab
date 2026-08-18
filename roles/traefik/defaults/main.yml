@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: infra-gateway
+stack_name: traefik
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Other stack images. Floating tags are intentional where noted: these
@@ -22,6 +22,11 @@ traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
 # Override per host in inventory or host_vars when needed; default
 # preserves the legacy any-iface behaviour.
 traefik_bind_ip: "0.0.0.0"
+
+# Path Traefik occupied while this role was the infra-gateway stack. Only
+# used by the one-time ACME migration; removable once every host has run
+# this role at least once.
+traefik_legacy_base: "{{ docker_base_path }}/infra-gateway"
 
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.

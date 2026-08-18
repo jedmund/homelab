@@ -4,13 +4,13 @@
 # them on demand, but it should not clone stack repos or auto-update images.
 
 [[stack]]
-name = "infra-gateway"
-description = "Traefik reverse proxy and ACME certificates"
+name = "traefik"
+description = "Reverse proxy, TLS termination, and ACME certificates"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
-run_directory = "/opt/docker/infra-gateway"
+run_directory = "/opt/docker/traefik"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
