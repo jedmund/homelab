@@ -36,9 +36,9 @@ vllm_model_cache_dirs:
 # Manual lifecycle: each model is a compose service gated behind a
 # profile, so `docker compose up` (and the ansible deploy) creates
 # nothing by default. Bring a model up:
-#   docker compose --profile deepseek-v4-flash up -d
+#   docker compose --profile deepseek-v4-flash-0731 up -d
 # Stop it to hand VRAM back to llama-swap:
-#   docker compose --profile deepseek-v4-flash down
+#   docker compose --profile deepseek-v4-flash-0731 down
 
 # Env applied to every vLLM container.
 #   CUDA_DEVICE_ORDER=PCI_BUS_ID  vLLM warns on this box because the
@@ -50,54 +50,11 @@ vllm_common_env:
   CUDA_DEVICE_ORDER: "PCI_BUS_ID"
 
 vllm_models:
-  # DeepSeek V4 Flash via vLLM. This is the configuration the user ran
-  # by hand for several days; encoded here verbatim so the compose
-  # output matches the known-good docker run command.
-  #
-  # The model name (first positional arg) is an HF Hub identifier;
-  # vLLM downloads weights on first run into the mounted HF cache.
-  # Weights are already present at the cache path, so the container
-  # only re-validates the snapshot rather than re-downloading.
-  - name: deepseek-v4-flash
-    host_port: 11437
-    container_port: 8000
-    shm_size: "32gb"
-    cuda_visible_devices: "0,1"
-    extra_env:
-      HOME: /root
-      HF_HOME: /root/.cache/huggingface
-      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
-      TORCH_CUDA_ARCH_LIST: "12.0"
-      # Profiler estimator over-counts cuda graph memory on the dsv4
-      # build and trips the gpu-memory-utilization guard; disable it
-      # to match the working docker run.
-      VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
-    args:
-      - deepseek-ai/DeepSeek-V4-Flash
-      - --language-model-only
-      - --served-model-name=DeepSeek-V4-Flash
-      - --tokenizer-mode=deepseek_v4
-      - --tool-call-parser=deepseek_v4
-      - --enable-auto-tool-choice
-      - --reasoning-parser=deepseek_v4
-      - --reasoning-config
-      - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
-      - --tensor-parallel-size=2
-      - --kv-cache-dtype=fp8_ds_mla
-      - --gpu-memory-utilization=0.96
-      - --max-num-batched-tokens=8192
-      - --enable-prefix-caching
-      - --max-num-seqs=2
-      - --speculative-config
-      - '{"method":"mtp","num_speculative_tokens":3}'
-      - --default-chat-template-kwargs
-      - '{"thinking": true, "reasoning_effort": "high"}'
-      - --no-enable-flashinfer-autotune
-      - --host=0.0.0.0
-      - --port=8000
-
-  # DeepSeek V4 Flash 0731, the official release that supersedes the
-  # preview entry above. Served by the voipmonitor gilded-gnosis
+  # DeepSeek V4 Flash 0731, the official release. This is the only
+  # served checkpoint: the earlier preview (deepseek-ai/DeepSeek-V4-Flash,
+  # a June revision of the rolling repo) was retired once 0731 was
+  # validated on this box, and its weights were removed from the HF
+  # cache to reclaim 149 GB. Served by the voipmonitor gilded-gnosis
   # v20-r15 image from local-inference-lab/blackwell-llm-docker, which
   # is the same SM120 + b12x lineage as the lavd builds we ran before.
   #
@@ -106,9 +63,6 @@ vllm_models:
   # from env vars, so there is no `args` list here. Upstream reference
   # config is examples/docker-compose-ds4-v20-r15.yml in that repo.
   #
-  # Both this and the preview bind 11437, so only one can run at a
-  # time. That is deliberate: it makes an accidental double-start fail
-  # loudly instead of silently splitting VRAM.
   - name: deepseek-v4-flash-0731
     image: voipmonitor/vllm:gilded-gnosis-v20-vllm0bc48c5-sieec30ff-fi801d57a-cu132-20260731-r15
     host_port: 11437
