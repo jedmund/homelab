@@ -77,6 +77,47 @@ gitlab_cache_s3_expiry_days: 14
 # not a running service.
 gitlab_cache_mc_image: minio/mc
 
+# Container registry cleanup.
+#
+# CI pushes an image per commit and BuildKit exports a cache layer per build,
+# and nothing ever removed them: 23 repositories, 4509 tags, ~236 GB. Because
+# every tag still referenced its blobs, registry garbage collection had
+# nothing to collect. Tags have to expire first; GC only reclaims what tags
+# no longer point at.
+#
+# The delete pattern matches exactly two shapes, which is what makes it safe:
+#   [0-9a-f]{8}   per-commit image tags CI pushes
+#   [0-9a-f]{64}  BuildKit cache digests (regenerable by definition)
+#
+# Everything else is spared without needing a keep-list: `latest` and `main`,
+# branch-name tags (feat-*, chore-*, b0-*), the ci-* builder images CI itself
+# depends on, the mr-* storybook review tags, and the 40-character full SHAs
+# that album-sort and kaneo publish. That last one matters: roles/kaneo pins
+# an immutable full-SHA tag, so a pattern that expired it would break that
+# deploy on the next run.
+#
+# Grouped alternation is deliberate. GitLab anchors the pattern as \A...\z,
+# so an ungrouped `a|b` would bind as `(\Aa)|(b\z)` and match far more than
+# intended.
+gitlab_registry_cleanup_enabled: true
+gitlab_registry_cleanup_name_regex: '([0-9a-f]{8}|[0-9a-f]{64})'
+# Keep this many of the most recent matching tags per repository, regardless
+# of age, so a rollback target always survives.
+gitlab_registry_cleanup_keep_n: 10
+# Only expire tags older than this.
+gitlab_registry_cleanup_older_than: 30d
+# How often GitLab runs the policy.
+gitlab_registry_cleanup_cadence: 7d
+# Projects to leave alone entirely (full paths).
+#
+# kaneo is excluded belt-and-braces. The pattern above already spares its
+# 40-character tags, but roles/kaneo pins an immutable full SHA and asserts
+# on it, so an expired tag breaks that deploy outright. The explicit
+# exclusion states the intent and survives a future change to the pattern.
+# Remove it once kaneo publishes and deploys a floating tag like the others.
+gitlab_registry_cleanup_exclude_projects:
+  - jedmund/kaneo
+
 # Renovate settings
 renovate_image: renovate/renovate:39
 renovate_log_level: info

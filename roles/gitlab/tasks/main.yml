@@ -170,3 +170,37 @@
       changed_when: false
       no_log: true
       when: gitlab_cache_bucket_info.rc == 0
+
+# Container registry tag expiry. GitLab's cleanup policy is per-project and
+# applies to every container repository the project owns, so one policy per
+# project covers its app, cache, storybook and ci-* repositories at once.
+# Applied through gitlab-rails because the policy lives in GitLab's database,
+# not in gitlab.rb, and there is no omnibus setting for it.
+#
+# Reconciles rather than creates: re-running updates existing policies in
+# place, and reports changed only when a value actually differs.
+- name: Configure container registry cleanup policies
+  ansible.builtin.command:
+    cmd: >-
+      docker exec gitlab gitlab-rails runner
+      "excluded = {{ gitlab_registry_cleanup_exclude_projects | to_json }};
+       changed = [];
+       ContainerRepository.all.map(&:project).uniq.each do |project|
+         next if excluded.include?(project.full_path);
+         policy = project.container_expiration_policy || project.build_container_expiration_policy;
+         desired = {
+           enabled: true,
+           cadence: '{{ gitlab_registry_cleanup_cadence }}',
+           keep_n: {{ gitlab_registry_cleanup_keep_n }},
+           older_than: '{{ gitlab_registry_cleanup_older_than }}',
+           name_regex: '{{ gitlab_registry_cleanup_name_regex }}'
+         };
+         next if desired.all? { |k, v| policy.public_send(k) == v };
+         policy.assign_attributes(desired);
+         policy.save!;
+         changed << project.full_path;
+       end;
+       puts changed.empty? ? 'OK no changes' : ('CHANGED ' + changed.join(','))"
+  register: gitlab_registry_policy
+  changed_when: "'CHANGED' in gitlab_registry_policy.stdout"
+  when: gitlab_registry_cleanup_enabled | bool
