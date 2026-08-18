@@ -76,12 +76,16 @@
   loop:
     - "{{ config_base }}/config/traefik"
     - "{{ config_base }}/config/traefik/dynamic"
-    - "{{ config_base }}/config/traefik/acme"
   when: traefik_enabled | bool
 
-- name: Set permissions on Traefik ACME directory
+# Kept out of the 0755 loop above: acme.json holds private keys, so the
+# directory stays 0700. Creating it at 0755 first and tightening it after
+# left the role permanently non-idempotent and widened the mode for the
+# rest of the play.
+- name: Create Traefik ACME directory
   file:
     path: "{{ config_base }}/config/traefik/acme"
+    state: directory
     owner: "{{ ansible_user }}"
     mode: '0700'
   when: traefik_enabled | bool
