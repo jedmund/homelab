@@ -359,11 +359,15 @@ embedding is on TEI (see Embeddings section below).
 | `bge-m3` | `bge-m3-Q8_0.gguf` | `gpustack/bge-m3-GGUF` | ~600 MB | ~1 GB | `cls` (encoder) |
 | `qwen3-embed-0_6b` | `Qwen3-Embedding-0.6B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-0.6B-GGUF` | ~700 MB | ~1.5 GB | `last` (decoder) |
 | `qwen3-embed-4b` | `Qwen3-Embedding-4B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-4B-GGUF` | ~4.5 GB | ~6 GB | `last` (decoder) |
+| `qwen3-embed-8b` | `Qwen3-Embedding-8B-Q8_0.gguf` | `Qwen/Qwen3-Embedding-8B-GGUF` | ~7.5 GB | ~8 GB | `last` (decoder) |
 
 - **Pull**:
   - `hf download gpustack/bge-m3-GGUF --include "*Q8_0*.gguf" --local-dir .`
   - `hf download Qwen/Qwen3-Embedding-0.6B-GGUF --include "*Q8_0*.gguf" --local-dir .`
   - `hf download Qwen/Qwen3-Embedding-4B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+  - `hf download Qwen/Qwen3-Embedding-8B-GGUF --include "*Q8_0*.gguf" --local-dir .`
+    Note the `--include` filter: without it this repo pulls all six quants
+    (~42 GB) rather than the one you want.
   - Verify filenames after download; the publishers occasionally tweak case
     or naming (e.g. `f16` vs `F16`, `Q8_0` vs `q8_0`). The `ai_models`
     entries assume the canonical names in the table above.
@@ -465,19 +469,43 @@ on `:11434`.
   (multilingual, 1024-dim), or `Qwen/Qwen3-Embedding-4B` for max quality at
   ~7.6 GB resident.
 
-### tei-jina: jinaai/jina-embeddings-v3 (always-on)
+### tei-jina: jina-embeddings-v5-text-small (deployed, not running)
 
-- **Current model**: `jinaai/jina-embeddings-v3` (1024-dim, multilingual,
-  task-conditioned via LoRA adapters). Read from local disk at
-  `/opt/docker/ai/models/jina-embeddings-v3/` (bind-mounted read-only).
-- **Why a separate container**: jina-v3's task-specific LoRA adapters and
-  `custom_st.py` pooling logic don't translate to a clean GGUF, so llama-swap
-  can't serve it. To keep it available without losing the llama-swap embed
-  group's swap benefits for the other three, it gets its own dedicated TEI
+- **Current model**: `jinaai/jina-embeddings-v5-text-small-retrieval`
+  (1024-dim, 119+ languages, 32K context). Read from local disk at
+  `/opt/docker/ai/models/jina-embeddings-v5-text-small-retrieval/`.
+- **Status**: gated behind a compose profile and **not started**. Set
+  `tei_jina_enabled: true` and re-run `deploy/ai.yml` to bring it up.
+- **Endpoint when enabled**: `http://192.168.1.100:11436/v1/embeddings`.
+- **Why it scores well for its size**: v5-small is built on
+  `Qwen/Qwen3-0.6B-Base` and distilled from `Qwen3-Embedding-4B`, reaching
+  67.7 MMTEB at 677M params, above `qwen3-embed-0_6b` and at 1024 dims
+  rather than the 4B's 2560.
+- **Pooling is passed explicitly** (`--pooling last`). TEI would normally
+  read it from the sentence-transformers config, but upstream's
+  `modules.json` references a `2_Normalize` module it does not ship, so TEI
+  logs "Could not find a Sentence Transformers config" and falls back to its
+  default. Wrong pooling returns junk vectors with no error.
+- **Prompt prefixes**: `config_sentence_transformers.json` defines
+  `query: "Query: "` and `document: "Document: "`. TEI does not apply these,
+  so a consumer wanting the model's intended asymmetric retrieval behaviour
+  must prepend them itself.
+- **One task per container**: TEI serves a single merged-adapter variant.
+  `retrieval` is downloaded; `text-matching`, `classification`, and
+  `clustering` exist as separate repos and would each need their own
   container.
-- **Endpoint**: `http://192.168.1.100:11436/v1/embeddings`.
-- **Idle cost**: ~1.1 GB resident VRAM. Acceptable for the convenience of
-  having jina-v3 available alongside the swappable Qwen3 / bge-m3 embedders.
+
+#### History: why jina-v3 was replaced
+
+The previous model was `jinaai/jina-embeddings-v3`, and **it never ran**.
+TEI cannot load it, for three independent reasons: its `config.json` has no
+`model_type` (upstream's does not either, so this was not a broken
+download), it uses `position_embedding_type: rotary` where TEI's Candle
+backend accepts only `absolute`, `alibi`, or `rope`, and its `modules.json`
+uses a `custom_st.Transformer` module TEI cannot parse. TEI's supported-model
+list names JinaBERT for v2 only. The container crash-looped from the day it
+was deployed. v5 resolves all three: it is a plain Qwen3 architecture with a
+normal `model_type` and the task adapter merged into the base weights.
 
 ## Adding or removing a model
 

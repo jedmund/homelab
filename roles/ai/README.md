@@ -8,7 +8,7 @@ GPU-bound AI services on `max`. Seven containers in one stack:
 | whisper STT (speaches) | `speaches-ai/speaches:latest-cuda` | `9000` | yes (`/v1/audio/transcriptions`) |
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
 | TEI embeddings (Qwen3) | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
-| TEI embeddings (jina-v3) | `huggingface/text-embeddings-inference:cuda-latest` | `11436` | yes (`/v1/embeddings`) |
+| TEI embeddings (jina-v5) | `huggingface/text-embeddings-inference:cuda-latest` | `11436` | not running (profile-gated; see MODELS.md) |
 | SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
 | Playwright | `mcr.microsoft.com/playwright` | `3000` | n/a (WebSocket only) |
 
@@ -56,7 +56,7 @@ Embeddings split across two surfaces:
   consumer. Two containers, each pinned to one model:
   - `tei` -> `Qwen/Qwen3-Embedding-0.6B` at `:11435` (read from local
     snapshot at `models/Qwen3-Embedding-0.6B/`).
-  - `tei-jina` -> `jinaai/jina-embeddings-v3` at `:11436` (read from local
+  - `tei-jina` -> `jina-embeddings-v5-text-small-retrieval` at `:11436`, deployed but not started (read from local
     snapshot at `models/jina-embeddings-v3/`).
 - **Swap-loaded (llama-swap)** for project experimentation. The `embed`
   group has `swap: true`, so only one of `bge-m3`, `qwen3-embed-0_6b`,
