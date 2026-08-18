@@ -4,6 +4,10 @@ name: {{ stack_name }}
 services:
   borgmatic:
     container_name: borgmatic
+    # Stable hostname: borg records it in archive metadata and lock ids, and
+    # borgmatic's archive naming derives from it. Left to Docker's default it
+    # is the container id, which changes on every recreate.
+    hostname: {{ borg_repo_label }}
     build:
       context: ./build
       dockerfile: Dockerfile
@@ -20,7 +24,11 @@ services:
       - ./scripts:/scripts:ro
       - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
       - {{ borg_dumps_host_path }}:{{ borg_dumps_container_path }}
-      - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}
+      # rslave so the autofs-triggered NFS mount on the host propagates into
+      # the container. With Docker's default rprivate the container keeps the
+      # view it had at start: if the share mounts later, the container never
+      # sees it and the post-backup rsync silently mirrors onto the root disk.
+      - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}:rslave
 {% for path in borg_source_paths %}
       - {{ path }}:{{ path }}:ro
 {% endfor %}

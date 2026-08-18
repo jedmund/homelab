@@ -26,7 +26,15 @@ exclude_patterns:
 
 encryption_passphrase: "{{ borg_passphrase }}"
 
-# Retention: roll snapshots off after one month.
+# Archive naming. Pinned to the repo label rather than borgmatic's default
+# {hostname}, which resolves to the container ID and changes on every
+# recreate, silently orphaning older archives from prune.
+archive_name_format: "{{ borg_archive_name_format }}"
+match_archives: "{{ borg_match_archives }}"
+
+# Retention: roll snapshots off after one month. Scoped by match_archives
+# above, so archives created under other names (one-off pre-upgrade
+# snapshots, or the legacy container-ID names) are never pruned automatically.
 keep_daily: {{ borg_keep_daily }}
 
 # Compression

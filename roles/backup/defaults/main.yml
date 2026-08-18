@@ -14,6 +14,16 @@ borg_repo_label: nuc-mini
 # Retention
 borg_keep_daily: 30
 
+# Archive naming. Borgmatic defaults archive_name_format to "{hostname}-{now}"
+# and derives match_archives from it, so prune only ever considers archives
+# whose prefix matches the current hostname. The borgmatic container's
+# hostname is its container ID, which changes on every recreate, so each
+# rebuild orphaned the previous archives: they stopped matching, prune never
+# touched them, and the repo only grew. Pin both to the stable repo label
+# (the compose file pins the container hostname to match).
+borg_archive_name_format: "{{ borg_repo_label }}-{now:%Y-%m-%dT%H:%M:%S.%f}"
+borg_match_archives: "sh:{{ borg_repo_label }}-*"
+
 # Schedule (container internal cron, container TZ matches host)
 borg_backup_cron: "0 2 * * *"
 borg_run_on_startup: "false"
@@ -56,8 +66,13 @@ borg_named_volumes:
 # gitlab: live DB/cache files are unsafe to copy mid-write; the dump
 #   produced by the gitlab-backup cron (gitlab role) under
 #   data/backups is the consistent restore artifact for those subsystems.
-#   The rest of /opt/docker/gitlab (config, git-data, uploads,
-#   registry blobs) is safe to copy live and stays in the archive.
+#   The registry is excluded separately below. The rest of
+#   /opt/docker/gitlab (config, git-data, uploads) is safe to copy live
+#   and stays in the archive.
+# gitlab registry: rebuildable CI output, and by far the largest thing on
+#   the host (236G, almost entirely un-garbage-collected layer blobs).
+#   Backing it up dominated the repo for no recovery value: a lost image
+#   is rebuilt by re-running the pipeline that produced it.
 borg_exclude_patterns:
   - /opt/docker/musicbrainz
   - /opt/docker/backup
@@ -65,6 +80,7 @@ borg_exclude_patterns:
   - /opt/docker/gitlab/data/redis
   - /opt/docker/gitlab/data/prometheus
   - /opt/docker/gitlab/logs
+  - /opt/docker/gitlab/data/gitlab-rails/shared/registry
 
 # Integrity checks
 borg_check_repository_frequency: 1 week
