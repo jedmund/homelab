@@ -1,0 +1,6 @@
+---
+- name: Deploy pocketid stack
+  hosts: pocketid
+  become: true
+  roles:
+    - pocketid

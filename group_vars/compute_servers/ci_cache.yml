@@ -8,7 +8,7 @@
 #
 # The Garage instance backing this is deployed by roles/gitlab on nuc-mini.
 # The runners reach it by LAN IP:port (no DNS, no Traefik) so the cache path
-# survives infra_gateway/AdGuard redeploys. Cache misses are non-fatal:
+# survives traefik redeploys. Cache misses are non-fatal:
 # a job warns and rebuilds, so an unpopulated or down cache never breaks CI.
 #
 # Secrets (access key id + secret) live in group_vars/compute_servers/vault.yml:

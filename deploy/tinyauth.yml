@@ -1,0 +1,6 @@
+---
+- name: Deploy tinyauth stack
+  hosts: tinyauth
+  become: true
+  roles:
+    - tinyauth

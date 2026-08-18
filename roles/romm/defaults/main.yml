@@ -60,7 +60,7 @@ romm_streaming_save_timeout: "90"
 
 # `host` is browser-facing and must be HTTPS: Selkies uses WebRTC, which
 # browsers only allow from a secure context. These go through Traefik on
-# nuc-mini (see roles/infra_gateway services-max.yml.j2).
+# nuc-mini (see roles/traefik services-max.yml.j2).
 #
 # `broker_host` is called server-side from RomM, so plain HTTP is fine.
 # It cannot be a container name here the way the upstream examples show,

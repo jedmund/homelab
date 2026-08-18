@@ -1,0 +1,59 @@
+---
+# TinyAuth - forward auth middleware at auth.atelier.house
+# Gates apps that have no native OIDC support; apps that do use PocketID
+# directly. The tinyauth.apps.* labels below are the access control list.
+
+# The container was previously part of the infra-gateway compose project.
+# TinyAuth is stateless (env and labels only), so releasing the
+# container_name is the whole migration. Guarded on the compose project
+# label so it only fires while a legacy container is still around;
+# removable once every host has run this role.
+- name: Inspect any existing TinyAuth container
+  community.docker.docker_container_info:
+    name: tinyauth
+  register: tinyauth_existing
+
+- name: Remove TinyAuth container from the legacy infra-gateway project
+  community.docker.docker_container:
+    name: tinyauth
+    state: absent
+  when:
+    - tinyauth_existing.exists
+    - tinyauth_existing.container.Config.Labels['com.docker.compose.project'] | default('') == 'infra-gateway'
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - tinyauth
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

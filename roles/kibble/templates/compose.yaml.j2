@@ -5,7 +5,7 @@ services:
   # kibble — see roles/kibble/defaults/main.yml for the
   # `network_mode: host` rationale.  No traefik labels: routing is
   # handled by the file provider in
-  # roles/infra_gateway/templates/traefik/dynamic/services-mini.yml.j2
+  # roles/traefik/templates/traefik/dynamic/services-mini.yml.j2
   # (search for `kibble` there).
   kibble:
     container_name: kibble

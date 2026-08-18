@@ -4,13 +4,78 @@
 # them on demand, but it should not clone stack repos or auto-update images.
 
 [[stack]]
-name = "infra-gateway"
-description = "Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, and Line"
+name = "traefik"
+description = "Reverse proxy, TLS termination, and ACME certificates"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
-run_directory = "/opt/docker/infra-gateway"
+run_directory = "/opt/docker/traefik"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "line"
+description = "Personal dashboard at atelier.house, built from source"
+tags = ["homelab", "ansible", "nuc-mini"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/line"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+# Line has no registry image: it is built from the git checkout Ansible
+# maintains at ./source/line. Pulling would fail on `line:local`, so the
+# stack builds instead.
+auto_pull = false
+run_build = true
+
+[[stack]]
+name = "openspeedtest"
+description = "LAN speed test at speed.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/openspeedtest"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "ddclient"
+description = "Dynamic DNS for the atelier.house and fireplace.cafe zones"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/ddclient"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "tinyauth"
+description = "Forward auth middleware at auth.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/tinyauth"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "pocketid"
+description = "OIDC provider at id.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/pocketid"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false

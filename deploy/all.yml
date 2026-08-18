@@ -16,8 +16,18 @@
   tags: [always, prerequisites]
 
 # Infrastructure layer
-- import_playbook: infra_gateway.yml
-  tags: [infra, infra_gateway]
+- import_playbook: traefik.yml
+  tags: [infra, traefik]
+
+# PocketID OIDC provider. Deploys before TinyAuth and before any app that
+# authenticates against it.
+- import_playbook: pocketid.yml
+  tags: [infra, pocketid]
+
+# TinyAuth forward auth. Deploys right after the gateway so the
+# tinyauth@file middleware Traefik references resolves early.
+- import_playbook: tinyauth.yml
+  tags: [infra, tinyauth]
 
 - import_playbook: infra_core.yml
   tags: [infra, infra_core]
@@ -198,6 +208,18 @@
 # frp tunnel proxy
 - import_playbook: frp.yml
   tags: [frp]
+
+# Line personal dashboard (atelier.house)
+- import_playbook: line.yml
+  tags: [line]
+
+# OpenSpeedTest (speed.atelier.house)
+- import_playbook: openspeedtest.yml
+  tags: [openspeedtest]
+
+# ddclient dynamic DNS
+- import_playbook: ddclient.yml
+  tags: [ddclient]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

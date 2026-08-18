@@ -1,0 +1,46 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  traefik:
+    container_name: traefik
+    image: {{ traefik_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    ports:
+      - "{{ traefik_bind_ip }}:80:80"
+      - "{{ traefik_bind_ip }}:443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./config/traefik/dynamic:/config/dynamic:ro
+      - ./config/traefik/acme:/config/acme
+      - traefik-logs:/var/log/traefik
+    env_file:
+      - ./env/traefik.env
+    labels:
+      traefik.enable: "true"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+
+volumes:
+  traefik-logs:
+    name: {{ stack_name }}_traefik-logs
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

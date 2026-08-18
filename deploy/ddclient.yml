@@ -1,0 +1,6 @@
+---
+- name: Deploy ddclient stack
+  hosts: ddclient
+  become: true
+  roles:
+    - ddclient

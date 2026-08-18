@@ -1,0 +1,56 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  tinyauth:
+    container_name: tinyauth
+    image: {{ tinyauth_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    env_file:
+      - ./env/tinyauth.env
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.tinyauth.rule: "Host(`{{ tinyauth_domain }}`)"
+      traefik.http.routers.tinyauth.entrypoints: "websecure"
+      traefik.http.routers.tinyauth.tls.certresolver: "letsencrypt"
+      traefik.http.services.tinyauth.loadbalancer.server.port: "{{ tinyauth_port }}"
+      tinyauth.apps.stash.config.domain: "z.{{ tinyauth_base_domain }}"
+      tinyauth.apps.stash.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.pinchflat.config.domain: "pi.{{ tinyauth_base_domain }}"
+      tinyauth.apps.pinchflat.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.changedetection.config.domain: "track.{{ tinyauth_base_domain }}"
+      tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.copyparty.config.domain: "files.{{ tinyauth_base_domain }}"
+      tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ tinyauth_base_domain }}"
+      tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.jdownloader.config.domain: "jdl.{{ tinyauth_base_domain }}"
+      tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.slskd.config.domain: "sl.{{ tinyauth_base_domain }}"
+      tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.netdata.config.domain: "netdata.{{ tinyauth_base_domain }}"
+      tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ tinyauth_base_domain }}"
+      tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.llamaswap.config.domain: "models.{{ tinyauth_base_domain }}"
+      tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
+      tinyauth.apps.openclaw.config.domain: "claw.{{ tinyauth_base_domain }}"
+      tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.searxng.config.domain: "search.{{ tinyauth_base_domain }}"
+      tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
+      tinyauth.apps.pcsx2.config.domain: "pcsx2.{{ tinyauth_base_domain }}"
+      tinyauth.apps.pcsx2.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.dolphin.config.domain: "dolphin.{{ tinyauth_base_domain }}"
+      tinyauth.apps.dolphin.users.allow: "{{ tinyauth_allowed_user }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

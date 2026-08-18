@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  ddclient:
+    container_name: ddclient
+    restart: {{ restart_policy }}
+    image: {{ ddclient_image }}
+    networks:
+      - proxy
+    environment:
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+    volumes:
+      - ./config/ddclient/ddclient.conf:/config/ddclient.conf
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
