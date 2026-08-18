@@ -50,6 +50,22 @@
     mode: '0644'
   notify: Restart {{ stack_name }} stack
 
+- name: Deploy replication health-check wrapper
+  template:
+    src: local/replication-check.sh.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication-check.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy replication crontab
+  template:
+    src: local/replication.cron.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication.cron"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
 - name: Deploy MetaBrainz replication access token
   template:
     src: local/secrets/metabrainz_access_token.j2
