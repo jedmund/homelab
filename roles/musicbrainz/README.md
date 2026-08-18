@@ -84,14 +84,114 @@ docker exec multi-scrobbler curl -fsS \
 
 ## Replication
 
-The `compose/replication-cron.yml` overlay adds a crontab inside the
-`musicbrainz` container that runs `replication.sh` hourly. After the import
-finishes, replication keeps the mirror within an hour of upstream. Check it's
-working:
+The `compose/replication-cron.yml` overlay binds a crontab into the
+`musicbrainz` container. We replace upstream's default crontab (via
+`MUSICBRAINZ_CRONTAB_PATH`) with `local/replication.cron`, which runs
+`local/replication-check.sh` daily at 03:00 rather than calling
+`replication.sh` directly.
+
+MetaBrainz publishes hourly packets and `mirror.sh` applies every pending one
+per run, so a daily run keeps the mirror within a day of upstream.
+
+### Why the wrapper exists
+
+Upstream's `replication.sh` exits 0 even when the packet fails to apply, and
+cron output goes nowhere, so a mirror that has stopped replicating is
+indistinguishable from one that is current. Replication broke on 2026-05-11
+at the schema 31 change and went unnoticed for three months.
+
+The wrapper writes all output to the container's stdout, judges success from
+the database instead of the exit code, and fails when the last successful
+replication is older than `musicbrainz_replication_max_age_days`. Set
+`musicbrainz_healthchecks_url` to also get an external dead-man's switch.
+
+Check it's working:
 
 ```sh
-docker compose -f /opt/docker/musicbrainz/upstream/docker-compose.yml logs musicbrainz | grep -i replication | tail
+# Recent replication activity and wrapper verdicts
+docker logs musicbrainz-musicbrainz-1 2>&1 | grep -E 'replication-check|LoadReplication' | tail
+
+# Run it on demand; non-zero exit means the mirror is unhealthy
+docker exec musicbrainz-musicbrainz-1 /local/replication-check.sh; echo "exit=$?"
+
+# Ground truth
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control;'
 ```
+
+## Schema changes
+
+MusicBrainz schema changes are **not upgradable in place**: upstream ships no
+migration path and documents recreating the database from a fresh dump. When
+`musicbrainz_upstream_version` crosses a schema change (the `-mbdbNN-` release
+tags), replication rejects every packet with:
+
+```
+This replication packet matches schema sequence #NN, but the database is
+currently at #NN-1. You must upgrade your database
+```
+
+Bumping the version alone is not enough, and worse, it leaves schema-N server
+code running against a schema-(N-1) database. Pair the bump with a recreate,
+following upstream's "Recreate database with indexed search" procedure. It
+re-downloads the full dumps and rebuilds the search indexes, so expect it to
+take hours and to leave the mirror unavailable throughout.
+
+### Schema changes land every May
+
+Upstream has tagged exactly one schema change a year, each in mid-May:
+
+| Release | Schema |
+| --- | --- |
+| `v-2022-05-17-mbdb27` | 27 |
+| `v-2023-05-15-mbdb28` | 28 |
+| `v-2024-05-13-mbdb29-pg16` | 29 |
+| `v-2025-05-20.0-mbdb30` | 30 |
+| `v-2026-05-11.0-mbdb31-pg18` | 31 |
+
+So this is predictable maintenance, not a surprise: plan a quiet evening in
+mid-to-late May, do the recreate, and the mirror is good for another year.
+
+### Running the upgrade
+
+`schema-upgrade.sh` in the stack directory wraps upstream's procedure:
+
+```sh
+sudo /opt/docker/musicbrainz/schema-upgrade.sh v-2026-07-30.1
+```
+
+It downloads and verifies everything before dropping anything, which upstream's
+own `recreatedb.sh` does not (that drops the database first and fetches after,
+so a network blip leaves an empty mirror). It finishes by running the
+replication health check, so a successful exit means replication is genuinely
+working again, not merely that the import ran.
+
+Expect it to take hours with the mirror offline throughout, so schedule it:
+
+```sh
+sudo systemd-run --unit=musicbrainz-schema-upgrade --collect \
+  --on-calendar='2027-05-20 10:00:00 UTC' \
+  /opt/docker/musicbrainz/schema-upgrade.sh <tag>
+
+systemctl list-timers musicbrainz-schema-upgrade --all   # confirm
+journalctl -u musicbrainz-schema-upgrade -f              # watch
+tail -f /var/log/musicbrainz-schema-upgrade.log          # or the log
+```
+
+Note the host runs UTC while the containers use America/Los_Angeles, so
+convert first: an unqualified `03:00` in a calendar spec is 8pm local, not 3am.
+
+Afterwards, bump `musicbrainz_upstream_version` to the tag you passed so
+Ansible does not check the old one back out.
+Replication stays broken from the day upstream ships the change until the
+recreate happens, which is why the staleness check in
+`local/replication-check.sh` matters -- in 2026 that gap went unnoticed for
+three months.
+
+Note that this annual cost is independent of the replication schedule. A
+replication packet is a diff of edits and applies in about a second, so
+running less often would not avoid the recreate; it would only make the
+mirror staler and slow down detection when something breaks.
 
 ## Notes
 
