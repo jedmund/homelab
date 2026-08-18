@@ -19,7 +19,10 @@ services:
               device_ids: {{ ai_gpu_devices[ai_gpu_mode] | to_json }}
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      # curl, not wget: this image ships curl but no wget, so a wget probe
+      # fails with "executable file not found" on every run and the container
+      # sits permanently unhealthy while serving fine.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/health"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
