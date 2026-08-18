@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik, PocketID, TinyAuth, ddclient, AdGuard, OpenSpeedTest, and Line"
+description = "Traefik, PocketID, TinyAuth, ddclient, and OpenSpeedTest"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -14,6 +14,23 @@ run_directory = "/opt/docker/infra-gateway"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+[[stack]]
+name = "line"
+description = "Personal dashboard at atelier.house, built from source"
+tags = ["homelab", "ansible", "nuc-mini"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/line"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+# Line has no registry image: it is built from the git checkout Ansible
+# maintains at ./source/line. Pulling would fail on `line:local`, so the
+# stack builds instead.
+auto_pull = false
+run_build = true
 
 [[stack]]
 name = "infra-core"

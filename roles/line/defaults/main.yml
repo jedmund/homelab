@@ -1,0 +1,30 @@
+---
+# Stack identity
+stack_name: line
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Line settings
+line_image: line:local
+line_port: 5180
+line_domain: "atelier.house"
+line_repo: "git@github.com:jedmund/line.git"
+line_version: "main"
+line_source_path: "{{ config_base }}/source/line"
+line_backup_dir: /data/backups
+line_app_url: "https://{{ line_domain }}"
+line_oidc_issuer: "https://id.atelier.house"
+line_oidc_redirect_uri: "{{ line_app_url }}/auth/callback"
+
+# Path Line occupied while it was part of the infra-gateway stack.
+# Only used by the one-time migration tasks; removable once every host
+# has run this role at least once.
+line_legacy_base: "{{ docker_base_path }}/infra-gateway"
+
+# line_admin_emails (comma-separated admin email list) - defined in vault
+line_admin_emails: "{{ vault_line_admin_emails }}"
+
+# Secrets defined in vault:
+# line_oidc_client_id, line_oidc_client_secret, line_widget_token_key,
+# line_reddit_client_id, line_twitch_client_id, line_twitch_client_secret,
+# line_youtube_api_key, line_bart_api_key, line_bay_511_api_key,
+# line_github_oauth_client_id, line_github_oauth_client_secret

@@ -199,6 +199,10 @@
 - import_playbook: frp.yml
   tags: [frp]
 
+# Line personal dashboard (atelier.house)
+- import_playbook: line.yml
+  tags: [line]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]
