@@ -1,5 +1,5 @@
 ---
-# Infra Gateway Stack - Traefik, PocketID
+# Infra Gateway Stack - Traefik
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -12,7 +12,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/assets"
-    - "{{ docker_base_path }}/{{ stack_name }}/config/pocketid/data"
 
 - name: Create Traefik config directories
   file:
@@ -59,7 +58,6 @@
     mode: '0600'
   loop:
     - traefik
-    - pocketid
   no_log: true
   notify: Restart {{ stack_name }} stack
 

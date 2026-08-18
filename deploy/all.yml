@@ -19,6 +19,11 @@
 - import_playbook: infra_gateway.yml
   tags: [infra, infra_gateway]
 
+# PocketID OIDC provider. Deploys before TinyAuth and before any app that
+# authenticates against it.
+- import_playbook: pocketid.yml
+  tags: [infra, pocketid]
+
 # TinyAuth forward auth. Deploys right after the gateway so the
 # tinyauth@file middleware Traefik references resolves early.
 - import_playbook: tinyauth.yml

@@ -5,7 +5,6 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Other stack images. Floating tags are intentional where noted: these
 # services track upstream and roll forward on redeploy.
-pocketid_image: ghcr.io/pocket-id/pocket-id:latest # floating, tracks upstream
 
 # Traefik settings
 traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
@@ -23,12 +22,6 @@ traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
 # Override per host in inventory or host_vars when needed; default
 # preserves the legacy any-iface behaviour.
 traefik_bind_ip: "0.0.0.0"
-
-# PocketID settings
-pocketid_port: 1411
-pocketid_app_url: "https://id.{{ traefik_domain }}"
-pocketid_trust_proxy: "true"
-pocketid_email_login_notification_enabled: "true"
 
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.

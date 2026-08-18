@@ -33,28 +33,6 @@ services:
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
 
-  pocketid:
-    container_name: pocketid
-    image: {{ pocketid_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    volumes:
-      - ./config/pocketid/data:/app/data
-    env_file:
-      - ./env/pocketid.env
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.pocketid.rule: "Host(`id.{{ traefik_domain }}`)"
-      traefik.http.routers.pocketid.entrypoints: "websecure"
-      traefik.http.routers.pocketid.tls.certresolver: "letsencrypt"
-      traefik.http.services.pocketid.loadbalancer.server.port: "{{ pocketid_port }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
 volumes:
   traefik-logs:
     name: {{ stack_name }}_traefik-logs

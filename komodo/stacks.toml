@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik and PocketID"
+description = "Traefik reverse proxy and ACME certificates"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -64,6 +64,18 @@ tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/tinyauth"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "pocketid"
+description = "OIDC provider at id.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/pocketid"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false

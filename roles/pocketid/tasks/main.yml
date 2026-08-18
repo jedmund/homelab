@@ -1,0 +1,88 @@
+---
+# PocketID - OIDC provider at id.atelier.house
+
+# --- One-time migration off the infra-gateway stack -----------------------
+# PocketID used to be one service inside the infra-gateway compose project.
+# Its SQLite database moves to this role's own stack directory. The legacy
+# container is stopped before the move so nothing is writing to the
+# database mid-copy, and stopping it also releases the `pocketid`
+# container_name for the new project. Both guards no-op once the move has
+# happened, and this block can be deleted after every host has run the role.
+
+- name: Check for PocketID data under the legacy infra-gateway stack
+  stat:
+    path: "{{ pocketid_legacy_base }}/config/pocketid/data"
+  register: pocketid_legacy_data
+
+- name: Check for PocketID data under the {{ stack_name }} stack
+  stat:
+    path: "{{ config_base }}/config/pocketid/data"
+  register: pocketid_current_data
+
+- name: Inspect any existing PocketID container
+  community.docker.docker_container_info:
+    name: pocketid
+  register: pocketid_existing
+
+- name: Remove PocketID container from the legacy infra-gateway project
+  community.docker.docker_container:
+    name: pocketid
+    state: absent
+  when:
+    - pocketid_existing.exists
+    - pocketid_existing.container.Config.Labels['com.docker.compose.project'] | default('') == 'infra-gateway'
+
+- name: Create {{ stack_name }} directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/config/pocketid"
+
+- name: Move PocketID data out of the legacy infra-gateway stack
+  command: mv {{ pocketid_legacy_base }}/config/pocketid/data {{ config_base }}/config/pocketid/data
+  args:
+    creates: "{{ config_base }}/config/pocketid/data"
+  when:
+    - pocketid_legacy_data.stat.exists
+    - not pocketid_current_data.stat.exists
+
+- name: Create PocketID data directory
+  file:
+    path: "{{ config_base }}/config/pocketid/data"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+# --- Normal deploy --------------------------------------------------------
+
+- name: Deploy compose file
+  template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy environment files
+  template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - pocketid
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result
