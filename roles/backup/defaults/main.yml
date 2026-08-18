@@ -14,6 +14,16 @@ borg_repo_label: nuc-mini
 # Retention
 borg_keep_daily: 30
 
+# Archive naming. Borgmatic defaults archive_name_format to "{hostname}-{now}"
+# and derives match_archives from it, so prune only ever considers archives
+# whose prefix matches the current hostname. The borgmatic container's
+# hostname is its container ID, which changes on every recreate, so each
+# rebuild orphaned the previous archives: they stopped matching, prune never
+# touched them, and the repo only grew. Pin both to the stable repo label
+# (the compose file pins the container hostname to match).
+borg_archive_name_format: "{{ borg_repo_label }}-{now:%Y-%m-%dT%H:%M:%S.%f}"
+borg_match_archives: "sh:{{ borg_repo_label }}-*"
+
 # Schedule (container internal cron, container TZ matches host)
 borg_backup_cron: "0 2 * * *"
 borg_run_on_startup: "false"

@@ -4,6 +4,10 @@ name: {{ stack_name }}
 services:
   borgmatic:
     container_name: borgmatic
+    # Stable hostname: borg records it in archive metadata and lock ids, and
+    # borgmatic's archive naming derives from it. Left to Docker's default it
+    # is the container id, which changes on every recreate.
+    hostname: {{ borg_repo_label }}
     build:
       context: ./build
       dockerfile: Dockerfile
