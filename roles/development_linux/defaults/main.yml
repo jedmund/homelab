@@ -47,13 +47,14 @@ gitlab_runner_linux_url: "https://{{ gitlab_domain }}"
 # from the nuc-mini or macOS runner's token.
 gitlab_runner_linux_auth_token: ""
 
-# Pin the GitLab hostnames to nuc-mini directly. Job containers resolve
-# through Docker's embedded DNS to the host resolver (UniFi Network DNS at
-# 192.168.1.1), so pinning keeps CI clones working even if LAN DNS blips.
-# Mirrors gitlab_runner_extra_hosts in roles/gitlab.
+# Pin the GitLab hostnames to nuc-mini directly. The host mapping covers
+# Docker image pulls, which resolve the registry before a job container and
+# its extra_hosts entries exist. The extra_hosts mappings cover the runner
+# and job containers themselves.
+gitlab_runner_linux_host_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 gitlab_runner_linux_extra_hosts:
-  - "{{ gitlab_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
-  - "{{ gitlab_registry_domain }}:{{ hostvars['nuc-mini'].ansible_host }}"
+  - "{{ gitlab_domain }}:{{ gitlab_runner_linux_host_ip }}"
+  - "{{ gitlab_registry_domain }}:{{ gitlab_runner_linux_host_ip }}"
 
 # GitLab server coordinates. Duplicated from roles/gitlab/defaults rather
 # than shared, because that role is scoped to the nuc-mini host and its

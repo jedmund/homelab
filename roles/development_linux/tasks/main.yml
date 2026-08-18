@@ -14,6 +14,16 @@
     reload: true
     sysctl_file: /etc/sysctl.d/99-gitlab-runner-inotify.conf
 
+- name: Pin GitLab endpoints on runner host
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: GitLab runner endpoints"
+    block: |
+      {{ gitlab_runner_linux_host_ip }} {{ gitlab_domain }}
+      {{ gitlab_runner_linux_host_ip }} {{ gitlab_registry_domain }}
+  tags:
+    - runner_dns
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"
