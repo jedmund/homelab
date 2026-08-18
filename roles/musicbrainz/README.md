@@ -151,6 +151,38 @@ Upstream has tagged exactly one schema change a year, each in mid-May:
 
 So this is predictable maintenance, not a surprise: plan a quiet evening in
 mid-to-late May, do the recreate, and the mirror is good for another year.
+
+### Running the upgrade
+
+`schema-upgrade.sh` in the stack directory wraps upstream's procedure:
+
+```sh
+sudo /opt/docker/musicbrainz/schema-upgrade.sh v-2026-07-30.1
+```
+
+It downloads and verifies everything before dropping anything, which upstream's
+own `recreatedb.sh` does not (that drops the database first and fetches after,
+so a network blip leaves an empty mirror). It finishes by running the
+replication health check, so a successful exit means replication is genuinely
+working again, not merely that the import ran.
+
+Expect it to take hours with the mirror offline throughout, so schedule it:
+
+```sh
+sudo systemd-run --unit=musicbrainz-schema-upgrade --collect \
+  --on-calendar='2027-05-20 10:00:00 UTC' \
+  /opt/docker/musicbrainz/schema-upgrade.sh <tag>
+
+systemctl list-timers musicbrainz-schema-upgrade --all   # confirm
+journalctl -u musicbrainz-schema-upgrade -f              # watch
+tail -f /var/log/musicbrainz-schema-upgrade.log          # or the log
+```
+
+Note the host runs UTC while the containers use America/Los_Angeles, so
+convert first: an unqualified `03:00` in a calendar spec is 8pm local, not 3am.
+
+Afterwards, bump `musicbrainz_upstream_version` to the tag you passed so
+Ansible does not check the old one back out.
 Replication stays broken from the day upstream ships the change until the
 recreate happens, which is why the staleness check in
 `local/replication-check.sh` matters -- in 2026 that gap went unnoticed for

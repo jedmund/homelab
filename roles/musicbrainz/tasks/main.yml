@@ -79,6 +79,13 @@
 # file so Komodo only sees one definition per service. `-f` flags here
 # override `COMPOSE_FILE` from .env (which points at the merged file we
 # are about to write), so this still works on the very first run.
+- name: Deploy schema-upgrade maintenance script
+  template:
+    src: schema-upgrade.sh.j2
+    dest: "{{ config_base }}/schema-upgrade.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
 - name: Render merged compose file
   ansible.builtin.command:
     cmd: >-
