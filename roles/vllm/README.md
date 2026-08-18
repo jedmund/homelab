@@ -1,34 +1,42 @@
 # vllm
 
-The active DeepSeek V4 Flash serving path on `max`, port `11437`. Two
-model profiles live in this stack:
+The active DeepSeek V4 Flash serving path on `max`, port `11437`.
 
 | Profile | Checkpoint | Image | Status |
 |---|---|---|---|
-| `deepseek-v4-flash` | `deepseek-ai/DeepSeek-V4-Flash` (preview) | `lavd/vllm:jasl-dsv4-5-21-13.2` | Known-good, current default |
-| `deepseek-v4-flash-0731` | `deepseek-ai/DeepSeek-V4-Flash-0731` | `voipmonitor/vllm:gilded-gnosis-v20-...-r15` | New, unvalidated on this box |
+| `deepseek-v4-flash-0731` | `deepseek-ai/DeepSeek-V4-Flash-0731` | `voipmonitor/vllm:gilded-gnosis-v20-...-r15` | Validated on this box, the only profile |
 
-Both bind host port `11437`, so only one runs at a time. That is
-intentional: an accidental double-start fails loudly rather than
-quietly splitting VRAM across two servers.
+An earlier profile served `deepseek-ai/DeepSeek-V4-Flash`, the rolling
+repo pinned at revision `60d8d70770c6776ff598c94bb586a859a38244f1`
+(2026-06-23). It was retired once 0731 was validated here, and its
+149 GB of weights were removed from the HF cache. 0731 is the current
+official release and supersedes it.
 
-Ansible renders the compose file but starts nothing. Bringing a model
-up is an explicit operator action.
+That revision is recorded because it is the only way back: the weights
+were never staged on the NAS, and the repo is a rolling one, so pulling
+`deepseek-ai/DeepSeek-V4-Flash` today gives whatever is current rather
+than what we ran. Recovery means fetching that specific revision.
+
+Ansible renders the compose file but starts nothing: the model is gated
+behind a compose profile, so bringing it up is an explicit action. The
+profile mechanism is kept even with one model, both because starting a
+~165 GB model should never be an accident of running a deploy, and
+because it leaves room for a second checkpoint at the next release.
 
 ## Which profile deploys
 
 `deploy/ai_split.yml` starts whichever profile `ai_split_vllm_profile`
-names, defaulting to `deepseek-v4-flash` (the preview). Nothing about
-the existing deploy changes until that default is flipped.
+names, defaulting to `deepseek-v4-flash-0731`:
 
 ```bash
-# Preview, unchanged behaviour
 make deploy-ai-split
-
-# 0731 instead, same command otherwise
-ansible-playbook -i inventory deploy/ai_split.yml \
-  -e ai_gpu_mode=split -e ai_split_vllm_profile=deepseek-v4-flash-0731
 ```
+
+The play stops any other running model profile first, so the deploy is
+declarative: whatever was running before, the configured profile is what
+is running after. Every profile binds 11437, so without that step a
+switch fails on a port conflict and silently leaves the old checkpoint
+serving.
 
 By hand on max:
 
@@ -41,8 +49,11 @@ docker compose --profile deepseek-v4-flash-0731 down
 
 ## Two different image contracts
 
-The lavd image's ENTRYPOINT invokes `vllm serve`, so the preview entry
-passes everything through `args` as argv.
+The compose template supports two image shapes, because the retired
+preview used the first and 0731 uses the second; the branch is kept so a
+future `args`-style checkpoint drops in without template changes.
+
+An `args`-style image's ENTRYPOINT invokes `vllm serve` and takes argv.
 
 The voipmonitor gilded-gnosis image instead ships
 `/usr/local/bin/serve-ds4-flash.sh` as ENTRYPOINT and takes every
