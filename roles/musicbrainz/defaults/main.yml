@@ -10,7 +10,12 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # `metabrainz/musicbrainz-docker-musicbrainz:<tag>-build0` 404s during build).
 # Latest tags: https://github.com/metabrainz/musicbrainz-docker/tags
 musicbrainz_upstream_repo: https://github.com/metabrainz/musicbrainz-docker.git
-musicbrainz_upstream_version: v-2026-04-27.0
+# Schema 31 release line. MusicBrainz schema changes are not upgradable in
+# place: upstream ships no upgrade path and documents recreating the
+# database from a fresh dump instead. Bumping this past a schema change
+# therefore also requires the recreate procedure in this role's README,
+# otherwise replication rejects every packet with a sequence mismatch.
+musicbrainz_upstream_version: v-2026-07-30.1
 musicbrainz_upstream_path: "{{ config_base }}/upstream"
 
 # MusicBrainz web service (WS/2 endpoint)
@@ -39,3 +44,21 @@ musicbrainz_source_compose_files:
 musicbrainz_merged_compose_path: local/compose.merged.yml
 
 # musicbrainz_replication_token - defined in vault
+
+# Replication schedule and health reporting.
+#
+# Upstream's default/replication.cron runs daily at 03:00 and we keep that
+# cadence: MetaBrainz publishes hourly packets and mirror.sh applies every
+# pending one per run, so a daily run stays within a day of upstream, which
+# is ample here.
+musicbrainz_replication_cron: "0 3 * * *"
+# Fail the check when the last successful replication is older than this.
+# Sized to tolerate a couple of missed daily runs (a transient upstream
+# outage) while still catching a mirror that has actually stopped.
+musicbrainz_replication_max_age_days: 3
+# Optional Healthchecks.io ping URL for replication, mirroring the pattern
+# roles/backup uses for borg. Left empty the wrapper still logs to
+# `docker logs musicbrainz`; setting it adds an external dead-man's switch
+# so a stalled mirror pages instead of waiting to be noticed.
+# musicbrainz_healthchecks_url - optionally defined in vault
+musicbrainz_healthchecks_url: ""
