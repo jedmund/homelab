@@ -1,0 +1,9 @@
+---
+# cron reads the timezone once at startup, so a running crond keeps firing
+# jobs against the old offset until it is restarted. systemd timers pick up
+# the change on their own via timedatectl.
+- name: Restart cron
+  ansible.builtin.service:
+    name: cron
+    state: restarted
+  failed_when: false
