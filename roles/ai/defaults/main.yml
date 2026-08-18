@@ -143,6 +143,63 @@ ai_models:
     aliases:
       - "qwen3.6:27b"
 
+  # Qwen3.8 27B dense: successor to the qwen3.6 entry above, kept side by
+  # side rather than replacing it so the two can be compared on real work
+  # before any consumer default (openclaw, opencode, pi-agents) moves over.
+  # Multimodal, 256K native context.
+  #
+  # Architecture is the Qwen3.5-lineage hybrid ("qwen35" in the GGUF
+  # metadata): three Gated DeltaNet blocks per full-attention block, so
+  # only a quarter of the layers hold a growing KV cache and long context
+  # is far cheaper here than on qwen3.6. Sized conservatively at
+  # -c 131072 --parallel 2 for parity with the qwen3.6 entry until the
+  # live footprint is measured on the box; widen -c once it is.
+  #
+  # MTP is built into the base unsloth GGUF (no separate -MTP-GGUF repo
+  # the way Qwen3.6 has one), so both entries below run --spec-type
+  # draft-mtp. Same llama.cpp floor as qwen3.6: 2026-05-16 or newer.
+  #
+  # Two quant tiers, both in the chat group (swap: true, so only one is
+  # resident at a time and the second costs disk only):
+  #
+  #   qwen3.8     - UD-Q6_K_XL, the everyday driver. Dense decode reads
+  #                 all weights, so Q6 is the throughput/quality sweet
+  #                 spot, same call as on qwen3.6.
+  #   qwen3.8-q8  - UD-Q8_K_XL, picked by name when quality matters more
+  #                 than tok/s. Roughly half the decode speed of Q6 on a
+  #                 dense model; MTP claws some of that back on
+  #                 accepted drafts, but expect it to stay the slower
+  #                 of the two.
+  - name: qwen3.8
+    file: Qwen3.8-27B-UD-Q6_K_XL.gguf
+    group: chat
+    # --mmproj enables image inputs. Unsloth ships the projector under
+    # a generic filename, so it lives in a per-model subdirectory to
+    # avoid colliding with the other Unsloth mmproj files in /models/.
+    # Both quant tiers share the one mmproj file.
+    args: >-
+      -ngl 999 -c 131072 --parallel 2 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/Qwen3.8-27B/mmproj-F16.gguf
+      --spec-type draft-mtp --spec-draft-n-max 6
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
+    aliases:
+      - "qwen3.8:27b"
+
+  - name: qwen3.8-q8
+    file: Qwen3.8-27B-UD-Q8_K_XL.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 131072 --parallel 2 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --mmproj /models/Qwen3.8-27B/mmproj-F16.gguf
+      --spec-type draft-mtp --spec-draft-n-max 6
+      --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+      --jinja
+    aliases:
+      - "qwen3.8:27b-q8"
+
   # Different lineage from Qwen: Google's top-of-Arena open dense
   # model. Multimodal (text+image), 256K context. Sampling per Google's
   # recommended values; no MTP variant available upstream. Bumped to
