@@ -26,3 +26,4 @@ homebox_oidc_verify_email: "false"
 
 # Secrets defined in vault:
 # homebox_oidc_client_id, homebox_oidc_client_secret
+# homebox_api_key_pepper - min 32 bytes; rotating it invalidates all issued API keys
