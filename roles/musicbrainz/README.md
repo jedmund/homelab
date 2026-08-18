@@ -137,6 +137,30 @@ following upstream's "Recreate database with indexed search" procedure. It
 re-downloads the full dumps and rebuilds the search indexes, so expect it to
 take hours and to leave the mirror unavailable throughout.
 
+### Schema changes land every May
+
+Upstream has tagged exactly one schema change a year, each in mid-May:
+
+| Release | Schema |
+| --- | --- |
+| `v-2022-05-17-mbdb27` | 27 |
+| `v-2023-05-15-mbdb28` | 28 |
+| `v-2024-05-13-mbdb29-pg16` | 29 |
+| `v-2025-05-20.0-mbdb30` | 30 |
+| `v-2026-05-11.0-mbdb31-pg18` | 31 |
+
+So this is predictable maintenance, not a surprise: plan a quiet evening in
+mid-to-late May, do the recreate, and the mirror is good for another year.
+Replication stays broken from the day upstream ships the change until the
+recreate happens, which is why the staleness check in
+`local/replication-check.sh` matters -- in 2026 that gap went unnoticed for
+three months.
+
+Note that this annual cost is independent of the replication schedule. A
+replication packet is a diff of edits and applies in about a second, so
+running less often would not avoid the recreate; it would only make the
+mirror staler and slow down detection when something breaks.
+
 ## Notes
 
 - The upstream services (`db`, `search`, `mq`, `valkey`, `indexer`) keep their
