@@ -4,11 +4,17 @@
   become: true
   gather_facts: false
   pre_tasks:
+    # tags: always so these still run under a tag-filtered invocation
+    # (e.g. --tags timezone). Without it the end_host guard is filtered out
+    # and tagged tasks execute against hosts meant to be skipped, such as
+    # mac-mini, which is macOS and not a Docker prerequisite target.
     - name: Skip hosts that are not Docker prerequisite targets
       meta: end_host
       when: skip_prerequisites | default(false)
+      tags: always
     - name: Gather facts
       setup:
+      tags: always
   roles:
     - prerequisites
     - firewall

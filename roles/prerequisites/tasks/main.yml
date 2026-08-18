@@ -20,6 +20,22 @@
     mode: '0644'
   when: dns_check.rc != 0
 
+# Host timezone. Containers already get TZ from the same `timezone` var, but
+# the host clock was left at whatever the installer chose, which drifted:
+# max ended up on America/Los_Angeles and nuc-mini on Etc/UTC. That split
+# makes anything expressed in host-local time ambiguous across the fleet --
+# systemd timer calendar specs, cron entries, log timestamps, and `date`
+# output in a shell -- and an unqualified "03:00" then means different
+# moments on different machines.
+- name: Set host timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+  notify: Restart cron
+  # Tagged so the timezone can be corrected on its own. A full prerequisites
+  # run also touches docker, firewall, and security on a live host, which is
+  # a lot of blast radius for a clock setting.
+  tags: [timezone]
+
 - name: Configure passwordless sudo for ansible user
   copy:
     content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL"
