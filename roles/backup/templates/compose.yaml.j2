@@ -20,7 +20,11 @@ services:
       - ./scripts:/scripts:ro
       - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
       - {{ borg_dumps_host_path }}:{{ borg_dumps_container_path }}
-      - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}
+      # rslave so the autofs-triggered NFS mount on the host propagates into
+      # the container. With Docker's default rprivate the container keeps the
+      # view it had at start: if the share mounts later, the container never
+      # sees it and the post-backup rsync silently mirrors onto the root disk.
+      - {{ nas_mount_host_path }}:{{ nas_mount_container_path }}:rslave
 {% for path in borg_source_paths %}
       - {{ path }}:{{ path }}:ro
 {% endfor %}

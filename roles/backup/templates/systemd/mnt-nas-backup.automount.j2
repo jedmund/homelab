@@ -1,8 +1,15 @@
 # {{ ansible_managed }}
 [Unit]
 Description=Automount for UniFi Drive backup share
-Requires=network-online.target
-After=network-online.target
+# Deliberately no network ordering here. Automount units are pulled into
+# local-fs.target by default, so ordering one After=network-online.target
+# closes a cycle (local-fs.target -> systemd-tmpfiles-setup ->
+# systemd-resolved -> network.target -> network-online.target -> this unit
+# -> local-fs.target). systemd breaks such cycles by dropping a job, and
+# the job it dropped was this automount: the share silently stopped
+# mounting and backup rsyncs landed on the root disk instead. The network
+# ordering belongs on the .mount unit, which is what actually talks to the
+# NFS server when the trigger fires.
 
 [Automount]
 Where={{ nas_mount_host_path }}

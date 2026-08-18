@@ -9,6 +9,16 @@ set -euo pipefail
 REPO_SRC="{{ borg_repo_container_path }}/"
 NAS_DEST="{{ nas_mount_container_path }}/{{ nas_share_subpath }}/"
 
+# Refuse to run unless /nas is genuinely the NFS share. Without this the
+# mkdir below happily creates the tree on the container's own root
+# filesystem whenever the share is missing, and --delete then mirrors the
+# entire repo onto local disk. That is how a full copy of the repo ended up
+# on the root volume once already.
+if ! awk '$2 == "{{ nas_mount_container_path }}" && $3 ~ /^nfs/ { found = 1 } END { exit !found }' /proc/mounts; then
+    echo "ERROR: {{ nas_mount_container_path }} is not an NFS mount; refusing to mirror the repo onto local disk." >&2
+    exit 1
+fi
+
 if [ ! -d "${NAS_DEST}" ]; then
     mkdir -p "${NAS_DEST}"
 fi
