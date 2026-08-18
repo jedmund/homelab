@@ -19,6 +19,11 @@
 - import_playbook: infra_gateway.yml
   tags: [infra, infra_gateway]
 
+# TinyAuth forward auth. Deploys right after the gateway so the
+# tinyauth@file middleware Traefik references resolves early.
+- import_playbook: tinyauth.yml
+  tags: [infra, tinyauth]
+
 - import_playbook: infra_core.yml
   tags: [infra, infra_core]
 

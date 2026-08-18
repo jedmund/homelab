@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik, PocketID, and TinyAuth"
+description = "Traefik and PocketID"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -52,6 +52,18 @@ tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/ddclient"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "tinyauth"
+description = "Forward auth middleware at auth.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/tinyauth"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false

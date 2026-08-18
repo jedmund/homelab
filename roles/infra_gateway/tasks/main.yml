@@ -1,5 +1,5 @@
 ---
-# Infra Gateway Stack - Traefik, PocketID, TinyAuth
+# Infra Gateway Stack - Traefik, PocketID
 # Uses docker_compose_v2 for container orchestration
 
 - name: Create {{ stack_name }} directories
@@ -60,7 +60,6 @@
   loop:
     - traefik
     - pocketid
-    - tinyauth
   no_log: true
   notify: Restart {{ stack_name }} stack
 

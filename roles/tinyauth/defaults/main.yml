@@ -1,0 +1,41 @@
+---
+# Stack identity
+stack_name: tinyauth
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+tinyauth_image: ghcr.io/steveiliop56/tinyauth:v4 # floating major channel
+
+# TinyAuth settings
+tinyauth_port: 3000
+# Base domain for the tinyauth.apps.*.config.domain labels below. TinyAuth
+# gates apps by hostname, so every gated app's domain is derived from this.
+tinyauth_base_domain: atelier.house
+tinyauth_domain: "auth.{{ tinyauth_base_domain }}"
+tinyauth_app_url: "https://{{ tinyauth_domain }}"
+tinyauth_log_level: debug
+tinyauth_cookie_secure: "true"
+tinyauth_cookie_domain: ".{{ tinyauth_base_domain }}"
+tinyauth_session_duration: 168h
+tinyauth_oauth_auto_redirect: pocketid
+
+# PocketID OIDC provider
+tinyauth_pocketid_url: "https://id.{{ tinyauth_base_domain }}"
+tinyauth_pocketid_name: "Pocket ID"
+tinyauth_pocketid_auth_url: "{{ tinyauth_pocketid_url }}/authorize"
+tinyauth_pocketid_token_url: "{{ tinyauth_pocketid_url }}/api/oidc/token"
+tinyauth_pocketid_user_info_url: "{{ tinyauth_pocketid_url }}/api/oidc/userinfo"
+tinyauth_pocketid_redirect_url: "{{ tinyauth_app_url }}/api/oauth/callback/pocketid"
+tinyauth_pocketid_scopes: "openid email profile groups"
+
+# TinyAuth access control
+# tinyauth_allowed_user (single primary admin email) - defined in vault
+tinyauth_allowed_user: "{{ vault_tinyauth_allowed_user }}"
+# Shared atelier allowlist (comma-separated for tinyauth.apps.*.users.allow
+# labels). Only referenced by apps that explicitly opt in, e.g. the
+# llama-swap web UI for a partner/collaborator. All other apps continue to
+# reference tinyauth_allowed_user directly and remain single-user.
+# tinyauth_atelier_users (comma-separated email list) - defined in vault
+tinyauth_atelier_users: "{{ vault_tinyauth_atelier_users }}"
+
+# Secrets defined in vault:
+# tinyauth_secret, tinyauth_pocketid_client_id, tinyauth_pocketid_client_secret

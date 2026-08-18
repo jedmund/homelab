@@ -55,54 +55,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  tinyauth:
-    container_name: tinyauth
-    image: {{ tinyauth_image }}
-    restart: {{ restart_policy }}
-    networks:
-      - proxy
-    env_file:
-      - ./env/tinyauth.env
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.tinyauth.rule: "Host(`auth.{{ traefik_domain }}`)"
-      traefik.http.routers.tinyauth.entrypoints: "websecure"
-      traefik.http.routers.tinyauth.tls.certresolver: "letsencrypt"
-      traefik.http.services.tinyauth.loadbalancer.server.port: "{{ tinyauth_port }}"
-      tinyauth.apps.stash.config.domain: "z.{{ traefik_domain }}"
-      tinyauth.apps.stash.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.pinchflat.config.domain: "pi.{{ traefik_domain }}"
-      tinyauth.apps.pinchflat.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.changedetection.config.domain: "track.{{ traefik_domain }}"
-      tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.copyparty.config.domain: "files.{{ traefik_domain }}"
-      tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ traefik_domain }}"
-      tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.jdownloader.config.domain: "jdl.{{ traefik_domain }}"
-      tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.slskd.config.domain: "sl.{{ traefik_domain }}"
-      tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.netdata.config.domain: "netdata.{{ traefik_domain }}"
-      tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ traefik_domain }}"
-      tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.llamaswap.config.domain: "models.{{ traefik_domain }}"
-      tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
-      tinyauth.apps.openclaw.config.domain: "claw.{{ traefik_domain }}"
-      tinyauth.apps.openclaw.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.searxng.config.domain: "search.{{ traefik_domain }}"
-      tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
-      tinyauth.apps.pcsx2.config.domain: "pcsx2.{{ traefik_domain }}"
-      tinyauth.apps.pcsx2.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.dolphin.config.domain: "dolphin.{{ traefik_domain }}"
-      tinyauth.apps.dolphin.users.allow: "{{ tinyauth_allowed_user }}"
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: "5m"
-        max-file: {{ logging_max_file }}
-
 volumes:
   traefik-logs:
     name: {{ stack_name }}_traefik-logs
