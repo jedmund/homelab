@@ -5,15 +5,17 @@ runner with `roles/gitlab`, and the `max-docker` runner with
 `roles/development_linux`. The GitLab Compose project lives at
 `/opt/docker/gitlab` on `nuc-mini`.
 
-The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24.
-Recheck GitLab's current upgrade path and version notes before using this
-runbook for a later release.
+The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24, then
+patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
+(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). Recheck GitLab's
+current upgrade path and version notes before using this runbook for a later
+release.
 
 ## Current versions
 
 | Component | Version |
 | --- | --- |
-| GitLab CE | `19.2.0-ce.0` |
+| GitLab CE | `19.2.4-ce.0` |
 | `nuc-mini-docker` runner, ID 1 | `19.2.0` |
 | `max-docker` runner, ID 3 | `19.2.0` |
 | Embedded PostgreSQL | `17.10` |
@@ -45,6 +47,19 @@ finished. GitLab's advisory directs administrators to continue to the required
 18.5 stop, where the migration is recreated and rescheduled:
 
 <https://federal-support.gitlab.com/hc/en-us/articles/49353859784852-BackfillSentNotificationsAfterPartition-fails-after-upgrade-to-18-2-8>
+
+## Patch releases inside one minor series
+
+A patch hop such as 19.2.0 to 19.2.4 stays inside the same minor series and
+carries no database migrations, so it needs no intermediate stop and no
+PostgreSQL check. Still honor the invariants below: pause and drain the
+runners, take the rollback pair, and require a clean migration gate before and
+after. Runners do not need a matching patch version, only a matching
+major/minor, so leave them alone unless the advisory names the runner.
+
+Security patch releases are announced on
+<https://about.gitlab.com/releases/categories/releases/> and detailed under
+<https://docs.gitlab.com/releases/patches/>.
 
 ## Invariants
 
