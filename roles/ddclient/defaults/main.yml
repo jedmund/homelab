@@ -1,0 +1,81 @@
+---
+# Stack identity
+stack_name: ddclient
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+ddclient_image: linuxserver/ddclient:latest # floating, tracks upstream
+
+# DDClient settings
+ddclient_daemon_interval: "300"
+ddclient_ssl: "yes"
+ddclient_use: "web"
+ddclient_protocol: "cloudflare"
+ddclient_atelier_zone: "atelier.house"
+ddclient_atelier_subdomains:
+  - atelier.house
+  - ai.atelier.house
+  - auth.atelier.house
+  - beszel.atelier.house
+  - bl.atelier.house
+  - box.atelier.house
+  - cat.atelier.house
+  - chat.atelier.house
+  - claw.atelier.house
+  - dl.atelier.house
+  - docs.atelier.house
+  - dolphin.atelier.house
+  - files.atelier.house
+  - flood.atelier.house
+  - git.atelier.house
+  - ha.atelier.house
+  - hu.atelier.house
+  - id.atelier.house
+  - idea.atelier.house
+  - kaneo.atelier.house
+  - kb.atelier.house
+  - keep.atelier.house
+  - ko.atelier.house
+  - kv.atelier.house
+  - li.atelier.house
+  - matrix.atelier.house
+  - matrix-admin.atelier.house
+  - matrix-auth.atelier.house
+  - matrix-rtc.atelier.house
+  - mc.atelier.house
+  - models.atelier.house
+  - n8n.atelier.house
+  - netdata.atelier.house
+  - obsidian-sync.atelier.house
+  - ov.atelier.house
+  - pcsx2.atelier.house
+  - paseo.relay.atelier.house
+  - photos.atelier.house
+  - pi.atelier.house
+  - ra.atelier.house
+  - read.atelier.house
+  - "*.review.atelier.house"
+  - rom.atelier.house
+  - rss.atelier.house
+  - scrobble.atelier.house
+  - search.atelier.house
+  - sl.atelier.house
+  - so.atelier.house
+  - music.sort.atelier.house
+  - speed.atelier.house
+  - strudel.atelier.house
+  - track.atelier.house
+  - tr.atelier.house
+  - tun.atelier.house
+  - "*.tun.atelier.house"
+  - frp.tun.atelier.house
+  - tv.atelier.house
+  - ups.atelier.house
+  - watch.atelier.house
+  - www.atelier.house
+  - z.atelier.house
+ddclient_fireplace_zone: "fireplace.cafe"
+ddclient_fireplace_subdomains:
+  - fireplace.cafe
+
+# Secrets defined in vault:
+# ddclient_cloudflare_email, ddclient_cloudflare_api_token

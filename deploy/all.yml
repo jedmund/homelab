@@ -207,6 +207,10 @@
 - import_playbook: openspeedtest.yml
   tags: [openspeedtest]
 
+# ddclient dynamic DNS
+- import_playbook: ddclient.yml
+  tags: [ddclient]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]

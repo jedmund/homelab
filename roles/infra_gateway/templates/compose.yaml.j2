@@ -103,23 +103,6 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
-  ddclient:
-    container_name: ddclient
-    restart: {{ restart_policy }}
-    image: {{ ddclient_image }}
-    networks:
-      - proxy
-    environment:
-      - PUID={{ puid }}
-      - PGID={{ pgid }}
-    volumes:
-      - ./config/ddclient/ddclient.conf:/config/ddclient.conf
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
-
 volumes:
   traefik-logs:
     name: {{ stack_name }}_traefik-logs

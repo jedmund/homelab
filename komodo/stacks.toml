@@ -5,7 +5,7 @@
 
 [[stack]]
 name = "infra-gateway"
-description = "Traefik, PocketID, TinyAuth, and ddclient"
+description = "Traefik, PocketID, and TinyAuth"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "Atelier"
@@ -40,6 +40,18 @@ tags = ["homelab", "ansible", "nuc-mini"]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/openspeedtest"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "ddclient"
+description = "Dynamic DNS for the atelier.house and fireplace.cafe zones"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/ddclient"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
