@@ -1,0 +1,48 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  gatus:
+    image: {{ gatus_image }}:{{ gatus_image_tag }}
+    container_name: gatus
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    environment:
+      # Points at a directory: Gatus deep-merges every *.yaml inside it, so
+      # core config and endpoint definitions stay in separate files.
+      GATUS_CONFIG_PATH: /config
+      GATUS_LOG_LEVEL: {{ gatus_log_level }}
+      TZ: {{ timezone }}
+    env_file:
+      - ./env/gatus.env
+{% if gatus_internal_hosts | length > 0 %}
+    extra_hosts:
+{% for host in gatus_internal_hosts %}
+      - "{{ host }}:{{ gatus_internal_host_ip }}"
+{% endfor %}
+{% endif %}
+    volumes:
+      - ./config:/config:ro
+      - ./data:/data
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.gatus.rule: "Host(`{{ gatus_domain }}`)"
+      traefik.http.routers.gatus.entrypoints: "websecure"
+      traefik.http.routers.gatus.tls.certresolver: "letsencrypt"
+      traefik.http.services.gatus.loadbalancer.server.port: "{{ gatus_container_port }}"
+    # No healthcheck: this image is built from scratch and ships only the
+    # gatus binary, with no shell, curl, or wget to run a probe with. A
+    # declared probe would fail on every run and sit the container
+    # permanently unhealthy while it serves fine. Gatus exposes /health over
+    # HTTP for anything checking it from outside the container.
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

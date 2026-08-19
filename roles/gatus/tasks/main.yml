@@ -1,0 +1,52 @@
+---
+# Gatus product stack
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/env"
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/gatus.env.j2
+    dest: "{{ config_base }}/env/gatus.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+# Secrets stay out of these files: they carry ${VAR} placeholders that Gatus
+# substitutes from the environment at load, so they are readable config.
+- name: Deploy Gatus config
+  ansible.builtin.template:
+    src: "config/{{ item }}.j2"
+    dest: "{{ config_base }}/config/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - config.yaml
+    - endpoints.yaml
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

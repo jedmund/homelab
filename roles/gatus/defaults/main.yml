@@ -1,0 +1,149 @@
+---
+# Gatus: uptime and invariant monitoring. Config-as-code, so every check
+# lives in this file and lands through a PR like any other change.
+
+# Stack identity
+stack_name: gatus
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Pinned deliberately. This is the service that reports on every other
+# service, so it should not move underneath us on its own.
+gatus_image: twinproduction/gatus
+gatus_image_tag: v5.36.0
+gatus_domain: status.atelier.house
+gatus_app_url: "https://{{ gatus_domain }}"
+gatus_container_port: 8080
+gatus_log_level: INFO
+
+# SQLite keeps uptime history across restarts; memory storage would reset
+# the dashboard on every deploy.
+gatus_storage_path: /data/data.db
+
+# Native PocketID OIDC guards the dashboard, so no TinyAuth middleware.
+# Gatus requires the redirect URL to end in /authorization-code/callback.
+# The security block is skipped entirely while the client id is empty, so
+# the first deploy can come up before the PocketID client exists.
+gatus_oidc_issuer: "https://id.atelier.house"
+gatus_oidc_redirect_url: "{{ gatus_app_url }}/authorization-code/callback"
+gatus_oidc_scopes:
+  - openid
+gatus_oidc_session_ttl: 8h
+# vault_gatus_oidc_client_id, vault_gatus_oidc_client_secret - defined in vault
+gatus_oidc_client_id: "{{ vault_gatus_oidc_client_id | default('') }}"
+gatus_oidc_client_secret: "{{ vault_gatus_oidc_client_secret | default('') }}"
+
+# Alerting over the shared SendGrid relay, same path kaneo and dawarich use.
+# The alerting block is skipped while the recipient is empty.
+gatus_smtp_host: smtp.sendgrid.net
+gatus_smtp_port: 587
+gatus_smtp_user: apikey
+# sendgrid_api_key (shared across stacks, defined in compute_servers vault)
+gatus_smtp_password: "{{ sendgrid_api_key | default('') }}"
+gatus_alert_from: "noreply@atelier.house"
+# vault_gatus_alert_to - defined in vault (public repo, no addresses here)
+gatus_alert_to: "{{ vault_gatus_alert_to | default('') }}"
+
+# Alert only after three consecutive failures so a single blip stays quiet,
+# and say so when it recovers.
+gatus_alert_failure_threshold: 3
+gatus_alert_success_threshold: 2
+gatus_alert_send_on_resolved: true
+
+# Default probe cadence. Slow enough to stay cheap, fast enough that an
+# outage surfaces in minutes.
+gatus_default_interval: 2m
+
+# GitLab API token, read_api scope, used to read runner state.
+# vault_gatus_gitlab_token - defined in vault
+gatus_gitlab_token: "{{ vault_gatus_gitlab_token | default('') }}"
+gatus_gitlab_api: "https://git.atelier.house/api/v4"
+
+# The check that would have caught runner 2 sitting dead for 24 days while
+# every endpoint around it stayed green. A runner that stops checking in
+# reports online=false regardless of whether it is paused, so a deliberate
+# pause does not alert. GitLab only rewrites contacted_at every 40 to 55
+# minutes and treats a runner as online for 2 hours, so expect roughly that
+# much detection latency here. Checked every 10 minutes since polling
+# faster cannot make GitLab's own window any tighter.
+gatus_gitlab_runner_interval: 10m
+gatus_gitlab_runners:
+  - id: 1
+    name: nuc-mini-docker
+  - id: 2
+    name: mac-mini-xcode
+  - id: 3
+    name: max-docker
+
+# Names with no public DNS record. Gatus uses the container's default
+# resolver, which is public on purpose: every other check then resolves to
+# the public address and exercises the real external path rather than a
+# LAN shortcut. Internal-only names cannot be looked up that way, so they
+# are pinned to Traefik instead. The hostname is kept so SNI and routing
+# still work.
+gatus_internal_hosts:
+  - registry.atelier.house
+gatus_internal_host_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+
+# Reachability checks. Every status below was probed against the live
+# service through Gatus itself rather than assumed. Two things that bite
+# here: Gatus follows redirects, so a service answering 302 is asserted on
+# the status it lands on, not the redirect; and the 401s are auth
+# middleware answering correctly, which means Traefik and the auth layer
+# are both up.
+gatus_endpoints:
+  - name: PocketID
+    group: core
+    url: "https://id.atelier.house/"
+    status: 200
+  - name: GitLab
+    group: core
+    url: "https://git.atelier.house/"
+    # Redirects to /users/sign_in.
+    status: 200
+  - name: Container registry
+    group: core
+    url: "https://registry.atelier.house/v2/"
+    status: 401
+  - name: Beszel
+    group: core
+    url: "https://beszel.atelier.house/"
+    status: 200
+  - name: Vane
+    group: apps
+    url: "https://vane.atelier.house/"
+    # Redirects to /login.
+    status: 200
+  - name: Open WebUI
+    group: apps
+    url: "https://chat.atelier.house/"
+    status: 200
+  - name: Matrix
+    group: apps
+    url: "https://matrix.atelier.house/"
+    # Redirects to /_matrix/static/.
+    status: 200
+  - name: Kaneo
+    group: apps
+    url: "https://kaneo.atelier.house/"
+    status: 200
+  - name: HuggingHack
+    group: apps
+    url: "https://hf.atelier.house/"
+    status: 200
+  - name: Karakeep
+    group: apps
+    url: "https://cat.atelier.house/"
+    status: 200
+  - name: Copyparty
+    group: apps
+    url: "https://files.atelier.house/"
+    status: 401
+  - name: Dawarich
+    group: apps
+    url: "https://track.atelier.house/"
+    status: 401
+
+# Certificate expiry on the wildcard. Traefik renews via the Cloudflare DNS
+# challenge; this catches a renewal that quietly stopped working, with
+# enough runway to fix it by hand.
+gatus_cert_warning_hours: 336

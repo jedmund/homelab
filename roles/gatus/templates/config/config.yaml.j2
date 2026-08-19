@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+# Core Gatus configuration. Endpoint definitions live in endpoints.yaml;
+# Gatus deep-merges every *.yaml in this directory.
+
+storage:
+  type: sqlite
+  path: {{ gatus_storage_path }}
+  caching: true
+
+ui:
+  title: Atelier status
+  header: Atelier status
+{% if gatus_oidc_client_id | length > 0 %}
+
+# Native PocketID OIDC. Rendered only once the client exists, so a first
+# deploy against an unconfigured vault still comes up.
+security:
+  oidc:
+    issuer-url: "{{ gatus_oidc_issuer }}"
+    redirect-url: "{{ gatus_oidc_redirect_url }}"
+    client-id: "${GATUS_OIDC_CLIENT_ID}"
+    client-secret: "${GATUS_OIDC_CLIENT_SECRET}"
+    scopes: {{ gatus_oidc_scopes | to_json }}
+    session-ttl: {{ gatus_oidc_session_ttl }}
+{% endif %}
+{% if gatus_alert_to | length > 0 %}
+
+# Email over the shared SendGrid relay. Without a recipient the block is
+# omitted entirely, because Gatus rejects an email provider with no `to`.
+alerting:
+  email:
+    from: "{{ gatus_alert_from }}"
+    username: "{{ gatus_smtp_user }}"
+    password: "${GATUS_SMTP_PASSWORD}"
+    host: "{{ gatus_smtp_host }}"
+    port: {{ gatus_smtp_port }}
+    to: "${GATUS_ALERT_TO}"
+    default-alert:
+      failure-threshold: {{ gatus_alert_failure_threshold }}
+      success-threshold: {{ gatus_alert_success_threshold }}
+      send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endif %}
