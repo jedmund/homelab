@@ -15,8 +15,8 @@ values are loaded from Ansible Vault files.
   reuses the same key as Mastodon and Dawarich.
 - A PocketID OIDC client, GitHub App, and GitLab OAuth application have been
   created as described below.
-- GitLab CI has published the full SHA configured as `kaneo_image_tag` to
-  `registry.atelier.house/jedmund/kaneo`.
+- GitLab CI has published `registry.atelier.house/jedmund/kaneo:latest`,
+  which it does on every default-branch build.
 
 ## Create the Vault
 
@@ -169,12 +169,15 @@ PostgreSQL dumps after `make deploy-backup`.
 
 ## Rollout and rollback
 
-Before changing `kaneo_image_tag`, run `make deploy-backup` and verify the
-latest PostgreSQL dump. Deploy a new SHA to a disposable GitLab repository
-first, then attach production repositories after issue, note, branch, merge
-request, and duplicate-webhook smoke tests pass.
+The deployment tracks `latest`, so `make deploy-kaneo` picks up whatever the
+default branch last built. Kaneo applies its Drizzle migrations at API
+startup, so a deploy can carry schema changes: run `make deploy-backup` and
+verify the PostgreSQL dump first. Exercise a new build against a disposable
+GitLab repository, then attach production repositories once issue, note,
+branch, merge request, and duplicate-webhook smoke tests pass.
 
-To roll back to an older fork image, restore the previous full SHA and run
+CI publishes an immutable full-SHA tag alongside `latest`. To roll back, or
+to hold on a known-good build, set `kaneo_image_tag` to that SHA and run
 `make deploy-kaneo`. Before running an upstream image, disable all SCM
 integrations in Kaneo; upstream releases do not understand multi-repository or
 GitLab external links. The additive database migration is intentionally left

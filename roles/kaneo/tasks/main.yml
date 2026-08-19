@@ -13,7 +13,6 @@
       - (kaneo_gitlab_oauth_client_secret | default('') | length) > 0
       - (kaneo_registry_username | default('') | length) > 0
       - (kaneo_registry_password | default('') | length) > 0
-      - (kaneo_image_tag | default('')) is match('^[A-Fa-f0-9]{40}$')
       - (kaneo_smtp_user | default('') | length) > 0
       - (kaneo_smtp_password | default('') | length) > 0
       - (kaneo_smtp_from | default('') | length) > 0
@@ -24,7 +23,7 @@
     fail_msg: >-
       Kaneo requires database, Redis, auth, PocketID, GitHub App, GitLab OAuth,
       SCM encryption, registry, and shared SendGrid values documented in
-      roles/kaneo/README.md. kaneo_image_tag must be a full commit SHA.
+      roles/kaneo/README.md.
   no_log: true
   tags:
     - preflight
