@@ -5,19 +5,21 @@ runner with `roles/gitlab`, and the `max-docker` runner with
 `roles/development_linux`. The GitLab Compose project lives at
 `/opt/docker/gitlab` on `nuc-mini`.
 
-The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24.
-Recheck GitLab's current upgrade path and version notes before using this
-runbook for a later release.
+The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24, then
+patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
+(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). Recheck GitLab's
+current upgrade path and version notes before using this runbook for a later
+release.
 
 ## Current versions
 
 | Component | Version |
 | --- | --- |
-| GitLab CE | `19.2.0-ce.0` |
+| GitLab CE | `19.2.4-ce.0` |
 | `nuc-mini-docker` runner, ID 1 | `19.2.0` |
 | `max-docker` runner, ID 3 | `19.2.0` |
 | Embedded PostgreSQL | `17.10` |
-| `mac-mini-xcode` runner, ID 2 | Stale; keep paused |
+| `mac-mini-xcode` runner, ID 2 | `19.2.0` |
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -46,6 +48,19 @@ finished. GitLab's advisory directs administrators to continue to the required
 
 <https://federal-support.gitlab.com/hc/en-us/articles/49353859784852-BackfillSentNotificationsAfterPartition-fails-after-upgrade-to-18-2-8>
 
+## Patch releases inside one minor series
+
+A patch hop such as 19.2.0 to 19.2.4 stays inside the same minor series and
+carries no database migrations, so it needs no intermediate stop and no
+PostgreSQL check. Still honor the invariants below: pause and drain the
+runners, take the rollback pair, and require a clean migration gate before and
+after. Runners do not need a matching patch version, only a matching
+major/minor, so leave them alone unless the advisory names the runner.
+
+Security patch releases are announced on
+<https://about.gitlab.com/releases/categories/releases/> and detailed under
+<https://docs.gitlab.com/releases/patches/>.
+
 ## Invariants
 
 - Pause and drain all runners before changing the server.
@@ -56,7 +71,8 @@ finished. GitLab's advisory directs administrators to continue to the required
   or failed.
 - Never restore a backup into a different GitLab version or edition.
 - Keep runner major/minor versions aligned with the server.
-- Leave the stale Mac runner paused until that host is repaired and upgraded.
+- After upgrading the macOS runner, confirm it actually reconnects. See the
+  macOS Local Network section below.
 
 ## Prepare and drain CI
 
@@ -246,18 +262,63 @@ After the final version is stable and every migration is complete, unpause only
 the upgraded runners:
 
 ```sh
-for runner_id in 1 3; do
+for runner_id in 1 2 3; do
   glab api --method PUT "runners/${runner_id}" -F paused=false --silent
 done
 
-for runner_id in 1 3; do
+for runner_id in 1 2 3; do
   glab api "runners/${runner_id}" |
-    jq '{id, status, paused, version, revision, contacted_at, job_execution_status}'
+    jq '{id, status, paused, version, revision, platform, contacted_at, job_execution_status}'
 done
 ```
 
-Both active runners must be online on the intended version. Keep runner 2
-paused while it remains stale.
+All three runners must be online on the intended version. Treat a null
+`platform`, `architecture`, or `version` as not connected even when `status`
+reads online. GitLab only rewrites `contacted_at` every 40 to 55 minutes, so a
+frozen timestamp is not by itself a fault.
+
+## macOS Local Network permission on the Xcode runner
+
+Runner 2 runs from a user LaunchAgent on `mac-mini`, so it is subject to the
+macOS Local Network privacy gate. A blocked runner keeps its process alive and
+its registration valid while every poll fails against the LAN address:
+
+```
+dial tcp 192.168.1.6:443: connect: no route to host
+```
+
+The gate keys on the binary, so a Homebrew upgrade of `gitlab-runner` installs
+a new binary that has never been approved and silently revokes access. This is
+what stranded runner 2 from 2026-07-25 to 2026-08-18: the 19.2.0 hop upgraded
+the formula, the new binary was never approved, and nothing surfaced the
+failure. Expect it after every macOS runner upgrade.
+
+Diagnose it by proving the network is fine while only the daemon fails:
+
+```sh
+ssh mac
+nc -zv -w 3 192.168.1.6 443
+curl -sS -o /dev/null -w '%{http_code}\n' https://git.atelier.house/
+/opt/homebrew/bin/gitlab-runner verify \
+  --config /Users/justin/.gitlab-runner/config.toml
+tail -3 ~/gitlab-runner.err.log
+```
+
+An SSH session inherits a different responsible process than launchd, so those
+four succeeding while the daemon logs `no route to host` confirms the gate
+rather than a network, DNS, or token fault.
+
+The fix is a GUI action: on `mac-mini`, System Settings, Privacy & Security,
+Local Network, enable `gitlab-runner`. A running daemon picks the approval up
+within seconds and needs no restart. Confirm by checking that
+`~/gitlab-runner.err.log` stops growing and that `platform` and `architecture`
+are populated in `glab api runners/2`.
+
+There is no way to pre-approve or disable this. The Local Network list is not
+exposed to MDM, and `com.apple.TCC.configuration-profile-policy` carries no
+payload for it. Root LaunchDaemons are exempt, but this runner is deliberately
+user-mode because system-mode would break Xcode code signing and login keychain
+access, so that exemption is not available here.
 
 ## Roll back one failed hop
 
