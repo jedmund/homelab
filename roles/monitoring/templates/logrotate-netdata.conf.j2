@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Rotation for Netdata's logs on macOS. Homebrew ships no rotation for these,
+# and collector.log had reached 11.2 GB before anyone looked.
+#
+# copytruncate is required: netdata holds these files open for the life of the
+# process, so renaming them would leave it writing to the rotated inode.
+
+{{ netdata_config_dir_darwin_logs }}/*.log
+{
+    copytruncate
+    size {{ netdata_log_max_size }}
+    rotate {{ netdata_log_keep }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+}

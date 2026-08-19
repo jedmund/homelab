@@ -74,10 +74,15 @@
         name: henrygd/beszel
         state: present
 
+    # Same reasoning as netdata in roles/monitoring: Homebrew has no
+    # auto-updater, and a replaced binary is killed by macOS with
+    # SIGKILL (Code Signature Invalid) until the launchd job is booted out and
+    # back in, which the restart handler does. So an upgrade must notify it.
     - name: Install Beszel agent via Homebrew
       community.general.homebrew:
         name: beszel-agent
-        state: present
+        state: "{{ beszel_agent_homebrew_state }}"
+      notify: Restart Beszel agent
 
     - name: Install macmon for Apple Silicon GPU stats
       community.general.homebrew:
@@ -93,11 +98,19 @@
       no_log: true
       notify: Restart Beszel agent
 
-    - name: Check Beszel agent brew service status
-      ansible.builtin.shell: brew services list | awk '$1 == "beszel-agent" {print $2}'
-      register: beszel_agent_brew_status
+    # Two reasons not to probe with `brew services list`: brew is not on PATH
+    # in Ansible's non-login shell, and that subcommand is currently broken on
+    # mac-mini with "undefined method 'stop_timeout'". Either way it returned
+    # nothing and the start below always ran, which fails with "Input/output
+    # error" once the agent is bootstrapped. launchctl exits 0 when the label
+    # is loaded and 113 when it is not.
+    - name: Check whether the Beszel agent is loaded
+      ansible.builtin.command: launchctl list {{ beszel_agent_launchd_label }}
+      register: beszel_agent_state
       changed_when: false
+      failed_when: false
 
     - name: Start Beszel agent via brew services
-      ansible.builtin.command: brew services start beszel-agent
-      when: beszel_agent_brew_status.stdout != "started"
+      ansible.builtin.command: "{{ beszel_agent_brew_binary }} services start beszel-agent"
+      when: beszel_agent_state.rc != 0
+      changed_when: true

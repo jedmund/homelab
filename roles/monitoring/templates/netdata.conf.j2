@@ -1,4 +1,5 @@
 # {{ ansible_managed }}
+{% if netdata_role == 'parent' %}
 [db]
     mode = dbengine
     storage tiers = 3
@@ -11,3 +12,21 @@
 
 [web]
     bind to = *
+{% endif %}
+{% if ansible_facts['os_family'] == 'Darwin' %}
+[logs]
+    # apps.plugin emits a warning per process per collection cycle on macOS
+    # ("pid N <name> states parent 1, but the later does not exist"), a benign
+    # quirk of how it reads parent PIDs there. At the default info level that
+    # wrote roughly 490 MB a day and had grown collector.log to 11.2 GB before
+    # anyone noticed. Errors still come through.
+    level = error
+
+[plugins]
+    # apps.plugin cannot do its job here. Homebrew runs netdata as an
+    # unprivileged user agent, ndsudo is not setuid-root, and macOS refuses
+    # per-process task info without elevation, so the plugin collects nothing
+    # and logs a failure per process per cycle. Turning it off removes the
+    # remaining log volume without losing data we were actually getting.
+    apps = no
+{% endif %}

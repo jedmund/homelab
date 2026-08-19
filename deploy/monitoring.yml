@@ -1,0 +1,7 @@
+---
+# Netdata agents. Also run as part of deploy/prerequisites.yml; this playbook
+# exists so the role can be deployed on its own, optionally with --limit.
+- name: Deploy monitoring agents
+  hosts: compute_servers
+  roles:
+    - monitoring

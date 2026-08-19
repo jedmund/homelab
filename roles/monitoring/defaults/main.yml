@@ -20,3 +20,18 @@ netdata_config_dir_darwin: /opt/homebrew/etc/netdata
 
 # Streaming API key (defined in compute_servers vault as vault_netdata_stream_api_key)
 netdata_stream_api_key: "{{ vault_netdata_stream_api_key }}"
+
+# launchd label Homebrew gives the Netdata agent on macOS hosts.
+netdata_launchd_label: homebrew.mxcl.netdata
+
+# Netdata writes its own logs here on macOS, with no rotation of its own.
+netdata_config_dir_darwin_logs: /opt/homebrew/var/log/netdata
+netdata_logrotate_dir: /opt/homebrew/etc/logrotate.d
+netdata_log_max_size: 10M
+netdata_log_keep: 5
+netdata_logrotate_label: homebrew.mxcl.logrotate
+
+# macOS only. `latest` keeps Homebrew's netdata current, matching the
+# auto-updater Linux hosts get from netdata's kickstart installer. Set to
+# `present` to freeze the installed version instead.
+netdata_homebrew_state: latest
