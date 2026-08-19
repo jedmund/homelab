@@ -42,6 +42,10 @@
 - import_playbook: beszel_agents.yml
   tags: [monitoring, beszel_agents]
 
+# Gatus uptime and invariant checks (status.atelier.house)
+- import_playbook: gatus.yml
+  tags: [monitoring, gatus]
+
 # Media stack
 - import_playbook: gluetun.yml
   tags: [media, gluetun]

@@ -1,0 +1,6 @@
+---
+- name: Deploy gatus stack
+  hosts: gatus
+  become: true
+  roles:
+    - gatus
