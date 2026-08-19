@@ -6,7 +6,7 @@ Ansible playbooks for deploying and managing a homelab infrastructure.
 
 ```
 .
-├── deploy/        # One playbook per stack (deploy/all.yml runs everything)
+├── deploy/        # Per-stack playbooks plus the routine deploy/all.yml
 │   └── group_vars -> ../group_vars  # Symlink for variable resolution
 ├── group_vars/    # Host group variables and vault files
 ├── inventory/     # Host inventory (hosts.yml)
@@ -104,6 +104,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | Role | Services |
 |------|----------|
 | `kibble` | kibble `[in-house]` |
+| `kizuna` | Kizuna API, app, worker, PostgreSQL, Redis, Garage `[in-house]` |
 | `vane` | Vane `[in-house]` |
 | `petlibro` | catbro `[in-house]`, Mosquitto |
 
@@ -527,7 +528,7 @@ Run `make help` to see all available commands. Common operations:
 ### Deployment
 
 ```bash
-# Deploy everything
+# Reconcile routine infrastructure and product stacks
 make deploy-all
 
 # Deploy specific stacks
@@ -610,6 +611,22 @@ make deploy-prerequisites
 # Dry-run before deploying
 make dry-run
 ```
+
+`make deploy-all` covers every routine inventory-backed stack, including
+Kizuna and Petlibro. The following standalone workflows remain explicit so a
+routine reconciliation cannot bootstrap hosts or change the active GPU mode:
+
+| Playbook | Why it stays separate | Command |
+|----------|-----------------------|---------|
+| `dokploy_host.yml` | Provisions the host bridge and Dokploy VM | `make deploy-dokploy-host` |
+| `dokploy.yml` | Bootstraps Dokploy and requires first-run operator setup | `make deploy-dokploy` |
+| `ai_split.yml` | Switches GPU allocation and starts the configured vLLM profile | `make deploy-ai-split` |
+| `vllm.yml` | Rendering-only helper used by the split workflow | `make deploy-vllm` |
+| `sglang.yml` | Parked experimental inference stack | `make deploy-sglang` |
+| `gpu_tools.yml` | Its role is already included by `ai.yml` | `make deploy-ai` |
+
+`make check-deploy-all` verifies that every standalone playbook is either
+imported by `deploy/all.yml` or listed there as an intentional exception.
 
 ### Targeting Specific Hosts or Services
 
