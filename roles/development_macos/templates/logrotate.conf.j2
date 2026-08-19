@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Rotation for the GitLab Runner LaunchAgent logs.
+#
+# copytruncate is required, not a preference: launchd opens these paths and
+# hands the runner descriptors that live as long as the process. Renaming the
+# file would leave the runner writing to the rotated inode.
+
+{% for log_file in gitlab_runner_macos_log_files %}
+{{ log_file }}
+{% endfor %}
+{
+    copytruncate
+    size {{ gitlab_runner_macos_log_max_size }}
+    rotate {{ gitlab_runner_macos_log_keep }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+}

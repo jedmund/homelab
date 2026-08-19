@@ -27,10 +27,65 @@
 - name: Install gitlab-runner as a user LaunchAgent
   ansible.builtin.command: "{{ gitlab_runner_macos_binary }} install"
   args:
-    creates: "{{ gitlab_runner_macos_home }}/Library/LaunchAgents/gitlab.gitlab-runner.plist"
+    creates: "{{ gitlab_runner_macos_home }}/Library/LaunchAgents/{{ gitlab_runner_macos_service_label }}.plist"
   become: false
+
+# `gitlab-runner start` shells out to launchctl, which refuses to load an
+# agent that is already bootstrapped and fails with "Load failed: 5: Input/
+# output error". Unconditionally starting therefore fails every deploy where
+# the runner is already up, which is every normal one. Ask launchctl first;
+# it exits 0 when the label is loaded and 113 when it is not.
+- name: Check whether the gitlab-runner agent is loaded
+  ansible.builtin.command: launchctl list {{ gitlab_runner_macos_service_label }}
+  become: false
+  register: gitlab_runner_agent
+  changed_when: false
+  failed_when: false
 
 - name: Ensure gitlab-runner is started
   ansible.builtin.command: "{{ gitlab_runner_macos_binary }} start"
   become: false
+  when: gitlab_runner_agent.rc != 0
+  changed_when: true
+
+- name: Install logrotate via Homebrew
+  community.general.homebrew:
+    name: logrotate
+    state: present
+  when: gitlab_runner_macos_logrotate | bool
+
+- name: Ensure the logrotate config directory exists
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_macos_logrotate_dir }}"
+    state: directory
+    owner: "{{ gitlab_runner_macos_user }}"
+    mode: '0755'
+  when: gitlab_runner_macos_logrotate | bool
+
+- name: Deploy gitlab-runner logrotate config
+  ansible.builtin.template:
+    src: logrotate.conf.j2
+    dest: "{{ gitlab_runner_macos_logrotate_dir }}/gitlab-runner"
+    owner: "{{ gitlab_runner_macos_user }}"
+    mode: '0644'
+  when: gitlab_runner_macos_logrotate | bool
+
+# Same launchd constraint as the runner above: `brew services start` bootstraps
+# the agent and fails with "Bootstrap failed: 5: Input/output error" when it is
+# already loaded, so guard it on the label rather than starting blindly.
+- name: Check whether the logrotate agent is loaded
+  ansible.builtin.command: launchctl list {{ gitlab_runner_macos_logrotate_label }}
+  become: false
+  register: logrotate_agent
   changed_when: false
+  failed_when: false
+  when: gitlab_runner_macos_logrotate | bool
+
+# Runs as the login user, which is what owns the log files.
+- name: Ensure the logrotate service is running
+  ansible.builtin.command: "{{ gitlab_runner_macos_brew_binary }} services start logrotate"
+  become: false
+  when:
+    - gitlab_runner_macos_logrotate | bool
+    - logrotate_agent.rc | default(1) != 0
+  changed_when: true
