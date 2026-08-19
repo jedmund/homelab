@@ -108,15 +108,10 @@ gitlab_registry_cleanup_keep_n: 10
 gitlab_registry_cleanup_older_than: 30d
 # How often GitLab runs the policy.
 gitlab_registry_cleanup_cadence: 7d
-# Projects to leave alone entirely (full paths).
-#
-# kaneo is excluded belt-and-braces. The pattern above already spares its
-# 40-character tags, but roles/kaneo pins an immutable full SHA and asserts
-# on it, so an expired tag breaks that deploy outright. The explicit
-# exclusion states the intent and survives a future change to the pattern.
-# Remove it once kaneo publishes and deploys a floating tag like the others.
-gitlab_registry_cleanup_exclude_projects:
-  - jedmund/kaneo
+# Projects to leave alone entirely (full paths). Empty: kaneo used to be
+# excluded here because it deployed an immutable full SHA that tag expiry
+# could have deleted, but it now tracks `latest` like everything else.
+gitlab_registry_cleanup_exclude_projects: []
 
 # Renovate settings
 renovate_image: renovate/renovate:39
