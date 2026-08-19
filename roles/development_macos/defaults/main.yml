@@ -16,6 +16,9 @@ gitlab_runner_macos_log_level: info
 # Ansible commands run in a non-login shell, whose PATH does not include the
 # Apple Silicon Homebrew prefix even after the formula is installed.
 gitlab_runner_macos_binary: /opt/homebrew/bin/gitlab-runner
+gitlab_runner_macos_brew_binary: /opt/homebrew/bin/brew
+# launchd label and plist that `gitlab-runner install` generates.
+gitlab_runner_macos_service_label: gitlab-runner
 # Generated in the GitLab admin UI as a separate runner registration
 # from the nuc-mini docker runner, then added to vault. Empty default
 # lets the first deploy render config.toml without failing; runner
@@ -28,3 +31,25 @@ gitlab_runner_macos_auth_token: ""
 gitlab_runner_macos_user: "{{ ansible_user }}"
 gitlab_runner_macos_home: "/Users/{{ gitlab_runner_macos_user }}"
 gitlab_runner_macos_config_dir: "{{ gitlab_runner_macos_home }}/.gitlab-runner"
+
+# Log rotation.
+#
+# launchd owns the runner's stdout and stderr: it opens the paths in the
+# LaunchAgent and hands the process descriptors that stay open for its whole
+# life. Rename-based rotation is therefore wrong here. newsyslog would move
+# the file aside, the runner would keep appending to the rotated inode, and
+# once that generation aged out the space would not be reclaimed until the
+# process exited. logrotate's copytruncate truncates in place instead, so the
+# descriptor stays valid and writes resume at the start of the file.
+#
+# This is not hypothetical: a single repeated warning grew the error log to
+# 311 MB over 24 days in August 2026 while nothing rotated it.
+gitlab_runner_macos_logrotate: true
+gitlab_runner_macos_log_files:
+  - "{{ gitlab_runner_macos_home }}/gitlab-runner.err.log"
+  - "{{ gitlab_runner_macos_home }}/gitlab-runner.out.log"
+gitlab_runner_macos_log_max_size: 10M
+gitlab_runner_macos_log_keep: 5
+gitlab_runner_macos_logrotate_dir: /opt/homebrew/etc/logrotate.d
+# Label Homebrew gives the logrotate agent. Runs daily at 06:00.
+gitlab_runner_macos_logrotate_label: homebrew.mxcl.logrotate
