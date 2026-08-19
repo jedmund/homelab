@@ -68,12 +68,25 @@ https://status.atelier.house/authorization-code/callback
 ## Create the GitLab token
 
 The runner endpoints read instance-wide runner state, so the token must belong
-to an administrator. Scope it to `read_api` only:
+to an administrator. Scope it to `read_api` only.
+
+Note that the self-service endpoint (`POST /user/personal_access_tokens`) only
+accepts the `k8s_proxy` and `self_rotate` scopes, so it cannot mint this token.
+Use the admin endpoint against your own user id:
 
 ```sh
-glab api --method POST user/personal_access_tokens \
-  -F name=gatus-runner-monitor -F scopes[]=read_api
+# Your user id
+glab api user | jq .id
+
+glab api --method POST "users/<user-id>/personal_access_tokens" \
+  -F name=gatus-runner-monitor \
+  -F description="Gatus runner liveness checks" \
+  -F "scopes[]=read_api" \
+  -F expires_at=<YYYY-MM-DD>
 ```
+
+The token is shown once, in the `token` field of the response. Creating it in
+the UI under User Settings, Access Tokens works equally well.
 
 ## Create the Vault
 
