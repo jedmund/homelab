@@ -122,6 +122,7 @@ vault_gatus_oidc_client_id: "<PocketID client ID>"
 vault_gatus_oidc_client_secret: "<PocketID client secret>"
 vault_gatus_gitlab_token: "<GitLab admin token, read_api scope>"
 vault_gatus_alert_to: "<address alerts are sent to>"
+vault_gatus_discord_webhook_url: "<Discord channel webhook, optional>"
 ```
 
 | Vault key | Purpose |
@@ -129,11 +130,32 @@ vault_gatus_alert_to: "<address alerts are sent to>"
 | `vault_gatus_oidc_client_id` | PocketID client ID for dashboard login |
 | `vault_gatus_oidc_client_secret` | PocketID client secret |
 | `vault_gatus_gitlab_token` | GitLab admin token, `read_api`, reads runner state |
-| `vault_gatus_alert_to` | Alert recipient; kept out of this public repo |
+| `vault_gatus_alert_to` | Email alert recipient; kept out of this public repo |
+| `vault_gatus_discord_webhook_url` | Discord channel webhook; omit to disable Discord |
 
-Both the OIDC and the alerting blocks are omitted from the rendered config
+The OIDC block and each alerting provider are omitted from the rendered config
 while their keys are empty, so a first deploy comes up unauthenticated and
 silent rather than failing to start. Fill the vault before relying on it.
+
+## Alerting to Discord
+
+Email and Discord are independent: configure either, both, or neither. Every
+endpoint alerts through whichever providers are present, so adding the webhook
+fans all 16 existing checks out to Discord without touching them.
+
+Create the webhook in Discord under Server Settings, Integrations, Webhooks.
+It is scoped to one channel, so the channel is chosen there rather than in this
+role. Treat the URL as a credential: anyone holding it can post to that
+channel, which is why it lives in the vault and reaches the config as an
+environment variable rather than being written into a readable file.
+
+An embed on its own does not notify anyone. To make alerts actually ping, set
+`gatus_discord_message_content` to a role or user mention, which is sent as
+plain content ahead of the embed:
+
+```yaml
+gatus_discord_message_content: "<@&000000000000000000>"
+```
 
 ## Deploy
 

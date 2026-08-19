@@ -23,11 +23,14 @@ security:
     scopes: {{ gatus_oidc_scopes | to_json }}
     session-ttl: {{ gatus_oidc_session_ttl }}
 {% endif %}
-{% if gatus_alert_to | length > 0 %}
+{% if gatus_alert_to | length > 0 or gatus_discord_webhook_url | length > 0 %}
 
-# Email over the shared SendGrid relay. Without a recipient the block is
-# omitted entirely, because Gatus rejects an email provider with no `to`.
+# Alerting. Each provider is rendered only once its credential is present, so
+# an unconfigured one is absent rather than half-configured: Gatus rejects an
+# email provider with no `to`, and a discord provider with no webhook URL.
 alerting:
+{% if gatus_alert_to | length > 0 %}
+  # Email over the shared SendGrid relay.
   email:
     from: "{{ gatus_alert_from }}"
     username: "{{ gatus_smtp_user }}"
@@ -39,4 +42,19 @@ alerting:
       failure-threshold: {{ gatus_alert_failure_threshold }}
       success-threshold: {{ gatus_alert_success_threshold }}
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endif %}
+{% if gatus_discord_webhook_url | length > 0 %}
+  discord:
+    webhook-url: "${GATUS_DISCORD_WEBHOOK_URL}"
+    title: "{{ gatus_discord_title }}"
+{% if gatus_discord_message_content | length > 0 %}
+    # Sent as plain content before the embed, so a role or user mention here
+    # actually notifies rather than sitting silently in the embed body.
+    message-content: "{{ gatus_discord_message_content }}"
+{% endif %}
+    default-alert:
+      failure-threshold: {{ gatus_alert_failure_threshold }}
+      success-threshold: {{ gatus_alert_success_threshold }}
+      send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endif %}
 {% endif %}

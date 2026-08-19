@@ -43,6 +43,16 @@ gatus_alert_from: "noreply@atelier.house"
 # vault_gatus_alert_to - defined in vault (public repo, no addresses here)
 gatus_alert_to: "{{ vault_gatus_alert_to | default('') }}"
 
+# Discord. A webhook is per-channel, so the channel is chosen when the webhook
+# is created rather than here. Left empty the provider is omitted entirely.
+# vault_gatus_discord_webhook_url - defined in vault
+gatus_discord_webhook_url: "{{ vault_gatus_discord_webhook_url | default('') }}"
+gatus_discord_title: ":rotating_light: Atelier status"
+# Plain content sent before the embed. Put a role or user mention here (for
+# example <@&000000000000000000>) to make an alert actually notify; an embed
+# alone does not ping anyone.
+gatus_discord_message_content: ""
+
 # Alert only after three consecutive failures so a single blip stays quiet,
 # and say so when it recovers.
 gatus_alert_failure_threshold: 3

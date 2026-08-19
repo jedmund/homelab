@@ -1,5 +1,10 @@
 # {{ ansible_managed }}
 # Endpoint definitions. Adding a check is a defaults edit plus a redeploy.
+# Every endpoint alerts through whichever providers are configured, so
+# enabling Discord in the vault fans every existing check out to it too.
+{% set alert_types = [] %}
+{% if gatus_alert_to | length > 0 %}{% set _ = alert_types.append('email') %}{% endif %}
+{% if gatus_discord_webhook_url | length > 0 %}{% set _ = alert_types.append('discord') %}{% endif %}
 
 endpoints:
 {% for runner in gatus_gitlab_runners %}
@@ -19,11 +24,13 @@ endpoints:
       # The runner payload carries fields we would rather not render on a
       # dashboard; only the conditions above are ever displayed.
       hide-url: true
-{% if gatus_alert_to | length > 0 %}
+{% if alert_types %}
     alerts:
-      - type: email
+{% for alert_type in alert_types %}
+      - type: {{ alert_type }}
         description: "GitLab runner {{ runner.name }} stopped checking in"
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endfor %}
 {% endif %}
 {% endfor %}
 
@@ -34,11 +41,13 @@ endpoints:
     interval: {{ endpoint.interval | default(gatus_default_interval) }}
     conditions:
       - "[STATUS] == {{ endpoint.status }}"
-{% if gatus_alert_to | length > 0 %}
+{% if alert_types %}
     alerts:
-      - type: email
+{% for alert_type in alert_types %}
+      - type: {{ alert_type }}
         description: "{{ endpoint.name }} is not responding as expected"
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endfor %}
 {% endif %}
 {% endfor %}
 
@@ -51,9 +60,11 @@ endpoints:
     interval: 1h
     conditions:
       - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_warning_hours }}h"
-{% if gatus_alert_to | length > 0 %}
+{% if alert_types %}
     alerts:
-      - type: email
+{% for alert_type in alert_types %}
+      - type: {{ alert_type }}
         description: "Wildcard certificate is inside {{ gatus_cert_warning_hours }}h of expiry"
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endfor %}
 {% endif %}
