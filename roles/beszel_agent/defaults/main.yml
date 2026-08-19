@@ -45,3 +45,8 @@ beszel_agent_credentials_configured: >-
     (beszel_agent_key | string | length > 0)
     and (beszel_agent_token | string | length > 0)
   }}
+
+# macOS agent. Homebrew is not on PATH in Ansible's non-login shell, so call
+# brew by absolute path; launchctl owns the service state.
+beszel_agent_brew_binary: /opt/homebrew/bin/brew
+beszel_agent_launchd_label: homebrew.mxcl.beszel-agent

@@ -67,14 +67,57 @@
       command: brew install netdata
       when: brew_netdata_check.rc != 0
 
-    - name: Check Netdata brew service status
-      shell: brew services list | awk '$1 == "netdata" {print $2}'
-      register: netdata_brew_status
+    # `brew services list` is not a reliable probe here: it is currently
+    # broken on mac-mini with "undefined method 'stop_timeout'", so it returns
+    # nothing and the start below always ran. Starting an already-bootstrapped
+    # launchd agent then fails with "Input/output error". Ask launchctl
+    # instead; it exits 0 when the label is loaded and 113 when it is not.
+    - name: Check whether the Netdata agent is loaded
+      command: launchctl list {{ netdata_launchd_label }}
+      register: netdata_agent
       changed_when: false
+      failed_when: false
 
     - name: Start Netdata via brew services
       command: brew services start netdata
-      when: netdata_brew_status.stdout != "started"
+      when: netdata_agent.rc != 0
+      changed_when: true
+
+- name: Rotate Netdata's own logs on macOS
+  when: ansible_facts['os_family'] == 'Darwin'
+  become: false
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] | default('/usr/bin:/bin:/usr/sbin:/sbin') }}"
+  block:
+    - name: Install logrotate via Homebrew
+      community.general.homebrew:
+        name: logrotate
+        state: present
+
+    - name: Ensure the logrotate config directory exists
+      ansible.builtin.file:
+        path: "{{ netdata_logrotate_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Deploy Netdata logrotate config
+      ansible.builtin.template:
+        src: logrotate-netdata.conf.j2
+        dest: "{{ netdata_logrotate_dir }}/netdata"
+        mode: '0644'
+
+    # Starting an already-bootstrapped launchd agent fails with "Input/output
+    # error", so guard on the label the way the Netdata start above does.
+    - name: Check whether the logrotate agent is loaded
+      ansible.builtin.command: launchctl list {{ netdata_logrotate_label }}
+      register: netdata_logrotate_agent
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure the logrotate service is running
+      ansible.builtin.command: brew services start logrotate
+      when: netdata_logrotate_agent.rc != 0
+      changed_when: true
 
 - name: Set Netdata config directory
   set_fact:
@@ -91,11 +134,13 @@
   no_log: true
   notify: restart netdata
 
-- name: Configure Netdata retention (parent only)
+# The parent needs its retention tiers; macOS hosts need the log level. Linux
+# children are deliberately left alone so their packaged netdata.conf stands.
+- name: Configure Netdata
   template:
     src: netdata.conf.j2
     dest: "{{ netdata_config_dir }}/netdata.conf"
     mode: "0644"
   become: "{{ ansible_facts['os_family'] == 'Debian' }}"
-  when: netdata_role == 'parent'
+  when: netdata_role == 'parent' or ansible_facts['os_family'] == 'Darwin'
   notify: restart netdata
