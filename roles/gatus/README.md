@@ -74,6 +74,10 @@ Note that the self-service endpoint (`POST /user/personal_access_tokens`) only
 accepts the `k8s_proxy` and `self_rotate` scopes, so it cannot mint this token.
 Use the admin endpoint against your own user id:
 
+`glab api` sends a JSON body, so `scopes` has to be a JSON array. The form
+encoding from GitLab's own curl examples (`scopes[]=read_api`) creates a field
+literally named `scopes[]` and the request fails with `scopes is missing`.
+
 ```sh
 # Your user id
 glab api user | jq .id
@@ -81,12 +85,24 @@ glab api user | jq .id
 glab api --method POST "users/<user-id>/personal_access_tokens" \
   -F name=gatus-runner-monitor \
   -F description="Gatus runner liveness checks" \
-  -F "scopes[]=read_api" \
-  -F expires_at=<YYYY-MM-DD>
+  -F 'scopes=["read_api"]'
 ```
 
 The token is shown once, in the `token` field of the response. Creating it in
 the UI under User Settings, Access Tokens works equally well.
+
+Omitting `expires_at` only works while the instance allows non-expiring
+tokens. That is an instance-wide setting, not a per-token one:
+
+```sh
+glab api application/settings | jq .require_personal_access_token_expiry
+glab api --method PUT application/settings \
+  -F require_personal_access_token_expiry=false
+```
+
+With it left at `true`, pass `-F expires_at=<YYYY-MM-DD>` and expect the runner
+checks to start failing when the token lapses, which reads as a runner outage
+rather than an expired credential.
 
 ## Create the Vault
 
