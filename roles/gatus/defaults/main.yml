@@ -84,15 +84,26 @@ gatus_gitlab_runners:
   - id: 3
     name: max-docker
 
-# Names with no public DNS record. Gatus uses the container's default
-# resolver, which is public on purpose: every other check then resolves to
-# the public address and exercises the real external path rather than a
-# LAN shortcut. Internal-only names cannot be looked up that way, so they
-# are pinned to Traefik instead. The hostname is kept so SNI and routing
-# still work.
-gatus_internal_hosts:
+# Names pinned to Traefik instead of being resolved normally. Two unrelated
+# reasons land here, both discovered by probing rather than by reading config:
+#
+#   registry.atelier.house has no public DNS record at all, so a container
+#   using a public resolver cannot look it up.
+#
+#   git.atelier.house resolves, on the proxy network only, to the GitLab
+#   container itself. roles/gitlab sets `hostname: git.atelier.house`, and
+#   Docker's embedded DNS answers with that container's address ahead of any
+#   external record. GitLab serves plain HTTP there while Traefik holds the
+#   certificate, so an HTTPS probe fails to connect in about a millisecond.
+#
+# /etc/hosts wins over Docker's resolver, and keeping the hostname means SNI
+# and Traefik routing still work. These two checks therefore exercise the LAN
+# path; everything not listed resolves publicly on purpose and exercises the
+# real external path.
+gatus_pinned_hosts:
   - registry.atelier.house
-gatus_internal_host_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
+  - git.atelier.house
+gatus_pinned_host_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
 
 # Reachability checks. Every status below was probed against the live
 # service through Gatus itself rather than assumed. Two things that bite

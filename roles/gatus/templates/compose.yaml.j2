@@ -16,10 +16,12 @@ services:
       TZ: {{ timezone }}
     env_file:
       - ./env/gatus.env
-{% if gatus_internal_hosts | length > 0 %}
+{% if gatus_pinned_hosts | length > 0 %}
+    # Sent to Traefik rather than wherever the resolver would point. See
+    # gatus_pinned_hosts in defaults for why each name is here.
     extra_hosts:
-{% for host in gatus_internal_hosts %}
-      - "{{ host }}:{{ gatus_internal_host_ip }}"
+{% for host in gatus_pinned_hosts %}
+      - "{{ host }}:{{ gatus_pinned_host_ip }}"
 {% endfor %}
 {% endif %}
     volumes:

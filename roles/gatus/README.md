@@ -40,12 +40,22 @@ detection. Two hours against the 24 days it previously took is the win here.
 
 ## DNS
 
-`status.atelier.house` has no public record yet, so the dashboard resolves on
-the LAN only. Add a Cloudflare A record if you want to reach it from outside.
-Note that Gatus deliberately uses the container's default public resolver, so
-the reachability checks exercise the real external path rather than a LAN
-shortcut. `registry.atelier.house` is internal-only by design and is pinned to
-Traefik with `extra_hosts` because a public resolver cannot find it.
+Gatus deliberately uses the container's default public resolver, so most
+reachability checks exercise the real external path rather than a LAN shortcut.
+Two names are pinned to Traefik with `extra_hosts` instead, for different
+reasons, and both were found by probing rather than by reading config:
+
+- `registry.atelier.house` has no public DNS record at all, so a public
+  resolver cannot find it.
+- `git.atelier.house` resolves, on the proxy network only, to the GitLab
+  container rather than to Traefik. `roles/gitlab` sets
+  `hostname: git.atelier.house`, and Docker's embedded DNS answers with that
+  container's address ahead of any external record. GitLab serves plain HTTP
+  there while Traefik holds the certificate, so an HTTPS probe fails to
+  connect in about a millisecond. Anything else deployed onto the proxy
+  network that needs to reach GitLab over HTTPS will hit the same wall.
+
+Those two checks therefore exercise the LAN path rather than the external one.
 
 ## Prerequisites
 
