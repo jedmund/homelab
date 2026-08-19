@@ -50,3 +50,6 @@ beszel_agent_credentials_configured: >-
 # brew by absolute path; launchctl owns the service state.
 beszel_agent_brew_binary: /opt/homebrew/bin/brew
 beszel_agent_launchd_label: homebrew.mxcl.beszel-agent
+# `latest` keeps the Homebrew agent current; Homebrew ships no auto-updater.
+# Set to `present` to freeze the installed version instead.
+beszel_agent_homebrew_state: latest

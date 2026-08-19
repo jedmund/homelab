@@ -30,3 +30,8 @@ netdata_logrotate_dir: /opt/homebrew/etc/logrotate.d
 netdata_log_max_size: 10M
 netdata_log_keep: 5
 netdata_logrotate_label: homebrew.mxcl.logrotate
+
+# macOS only. `latest` keeps Homebrew's netdata current, matching the
+# auto-updater Linux hosts get from netdata's kickstart installer. Set to
+# `present` to freeze the installed version instead.
+netdata_homebrew_state: latest

@@ -74,10 +74,15 @@
         name: henrygd/beszel
         state: present
 
+    # Same reasoning as netdata in roles/monitoring: Homebrew has no
+    # auto-updater, and a replaced binary is killed by macOS with
+    # SIGKILL (Code Signature Invalid) until the launchd job is booted out and
+    # back in, which the restart handler does. So an upgrade must notify it.
     - name: Install Beszel agent via Homebrew
       community.general.homebrew:
         name: beszel-agent
-        state: present
+        state: "{{ beszel_agent_homebrew_state }}"
+      notify: Restart Beszel agent
 
     - name: Install macmon for Apple Silicon GPU stats
       community.general.homebrew:

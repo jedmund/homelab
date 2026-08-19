@@ -57,15 +57,24 @@
   environment:
     PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] | default('/usr/bin:/bin:/usr/sbin:/sbin') }}"
   block:
-    - name: Check if Netdata is installed via Homebrew
-      command: brew list netdata
-      register: brew_netdata_check
-      failed_when: false
-      changed_when: false
-
+    # Linux hosts get netdata's own /etc/cron.daily/netdata-updater from the
+    # kickstart installer, so they stay current on their own. Homebrew ships
+    # no equivalent, which is how mac-mini sat on a crashing 2.10.3 for months
+    # while the parent was already on 2.11.0. `latest` closes that gap.
+    #
+    # Homebrew formulae are single-version and rolling, so there is no
+    # practical way to pin netdata the way we pin container images.
+    #
+    # The notify matters as much as the upgrade: macOS pins a lightweight code
+    # requirement to the launchd job, and a replaced binary is killed with
+    # SIGKILL (Code Signature Invalid) until the job is booted out and back in.
+    # The restart handler does exactly that, so an upgrade must always trigger
+    # it or netdata dies silently the moment it is updated.
     - name: Install Netdata via Homebrew
-      command: brew install netdata
-      when: brew_netdata_check.rc != 0
+      community.general.homebrew:
+        name: netdata
+        state: "{{ netdata_homebrew_state }}"
+      notify: restart netdata
 
     # `brew services list` is not a reliable probe here: it is currently
     # broken on mac-mini with "undefined method 'stop_timeout'", so it returns
