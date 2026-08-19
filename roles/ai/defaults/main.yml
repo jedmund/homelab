@@ -405,6 +405,24 @@ ai_models:
     aliases:
       - "qwen3-embedding:4b"
 
+  # Top of the MTEB multilingual leaderboard (70.58) at the cost of ~8 GB
+  # resident while loaded and 4096-dim vectors. Swap-loaded with the same
+  # 300s TTL as its siblings, so it costs nothing when idle: that is the
+  # point of putting it here rather than in an always-on TEI container.
+  # Note the dimension jump. 4096 is 60% more storage and, for any consumer
+  # whose vector column has no ANN index, 60% more work per similarity
+  # search than the 4B's 2560. Qwen3-Embedding supports MRL truncation down
+  # to 32 if a consumer wants the quality without the width.
+  - name: qwen3-embed-8b
+    file: Qwen3-Embedding-8B-Q8_0.gguf
+    group: embed
+    args: >-
+      -ngl 99 --embeddings --pooling last
+      -c 32768 -b 8192 --ubatch-size 8192
+    ttl: 300
+    aliases:
+      - "qwen3-embedding:8b"
+
   # Page-image OCR for Kizuna PDF ingestion. Unlimited OCR is only loaded
   # while scanned/image-only pages need it, and it coexists with chat and
   # embedding workloads rather than evicting them.
@@ -584,6 +602,17 @@ tei_max_batch_tokens: 16384
 # tradeoff for keeping jina-v3 available alongside the swap-group
 # Qwen3 / bge-m3 embedders.
 tei_jina_port: 11436
-tei_jina_model_path: /models/jina-embeddings-v3
+tei_jina_model_path: /models/jina-embeddings-v5-text-small-retrieval
+# Last-token pooling, not the TEI default. jina-v5 is built on
+# Qwen3-0.6B-Base, so it is decoder-style like Qwen3-Embedding. TEI would
+# normally read this from the sentence-transformers config, but this repo's
+# modules.json references a 2_Normalize module that upstream does not ship,
+# so TEI logs "Could not find a Sentence Transformers config" and falls back
+# to its default. Wrong pooling returns junk vectors with no error, so it is
+# passed explicitly.
+tei_jina_pooling: last
 tei_jina_max_concurrent_requests: 256
 tei_jina_max_batch_tokens: 8192
+# Deployed but not started. Flip to true and re-run deploy/ai.yml to bring it
+# up; see roles/ai/MODELS.md for what it costs and how to query it.
+tei_jina_enabled: false

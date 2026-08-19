@@ -112,16 +112,21 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  # Second TEI container for jinaai/jina-embeddings-v3. Reads the model
-  # directly from the host models directory (bind-mounted read-only)
-  # rather than pulling from HF Hub, because the user already downloaded
-  # the snapshot and the model isn't cleanly GGUFable for llama-swap
-  # (custom_st.py pooling + task-specific LoRA adapters). One TEI
-  # container per model is TEI's design constraint.
+  # Second TEI container, for the jina embedding line. Reads the model from
+  # the host models directory (bind-mounted read-only) rather than pulling
+  # from HF Hub. One TEI container per model is TEI's design constraint.
+  #
+  # Gated behind a compose profile rather than deployed running, so the
+  # definition stays in the stack without holding VRAM. `state: present`
+  # starts every service that has no profile, so this one stays down until
+  # tei_jina_enabled is set.
   tei-jina:
     image: {{ tei_image }}
     container_name: tei-jina
     restart: {{ restart_policy }}
+{% if not tei_jina_enabled | bool %}
+    profiles: ["tei-jina"]
+{% endif %}
     ports:
       - {{ tei_jina_port }}:80
     volumes:
@@ -129,6 +134,10 @@ services:
       - ./models:/models:ro
     command:
       - --model-id={{ tei_jina_model_path }}
+      # Explicit: TEI cannot read this model's sentence-transformers config
+      # (see tei_jina_pooling in defaults) and wrong pooling silently
+      # returns junk vectors.
+      - --pooling={{ tei_jina_pooling }}
       - --max-concurrent-requests={{ tei_jina_max_concurrent_requests }}
       - --max-batch-tokens={{ tei_jina_max_batch_tokens }}
     deploy:
