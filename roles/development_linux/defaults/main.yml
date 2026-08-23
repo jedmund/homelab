@@ -22,14 +22,30 @@ gitlab_runner_linux_image: gitlab/gitlab-runner:v19.2.0
 
 # Runner identity. Derived from the host so adding a second Linux runner
 # is just an inventory change. Registers in GitLab as `max-docker`,
-# alongside `nuc-mini-docker` and `mac-mini-xcode`.
+# alongside `nuc-mini-docker` and `mac-mini-xcode`. The GitLab runner ID is
+# already a stable config-as-code dependency (Gatus monitors the same ID).
 gitlab_runner_linux_name: "{{ inventory_hostname }}-docker"
+gitlab_runner_linux_id: 3
 
-# Concurrency. 8 jobs against 32 threads, with the per-job caps below
-# bounding the worst case at 24 cores and 48 GB. That leaves headroom for
-# vLLM's CPU-side work (tokenization, sampling, dataloading), which is
-# the only other meaningful CPU consumer on this host.
-gitlab_runner_linux_concurrent: 8
+# Scheduling metadata lives in GitLab's database, not config.toml. Reconcile
+# it after deploying the runner so cache-dependent Kizuna App jobs can use
+# max as well as nuc-mini. The pnpm-cache tag is safe only because this role
+# configures the same shared Garage S3 cache used by the nuc-mini runner.
+gitlab_runner_linux_tags:
+  - amd64
+  - atelier-max
+  - docker
+  - linux
+  - pnpm-cache
+gitlab_runner_linux_run_untagged: true
+
+# Concurrency. 10 jobs against 32 threads, with the per-job caps below
+# bounding the worst case at 30 logical CPUs and 60 GB. The host has 125 GB
+# of RAM and normally has about 90 GB available, so memory retains useful
+# headroom. CPU is the tighter bound: ten fully CPU-bound jobs can briefly
+# consume nearly the whole host, while normal mixed CI still leaves room for
+# vLLM's CPU-side work (tokenization, sampling, and dataloading).
+gitlab_runner_linux_concurrent: 10
 gitlab_runner_linux_cpus: "3"
 gitlab_runner_linux_memory: 6g
 
