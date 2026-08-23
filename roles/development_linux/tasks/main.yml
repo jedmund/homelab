@@ -51,7 +51,8 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  # GitLab Runner watches config.toml and hot-reloads changes. Avoid
+  # interrupting in-flight jobs when concurrency, cache, or limits change.
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -59,3 +60,34 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+
+# Runner tags are registration metadata held by GitLab, so config.toml cannot
+# declare them. Reconcile only after the runner config (including distributed
+# cache) is in place; otherwise a pnpm-cache job could land here before this
+# host has the cache that its offline install requires.
+- name: Reconcile max GitLab Runner scheduling metadata
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - gitlab
+      - gitlab-rails
+      - runner
+      - >-
+        runner = Ci::Runner.find_by(id: {{ gitlab_runner_linux_id }});
+        if runner.nil?
+          puts 'SKIPPED runner {{ gitlab_runner_linux_id }} is not registered';
+        else
+          desired_tags = {{ gitlab_runner_linux_tags | to_json }}.sort;
+          desired_untagged = {{ gitlab_runner_linux_run_untagged | bool | ternary('true', 'false') }};
+          changed = runner.tag_list.to_a.sort != desired_tags || runner.run_untagged != desired_untagged;
+          if changed
+            runner.tag_list = desired_tags;
+            runner.run_untagged = desired_untagged;
+            runner.save!;
+          end;
+          puts changed ? 'CHANGED runner scheduling metadata' : 'OK no changes';
+        end
+  delegate_to: nuc-mini
+  register: gitlab_runner_linux_metadata
+  changed_when: "'CHANGED' in gitlab_runner_linux_metadata.stdout"
