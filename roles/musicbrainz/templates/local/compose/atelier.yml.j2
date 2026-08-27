@@ -12,6 +12,10 @@ services:
     restart: unless-stopped
 
   musicbrainz:
+    volumes:
+      # Replication wrapper invoked by local/replication.cron. Mounted rather
+      # than baked into the image so it stays Ansible-managed.
+      - ./local/replication-check.sh:/local/replication-check.sh:ro
     networks:
       - default
       - proxy

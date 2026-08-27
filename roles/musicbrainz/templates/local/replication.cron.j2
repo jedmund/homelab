@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Replaces upstream's default/replication.cron (bound via
+# MUSICBRAINZ_CRONTAB_PATH) so replication runs through the wrapper that
+# reports failures instead of swallowing them.
+SHELL=/bin/bash
+BASH_ENV=/noninteractive.bash_env
+{{ musicbrainz_replication_cron }} /local/replication-check.sh

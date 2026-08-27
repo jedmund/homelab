@@ -1,0 +1,77 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Wrapper around upstream's /usr/local/bin/replication.sh.
+#
+# Upstream's script exits 0 even when the replication packet fails to apply:
+# a schema sequence mismatch prints "LoadReplicationChanges failed (rc=3)"
+# and still returns 0. Cron's output goes nowhere by default, so a mirror
+# that stopped replicating looks exactly like one that is up to date. That
+# is how this mirror silently stopped on 2026-05-11 and sat three months
+# stale without anyone noticing.
+#
+# So this wrapper does two things upstream's does not: it mirrors all output
+# to the container's stdout so `docker logs` shows it, and it judges success
+# from the database rather than the exit status. The staleness check is the
+# important half: it catches a mirror that is quietly falling behind, not
+# just one that failed loudly on this particular run.
+
+set -uo pipefail
+
+MAX_AGE_SECONDS={{ musicbrainz_replication_max_age_days * 86400 }}
+HEALTHCHECKS_URL="{{ musicbrainz_healthchecks_url | default('', true) }}"
+
+emit() {
+    # Cron has no terminal. Write to PID 1's stdout so output lands in
+    # `docker logs musicbrainz`; fall back to normal stdout when run by hand.
+    if [ -w /proc/1/fd/1 ]; then
+        printf '%s\n' "$*" > /proc/1/fd/1
+    else
+        printf '%s\n' "$*"
+    fi
+}
+
+psql_value() {
+    PGPASSWORD="${POSTGRES_PASSWORD:-}" psql \
+        -h "${MUSICBRAINZ_POSTGRES_SERVER:-db}" \
+        -U "${POSTGRES_USER:-musicbrainz}" \
+        -d musicbrainz_db -tAc "$1" 2>/dev/null | tr -d '[:space:]'
+}
+
+# Ping Healthchecks only when a URL is configured; the mirror is fully
+# functional without one, it just loses the external dead-man's switch.
+ping_healthchecks() {
+    [ -n "$HEALTHCHECKS_URL" ] || return 0
+    curl -fsS -m 10 --retry 3 -o /dev/null "${HEALTHCHECKS_URL}${1}" || true
+}
+
+before=$(psql_value 'SELECT current_replication_sequence FROM replication_control;')
+
+output=$(/usr/local/bin/replication.sh 2>&1)
+rc=$?
+emit "$output"
+
+after=$(psql_value 'SELECT current_replication_sequence FROM replication_control;')
+age=$(psql_value 'SELECT COALESCE(EXTRACT(EPOCH FROM (now() - last_replication_date))::bigint, -1) FROM replication_control;')
+
+# Upstream reports per-step failures in its output while still exiting 0,
+# so match the marker it prints as well as the exit status.
+if [ "$rc" -ne 0 ] || printf '%s' "$output" | grep -q 'failed (rc='; then
+    emit "replication-check: FAILED (exit ${rc}); sequence still ${before:-unknown}. See /musicbrainz-server/mirror.log"
+    ping_healthchecks /fail
+    exit 1
+fi
+
+# An unchanged sequence is normal when upstream has published nothing new,
+# so age is what distinguishes "nothing to do" from "quietly broken".
+if [ -n "$age" ] && [ "$age" -ge 0 ] && [ "$age" -gt "$MAX_AGE_SECONDS" ]; then
+    emit "replication-check: STALE - last successful replication was $((age / 86400))d ago, over the {{ musicbrainz_replication_max_age_days }}d threshold. Sequence ${after:-unknown}."
+    ping_healthchecks /fail
+    exit 1
+fi
+
+if [ "$before" != "$after" ]; then
+    emit "replication-check: OK - sequence ${before:-unknown} -> ${after:-unknown}"
+else
+    emit "replication-check: OK - no new packets upstream, sequence ${after:-unknown}"
+fi
+ping_healthchecks ""

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Annual MusicBrainz schema-change upgrade.
+#
+# MusicBrainz ships a schema change every May (see README). There is no
+# supported in-place migration, so upstream's documented remedy is to
+# recreate the database from a fresh dump. This wraps that procedure:
+#
+#   ./schema-upgrade.sh v-2026-07-30.1
+#
+# Ordering matters for safety. Everything that can be downloaded is
+# downloaded and verified BEFORE anything is dropped, because upstream's
+# own recreatedb.sh drops the database first and only then fetches, which
+# turns a network blip into an empty mirror. Here a failed download leaves
+# the existing (stale but working) mirror untouched.
+#
+# Safe to re-run: it is a full recreate, so a second run simply redoes it.
+
+set -uo pipefail
+
+TARGET_TAG="${1:-}"
+if [ -z "$TARGET_TAG" ]; then
+    echo "usage: $(basename "$0") <upstream-tag>   e.g. v-2026-07-30.1" >&2
+    exit 64
+fi
+
+UPSTREAM={{ musicbrainz_upstream_path }}
+MERGED={{ musicbrainz_merged_compose_path }}
+LOG=/var/log/musicbrainz-schema-upgrade.log
+
+exec > >(tee -a "$LOG") 2>&1
+
+step() { echo; echo "=== [$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $* ==="; }
+die()  { echo "FAILED: $*" >&2; echo "mirror left as-is; see $LOG" >&2; exit 1; }
+
+cd "$UPSTREAM" || die "no upstream checkout at $UPSTREAM"
+
+schema_sequence() {
+    docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
+        'SELECT current_schema_sequence FROM replication_control;' 2>/dev/null | tr -d '[:space:]'
+}
+
+step "starting; current schema sequence: $(schema_sequence), target tag: $TARGET_TAG"
+
+# ---------------------------------------------------------------- phase 1
+# Non-destructive. Anything failing here leaves the running mirror alone.
+
+step "phase 1/3: fetch upstream $TARGET_TAG and build images"
+git fetch --tags --quiet || die "git fetch"
+git checkout --quiet "$TARGET_TAG" || die "git checkout $TARGET_TAG"
+
+# Regenerate the merged compose file exactly as the Ansible role does, so
+# the host keeps a single self-contained definition for Komodo to read.
+docker compose \
+{% for f in musicbrainz_source_compose_files %}
+    -f {{ f }} \
+{% endfor %}
+    config > "$MERGED.tmp" || die "rendering merged compose"
+mv "$MERGED.tmp" "$MERGED"
+
+docker compose build || die "building images"
+
+step "phase 1/3: download data dumps (no changes to the live database yet)"
+docker compose run --rm musicbrainz fetch-dump.sh indexed || die "fetching dumps"
+
+# ---------------------------------------------------------------- phase 2
+# Destructive from here: the database is dropped and rebuilt.
+
+step "phase 2/3: recreate the database (mirror is offline from here)"
+docker compose stop || die "stopping stack"
+./admin/purge-message-queues || die "purging message queues"
+
+docker compose up -d search || die "starting search"
+docker compose exec -T search fetch-backup-archives || die "fetching search index archives"
+docker compose exec -T search load-backup-archives || die "loading search index archives"
+
+# PGPASSWORD is passed explicitly: recreatedb.sh shells out to psql, which
+# would otherwise prompt and hang forever on an unattended run.
+docker compose run --rm -e PGPASSWORD=musicbrainz musicbrainz recreatedb.sh \
+    || die "recreating database"
+
+docker compose up -d || die "starting stack"
+./admin/setup-sir install || die "installing sir schema"
+
+# ---------------------------------------------------------------- phase 3
+
+step "phase 3/3: verify"
+sleep 30
+seq_now=$(schema_sequence)
+echo "schema sequence is now: ${seq_now:-unknown}"
+
+if [ -z "$seq_now" ]; then
+    die "cannot read schema sequence; database may not be up"
+fi
+
+# The real proof is that replication accepts a packet again, which is the
+# thing that has been broken. Run the health wrapper and report its verdict.
+if docker compose exec -T musicbrainz /local/replication-check.sh; then
+    step "SUCCESS: schema sequence $seq_now, replication healthy"
+else
+    die "replication still unhealthy after upgrade (schema sequence $seq_now)"
+fi
