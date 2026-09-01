@@ -43,6 +43,7 @@ ddclient_atelier_subdomains:
   - matrix-rtc.atelier.house
   - mc.atelier.house
   - models.atelier.house
+  - music.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
   - obsidian-sync.atelier.house

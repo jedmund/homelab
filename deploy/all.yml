@@ -242,5 +242,6 @@
 # deploy-all-exclude: dokploy -- Bootstraps the guest and requires first-run operator setup.
 # deploy-all-exclude: gpu_tools -- The gpu_tools role is already applied by ai.yml.
 # deploy-all-exclude: monitoring -- The monitoring role is already applied by prerequisites.yml; this playbook exists for --limit runs.
+# deploy-all-exclude: navidrome -- Temporary OpenSubsonic compatibility test; deploy explicitly and remove after evaluation.
 # deploy-all-exclude: sglang -- Parked experimental stack; no model is deployed by default.
 # deploy-all-exclude: vllm -- Rendered and started by ai_split.yml when split-mode inference is requested.

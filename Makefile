@@ -128,6 +128,10 @@ deploy-lidarr: ## Deploy Lidarr
 	@echo "$(BLUE)Deploying Lidarr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/lidarr.yml $(VAULT_FLAG)
 
+deploy-navidrome: ## Deploy temporary Navidrome OpenSubsonic test stack
+	@echo "$(BLUE)Deploying Navidrome...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/navidrome.yml $(VAULT_FLAG)
+
 deploy-seerr: ## Deploy Seerr
 	@echo "$(BLUE)Deploying Seerr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/seerr.yml $(VAULT_FLAG)

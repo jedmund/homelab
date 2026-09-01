@@ -1,0 +1,6 @@
+---
+- name: Deploy temporary Navidrome stack
+  hosts: navidrome
+  become: true
+  roles:
+    - navidrome
