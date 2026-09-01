@@ -66,6 +66,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `sonarr` | Sonarr |
 | `radarr` | Radarr |
 | `lidarr` | Lidarr |
+| `aurral` | Aurral music discovery and playlist companion |
 | `seerr` | Seerr |
 | `unpackerr` | Unpackerr |
 | `jdownloader` | JDownloader |
@@ -316,6 +317,21 @@ Register the OIDC client manually in PocketID with redirect URI `https://atelier
 | `slskd_web_username` | slskd web UI username |
 | `slskd_web_password` | slskd web UI password |
 
+### group_vars/aurral/vault.yml
+
+Aurral is deployed at `https://aurral.atelier.house` with native PocketID
+OIDC. See the [Aurral deployment runbook](roles/aurral/README.md) for its
+first-run order, storage paths, and integration checks.
+
+| Variable | Description |
+|----------|-------------|
+| `vault_aurral_oidc_client_id` | PocketID confidential-client ID |
+| `vault_aurral_oidc_client_secret` | PocketID confidential-client secret |
+| `vault_aurral_oidc_admin_users` | YAML list of PocketID `preferred_username` values promoted to Aurral admin |
+
+Register this exact PocketID callback before deploying:
+`https://aurral.atelier.house/sso/callback`.
+
 ### group_vars/qui/vault.yml
 
 | Variable | Description |
@@ -543,6 +559,7 @@ make deploy-qbittorrent
 make deploy-sonarr
 make deploy-radarr
 make deploy-lidarr
+make deploy-aurral
 make deploy-seerr
 make deploy-unpackerr
 make deploy-jdownloader

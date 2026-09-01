@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  aurral:
+    image: "{{ aurral_image }}:{{ aurral_image_tag }}"
+    container_name: aurral
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - shared
+    env_file:
+      - ./env/aurral.env
+    volumes:
+      - ./config:/config
+      - music:/music:ro
+      - downloads:/downloads
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.aurral.rule: "Host(`{{ aurral_domain }}`)"
+      traefik.http.routers.aurral.entrypoints: "websecure"
+      traefik.http.routers.aurral.tls.certresolver: "letsencrypt"
+      traefik.http.services.aurral.loadbalancer.server.port: "{{ aurral_port }}"
+      # OIDC becomes authoritative after onboarding. Protect the one-time
+      # setup API with TinyAuth so an Internet client cannot claim the stack.
+      traefik.http.routers.aurral-onboarding.rule: "Host(`{{ aurral_domain }}`) && PathPrefix(`/api/onboarding`)"
+      traefik.http.routers.aurral-onboarding.priority: "100"
+      traefik.http.routers.aurral-onboarding.entrypoints: "websecure"
+      traefik.http.routers.aurral-onboarding.tls.certresolver: "letsencrypt"
+      traefik.http.routers.aurral-onboarding.middlewares: "tinyauth@file"
+      traefik.http.routers.aurral-onboarding.service: "aurral"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:{{ aurral_port }}/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  music:
+    name: music
+    external: true
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

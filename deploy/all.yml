@@ -112,6 +112,9 @@
   tags: [media, stash]
 
 # Product stacks
+- import_playbook: aurral.yml
+  tags: [aurral]
+
 - import_playbook: immich.yml
   tags: [immich]
 

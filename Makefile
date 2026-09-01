@@ -128,6 +128,10 @@ deploy-lidarr: ## Deploy Lidarr
 	@echo "$(BLUE)Deploying Lidarr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/lidarr.yml $(VAULT_FLAG)
 
+deploy-aurral: ## Deploy Aurral
+	@echo "$(BLUE)Deploying Aurral...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/aurral.yml $(VAULT_FLAG)
+
 deploy-seerr: ## Deploy Seerr
 	@echo "$(BLUE)Deploying Seerr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/seerr.yml $(VAULT_FLAG)

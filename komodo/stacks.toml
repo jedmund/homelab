@@ -201,6 +201,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "aurral"
+description = "OIDC-enabled music discovery companion for Lidarr"
+tags = ["homelab", "ansible", "nuc-mini", "music"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/aurral"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "seerr"
 description = "Seerr"
 tags = ["homelab", "ansible", "nuc-mini", "media"]
