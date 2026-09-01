@@ -30,6 +30,10 @@ services:
       tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.slskd.config.domain: "sl.{{ tinyauth_base_domain }}"
       tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
+      # Aurral uses native OIDC after setup. TinyAuth only protects the
+      # onboarding API from being claimed before the first configuration.
+      tinyauth.apps.aurral.config.domain: "aurral.{{ tinyauth_base_domain }}"
+      tinyauth.apps.aurral.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.netdata.config.domain: "netdata.{{ tinyauth_base_domain }}"
       tinyauth.apps.netdata.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.musicbrainz.config.domain: "musicbrainz.{{ tinyauth_base_domain }}"

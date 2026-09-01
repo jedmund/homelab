@@ -1,0 +1,60 @@
+---
+# Aurral product stack
+
+- name: Validate Aurral PocketID configuration
+  ansible.builtin.assert:
+    that:
+      - aurral_oidc_enabled | bool
+      - aurral_oidc_client_id | length > 0
+      - aurral_oidc_client_secret | length > 0
+      - aurral_oidc_admin_users is sequence
+      - aurral_oidc_admin_users is not string
+      - aurral_oidc_admin_users | length > 0
+      - aurral_oidc_default_role in ['user', 'admin']
+    fail_msg: >-
+      Create the Aurral PocketID client and populate
+      vault_aurral_oidc_client_id, vault_aurral_oidc_client_secret, and
+      vault_aurral_oidc_admin_users in group_vars/aurral/vault.yml.
+  tags:
+    - preflight
+
+- name: Create Aurral stack directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: '0755'
+  loop:
+    - path: "{{ config_base }}"
+      owner: "{{ ansible_user }}"
+    - path: "{{ config_base }}/env"
+      owner: "{{ ansible_user }}"
+    - path: "{{ config_base }}/config"
+      owner: "{{ puid }}"
+      group: "{{ pgid }}"
+
+- name: Deploy Aurral compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Aurral environment file
+  ansible.builtin.template:
+    src: env/aurral.env.j2
+    dest: "{{ config_base }}/env/aurral.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

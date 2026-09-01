@@ -1,0 +1,24 @@
+---
+# Stack identity
+stack_name: aurral
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Aurral settings. Keep the stable release pinned so upgrades are deliberate.
+aurral_image: ghcr.io/lklynet/aurral
+aurral_image_tag: "2.8.0"
+aurral_port: 3001
+aurral_domain: aurral.atelier.house
+aurral_public_url: "https://{{ aurral_domain }}"
+
+# Native PocketID OIDC. The callback must exactly match the PocketID client.
+aurral_oidc_enabled: true
+aurral_oidc_issuer: https://id.atelier.house
+aurral_oidc_client_id: "{{ vault_aurral_oidc_client_id | default('') }}"
+aurral_oidc_client_secret: "{{ vault_aurral_oidc_client_secret | default('') }}"
+aurral_oidc_redirect_uri: "{{ aurral_public_url }}/sso/callback"
+aurral_oidc_scopes: openid profile email
+aurral_oidc_username_claim: preferred_username
+aurral_oidc_default_role: user
+aurral_oidc_admin_users: "{{ vault_aurral_oidc_admin_users | default([]) }}"
+aurral_oidc_logout_url: "{{ aurral_oidc_issuer }}/api/oidc/logout"
+aurral_session_expiry_hours: 168

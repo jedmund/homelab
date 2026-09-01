@@ -1,0 +1,6 @@
+---
+- name: Deploy Aurral stack
+  hosts: aurral
+  become: true
+  roles:
+    - aurral

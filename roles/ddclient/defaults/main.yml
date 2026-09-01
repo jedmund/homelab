@@ -14,6 +14,7 @@ ddclient_atelier_zone: "atelier.house"
 ddclient_atelier_subdomains:
   - atelier.house
   - ai.atelier.house
+  - aurral.atelier.house
   - auth.atelier.house
   - beszel.atelier.house
   - bl.atelier.house
