@@ -1,0 +1,33 @@
+---
+# Temporary Navidrome OpenSubsonic test stack
+
+- name: Create Navidrome stack directory
+  ansible.builtin.file:
+    path: "{{ config_base }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Create Navidrome data directory
+  ansible.builtin.file:
+    path: "{{ config_base }}/data"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0750'
+
+- name: Deploy Navidrome compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  notify: Restart {{ stack_name }} stack
+
+- name: Deploy Navidrome stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+  register: compose_result

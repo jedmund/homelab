@@ -1,0 +1,55 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  navidrome:
+    container_name: navidrome
+    image: "{{ navidrome_image }}:{{ navidrome_image_tag }}"
+    user: "{{ puid }}:{{ pgid }}"
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - shared
+    environment:
+      ND_LOGLEVEL: "{{ navidrome_log_level }}"
+      ND_MUSICFOLDER: /music
+      ND_DATAFOLDER: /data
+      ND_ENABLEINSIGHTSCOLLECTOR: "false"
+    volumes:
+      - ./data:/data
+      - music:/music:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.navidrome.rule: "Host(`{{ navidrome_domain }}`)"
+      traefik.http.routers.navidrome.entrypoints: websecure
+      traefik.http.routers.navidrome.tls.certresolver: letsencrypt
+      traefik.http.routers.navidrome.middlewares: navidrome-lan@docker
+      traefik.http.middlewares.navidrome-lan.ipallowlist.sourcerange: "{{ navidrome_allowed_cidrs | join(',') }}"
+      traefik.http.services.navidrome.loadbalancer.server.port: "{{ navidrome_port }}"
+      traefik.http.services.navidrome.loadbalancer.healthcheck.path: /ping
+      traefik.http.services.navidrome.loadbalancer.healthcheck.interval: 30s
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:{{ navidrome_port }}/ping"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  music:
+    name: music
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

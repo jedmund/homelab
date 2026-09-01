@@ -1,0 +1,17 @@
+---
+# Stack identity
+stack_name: navidrome
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Temporary OpenSubsonic test service. Keep the release pinned so compatibility
+# results remain reproducible while the stack is under evaluation.
+navidrome_image: deluan/navidrome
+navidrome_image_tag: 0.63.2
+navidrome_domain: music.atelier.house
+navidrome_port: 4533
+navidrome_log_level: info
+
+# Navidrome's first-run page creates the initial administrator. Limit the public
+# route to the LAN while this temporary stack uses local auth instead of SSO.
+navidrome_allowed_cidrs:
+  - 192.168.1.0/24

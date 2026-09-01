@@ -79,6 +79,10 @@ deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
 
+deploy-ddclient: ## Deploy dynamic DNS updater and bootstrap missing records
+	@echo "$(BLUE)Deploying DDClient...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/ddclient.yml $(VAULT_FLAG)
+
 deploy-beszel: ## Deploy Beszel monitoring hub
 	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
@@ -127,6 +131,10 @@ deploy-radarr: ## Deploy Radarr
 deploy-lidarr: ## Deploy Lidarr
 	@echo "$(BLUE)Deploying Lidarr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/lidarr.yml $(VAULT_FLAG)
+
+deploy-navidrome: ## Deploy temporary Navidrome OpenSubsonic test stack
+	@echo "$(BLUE)Deploying Navidrome...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/navidrome.yml $(VAULT_FLAG)
 
 deploy-seerr: ## Deploy Seerr
 	@echo "$(BLUE)Deploying Seerr...$(NC)"
