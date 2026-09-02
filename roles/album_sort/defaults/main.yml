@@ -34,6 +34,44 @@ album_sort_session_ttl_hours: "12"
 # login, callback, logout, and unauthenticated rejection are verified.
 album_sort_use_tinyauth: true
 
+# OpenSubsonic REST API (`/rest`). Music clients authenticate per-request with
+# the Subsonic protocol's own credentials, so this path must bypass the outer
+# tinyauth middleware: tinyauth's browser SSO flow rejects them before the app
+# ever sees the request. Setting this false removes the bypass router and takes
+# every OpenSubsonic client offline.
+album_sort_expose_rest_api: true
+
+# Milestone 0 probe credential: 32 random bytes as unpadded base64url. Empty
+# disables `/rest` authentication entirely at the app layer, which is the safe
+# default. This is a disposable non-production secret and is retired once the
+# milestone's client evidence is captured.
+album_sort_opensubsonic_probe_key: "{{ vault_album_sort_opensubsonic_probe_key | default('') }}"
+
+# Username paired with the probe secret for the two legacy Subsonic mechanisms
+# (u/p and u/t/s). Deliberately not a secret: Subsonic usernames travel in
+# every request and the probe secret is the only credential. Music clients do
+# not implement the apiKey extension yet, so legacy auth is how the Milestone 0
+# client session actually connects. Retired with the probe secret.
+album_sort_opensubsonic_probe_username: "probe"
+
+# Absolute in-container path for the Milestone 0 redacted client trace. Empty
+# leaves the recorder off. Point it inside the mounted data volume, e.g.
+# "{{ album_sort_data_path }}/m0-client-trace.json", only while capturing.
+album_sort_opensubsonic_trace_path: "/data/m0-client-nuc.json"
+
+# Peers whose X-Forwarded-Proto Album Sort may trust when deciding whether a
+# /rest request arrived over TLS. Traefik terminates TLS and forwards an
+# internal HTTP hop, so this assertion is the only way a production request
+# satisfies the transport predicate: under adapter-node the request URL scheme
+# is derived from ORIGIN, not from the socket, so it is not a transport fact.
+# Trusting a peer lets it assert transport only; it never authenticates.
+#
+# Keep this as narrow as the proxy actually needs. The deploy resolves the
+# proxy network's current subnet and uses that; this value is the fallback when
+# the lookup fails. roles/networks creates the network without IPAM config, so
+# the subnet is Docker-assigned and must not be hardcoded here.
+album_sort_trusted_proxy_cidrs: "172.18.0.0/16"
+
 # Multi-Scrobbler integration
 album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 
@@ -43,4 +81,5 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
-# vault_album_sort_oidc_client_secret
+# vault_album_sort_oidc_client_secret,
+# vault_album_sort_opensubsonic_probe_key
