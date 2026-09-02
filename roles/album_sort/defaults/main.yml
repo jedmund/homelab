@@ -47,6 +47,13 @@ album_sort_expose_rest_api: true
 # milestone's client evidence is captured.
 album_sort_opensubsonic_probe_key: "{{ vault_album_sort_opensubsonic_probe_key | default('') }}"
 
+# Username paired with the probe secret for the two legacy Subsonic mechanisms
+# (u/p and u/t/s). Deliberately not a secret: Subsonic usernames travel in
+# every request and the probe secret is the only credential. Music clients do
+# not implement the apiKey extension yet, so legacy auth is how the Milestone 0
+# client session actually connects. Retired with the probe secret.
+album_sort_opensubsonic_probe_username: "probe"
+
 # Absolute in-container path for the Milestone 0 redacted client trace. Empty
 # leaves the recorder off. Point it inside the mounted data volume, e.g.
 # "{{ album_sort_data_path }}/m0-client-trace.json", only while capturing.
