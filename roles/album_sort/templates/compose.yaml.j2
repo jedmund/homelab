@@ -28,6 +28,7 @@ services:
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
       OPENSUBSONIC_TRACE_PATH: "{{ album_sort_opensubsonic_trace_path }}"
+      TRUSTED_PROXY_CIDRS: "{{ album_sort_trusted_proxy_cidrs }}"
     volumes:
       - music:/music
       - ./data:/data
