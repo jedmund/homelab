@@ -27,6 +27,7 @@ services:
       COVER_ART_ARCHIVE_BASE_URL: "{{ album_sort_cover_art_archive_base_url }}"
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
+      OPENSUBSONIC_TRACE_PATH: "{{ album_sort_opensubsonic_trace_path }}"
     volumes:
       - music:/music
       - ./data:/data
@@ -54,6 +55,13 @@ services:
       traefik.http.routers.album-sort.tls.certresolver: letsencrypt
 {% if album_sort_use_tinyauth %}
       traefik.http.routers.album-sort.middlewares: tinyauth@file
+{% endif %}
+{% if album_sort_expose_rest_api %}
+      traefik.http.routers.album-sort-rest.rule: "Host(`{{ album_sort_domain }}`) && PathPrefix(`/rest`)"
+      traefik.http.routers.album-sort-rest.entrypoints: websecure
+      traefik.http.routers.album-sort-rest.tls.certresolver: letsencrypt
+      traefik.http.routers.album-sort-rest.priority: "100"
+      traefik.http.routers.album-sort-rest.service: album-sort
 {% endif %}
       traefik.http.services.album-sort.loadbalancer.server.port: "{{ album_sort_container_port }}"
       traefik.http.services.album-sort.loadbalancer.healthcheck.path: /healthz

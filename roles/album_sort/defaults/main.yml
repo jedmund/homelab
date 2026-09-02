@@ -34,6 +34,24 @@ album_sort_session_ttl_hours: "12"
 # login, callback, logout, and unauthenticated rejection are verified.
 album_sort_use_tinyauth: true
 
+# OpenSubsonic REST API (`/rest`). Music clients authenticate per-request with
+# the Subsonic protocol's own credentials, so this path must bypass the outer
+# tinyauth middleware: tinyauth's browser SSO flow rejects them before the app
+# ever sees the request. Setting this false removes the bypass router and takes
+# every OpenSubsonic client offline.
+album_sort_expose_rest_api: true
+
+# Milestone 0 probe credential: 32 random bytes as unpadded base64url. Empty
+# disables `/rest` authentication entirely at the app layer, which is the safe
+# default. This is a disposable non-production secret and is retired once the
+# milestone's client evidence is captured.
+album_sort_opensubsonic_probe_key: "{{ vault_album_sort_opensubsonic_probe_key | default('') }}"
+
+# Absolute in-container path for the Milestone 0 redacted client trace. Empty
+# leaves the recorder off. Point it inside the mounted data volume, e.g.
+# "{{ album_sort_data_path }}/m0-client-trace.json", only while capturing.
+album_sort_opensubsonic_trace_path: ""
+
 # Multi-Scrobbler integration
 album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 
@@ -43,4 +61,5 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
-# vault_album_sort_oidc_client_secret
+# vault_album_sort_oidc_client_secret,
+# vault_album_sort_opensubsonic_probe_key
