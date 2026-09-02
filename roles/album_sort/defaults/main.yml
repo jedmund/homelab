@@ -50,7 +50,7 @@ album_sort_opensubsonic_probe_key: "{{ vault_album_sort_opensubsonic_probe_key |
 # Absolute in-container path for the Milestone 0 redacted client trace. Empty
 # leaves the recorder off. Point it inside the mounted data volume, e.g.
 # "{{ album_sort_data_path }}/m0-client-trace.json", only while capturing.
-album_sort_opensubsonic_trace_path: ""
+album_sort_opensubsonic_trace_path: "/data/m0-client-trace.json"
 
 # Multi-Scrobbler integration
 album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
