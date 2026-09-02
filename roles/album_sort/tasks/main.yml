@@ -18,6 +18,21 @@
     fail_msg: >-
       Populate the PocketID client ID and secret before deploying Album Sort.
 
+- name: Inspect the proxy network for its current subnet
+  community.docker.docker_network_info:
+    name: "{{ proxy_network }}"
+  register: album_sort_proxy_network
+  failed_when: false
+
+- name: Resolve the trusted proxy CIDR from the proxy network
+  ansible.builtin.set_fact:
+    album_sort_trusted_proxy_cidrs: >-
+      {{ (album_sort_proxy_network.network.IPAM.Config
+          | map(attribute='Subnet') | join(','))
+         if (album_sort_proxy_network.exists | default(false))
+            and (album_sort_proxy_network.network.IPAM.Config | default([]) | length > 0)
+         else album_sort_trusted_proxy_cidrs }}
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

@@ -57,19 +57,20 @@ album_sort_opensubsonic_probe_username: "probe"
 # Absolute in-container path for the Milestone 0 redacted client trace. Empty
 # leaves the recorder off. Point it inside the mounted data volume, e.g.
 # "{{ album_sort_data_path }}/m0-client-trace.json", only while capturing.
-album_sort_opensubsonic_trace_path: "/data/m0-client-trace.json"
+album_sort_opensubsonic_trace_path: "/data/m0-client-nuc.json"
 
-# Peers whose X-Forwarded-Proto and client address Album Sort may trust when
-# deciding whether a /rest request arrived over TLS. Traefik terminates TLS and
-# forwards an internal HTTP hop, so without this every credentialed request
-# fails closed as non-TLS. Trusting a peer only lets it assert transport; it
-# never authenticates a caller.
+# Peers whose X-Forwarded-Proto Album Sort may trust when deciding whether a
+# /rest request arrived over TLS. Traefik terminates TLS and forwards an
+# internal HTTP hop, so this assertion is the only way a production request
+# satisfies the transport predicate: under adapter-node the request URL scheme
+# is derived from ORIGIN, not from the socket, so it is not a transport fact.
+# Trusting a peer lets it assert transport only; it never authenticates.
 #
-# proxy-network currently sits on 172.18.0.0/16, but roles/networks creates it
-# with no IPAM config, so Docker may reassign that subnet if the network is
-# recreated. The default is therefore Docker's whole default bridge pool.
-# Narrow this to the exact subnet once roles/networks pins one.
-album_sort_trusted_proxy_cidrs: "172.16.0.0/12"
+# Keep this as narrow as the proxy actually needs. The deploy resolves the
+# proxy network's current subnet and uses that; this value is the fallback when
+# the lookup fails. roles/networks creates the network without IPAM config, so
+# the subnet is Docker-assigned and must not be hardcoded here.
+album_sort_trusted_proxy_cidrs: "172.18.0.0/16"
 
 # Multi-Scrobbler integration
 album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
