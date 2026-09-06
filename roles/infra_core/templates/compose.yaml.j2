@@ -63,6 +63,11 @@ services:
       - komodo-core
     networks:
       - backend
+      # Periphery runs the registry queries behind CheckStackForUpdate itself,
+      # from inside the container, rather than delegating them to the daemon.
+      # backend is internal: true, so on that network alone every check fails
+      # with "lookup <registry>: server misbehaving". It needs egress.
+      - shared
     env_file: ./env/komodo.env
     environment:
       # The Docker CLI keeps writable state next to config.json: it creates
