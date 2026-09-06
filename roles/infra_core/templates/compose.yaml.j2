@@ -64,12 +64,22 @@ services:
     networks:
       - backend
     env_file: ./env/komodo.env
+    environment:
+      # The Docker CLI keeps writable state next to config.json: it creates
+      # $DOCKER_CONFIG/buildx on invocation. Binding the credential directory
+      # to the default /root/.docker read-only therefore made every
+      # CheckStackForUpdate fail with
+      #   mkdir /root/.docker/buildx: read-only file system
+      # Point DOCKER_CONFIG at the credential directory on the read-write
+      # {{ periphery_root_directory }} mount instead. This does not widen the
+      # container's access: that mount already exposes the same config.json
+      # read-write, so the :ro bind was never an effective restriction.
+      DOCKER_CONFIG: {{ periphery_registry_config_directory }}
     volumes:
       - komodo-keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       - {{ periphery_root_directory }}:{{ periphery_root_directory }}
-      - {{ periphery_registry_config_directory }}:/root/.docker:ro
       - {{ docker_base_path }}:{{ docker_base_path }}:ro
       - /home/{{ ansible_user }}/Docker:/home/{{ ansible_user }}/Docker
     logging:
