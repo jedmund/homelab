@@ -117,7 +117,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `paseo_relay` | Paseo Relay |
 | `development_macos` | GitLab Runner (shell executor, iOS builds) |
 | `development_linux` | GitLab Runner (Docker executor, CI capacity on max) |
-| `openclaw` | OpenClaw agent (native macOS) |
+| `openclaw` | OpenClaw agent (native macOS; disabled) |
 | `paseo_daemon` | Paseo daemon (native macOS) |
 
 **AI / GPU (max)**

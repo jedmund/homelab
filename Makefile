@@ -316,7 +316,7 @@ deploy-development-linux: ## Deploy GitLab Runner (docker executor) on max
 	@echo "$(BLUE)Deploying development (Linux) stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/development_linux.yml $(VAULT_FLAG)
 
-deploy-openclaw: ## Deploy Openclaw natively on mac-mini (Node, npm, config)
+deploy-openclaw: ## Reconcile Openclaw on mac-mini (disabled by default)
 	@echo "$(BLUE)Deploying Openclaw...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/openclaw.yml $(VAULT_FLAG)
 
