@@ -6,7 +6,22 @@ the Apple-app MCPs (Notes, Calendar, Reminders, Mail, Messages). None of
 those work from a Linux container, which is why this role doesn't follow
 the repo's usual Docker-compose pattern.
 
-## What the role does
+## Disabled by default
+
+`openclaw_enabled: false` keeps Openclaw shut down. Run
+`make deploy-openclaw` to unload the gateway and its dedicated tinyproxy
+LaunchAgents and set both `RunAtLoad` and `KeepAlive` to false. Routine
+`make deploy-all` runs also enforce this state. Missing LaunchAgents are
+skipped; shutdown does not install packages or require channel secrets.
+Installed packages, launchd definitions, configuration, credentials, and
+session data are preserved.
+
+To bring it back, set `openclaw_enabled: true`, deploy the role, and run
+`openclaw onboard --install-daemon` on the mac-mini to restore the gateway
+LaunchAgent's startup settings. Restore the Traefik router and service for
+`claw.atelier.house` if the Control UI should be reachable through Traefik.
+
+## What the role does when enabled
 
 - Installs `node@24` via Homebrew (Openclaw recommends Node 24).
 - Installs `openclaw` globally via that Node's npm.

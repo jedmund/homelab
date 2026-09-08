@@ -1,0 +1,21 @@
+---
+# Keep the app, credentials, sessions, and launchd definitions for later reuse.
+# This path needs neither Homebrew nor vault secrets on an unconfigured host.
+- name: Check for openclaw and its dedicated proxy LaunchAgents
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ item }}.plist"
+  loop:
+    - ai.openclaw.gateway
+    - homebrew.mxcl.tinyproxy
+  register: openclaw_launchagents
+
+- name: Unload openclaw and its dedicated proxy and disable automatic startup
+  community.general.launchd:
+    name: "{{ item.item }}"
+    state: unloaded
+    enabled: false
+    force_stop: true
+  loop: "{{ openclaw_launchagents.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists

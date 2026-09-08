@@ -5,6 +5,10 @@
 # Stack identity
 stack_name: openclaw
 
+# Parked: routine deployments stop the gateway and its dedicated tinyproxy.
+# Installation and configuration remain available for an explicit re-enable.
+openclaw_enabled: false
+
 # Node runtime (installed via Homebrew). Openclaw recommends Node 24.
 openclaw_node_formula: node@24
 

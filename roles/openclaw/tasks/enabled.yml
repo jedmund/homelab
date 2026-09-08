@@ -1,0 +1,123 @@
+---
+# Openclaw (native macOS install on mac-mini).
+# Onboarding (`openclaw onboard --install-daemon`) is interactive and
+# must be run once by hand on the mac-mini after this role runs. See
+# roles/openclaw/README.md for the full bring-up sequence.
+
+- name: Check for Homebrew (Apple Silicon prefix)
+  ansible.builtin.stat:
+    path: /opt/homebrew/bin/brew
+  register: _brew_apple_silicon
+
+- name: Check for Homebrew (Intel prefix)
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: _brew_intel
+
+- name: Bootstrap Homebrew if missing
+  # NONINTERACTIVE=1 skips the "press RETURN" prompts. The installer still
+  # calls sudo to create /opt/homebrew and chown it to the SSH user, so
+  # that user needs (passwordless) sudo for this to complete unattended.
+  ansible.builtin.shell: |
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  environment:
+    NONINTERACTIVE: "1"
+  when:
+    - not _brew_apple_silicon.stat.exists
+    - not _brew_intel.stat.exists
+
+- name: Install Node {{ openclaw_node_formula }} via Homebrew
+  community.general.homebrew:
+    name: "{{ openclaw_node_formula }}"
+    state: present
+
+- name: Resolve {{ openclaw_node_formula }} bin path
+  ansible.builtin.command: "brew --prefix {{ openclaw_node_formula }}"
+  register: _node_prefix
+  changed_when: false
+
+- name: Install openclaw globally via npm
+  community.general.npm:
+    name: openclaw
+    state: latest
+    global: true
+    executable: "{{ _node_prefix.stdout }}/bin/npm"
+
+- name: Configure tinyproxy for openclaw web_fetch
+  ansible.builtin.import_tasks: tinyproxy.yml
+  when: openclaw_proxy_enabled
+
+- name: Ensure openclaw config directory exists
+  ansible.builtin.file:
+    path: "{{ openclaw_config_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Template openclaw service env file
+  # Channel secrets (Discord bot token, etc.) live here and are resolved
+  # by openclaw.json at startup via { source: "env", id: "<NAME>" }.
+  ansible.builtin.template:
+    src: env/openclaw.env.j2
+    dest: "{{ openclaw_config_dir }}/.env"
+    mode: '0600'
+    backup: true
+  no_log: true
+  notify: Restart openclaw gateway
+
+- name: Bootstrap openclaw config if missing
+  # Bootstrap-only ownership. `openclaw onboard` and the Control UI both
+  # write to openclaw.json (adding session, tools, plugins, hooks, and
+  # gateway.auth.token alongside whatever we set). Force-overwriting on
+  # every deploy would wipe those out, so we only seed the file when it
+  # doesn't exist yet (force: false). To reset to the templated bootstrap,
+  # remove ~/.openclaw/openclaw.json on the mac-mini and re-run the deploy.
+  ansible.builtin.template:
+    src: openclaw.json.j2
+    dest: "{{ openclaw_config_file }}"
+    mode: '0600'
+    force: false
+  notify: Restart openclaw gateway
+
+- name: Check whether the openclaw service-env file has been created yet
+  # Created by `openclaw onboard --install-daemon` (interactive,
+  # one-time, run on the host). Until then there is nothing to patch
+  # and the proxy env-vars wait.
+  ansible.builtin.stat:
+    path: "{{ openclaw_config_dir }}/service-env/ai.openclaw.gateway.env"
+  register: _openclaw_service_env
+  when: openclaw_proxy_enabled
+
+- name: Inject proxy env vars into the openclaw launchd service-env
+  # The launchd wrapper sources this file before exec'ing the gateway,
+  # so HTTPS_PROXY in here reaches the openclaw process. blockinfile
+  # is idempotent and re-applies cleanly after `openclaw onboard`
+  # regenerates the file. NO_PROXY skips local llama-swap / TEI /
+  # SearXNG endpoints openclaw already reaches directly, so they avoid
+  # an unnecessary proxy hop.
+  ansible.builtin.blockinfile:
+    path: "{{ openclaw_config_dir }}/service-env/ai.openclaw.gateway.env"
+    block: |
+      export HTTPS_PROXY="http://127.0.0.1:{{ openclaw_proxy_port }}"
+      export HTTP_PROXY="http://127.0.0.1:{{ openclaw_proxy_port }}"
+      export NO_PROXY="{{ openclaw_proxy_no_proxy }}"
+    marker: "# {mark} ANSIBLE MANAGED: openclaw web_fetch proxy"
+    mode: '0644'
+  when:
+    - openclaw_proxy_enabled
+    - _openclaw_service_env.stat.exists | default(false)
+  notify: Restart openclaw gateway
+
+- name: Reminder if the gateway daemon has not been onboarded yet
+  # First-time deploy: the bootstrap openclaw.json was written, but the
+  # interactive `openclaw onboard --install-daemon` step hasn't run,
+  # so the launchd label doesn't exist yet and the proxy env-file
+  # patch above was skipped. Surface the next manual step.
+  ansible.builtin.debug:
+    msg: >
+      Openclaw daemon is not installed yet. Run `openclaw onboard
+      --install-daemon` on the mac-mini console to register the launchd
+      agent and approve the macOS permission prompts. Re-run this
+      playbook afterward to land the proxy env-var patch.
+  when:
+    - openclaw_proxy_enabled
+    - not (_openclaw_service_env.stat.exists | default(false))
