@@ -1,0 +1,4 @@
+---
+# M3 client acceptance capture is complete. Keep tracing disabled during M4;
+# a future evidence session must explicitly opt in to a fresh recording path.
+album_sort_opensubsonic_trace_path: ""
