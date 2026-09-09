@@ -1,0 +1,4 @@
+---
+# Temporary M3 task-15 client acceptance capture. Remove this override after
+# verifying and preserving the trace to restore the role's recorder-off default.
+album_sort_opensubsonic_trace_path: "{{ album_sort_data_path }}/m3-client-sync.json"
