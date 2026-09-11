@@ -27,9 +27,7 @@ services:
       COVER_ART_ARCHIVE_BASE_URL: "{{ album_sort_cover_art_archive_base_url }}"
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
-      OPENSUBSONIC_TRACE_PATH: "{{ album_sort_opensubsonic_trace_path }}"
       TRUSTED_PROXY_CIDRS: "{{ album_sort_trusted_proxy_cidrs }}"
-      OPENSUBSONIC_PROBE_USERNAME: "{{ album_sort_opensubsonic_probe_username }}"
     volumes:
       - music:/music
       - ./data:/data
@@ -64,6 +62,15 @@ services:
       traefik.http.routers.album-sort-rest.tls.certresolver: letsencrypt
       traefik.http.routers.album-sort-rest.priority: "100"
       traefik.http.routers.album-sort-rest.service: album-sort
+      traefik.http.routers.album-sort-rest.middlewares: album-sort-rest-tls
+      traefik.http.middlewares.album-sort-rest-tls.headers.customrequestheaders.X-Forwarded-Proto: https
+      # Higher than the catch-all HTTP redirect; the app rejects HTTP before auth.
+      traefik.http.routers.album-sort-rest-http.rule: "Host(`{{ album_sort_domain }}`) && PathPrefix(`/rest`)"
+      traefik.http.routers.album-sort-rest-http.entrypoints: web
+      traefik.http.routers.album-sort-rest-http.priority: "2147482647"
+      traefik.http.routers.album-sort-rest-http.service: album-sort
+      traefik.http.routers.album-sort-rest-http.middlewares: album-sort-rest-plain
+      traefik.http.middlewares.album-sort-rest-plain.headers.customrequestheaders.X-Forwarded-Proto: http
 {% endif %}
       traefik.http.services.album-sort.loadbalancer.server.port: "{{ album_sort_container_port }}"
       traefik.http.services.album-sort.loadbalancer.healthcheck.path: /healthz

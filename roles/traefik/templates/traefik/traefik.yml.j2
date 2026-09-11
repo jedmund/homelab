@@ -28,6 +28,9 @@ entryPoints:
           to: websecure
           scheme: https
           permanent: true
+          # Reserve a higher explicit router priority for /rest HTTP rejection.
+          # Other HTTP routers still lose to this catch-all redirect.
+          priority: 2147482646
   websecure:
     address: ":443"
     http:

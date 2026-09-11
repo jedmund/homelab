@@ -1,0 +1,62 @@
+---
+# Read/render-only local checks using the deployment inventory and vault.
+- name: Verify M4 deployment templates without changing a host
+  hosts: album_sort
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Load Album Sort defaults
+      ansible.builtin.include_vars: ../roles/album_sort/defaults/main.yml
+
+    - name: Validate provisioned encryption key without exposing it
+      ansible.builtin.assert:
+        that:
+          - album_sort_user_secret_encryption_key | length == 44
+          - album_sort_user_secret_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
+          - album_sort_user_secret_encryption_key[-2] in 'AEIMQUYcgkosw048'
+      no_log: true
+
+    - name: Render public Album Sort compose configuration
+      ansible.builtin.set_fact:
+        m4_compose: "{{ lookup('ansible.builtin.template', '../roles/album_sort/templates/compose.yaml.j2') | from_yaml }}"
+
+    - name: Assert route separation and retired configuration removal
+      vars:
+        app: "{{ m4_compose.services['album-sort'] }}"
+      ansible.builtin.assert:
+        that:
+          - "'OPENSUBSONIC_PROBE_USERNAME' not in app.environment"
+          - "'OPENSUBSONIC_TRACE_PATH' not in app.environment"
+          - app.labels['traefik.http.services.album-sort.loadbalancer.healthcheck.path'] == '/healthz'
+          - app.labels['traefik.http.middlewares.album-sort-rest-tls.headers.customrequestheaders.X-Forwarded-Proto'] == 'https'
+          - app.labels['traefik.http.middlewares.album-sort-rest-plain.headers.customrequestheaders.X-Forwarded-Proto'] == 'http'
+          - app.labels['traefik.http.routers.album-sort-rest-http.entrypoints'] == 'web'
+          - app.labels['traefik.http.routers.album-sort-rest.entrypoints'] == 'websecure'
+          - app.labels['traefik.http.routers.album-sort-rest.middlewares'] == 'album-sort-rest-tls'
+          - app.logging.options['max-size'] == '10m'
+          - app.logging.options['max-file'] | int >= 3
+
+    - name: Assert the private environment removes probe secrets
+      ansible.builtin.assert:
+        that:
+          - "'OPENSUBSONIC_PROBE_KEY=' not in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
+          - "'USER_SECRET_ENCRYPTION_KEY=' in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
+      no_log: true
+
+    - name: Load Traefik defaults
+      ansible.builtin.include_vars: ../roles/traefik/defaults/main.yml
+
+    - name: Render Traefik public configurations
+      ansible.builtin.set_fact:
+        m4_traefik: "{{ lookup('ansible.builtin.template', '../roles/traefik/templates/traefik/traefik.yml.j2') | from_yaml }}"
+        m4_proxy_compose: "{{ lookup('ansible.builtin.template', '../roles/traefik/templates/compose.yaml.j2') | from_yaml }}"
+
+    - name: Assert HTTP precedence, log redaction and persistent proxy identity
+      ansible.builtin.assert:
+        that:
+          - m4_traefik.entryPoints.web.http.redirections.entryPoint.priority == 2147482646
+          - m4_compose.services['album-sort'].labels['traefik.http.routers.album-sort-rest-http.priority'] | int == 2147482647
+          - m4_traefik.accessLog.fields.queryParameters.defaultMode == 'drop'
+          - m4_traefik.accessLog.bufferingSize <= 100
+          - m4_proxy_compose.services.traefik.networks.proxy.ipv4_address == traefik_proxy_ipv4_address
