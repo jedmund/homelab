@@ -18,20 +18,33 @@
     fail_msg: >-
       Populate the PocketID client ID and secret before deploying Album Sort.
 
-- name: Inspect the proxy network for its current subnet
-  community.docker.docker_network_info:
-    name: "{{ proxy_network }}"
-  register: album_sort_proxy_network
-  failed_when: false
+- name: Validate the persistent M4 credential encryption key
+  ansible.builtin.assert:
+    that:
+      - album_sort_user_secret_encryption_key | length == 44
+      - album_sort_user_secret_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
+      - album_sort_user_secret_encryption_key[-2] in 'AEIMQUYcgkosw048'
+    fail_msg: Provision canonical base64 of 32 random bytes in the encrypted Album Sort vault.
+  no_log: true
 
-- name: Resolve the trusted proxy CIDR from the proxy network
+- name: Inspect the actual immediate proxy peer
+  community.docker.docker_container_info:
+    name: traefik
+  register: album_sort_proxy
+
+- name: Require the proxy on the shared proxy network
+  ansible.builtin.assert:
+    that:
+      - album_sort_proxy.exists
+      - proxy_network in album_sort_proxy.container.NetworkSettings.Networks
+      - album_sort_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress | length > 0
+      - album_sort_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress == traefik_proxy_ipv4_address
+    fail_msg: Deploy Traefik first; never fall back to trusting a Docker subnet.
+
+- name: Trust only the actual proxy host
   ansible.builtin.set_fact:
     album_sort_trusted_proxy_cidrs: >-
-      {{ (album_sort_proxy_network.network.IPAM.Config
-          | map(attribute='Subnet') | join(','))
-         if (album_sort_proxy_network.exists | default(false))
-            and (album_sort_proxy_network.network.IPAM.Config | default([]) | length > 0)
-         else album_sort_trusted_proxy_cidrs }}
+      {{ album_sort_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress }}/32
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:

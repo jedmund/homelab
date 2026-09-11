@@ -7,8 +7,11 @@ services:
     image: {{ traefik_image }}
     restart: {{ restart_policy }}
     networks:
-      - proxy
-      - backend
+      proxy:
+{% if traefik_proxy_ipv4_address | default('') | length > 0 %}
+        ipv4_address: "{{ traefik_proxy_ipv4_address }}"
+{% endif %}
+      backend: {}
     ports:
       - "{{ traefik_bind_ip }}:80:80"
       - "{{ traefik_bind_ip }}:443:443"
