@@ -19,6 +19,8 @@ komodo_image_tag: "2.2.0"
 # MongoDB major pin; Komodo upstream tracks mongo 8
 komodo_mongo_image: mongo:8
 periphery_root_directory: /etc/komodo
+# Also the Periphery container's DOCKER_CONFIG. It must stay on a
+# read-write mount: the Docker CLI writes buildx state beside config.json.
 periphery_registry_config_directory: "{{ periphery_root_directory }}/docker"
 
 # Komodo Core configuration

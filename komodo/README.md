@@ -54,10 +54,27 @@ operational boundary:
 - TLS: the `letsencrypt` resolver.
 
 The Kizuna Ansible role writes its read-only deploy token to a dedicated Docker
-config under `/etc/komodo/docker`. The infra-core role mounts that directory
-read-only into Periphery so Komodo's `docker compose pull` can authenticate to
-`registry.atelier.house`. Keep that credential current because the ephemeral
+config under `/etc/komodo/docker`. The infra-core role sets that path as
+Periphery's `DOCKER_CONFIG` so Komodo's `docker compose pull` can authenticate
+to `registry.atelier.house`. Keep that credential current because the ephemeral
 stacks deliberately do not contain registry secrets.
+
+Periphery needs egress for update checks. It performs the registry manifest
+queries behind `CheckStackForUpdate` from inside its own container instead of
+delegating them to the Docker daemon, so the `backend` network
+(`internal: true`) is not sufficient on its own and every check fails with
+`lookup <registry>: server misbehaving`. Deploys are unaffected either way,
+because a real `docker compose pull` is executed by the daemon. Keep Periphery
+attached to `shared` as well as `backend`.
+
+`DOCKER_CONFIG` must point at a read-write path. The Docker CLI creates
+`$DOCKER_CONFIG/buildx` when it runs, so an earlier
+`/etc/komodo/docker:/root/.docker:ro` bind made every `CheckStackForUpdate`
+fail with `mkdir /root/.docker/buildx: read-only file system`, which the UI
+shows as no stack having an update. Do not reinstate a read-only bind here, and
+note that a nested writable volume at `/root/.docker/buildx` is not a
+workaround: Docker cannot create a mountpoint inside a read-only mount, so the
+container fails to start outright.
 
 Before enabling the app CI jobs:
 
