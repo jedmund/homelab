@@ -48,6 +48,19 @@ is not acceptance evidence. Health-check paths and timeouts are unchanged.
 
 ## Rollback and proxy changes
 
+M6 uses personal Multi-Scrobbler credentials entered privately in Album Sort's
+Music settings. The environment template no longer injects `MULTI_SCROBBLER_TOKEN`;
+retain `MULTI_SCROBBLER_URL` and the existing `USER_SECRET_ENCRYPTION_KEY` unchanged.
+Redeploy Album Sort to remove the retired variable from the running container.
+Do not copy the old shared token into a personal profile automatically or rotate
+the encryption key during this cleanup. The old vault value is unused; removing
+or revoking that retained secret is separate from removing container injection.
+
+The local render-only verifier above asserts that the shared token is absent and
+that URL/key configuration remains. After deployment, verify variable presence
+as booleans only, container health and public protocol discovery. Personal token
+entry and actual delivery acknowledgement remain an owner acceptance step.
+
 Before named credential issuance, restore the pre-cutover configuration/image
 only under the application's migration compatibility procedure. After issuance,
 use a compatible M4 image or withdraw `/rest` while restoring the verified backup
