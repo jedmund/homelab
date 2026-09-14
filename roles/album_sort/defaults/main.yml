@@ -62,7 +62,7 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # Secrets defined in vault:
 # album_sort_apple_music_team_id, album_sort_apple_music_key_id,
 # album_sort_apple_music_private_key, album_sort_discogs_token,
-# album_sort_kagi_api_key, album_sort_multi_scrobbler_token,
+# album_sort_kagi_api_key,
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret,

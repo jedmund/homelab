@@ -42,6 +42,8 @@
         that:
           - "'OPENSUBSONIC_PROBE_KEY=' not in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
           - "'USER_SECRET_ENCRYPTION_KEY=' in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
+          - "'MULTI_SCROBBLER_URL=' in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
+          - "'MULTI_SCROBBLER_TOKEN=' not in lookup('ansible.builtin.template', '../roles/album_sort/templates/env/album-sort.env.j2')"
       no_log: true
 
     - name: Load Traefik defaults

@@ -407,7 +407,6 @@ Register this exact PocketID callback before deploying:
 | `album_sort_apple_music_private_key` | Apple Music API private key |
 | `album_sort_discogs_token` | Discogs API token |
 | `album_sort_kagi_api_key` | Kagi API key |
-| `album_sort_multi_scrobbler_token` | Shared token for Multi-Scrobbler integration |
 | `vault_album_sort_registry_username` | GitLab deploy-token username with `read_registry` access |
 | `vault_album_sort_registry_password` | GitLab deploy-token password |
 | `vault_album_sort_oidc_client_id` | PocketID client ID |
