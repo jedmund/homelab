@@ -60,8 +60,6 @@ The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
 `gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
 larger contexts because they're picked manually; in shared mode loading
 one while minimax-iq4 is resident may OOM (unload the code slot first).
-`qwen3.6-flash-uncensored` is openclaw's default chat and vision model,
-so in shared mode an openclaw DM will evict any resident code slot.
 In split mode the chat group has the WS card to itself, so all of them
 fit individually.
 
@@ -103,11 +101,9 @@ fit individually.
 - **Why**: Abliterated (refusal-vector-removed) build of the same base
   model as `qwen3.6-flash`, kept at the same fidelity tier (~10 bpw) so
   quality comparisons against the non-abliterated sibling stay clean.
-  Default openclaw chat and vision model: image-bearing DMs route here
-  automatically via `agents.defaults.imageModel`, so text and image
-  turns share the same refusal policy. Keep both flash entries resident
-  in the catalogue so requests can pick per use case; `swap: true` means
-  only one is in VRAM at a time, so the cost is disk-only (~44 GB).
+  Keep both flash entries in the catalogue so requests can pick per use case;
+  `swap: true` means only one is in VRAM at a time, so the cost is disk-only
+  (~44 GB).
 - **VRAM**: ~44 GB on disk; ~75 GB live with `--parallel 4 -c 262144`
   (four sticky 64K slots, q8_0 KV). Same shape as `qwen3.6-flash`.
 - **Notes**: "Q8_K_P" is HauhauCS's analog of Unsloth's UD-Q8_K_XL:
@@ -172,7 +168,7 @@ second costs disk only.
 - **Why**: Dense 27B successor to `qwen3.6`, multimodal, 256K native
   context (1M with YaRN, not configured here). Added alongside the 3.6
   entry rather than replacing it so both can be compared on real work
-  before any consumer default (openclaw, opencode, pi-agents) moves
+  before any consumer default (opencode, pi-agents) moves
   over. Q6 is the everyday tier for the same reason as on `qwen3.6`
   (dense decode reads all weights, so bigger quants cost real
   throughput); Q8 is there to be picked by name when quality matters
@@ -290,8 +286,8 @@ second costs disk only.
   heavy reasoning alternative to `minimax-m27-q4` for cross-family
   comparison on hard problems. Lives in the `code-heavy` group
   (`exclusive: true`), so loading it evicts the chat group; pick it
-  when you want max quality and accept that openclaw chat will need to
-  cold-load when it's next called.
+  when you want max quality and accept that chat models will need to
+  reload on the next request.
 - **VRAM**: ~95 GB on disk; ~125 GB live with `--parallel 4 -c 131072`
   (four sticky 32K slots, q8_0 KV). Smaller live footprint than
   minimax-m27-q4 (~185 GB) so there's plenty of room to grow the
