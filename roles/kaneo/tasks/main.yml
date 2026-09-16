@@ -2,6 +2,7 @@
 - name: Validate Kaneo Vault configuration
   ansible.builtin.assert:
     that:
+      - not kaneo_agent_inspections_enabled or (kaneo_agent_service_encryption_key | length >= 32)
       - (kaneo_db_password | default('') | length) > 0
       - (kaneo_redis_password | default('') | length) >= 32
       - (kaneo_redis_password | default('')) is match('^[A-Fa-f0-9]+$')
