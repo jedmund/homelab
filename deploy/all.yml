@@ -181,6 +181,9 @@
 - import_playbook: copyparty.yml
   tags: [copyparty]
 
+- import_playbook: bentopdf.yml
+  tags: [bentopdf]
+
 - import_playbook: hugginghack.yml
   tags: [hugginghack]
 

@@ -1,0 +1,13 @@
+---
+# Stack identity
+stack_name: bentopdf
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# BentoPDF settings
+# The "simple" build drops upstream's marketing pages and keeps only the
+# tools. All PDF processing happens in the browser; the container is a
+# static nginx site with no state.
+bentopdf_image: ghcr.io/alam00000/bentopdf-simple
+bentopdf_image_tag: "2.8.8"
+bentopdf_port: 8080
+bentopdf_domain: pdf.atelier.house
