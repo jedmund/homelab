@@ -400,6 +400,8 @@ Register this exact PocketID callback before deploying:
 
 [album-sort](https://github.com/jedmund/album-sort) is built by GitLab CI. Successful default-branch builds publish `latest` for the app and beets images, then ask Komodo to redeploy the stack. The Ansible role renders the stack and defaults to `latest`; set `album_sort_image_tag` to a published short SHA for a rollback or deploy freeze. Album Sort uses the shared-network MusicBrainz mirror at `http://musicbrainz:5000/ws/2` and the public Cover Art Archive by default; override `album_sort_musicbrainz_base_url` or `album_sort_cover_art_archive_base_url` in inventory when needed.
 
+Album Sort pulls images on every Ansible deployment, matching the Compose `pull_policy: always` used by Komodo. Keep both services on `latest` for automatic main-branch rollouts. A manual image-ID pin or `pull_policy: never` in `/opt/docker/album-sort/compose.yaml` bypasses this configuration: Komodo can report a successful redeploy while leaving the old app running. Remove the host pin or reapply `deploy/album_sort.yml` to restore the template, then verify the app container uses the newly published image and is healthy. For a deliberate rollback, use a published immutable tag through `album_sort_image_tag` instead of editing the generated Compose file.
+
 | Variable | Description |
 |----------|-------------|
 | `album_sort_apple_music_team_id` | Apple Music API team ID |

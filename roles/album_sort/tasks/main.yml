@@ -99,7 +99,8 @@
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    # CI republishes latest; every deploy must resolve the current image.
+    pull: always
   register: compose_result
 
 - name: Wait for Album Sort container health
