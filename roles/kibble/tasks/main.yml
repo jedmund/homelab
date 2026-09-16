@@ -28,32 +28,6 @@
 # ARP, and alias IPs all ARP back with the bridge's real MAC, so a
 # second adoption silently replaces the first.
 
-- name: Remove legacy alias-IP systemd-networkd drop-in (superseded by macvlan)
-  ansible.builtin.file:
-    path: /etc/systemd/network/50-kibble-onvif-vips.network
-    state: absent
-  notify: Reload systemd-networkd
-
-- name: Remove legacy alias IPs from {{ kibble_onvif_bridge }} if present
-  ansible.builtin.command:
-    cmd: "ip address del {{ item.ip }}/24 dev {{ kibble_onvif_bridge }}"
-  loop: "{{ kibble_onvif_devices }}"
-  loop_control:
-    label: "{{ item.ip }}"
-  register: vip_legacy_del
-  changed_when: vip_legacy_del.rc == 0
-  # Idempotent cleanup: tolerate the two benign "nothing to remove"
-  # messages so re-runs after the alias IPs are already gone don't abort
-  # the play. `ip addr del` reports "Address not found." when the address
-  # isn't on the interface (the normal case now that the VIPs live on
-  # macvlan children); older iproute2 emits "Cannot assign requested
-  # address". Any other non-zero rc (e.g. missing device) still fails.
-  failed_when:
-    - vip_legacy_del.rc != 0
-    - "'Cannot assign requested address' not in vip_legacy_del.stderr"
-    - "'Address not found' not in vip_legacy_del.stderr"
-  when: kibble_onvif_enabled | bool
-
 - name: Install kibble-onvif-vips systemd unit
   ansible.builtin.template:
     src: systemd/kibble-onvif-vips.service.j2
