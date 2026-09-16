@@ -1,0 +1,6 @@
+---
+- name: Deploy the dedicated Kaneo inspection service
+  hosts: nuc-mini
+  become: true
+  roles:
+    - kaneo_inspection
