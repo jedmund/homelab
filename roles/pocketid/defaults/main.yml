@@ -12,10 +12,5 @@ pocketid_app_url: "https://{{ pocketid_domain }}"
 pocketid_trust_proxy: "true"
 pocketid_email_login_notification_enabled: "true"
 
-# Path PocketID occupied while it was part of the infra-gateway stack.
-# Only used by the one-time migration tasks; removable once every host
-# has run this role at least once.
-pocketid_legacy_base: "{{ docker_base_path }}/infra-gateway"
-
 # Secrets defined in vault:
 # pocketid_encryption_key - rotating it invalidates stored OIDC client secrets
