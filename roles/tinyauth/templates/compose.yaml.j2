@@ -24,6 +24,8 @@ services:
       tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.copyparty.config.domain: "files.{{ tinyauth_base_domain }}"
       tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.bentopdf.config.domain: "pdf.{{ tinyauth_base_domain }}"
+      tinyauth.apps.bentopdf.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ tinyauth_base_domain }}"
       tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.jdownloader.config.domain: "jdl.{{ tinyauth_base_domain }}"
