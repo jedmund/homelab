@@ -29,3 +29,49 @@ n8n_db_host: n8n-db
 n8n_db_port: "5432"
 n8n_db_name: n8n
 n8n_db_user: n8n
+
+# Vault secrets consumed by this role:
+#   n8n_db_password
+#   n8n_encryption_key
+#   n8n_instance_ai_model_api_key  - Open WebUI API key for the "n8n Assistant" user
+#   n8n_sandbox_api_key            - n8n -> sandbox-api
+#   n8n_sandbox_runner_api_key     - sandbox-api -> sandbox-runner-1
+#   n8n_sandbox_registration_token - sandbox-runner-1 registering with sandbox-api
+
+# n8n Assistant (the instance-ai module, shipped in core and enabled by
+# default since 2.x). The chat panel stays inert until it has both a model
+# and a sandbox, so all three blocks below are one feature.
+#
+# Model: served locally by llama-swap on max and reached through Open WebUI's
+# OpenAI-compatible API, so the Assistant's usage shows up under the same
+# per-user API key and model catalogue as everything else. Both stacks run on
+# nuc-mini and share the proxy network, so this stays on the box: no Traefik
+# hop, no DNS round trip, nothing new published.
+n8n_instance_ai_model: qwen3.8
+n8n_instance_ai_model_url: "http://open_webui:8080/api"
+
+# Web search, optional. Reuses the SearXNG already running in the ai stack on
+# max (roles/ai), which has the JSON output format enabled for Open WebUI:
+# that same JSON API is what n8n's web search needs. Keep the port in sync
+# with searxng_port in roles/ai/defaults/main.yml.
+max_server_ip: "{{ hostvars['max'].ansible_host }}"
+n8n_instance_ai_searxng_port: 8889
+n8n_instance_ai_searxng_url: "http://{{ max_server_ip }}:{{ n8n_instance_ai_searxng_port }}"
+
+# n8n Sandbox Service: the isolated environment the Assistant writes and runs
+# code in, so generated code never executes on the n8n container itself.
+# Three containers, mirroring the stack n8n's own installer ships
+# (docker/get-n8n-compose.yml upstream): a one-shot cert bootstrapper, the
+# API control plane n8n talks to, and a privileged Docker-in-Docker runner
+# that hosts the per-thread sandbox containers.
+#
+# 1.2.0 is the pair the upstream installer pins today. Newer 1.3.x tags exist;
+# bumping is this one line plus a redeploy.
+n8n_sandbox_service_version: "1.2.0"
+n8n_sandbox_api_image: "ghcr.io/n8n-io/n8n-sandbox-service-api:{{ n8n_sandbox_service_version }}"
+n8n_sandbox_runner_image: "ghcr.io/n8n-io/n8n-sandbox-service-runner-dind:{{ n8n_sandbox_service_version }}"
+# The sandbox image the runner starts per thread. Pulled by the runner's inner
+# dockerd on first use, not by this host's Docker, and published on its own
+# cadence: there is no 1.2.0 tag for it, so this tracks the upstream default.
+n8n_sandbox_image: ghcr.io/n8n-io/n8n-sandbox-service-sandbox:latest
+n8n_sandbox_service_url: "http://sandbox-api:8080"
