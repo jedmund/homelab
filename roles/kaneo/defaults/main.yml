@@ -3,22 +3,11 @@
 stack_name: kaneo
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Kaneo application, built from the private fork by GitLab CI.
-#
-# Tracks `latest`, matching album-sort, kizuna, kibble and vane. This used to
-# pin an immutable full SHA, but only because the fork's CI published nothing
-# else: that meant hand-editing this file after every build, and it forced an
-# exclusion in the registry cleanup policy so tag expiry could not delete the
-# one tag the deploy depended on. CI now publishes `latest` alongside the SHA.
-#
-# The SHA tags are still published, so pinning one here remains the way to
-# roll back to, or hold on, a specific build.
-#
-# Note that Kaneo runs its Drizzle migrations at API startup, so deploying a
-# newer image applies whatever schema changes it carries. That is the tradeoff
-# of a floating tag here; deploys are deliberate, so the exposure is bounded.
+# Pin the reviewed 2.24.0 tree with GitLab workflow controls. This image is loaded by kaneo-upgrade.yml
+# from a retained archive on the host; no mutable registry tag is published.
 kaneo_image: registry.atelier.house/jedmund/kaneo
-kaneo_image_tag: latest
+kaneo_image_tag: workflow-40a1e34ac728
+kaneo_pull_policy: missing
 kaneo_registry_url: https://registry.atelier.house
 kaneo_registry_username: "{{ vault_kaneo_registry_username | default('') }}"
 kaneo_registry_password: "{{ vault_kaneo_registry_password | default('') }}"

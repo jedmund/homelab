@@ -15,8 +15,9 @@ values are loaded from Ansible Vault files.
   reuses the same key as Mastodon and Dawarich.
 - A PocketID OIDC client, GitHub App, and GitLab OAuth application have been
   created as described below.
-- GitLab CI has published `registry.atelier.house/jedmund/kaneo:latest`,
-  which it does on every default-branch build.
+- The pinned image is available on the host. The 2.24.0 upgrade uses a verified
+  local image archive; see Rollout and rollback. GitLab CI still publishes
+  `latest` on default-branch builds, but this deployment does not follow it.
 
 ## Create the Vault
 
@@ -192,19 +193,110 @@ PostgreSQL dumps after `make deploy-backup`.
 
 ## Rollout and rollback
 
-The deployment tracks `latest`, so `make deploy-kaneo` picks up whatever the
-default branch last built. Kaneo applies its Drizzle migrations at API
-startup, so a deploy can carry schema changes: run `make deploy-backup` and
-verify the PostgreSQL dump first. Exercise a new build against a disposable
-GitLab repository, then attach production repositories once issue, note,
-branch, merge request, and duplicate-webhook smoke tests pass.
+The deployment is pinned to `workflow-40a1e34ac728`, built from the
+reviewed Kaneo Git tree `40a1e34ac728c414d8fcac393f2802007084caf2`.
+No commit or mutable registry tag was published for this deployment. The image
+archive is retained at
+`/opt/docker/kaneo/upgrade/workflow-40a1e34ac728/image.tar` on `nuc-mini`.
+The role's `kaneo_pull_policy: missing` preserves that local image on ordinary
+`make deploy-kaneo` runs. For a replacement host, securely transfer the archive
+and run the upgrade playbook's staging phase before deploying the role.
 
-CI publishes an immutable full-SHA tag alongside `latest`. To roll back, or
-to hold on a known-good build, set `kaneo_image_tag` to that SHA and run
-`make deploy-kaneo`. Before running an upstream image, disable all SCM
-integrations in Kaneo; upstream releases do not understand multi-repository or
-GitLab external links. The additive database migration is intentionally left
-in place during an image rollback.
+`deploy/kaneo-upgrade.yml` stages an AMD64 image and runs the candidate's
+read-only migration preflight before permitting downtime. Create a local JSON
+variables file containing:
+
+```json
+{
+  "kaneo_upgrade_id": "workflow-40a1e34ac728",
+  "kaneo_upgrade_image": "registry.atelier.house/jedmund/kaneo:workflow-40a1e34ac728",
+  "kaneo_upgrade_image_id": "sha256:1d4674fc58aee8c4b76fb620ca293469fa803dfc6026287f1de109bfb0c32e4a",
+  "kaneo_upgrade_archive": "/absolute/path/to/image.tar",
+  "kaneo_upgrade_source": "/absolute/path/to/reviewed/kaneo/source"
+}
+```
+
+The image ID above is the OCI manifest digest reported by Docker 29 on the
+NUC. It matches `index.json` in the saved archive. Older Docker image stores
+report the configuration digest instead; inspect and verify the archive,
+configuration, and layers before supplying a different expected ID.
+
+```bash
+# Staging and read-only preflight; production continues running.
+ansible-playbook deploy/kaneo-upgrade.yml --limit nuc-mini -e @/path/to/upgrade.json
+# Explicit maintenance window: stop Kaneo, back up, deploy, verify.
+ansible-playbook deploy/kaneo-upgrade.yml --limit nuc-mini -e @/path/to/upgrade.json \
+  -e kaneo_upgrade_apply=true
+```
+
+The apply phase retains the previous image under a rollback tag, archives the
+existing configuration, stops the app and its workers, takes a PostgreSQL
+custom-format dump, verifies its archive index, and records checksums. It then
+runs the standard Kaneo role, checks container/public health and exact image
+identity, and repeats the migration preflight. Backups and `images.json` are in
+`/opt/docker/backups/kaneo-<upgrade-id>-<timestamp>/`, protected with mode 0700.
+These contain production secrets/data; do not copy them into the repository or
+use them in development databases.
+
+On a deployment/health failure, the playbook restores the saved configuration
+and starts the recorded previous image against the additive schema. It never
+automatically restores the database. For a later manual rollback, load the
+recorded previous image, set `kaneo_image_tag` to its retained rollback tag and
+`kaneo_image` to `kaneo-rollback`, then use `make deploy-kaneo`. Update the local
+pin as well so the next deployment does not reinstall the candidate. Keep
+`AUTH_SECRET`, `SCM_SECRET_ENCRYPTION_KEY`, and provider credentials unchanged.
+
+If database restoration becomes necessary, stop application writes and workers,
+verify `SHA256SUMS`, and restore the pre-upgrade dump to a clean production
+database under a separate recovery procedure. This loses writes since the dump;
+reconcile remote issue creation before restarting SCM workers. Do not run an
+upstream-only image with the fork's SCM integrations enabled.
+
+Production acceptance includes PocketID login, an existing task, uploads, and
+GitLab/GitHub/Gitea sync on designated test repositories. Public health and an
+OIDC redirect alone do not prove authenticated workflows or provider sync.
+
+### Production deployment record — 2026-09-16
+
+The maintenance playbook completed on `nuc-mini` with 44 successful tasks and
+no failures or rollback. Running image manifest:
+`sha256:a44185968ff6b452e60e4dc994b39cb047ca26e1a067647a4276a0054e2ed53e`.
+
+Rollback artifacts:
+`/opt/docker/backups/kaneo-2.24.0-d52ba238216d-20260916T020514/`.
+Previous image:
+`sha256:5b84c6c4654844cc85cdfb72379d6868c1b2ab2825e296900621a568d3fa0669`.
+Retained tag: `kaneo-rollback:2.24.0-d52ba238216d-20260916T020514`.
+
+Post-upgrade checks passed: both backup checksums, container and HTTPS health,
+read-only migration preflight, 49 migration records and all three new tables,
+Redis adapter and scheduler startup. Counts before/after matched: 47 tasks,
+3 projects, 6 repositories, 1 SCM connection, 44 external links, and 0 sync
+jobs. A browser reached PocketID from the production site without JavaScript
+errors. Authenticated UI, uploads, and real-provider mutation flows were not
+exercised during this deployment.
+
+### GitLab workflow deployment — 2026-09-16
+
+Deployed `workflow-40a1e34ac728` via `deploy/kaneo-upgrade.yml`: 44 successful
+tasks, no failures or rollback. Source tree:
+`40a1e34ac728c414d8fcac393f2802007084caf2`. Running manifest:
+`sha256:1d4674fc58aee8c4b76fb620ca293469fa803dfc6026287f1de109bfb0c32e4a`.
+
+Fresh backup and rollback metadata:
+`/opt/docker/backups/kaneo-workflow-40a1e34ac728-20260916T024037/`.
+Previous image manifest:
+`sha256:a44185968ff6b452e60e4dc994b39cb047ca26e1a067647a4276a0054e2ed53e`.
+Retained rollback tag: `kaneo-rollback:workflow-40a1e34ac728-20260916T024037`.
+
+Verified backup checksums, unchanged record counts (47 tasks, 3 projects,
+6 repositories, 1 SCM connection, 44 external links, 0 sync jobs), healthy
+application, Redis adapter and scheduler, and the production PocketID redirect
+without browser errors. Production HTTPS serves `workflow-DTYMcXk4.js` with
+the GitLab event mappings and reset control. No new database migrations were
+introduced; the migration journal remains at 49 entries. Existing production
+workflow rules were not changed. Workflow controls and synthetic webhook events passed local tests;
+authenticated interaction and real provider events were not exercised on production.
 
 ## Object storage
 

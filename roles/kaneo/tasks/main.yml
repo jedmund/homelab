@@ -149,7 +149,7 @@
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    pull: "{{ kaneo_pull_policy | default(docker_pull_policy | default('missing')) }}"
   register: kaneo_compose_result
 
 # Apply storage access before first uploads so a Garage failure during the

@@ -1,0 +1,260 @@
+---
+# Stage and preflight by default; opt into the maintenance window with
+# -e kaneo_upgrade_apply=true. The candidate is an archive of the reviewed tree.
+- name: Upgrade Kaneo with a verified backup and image rollback
+  hosts: kaneo
+  become: true
+  serial: 1
+  vars:
+    kaneo_upgrade_apply: false
+    kaneo_upgrade_dir: "{{ docker_base_path }}/kaneo/upgrade/{{ kaneo_upgrade_id }}"
+    kaneo_upgrade_stack: "{{ docker_base_path }}/kaneo"
+    kaneo_upgrade_backup: "{{ docker_base_path }}/backups/kaneo-{{ kaneo_upgrade_id }}-{{ ansible_date_time.iso8601_basic_short }}"
+  tasks:
+    - name: Validate explicit upgrade inputs
+      ansible.builtin.assert:
+        that:
+          - kaneo_upgrade_id is match('^[a-zA-Z0-9_.-]+$')
+          - kaneo_upgrade_image | length > 0
+          - kaneo_upgrade_image_id is match('^sha256:[a-f0-9]{64}$')
+          - kaneo_upgrade_archive | length > 0
+          - kaneo_upgrade_source | length > 0
+          - not ansible_check_mode
+
+    - name: Inspect the existing application image
+      ansible.builtin.command:
+        argv: [docker, inspect, kaneo, --format, '{{ "{{.Image}}" }}']
+      register: kaneo_previous_image
+      changed_when: false
+
+    - name: Create protected upgrade staging directory
+      ansible.builtin.file:
+        path: "{{ kaneo_upgrade_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Transfer candidate image
+      ansible.builtin.copy:
+        src: "{{ kaneo_upgrade_archive }}"
+        dest: "{{ kaneo_upgrade_dir }}/image.tar"
+        mode: '0600'
+
+    - name: Load candidate without changing the running application
+      ansible.builtin.command:
+        argv: [docker, load, --input, '{{ kaneo_upgrade_dir }}/image.tar']
+      changed_when: true
+
+    - name: Inspect candidate architecture and identity
+      ansible.builtin.command:
+        argv: [docker, image, inspect, '{{ kaneo_upgrade_image }}', --format, '{{ "{{.Architecture}} {{.Id}}" }}']
+      register: kaneo_candidate_identity
+      changed_when: false
+
+    - name: Report candidate identity
+      ansible.builtin.debug:
+        var: kaneo_candidate_identity.stdout
+
+    - name: Require the exact reviewed AMD64 image
+      ansible.builtin.assert:
+        that:
+          - kaneo_candidate_identity.stdout == ('amd64 ' ~ kaneo_upgrade_image_id)
+
+    - name: Stage the reviewed read-only migration check
+      ansible.builtin.copy:
+        src: "{{ kaneo_upgrade_source }}/apps/api/src/database/upgrade-preflight.ts"
+        dest: "{{ kaneo_upgrade_dir }}/preflight-check.ts"
+        mode: '0644'
+
+    - name: Stage the production preflight runner
+      ansible.builtin.copy:
+        dest: "{{ kaneo_upgrade_dir }}/preflight.mjs"
+        mode: '0644'
+        content: |
+          import { Client } from 'pg';
+          import { checkUpgradePreflight } from './preflight-check.ts';
+          const env = process.env;
+          const client = new Client(env.DATABASE_URL ? {connectionString: env.DATABASE_URL} : {
+            host: env.POSTGRES_HOST, port: Number(env.POSTGRES_PORT || 5432),
+            database: env.POSTGRES_DB, user: env.POSTGRES_USER, password: env.POSTGRES_PASSWORD,
+          });
+          try {
+            await client.connect();
+            await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+            const result = await checkUpgradePreflight(client, '/app/apps/api/drizzle');
+            await client.query('ROLLBACK');
+            if (result.errors.length) throw new Error(result.errors.join('\n'));
+            console.log(`Upgrade preflight passed (${result.state}).`);
+          } finally { await client.end(); }
+
+    - name: Check production migration history without changing data
+      ansible.builtin.command: &kaneo_preflight_command
+        argv:
+          - docker
+          - run
+          - --rm
+          - --network
+          - "{{ backend_network }}"
+          - --env-file
+          - "{{ kaneo_upgrade_stack }}/env/kaneo.env"
+          - --volume
+          - "{{ kaneo_upgrade_dir }}/preflight-check.ts:/app/apps/api/preflight-check.ts:ro"
+          - --volume
+          - "{{ kaneo_upgrade_dir }}/preflight.mjs:/app/apps/api/preflight.mjs:ro"
+          - --entrypoint
+          - node
+          - "{{ kaneo_upgrade_image }}"
+          - /app/apps/api/preflight.mjs
+      register: kaneo_preflight
+      changed_when: false
+
+    - name: Report preflight result
+      ansible.builtin.debug:
+        var: kaneo_preflight.stdout
+
+    - name: Perform maintenance-window upgrade
+      when: kaneo_upgrade_apply | bool
+      block:
+        - name: Create protected rollback directory
+          ansible.builtin.file:
+            path: "{{ kaneo_upgrade_backup }}"
+            state: directory
+            mode: '0700'
+
+        - name: Record immutable images for rollback
+          ansible.builtin.copy:
+            dest: "{{ kaneo_upgrade_backup }}/images.json"
+            mode: '0600'
+            content: '{{ {"previous": kaneo_previous_image.stdout, "candidate": kaneo_upgrade_image, "candidate_id": kaneo_upgrade_image_id} | to_nice_json }}'
+
+        - name: Preserve previous image against tag changes
+          ansible.builtin.command:
+            argv: [docker, image, tag, '{{ kaneo_previous_image.stdout }}', 'kaneo-rollback:{{ kaneo_upgrade_id }}-{{ ansible_date_time.iso8601_basic_short }}']
+          changed_when: true
+
+        - name: Snapshot existing deployment configuration
+          ansible.builtin.shell: >-
+            umask 077 && tar -czf {{ kaneo_upgrade_backup | quote }}/configuration.tgz
+            -C {{ kaneo_upgrade_stack | quote }} compose.yaml env config garage_bootstrap.sh
+          changed_when: true
+          no_log: true
+
+        - name: Stop application and workers before the database backup
+          ansible.builtin.command:
+            argv: [docker, compose, --project-directory, '{{ kaneo_upgrade_stack }}', stop, --timeout, '60', kaneo]
+          changed_when: true
+
+        - name: Capture pre-upgrade record counts
+          ansible.builtin.shell: >-
+            umask 077 && docker exec kaneo_postgres psql -U kaneo -d kaneo -At
+            -c "SELECT json_build_object('tasks',(SELECT count(*) FROM task),'projects',(SELECT count(*) FROM project),'repositories',(SELECT count(*) FROM integration_repository),'connections',(SELECT count(*) FROM scm_connection),'external_links',(SELECT count(*) FROM external_link),'sync_jobs',(SELECT count(*) FROM scm_sync_job));"
+            > {{ kaneo_upgrade_backup | quote }}/record-counts.json
+          changed_when: false
+
+        - name: Back up PostgreSQL in custom archive format
+          ansible.builtin.shell: >-
+            umask 077 && docker exec kaneo_postgres pg_dump -U kaneo -d kaneo -Fc
+            > {{ kaneo_upgrade_backup | quote }}/database.dump
+          changed_when: true
+          no_log: true
+
+        - name: Verify the backup archive is readable
+          ansible.builtin.shell: >-
+            docker exec -i kaneo_postgres pg_restore --list
+            < {{ kaneo_upgrade_backup | quote }}/database.dump
+            > {{ kaneo_upgrade_backup | quote }}/database.contents
+          changed_when: false
+          no_log: true
+
+        - name: Record backup checksums
+          ansible.builtin.shell:
+            cmd: umask 077 && sha256sum database.dump configuration.tgz > SHA256SUMS
+            chdir: "{{ kaneo_upgrade_backup }}"
+          changed_when: true
+
+        - name: Deploy through the standard Kaneo role
+          ansible.builtin.include_role:
+            name: kaneo
+          vars:
+            kaneo_image: "{{ kaneo_upgrade_image.rsplit(':', 1)[0] }}"
+            kaneo_image_tag: "{{ kaneo_upgrade_image.rsplit(':', 1)[1] }}"
+            kaneo_pull_policy: never
+
+        - name: Apply pending deployment handlers
+          ansible.builtin.meta: flush_handlers
+
+        - name: Wait for application health
+          ansible.builtin.command:
+            argv: [docker, inspect, kaneo, --format, '{{ "{{.State.Health.Status}}" }}']
+          register: kaneo_health
+          until: kaneo_health.stdout == 'healthy'
+          retries: 30
+          delay: 5
+          changed_when: false
+
+        - name: Verify the candidate is the running image
+          ansible.builtin.command:
+            argv: [docker, inspect, kaneo, --format, '{{ "{{.Image}}" }}']
+          register: kaneo_running_image
+          changed_when: false
+          failed_when: kaneo_running_image.stdout != kaneo_upgrade_image_id
+
+        - name: Check the public API through Traefik
+          ansible.builtin.uri:
+            url: https://kaneo.atelier.house/api/health
+            status_code: 200
+          register: kaneo_public_health
+          until: kaneo_public_health.status == 200
+          retries: 12
+          delay: 5
+
+        - name: Recheck migration history after startup
+          ansible.builtin.command: *kaneo_preflight_command
+          changed_when: false
+
+        - name: Report rollback artifact location
+          ansible.builtin.debug:
+            msg: "Upgrade healthy. Backup and previous image recorded in {{ kaneo_upgrade_backup }}."
+      rescue:
+        - name: Restore the saved deployment configuration
+          ansible.builtin.command:
+            argv: [tar, -xzf, '{{ kaneo_upgrade_backup }}/configuration.tgz', -C, '{{ kaneo_upgrade_stack }}']
+          changed_when: true
+          no_log: true
+
+        - name: Write an exact-image rollback override
+          ansible.builtin.copy:
+            dest: "{{ kaneo_upgrade_backup }}/rollback.compose.json"
+            mode: '0600'
+            content: '{{ {"services": {"kaneo": {"image": kaneo_previous_image.stdout}}} | to_nice_json }}'
+
+        - name: Start the previous image against the additive schema
+          ansible.builtin.command:
+            argv:
+              - docker
+              - compose
+              - --project-directory
+              - "{{ kaneo_upgrade_stack }}"
+              - -f
+              - "{{ kaneo_upgrade_stack }}/compose.yaml"
+              - -f
+              - "{{ kaneo_upgrade_backup }}/rollback.compose.json"
+              - up
+              - -d
+              - --no-deps
+              - --pull
+              - never
+              - kaneo
+          changed_when: true
+
+        - name: Wait for rollback health
+          ansible.builtin.uri:
+            url: https://kaneo.atelier.house/api/health
+            status_code: 200
+          register: kaneo_rollback_health
+          until: kaneo_rollback_health.status == 200
+          retries: 30
+          delay: 5
+
+        - name: Stop rollout after automatic image rollback
+          ansible.builtin.fail:
+            msg: "Upgrade failed; previous image restored. Preserve {{ kaneo_upgrade_backup }} and investigate before retrying. Database was not restored automatically."
