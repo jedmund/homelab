@@ -1,171 +1,167 @@
 # Conventions
 
-How services are wired up in this repo, and how to add a new one. The goal
-is that services of the same kind look the same, so a change to one reads
-like a change to any other.
+Use these conventions when adding or changing a service. Operating commands
+are in [Operations](docs/operations.md).
 
-Every stack is a product-level Ansible role under `roles/<name>/`, deployed
-by `deploy/<name>.yml` to the host group `<name>` in `inventory/hosts.yml`.
-A role renders a `compose.yaml` (and any env/config files) onto the host at
-`/opt/docker/<stack_name>/` and brings it up with `community.docker.docker_compose_v2`.
-Companion containers that are part of one product, such as an app database,
-worker, browser, search engine, or cache, stay in that product role.
+## Role boundaries
 
-Routine inventory-backed stacks are also imported by `deploy/all.yml`.
-Bootstrap, experimental, and explicit mode-switch playbooks stay separate and
-must have a documented `deploy-all-exclude` annotation in that file.
-`make check-deploy-all` enforces this accounting.
+Keep an application and its databases, workers, caches, and other required
+containers in one product role. Use a separate role when a component has an
+independent deployment lifecycle.
 
-## Service categories
+A typical container stack has:
 
-Every service falls into one of three categories. Pick the matching
-reference role and copy its shape.
-
-### 1. Remote / third-party image
-
-A container from a public registry (linuxserver, official upstream, a
-vendor's GHCR image) that we run as-is.
-
-Reference: **`roles/prowlarr`**.
-
-- Image and tag live in `defaults/main.yml` as `<svc>_image` and, where the
-  tag is pinned, `<svc>_image_tag`. The compose template references the
-  vars, never a hardcoded image string.
-- Exposed through Traefik with **docker labels** on the container, attached
-  to the `proxy` network (see Traefik section below).
-- Database/internal traffic goes on the `backend` network.
-- Env via an `env_file:` under `./env/<svc>.env` (rendered from
-  `templates/env/<svc>.env.j2`) or an inline `environment:` block; prefer
-  `env_file` when secrets are involved so they land in a `0600` file.
-
-### 2. External / host-routed service
-
-Something Traefik should route to that the docker provider can't see: a
-service on another host, a `network_mode: host` container, or a native
-(non-Docker) app on the Mac.
-
-Reference: **`roles/infra_gateway/templates/traefik/dynamic/services-mini.yml.j2`**
-(and `services-max.yml.j2` for the `max` host).
-
-- Routed by Traefik's **file provider**, not docker labels. Add a `router`
-  plus a `service` entry pointing at `http://<ip>:<port>`, where `<ip>` is
-  sourced from inventory (`{{ hostvars['<host>'].ansible_host }}` or a var
-  like `max_server_ip`) so the address lives in one place.
-- Use this when, and only when, the docker provider cannot discover the
-  container: cross-host, host networking (kibble is the live example),
-  or a native macOS service (openclaw). Anything on the `proxy` network on
-  the same host as Traefik uses docker labels instead (category 1 or 3).
-
-### 3. Self-developed app
-
-One of our own apps (an app we maintain the source for). These are
-**built by CI in the app's own repo and pulled here by tag** — this repo
-does not build from source.
-
-Reference: **`vane`** in `roles/vane` (`defaults/main.yml`, the `vane:`
-service in `templates/compose.yaml.j2`, and the registry-login task in
-`tasks/main.yml`). `kibble` is a second example.
-
-Required `defaults/main.yml` vars (mirror `vane_*`):
-
-```yaml
-<app>_image: registry.atelier.house/jedmund/<app>   # or ghcr.io/jedmund/<app>
-<app>_image_tag: <pinned-tag>                        # operator bumps to roll forward
-# Registry auth (private registries only). Vault-backed, read_registry token:
-<app>_registry_url: https://registry.atelier.house
-<app>_registry_username: "{{ vault_<app>_registry_username | default('') }}"
-<app>_registry_password: "{{ vault_<app>_registry_password | default('') }}"
+```text
+roles/<service>/
+  defaults/main.yml
+  tasks/main.yml
+  handlers/main.yml
+  templates/compose.yaml.j2
+  templates/env/<service>.env.j2
+deploy/<service>.yml
 ```
 
-Compose entry:
+Most standalone playbooks use a matching inventory group. Exceptions are
+explicit in the playbook: `beszel_agents.yml` applies the `beszel_agent` role,
+and the vLLM and SGLang playbooks target the `ai` group. Native macOS and host
+provisioning roles do not use the Compose layout.
+
+Role defaults define stack identity and deployment paths. Preserve existing
+paths and volume names when renaming a role. Moving data is a separate
+operation; changing `stack_name` alone is not a migration.
+
+## Variables and secrets
+
+Put configurable image references, ports, domains, paths, and feature flags
+in `defaults/main.yml`. Prefix new service-specific variables with the role
+name. Existing container roles share `stack_name` and `config_base` by design.
+
+Use inventory for host connection details and placement. Shared container
+settings belong in [group_vars/compute_servers](group_vars/compute_servers/):
+
+- `common.yml`: runtime user/group IDs, timezone, logging, network names;
+- `docker.yml`: base path and default pull policy;
+- `storage.yml`: NFS exports and external volumes;
+- `ci_cache.yml`: shared runner-cache connection settings.
+
+Store secrets in the inventory group's local encrypted `vault.yml`. Document
+the exact input names, including any `vault_` prefix. Defaults may map a vault
+input to a runtime variable, for example:
 
 ```yaml
-<app>:
-  container_name: <app>
-  image: "{{ <app>_image }}:{{ <app>_image_tag }}"
-  restart: {{ restart_policy }}
-  networks:
-    - proxy
-  # ... env_file / environment, volumes, traefik labels, logging
+app_registry_password: "{{ vault_app_registry_password | default('') }}"
 ```
 
-Registry login task (private images only), before the deploy task — copy
-from `roles/vane/tasks/main.yml`:
+An empty default allows parsing; it does not establish that a credential is
+optional. Add assertions for required credentials before making deployment
+changes. See [Secrets](docs/secrets.md) for file placement and creation.
+
+## Images and builds
+
+For new application roles, use images published by the application's CI.
+Keep the image reference in defaults and use an immutable release or commit
+tag where available. If a floating tag is intentional, document its update
+trigger and rollback method in the role's README.
+
+The shared pull policy is `always`; individual roles may override it. Image
+tags and collection versions are not uniformly pinned across the existing
+repository. Do not describe a deploy as version-preserving unless the
+applicable image and build references are pinned.
+
+Use [Vane](roles/vane/tasks/main.yml) as a reference for private-registry
+login. Credentials used to pull an image belong in Ansible Vault. Credentials
+used by CI to build or publish belong in that application's CI configuration.
+Mark authentication and secret-rendering tasks `no_log: true`.
+
+Existing host builds are supported exceptions:
+
+| Role | Build source |
+| --- | --- |
+| `backup` | Borgmatic image extended with backup utilities |
+| `matrix` | Custom Synapse Dockerfile |
+| `petlibro` | catbro source checkout, only when enabled |
+| `line` | Line source checkout |
+| `hugginghack` | Fork fetched through a Compose Git build context |
+| `strudel` | Repository-managed Dockerfile |
+| `musicbrainz` | Upstream checkout and merged Compose configuration |
+
+Album Sort pulls CI-built application and Beets images. It no longer builds
+from a host checkout. Any new host-build exception needs a documented source
+revision and rebuild policy.
+
+## Compose files and task lifecycle
+
+Use [Prowlarr](roles/prowlarr/) as the reference for a simple image-based
+stack. Templates start with the managed-file header and explicit project name:
 
 ```yaml
-- name: Authenticate with <app> image registry
-  community.docker.docker_login:
-    registry_url: "{{ <app>_registry_url }}"
-    username: "{{ <app>_registry_username }}"
-    password: "{{ <app>_registry_password }}"
-    reauthorize: true
-  when: <app>_registry_username | length > 0 and <app>_registry_password | length > 0
-  no_log: true
+# {{ ansible_managed }}
+name: {{ stack_name }}
 ```
 
-The deploy/handler tasks use `pull` (the default pull policy lives in
-`group_vars/compute_servers/docker.yml`); bumping `<app>_image_tag` and
-re-running the playbook is enough to roll forward. Do **not** use a
-`build:` block or a git-clone task.
+Use `community.docker.docker_compose_v2` for the normal deployment. Match the
+role's existing pull/build policy. Existing handlers use `state: present`
+and `recreate: always` to apply configuration changes.
 
-App-repo prerequisite: the app's own repo must have a CI job that builds
-and pushes `registry.atelier.house/jedmund/<app>:<tag>` (mirror what
-jedmund/Vane does). **CI credentials live in GitLab CI/CD Variables, never
-in this repo's Ansible vault.**
+File permissions are `0644` for public configuration and `0600` for files
+containing secrets. Put secret environment variables in an environment file
+when supported. Use the actual application UID/GID for writable data paths;
+do not assume the shared `puid` and `pgid` apply to every image.
 
-Accepted exception: a handful of services layer a few extra packages onto
-an upstream image with a small `Dockerfile` built on the host (Borgmatic in
-`roles/backup`, Synapse in `roles/matrix`, catbro in `roles/petlibro`), and
-`album_sort` still builds the in-house Album Sort app plus Beets helper from
-a host clone. These stay build-on-host for now. New services should not
-adopt this pattern without reason.
+Use shared logging variables unless the service requires a documented
+exception. Define health checks that test the service being deployed.
+Mounted configuration changes need an explicit reload or restart strategy.
+Avoid introducing a second unconditional deployment or recreation step.
 
-## Image tag policy
+## Networks and routing
 
-Aspirational (documented, not yet enforced across existing third-party
-roles):
+Networks are created by the `networks` role. Compose aliases commonly map to:
 
-- Put every image and tag in `defaults/main.yml` vars, not hardcoded in the
-  compose template.
-- Pin tags for reproducibility. Use a floating tag (`:latest`, a release
-  channel) only where automatic updates are intentional, and say so in a
-  comment.
+| Alias | Docker network | Use |
+| --- | --- | --- |
+| `proxy` | `proxy-network` | Traefik and routed containers on the same Docker host |
+| `backend` | `backend-internal` | Database and internal service traffic; external egress is disabled |
+| `shared` | `shared-network` | Cross-stack traffic and services that need egress |
+| `cibuild` | `cibuild-network` | GitLab CI jobs and their supporting services |
+| Service-specific | `vpn-network` | VPN-related connectivity |
 
-## Adding a service: checklist
+Docker bridge networks are local to each host. Reusing a name on `max` does
+not connect it to the network on `nuc-mini`.
 
-1. Pick the category above and the product role it belongs in. Create a new
-   product role/playbook only for a new product boundary; otherwise add the
-   helper service to the existing product role that owns it. Import new
-   routine playbooks from `deploy/all.yml`; if a playbook is intentionally
-   standalone, document it there with a `deploy-all-exclude` annotation.
-2. Add config to that role's `defaults/main.yml`: image/tag (or registry
-   vars for a self-developed app), domain, ports. Reference secrets as
-   `{{ <name> }}` with a `# <name> - defined in vault` comment; never paste
-   secrets or emails (this repo is public).
-3. Add the service to the role's `templates/compose.yaml.j2`. Keep the
-   existing header (`# {{ ansible_managed }}` then `name: {{ stack_name }}`),
-   attach to `proxy` (Traefik) and/or `backend` (DB) networks, and add a
-   `logging:` block matching the others.
-4. Secrets: add an `env` template `templates/env/<svc>.env.j2` (header
-   `# {{ ansible_managed }}` + a description), and add `<svc>` to the
-   env-file loop in `tasks/main.yml`. Add the vault entries with
-   `make edit-vault FILE=group_vars/<stack>/vault.yml` and document them in
-   the README vault tables.
-5. Expose it: docker labels for a containerized service on `proxy`
-   (category 1 / 3), or a file-provider entry in `services-mini.yml.j2` /
-   `services-max.yml.j2` for an external/host-routed one (category 2).
-6. File modes: `0644` for compose and non-secret configs, `0600` for env
-   files and any config containing secrets.
-7. Handler: rely on the role's existing `Restart {{ stack_name }} stack`
-   handler, which uses `state: present` + `recreate: always` (not
-   `state: restarted`). `notify:` it from the template tasks.
-8. Deploy and verify (`make syntax`, `make lint`, then
-   `make dry-run` / `ansible-playbook --check --diff deploy/<stack>.yml`).
+For containers on Traefik's host and proxy network, declare routers and
+services with Docker labels. For other hosts, native services, and
+host-network containers, use the Traefik file provider:
 
-## Networks
+- [services-mini.yml.j2](roles/traefik/templates/traefik/dynamic/services-mini.yml.j2)
+- [services-max.yml.j2](roles/traefik/templates/traefik/dynamic/services-max.yml.j2)
+- [services-other.yml.j2](roles/traefik/templates/traefik/dynamic/services-other.yml.j2)
 
-- `proxy` — Traefik-facing; any service Traefik routes to via docker labels.
-- `backend` — internal DB / service-to-service traffic.
-- `shared` — cross-stack connectivity where needed.
-- Host networking (`network_mode: host`) only when the workload needs it
-  (e.g. WebRTC/ICE); such services route through the Traefik file provider.
+Derive managed-host addresses from inventory. Specify the route's TLS and
+authentication behavior. Use PocketID for native OIDC where supported;
+TinyAuth middleware and its per-application access labels cover selected
+other routes. Do not infer authentication from network membership.
+
+## Add a service
+
+1. Choose the role boundary and target inventory group. Keep required helper
+   containers in the owning product role.
+2. Define defaults, templates, data paths, credentials, and deployment tasks.
+3. Add the standalone playbook. Import routine playbooks in
+   [deploy/all.yml](deploy/all.yml). For an explicit bootstrap, experimental,
+   or mode-switch workflow, add a `deploy-all-exclude` annotation with a reason.
+4. Add DNS, Traefik routing, authentication, and firewall configuration as
+   required. Deploy PocketID and TinyAuth before dependent applications.
+5. Add backup coverage for databases, bind mounts, and named volumes. Record
+   NFS data that needs a separate NAS backup.
+6. If Komodo manages the stack, add its declaration to
+   [komodo/stacks.toml](komodo/stacks.toml) using the actual host path.
+7. Document first-deploy steps and verification in the role's README. Add a
+   link from the root README if the role has a runbook. Do not duplicate a full
+   service roster or variable list in multiple guides.
+8. Run `make check`, review a targeted check-mode run where supported, deploy,
+   and verify the service's health and authentication behavior.
+
+When a migration is complete on every assigned host, remove its one-time code
+and document the historical implementation and recovery requirements in
+[retired migrations](docs/retired-migrations.md). Retain guards for migrations
+that have not completed.
