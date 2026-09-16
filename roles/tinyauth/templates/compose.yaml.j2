@@ -24,8 +24,9 @@ services:
       tinyauth.apps.changedetection.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.copyparty.config.domain: "files.{{ tinyauth_base_domain }}"
       tinyauth.apps.copyparty.users.allow: "{{ tinyauth_allowed_user }}"
-      tinyauth.apps.bentopdf.config.domain: "pdf.{{ tinyauth_base_domain }}"
-      tinyauth.apps.bentopdf.users.allow: "{{ tinyauth_allowed_user }}"
+      # BentoPDF (pdf.) is open to any PocketID account, so it has no app
+      # entry. TinyAuth only checks users.allow for local users; OAuth logins
+      # are gated by oauth.whitelist, and an absent whitelist allows all.
       tinyauth.apps.synapse-admin.config.domain: "matrix-admin.{{ tinyauth_base_domain }}"
       tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.jdownloader.config.domain: "jdl.{{ tinyauth_base_domain }}"
