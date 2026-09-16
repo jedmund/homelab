@@ -91,6 +91,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `n8n` | n8n, Postgres, Assistant code sandbox (API + Docker-in-Docker runner) |
 | `changedetection` | ChangeDetection.io |
 | `copyparty` | Copyparty |
+| `bentopdf` | BentoPDF |
 | `hugginghack` | HuggingHack Hugging Face model browser |
 | `kaneo` | Kaneo, PostgreSQL, Redis |
 
@@ -590,6 +591,7 @@ make deploy-paseo-relay
 make deploy-n8n
 make deploy-changedetection
 make deploy-copyparty
+make deploy-bentopdf
 make deploy-hugginghack
 make deploy-kaneo
 
