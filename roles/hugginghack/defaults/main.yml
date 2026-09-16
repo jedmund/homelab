@@ -18,16 +18,14 @@ hugginghack_domain: hf.atelier.house
 hugginghack_container_port: 7860
 hugginghack_use_tinyauth: false
 
-# PostgreSQL. The one-time role migration copies the existing SQLite data
-# before the OIDC-enabled application is allowed to start.
+# PostgreSQL. Existing SQLite data and the PocketID owner were migrated
+# before retirement of the one-time migration tasks (see docs/retired-migrations.md).
 hugginghack_postgres_image: postgres:17-alpine
 hugginghack_db_name: hugginghack
 hugginghack_db_user: hugginghack
 hugginghack_db_password: "{{ vault_hugginghack_postgres_password | default('') }}"
 hugginghack_database_url: >-
   postgresql://{{ hugginghack_db_user }}:{{ hugginghack_db_password }}@hugginghack-postgres:5432/{{ hugginghack_db_name }}
-hugginghack_database_migration_marker: "{{ config_base }}/data/.sqlite-postgres-migrated"
-hugginghack_identity_migration_marker: "{{ config_base }}/data/.pocketid-owner-linked"
 
 # PocketID. The verified legacy SQLite owner is local, while the primary
 # PocketID administrator's preferred_username is jedmund. Keeping the user ID
