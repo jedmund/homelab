@@ -20,7 +20,7 @@ release.
 | `nuc-mini-docker` runner, ID 1 | `19.3.3` |
 | `max-docker` runner, ID 3 | `19.3.3` |
 | Embedded PostgreSQL | `17.10` |
-| `mac-mini-xcode` runner, ID 2 | `19.3.x` |
+| `mac-mini-xcode` runner, ID 2 | `19.3.3` |
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -92,7 +92,11 @@ The instance has been running an affected version since the 19.2.0 hop on
 2026-07-24, so this upgrade stops the problem for groups created from now on
 but does not retroactively clear it. Any group created between 2026-07-24 and
 this hop may still carry the setting. Existing groups from before 19.2 were
-never touched. After the upgrade, check the groups created in that window:
+never touched.
+
+This instance was not affected: the check below found no group created in that
+window, and all three groups predate 19.2. Rerun it anyway on a later hop, and
+on any instance where groups are created more often:
 
 ```sh
 ssh nuc
@@ -102,6 +106,26 @@ docker exec gitlab gitlab-rails runner \
 
 Clear it per group in Settings, General, Merge requests, or leave it on if the
 group has no API-driven merges.
+
+### What actually happened
+
+The hop was clean. 19.3.2 came up in a single boot with `RestartCount` 0, so
+the automatic mid-upgrade restart seen on the 19.2 hop did not recur. All five
+batched background migrations that the upgrade queued drained to zero in about
+eight minutes with no failures, and `gitlab:check` and `gitlab:doctor:secrets`
+both passed on the first run.
+
+One unrelated task failed partway through the deploy and skipped the container
+registry cleanup tasks behind it. MinIO has withdrawn `minio/mc` and
+`minio/minio` from Docker Hub, where both now 404, and the CI cache lifecycle
+task had been running on a stale locally cached `minio/mc:latest`, because
+`docker run` pulls only when the image is absent. The image now comes from
+quay.io on a pinned tag. The task carries `no_log: true`, so the playbook
+reports nothing but a censored failure: reproduce the rendered `docker run` by
+hand on the host to see the real error.
+
+Expect the macOS Local Network gate. The Homebrew upgrade to 19.3.3 installed a
+fresh binary and stranded runner 2 exactly as described below.
 
 ## Patch releases inside one minor series
 
