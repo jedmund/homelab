@@ -144,7 +144,10 @@ services:
     environment:
       SANDBOX_RUNNER_ID: runner-1
       SANDBOX_RUNNER_API_GRPC_ADDR: sandbox-api:9090
-      SANDBOX_RUNNER_HTTP_BASE_URL: https://sandbox-runner-1:8080
+      # Plain HTTP: on 1.2.0 this listener does not serve TLS, and the API
+      # verifies nothing about it beyond reaching it. Both ends of the pair
+      # that does use mTLS are the gRPC ports below.
+      SANDBOX_RUNNER_HTTP_BASE_URL: http://sandbox-runner-1:8080
       SANDBOX_RUNNER_CONTROL_GRPC_LISTEN_ADDR: ":9091"
       SANDBOX_RUNNER_CONTROL_GRPC_ADVERTISE_ADDR: sandbox-runner-1:9091
       SANDBOX_RUNNER_DOCKER_SANDBOX_IMAGE: {{ n8n_sandbox_image }}
@@ -159,7 +162,7 @@ services:
       sandbox-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "https://localhost:8080/readyz"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/readyz"]
       interval: 10s
       timeout: 5s
       retries: 5
