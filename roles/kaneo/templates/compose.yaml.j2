@@ -16,6 +16,8 @@ services:
         condition: service_healthy
       kaneo-redis:
         condition: service_healthy
+      kaneo-garage:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:{{ kaneo_port }}/api/health"]
       interval: {{ healthcheck_interval }}
@@ -79,8 +81,50 @@ services:
         max-size: "5m"
         max-file: {{ logging_max_file }}
 
+  kaneo-garage:
+    container_name: kaneo-garage
+    image: {{ kaneo_garage_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+      - backend
+    volumes:
+      - ./config/garage/garage.toml:/etc/garage.toml:ro
+      - kaneo-garage-data:/var/lib/garage/data
+      - kaneo-garage-meta:/var/lib/garage/meta
+    env_file:
+      - ./env/garage.env
+    labels:
+      # Public S3 endpoint, browser-reachable. Kaneo uses a single S3_ENDPOINT
+      # that the browser uploads to directly via presigned URLs, so it must
+      # point at this public route (not the internal kaneo-garage:3900). Only
+      # the S3 API port (3900) is routed — the admin/metrics (3903) and k2v
+      # (3904) ports stay internal. The bucket is private (presigned-only), so
+      # anonymous hits get 403.
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.kaneo-garage.rule: "Host(`{{ kaneo_garage_domain }}`)"
+      traefik.http.routers.kaneo-garage.entrypoints: "websecure"
+      traefik.http.routers.kaneo-garage.tls.certresolver: "letsencrypt"
+      traefik.http.services.kaneo-garage.loadbalancer.server.port: "3900"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 volumes:
   kaneo-pgdata:
+  kaneo-garage-data:
+{% if kaneo_garage_data_nas_enabled %}
+    name: {{ kaneo_garage_data_volume_name }}
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "{{ kaneo_garage_data_nfs_options }}"
+      device: "{{ kaneo_garage_data_nfs_device }}"
+{% endif %}
+  kaneo-garage-meta:
 
 networks:
   proxy:

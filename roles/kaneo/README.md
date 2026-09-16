@@ -50,7 +50,17 @@ vault_kaneo_github_private_key_base64: "<single-line base64 PEM>"
 
 vault_kaneo_gitlab_oauth_client_id: "<GitLab application ID>"
 vault_kaneo_gitlab_oauth_client_secret: "<GitLab application secret>"
+
+vault_kaneo_garage_rpc_secret: "<openssl rand -hex 32>"
+vault_kaneo_garage_admin_token: "<openssl rand -hex 32>"
+vault_kaneo_garage_metrics_token: "<openssl rand -hex 32>"
+vault_kaneo_garage_access_key_id: "<printed by garage_bootstrap.sh>"
+vault_kaneo_garage_secret_access_key: "<printed by garage_bootstrap.sh>"
 ```
+
+The three Garage tokens are generated locally and must be present before the
+first deploy. The access key pair is left empty until `garage_bootstrap.sh`
+creates it on the host; see Object storage below.
 
 Generate the locally managed secrets independently:
 
@@ -132,14 +142,27 @@ URLs.
 
 ## First deployment
 
-Run the gateway first so ddclient publishes the Kaneo hostname, then deploy the
-application and refresh Borgmatic's PostgreSQL dump configuration:
+Publish DNS first so ddclient registers both `kaneo.atelier.house` and
+`files.kaneo.atelier.house`, then deploy the application and refresh
+Borgmatic's volume and PostgreSQL dump configuration:
 
 ```bash
-make deploy-infra-gateway
+ansible-playbook -i inventory/hosts.yml deploy/ddclient.yml
+make deploy-traefik
 make deploy-kaneo
 make deploy-backup
 ```
+
+Traefik is redeployed because `files.kaneo.atelier.house` is a three-level
+name: the `*.atelier.house` wildcard certificate does not cover it, so
+`roles/traefik` carries an explicit `*.kaneo.atelier.house` entry alongside the
+existing `*.sort` and `*.tun` ones.
+
+That first `make deploy-kaneo` brings the stack up with an empty Garage: no
+cluster layout, no bucket, no access key. Kaneo boots and everything except
+uploads works. Finish storage with the bootstrap in Object storage below, then
+run `make deploy-kaneo` a second time so `kaneo.env` picks up the `S3_*`
+credentials.
 
 For a dry run of Kaneo itself:
 
@@ -183,5 +206,55 @@ integrations in Kaneo; upstream releases do not understand multi-repository or
 GitLab external links. The additive database migration is intentionally left
 in place during an image rollback.
 
-Object storage is not configured in this stack. Kaneo attachment uploads need a
-future S3-compatible storage addition.
+## Object storage
+
+Attachment and pasted-image uploads in task descriptions and comments are
+backed by a per-stack Garage instance (`kaneo-garage`), the same S3 pattern
+`roles/kizuna` and `roles/gitlab` use. The bucket is private; Kaneo serves
+uploaded files back through its own `/api/asset/:id`.
+
+`S3_ENDPOINT` is the public Traefik route (`https://files.kaneo.atelier.house`),
+not the internal `kaneo-garage:3900`. This is deliberate and differs from
+Kizuna, which splits the two. Kaneo exposes a single endpoint variable, and the
+browser PUTs directly to the presigned URL the API mints against it, so that
+endpoint has to resolve from the browser. Only the S3 API port is routed; the
+admin and k2v ports stay on the internal network. The hostname is registered in
+`roles/ddclient` and its certificate comes from the `*.kaneo.atelier.house`
+entry in `roles/traefik`.
+
+Object blocks live on the Files NAS share under `Kaneo/Garage`
+(`kaneo_garage_data_nas_enabled`); the SQLite metadata volume stays local so
+Borg can capture it with a consistent snapshot, which is why
+`roles/backup` lists `kaneo_kaneo-garage-meta` and not the data volume.
+
+### Bootstrap
+
+After the first `make deploy-kaneo`, on `nuc-mini`:
+
+```bash
+/opt/docker/kaneo/garage_bootstrap.sh
+```
+
+It assigns the single-node cluster layout, creates the `kaneo-uploads` bucket,
+generates an access key, and prints it. Add both halves to the Vault as
+`vault_kaneo_garage_access_key_id` / `vault_kaneo_garage_secret_access_key`,
+then run `make deploy-kaneo` again. Every step is gated on current state, so
+re-running the script is safe.
+
+The deploy itself re-asserts the two declarative steps on every run: granting
+the key read+write+owner on the bucket, and setting the bucket CORS rule that
+permits the browser's cross-origin presigned PUT. Both skip cleanly while the
+Vault access key is still empty.
+
+### Verify uploads
+
+```bash
+docker exec kaneo-garage /garage status
+docker exec kaneo-garage /garage bucket info kaneo-uploads
+curl -sSI https://files.kaneo.atelier.house/kaneo-uploads/
+```
+
+The `curl` should return an S3 403 (the bucket is private), not a connection or
+TLS error. Then open a task in the browser, paste an image into the description
+and attach a PDF to a comment: images render inline, other files render as
+attachment cards. Reload to confirm both are served back after a round trip.

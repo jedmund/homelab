@@ -89,3 +89,45 @@ kaneo_github_app_id: "{{ vault_kaneo_github_app_id | default('') }}"
 kaneo_github_app_name: "{{ vault_kaneo_github_app_name | default('') }}"
 kaneo_github_webhook_secret: "{{ vault_kaneo_github_webhook_secret | default('') }}"
 kaneo_github_private_key_base64: "{{ vault_kaneo_github_private_key_base64 | default('') }}"
+
+# Garage S3 object storage for private image/attachment uploads.
+#
+# Mirrors roles/kizuna; the bucket and credentials are created by
+# roles/kaneo/files/garage_bootstrap.sh on first deploy (or imported from the
+# Vault if generated offline), mirroring the Kizuna first-run flow.
+#
+# Unlike Kizuna, Kaneo exposes a single S3 endpoint (S3_ENDPOINT) and the
+# browser uploads files directly to it via presigned URLs. That endpoint must
+# therefore be browser-reachable, so it is the public Traefik route
+# (kaneo_garage_domain) rather than the internal kaneo-garage:3900 hostname.
+# Requests from the API container to that origin round-trip through Traefik,
+# which is the setup the official Kaneo docs recommend for production.
+kaneo_garage_image: dxflrs/garage:v2.3.0
+kaneo_garage_bucket: kaneo-uploads
+kaneo_garage_domain: files.kaneo.atelier.house
+kaneo_garage_public_endpoint: "https://{{ kaneo_garage_domain }}"
+kaneo_garage_region: garage
+kaneo_garage_rpc_secret: "{{ vault_kaneo_garage_rpc_secret | default('') }}"
+kaneo_garage_admin_token: "{{ vault_kaneo_garage_admin_token | default('') }}"
+kaneo_garage_metrics_token: "{{ vault_kaneo_garage_metrics_token | default('') }}"
+kaneo_garage_access_key_id: "{{ vault_kaneo_garage_access_key_id | default('') }}"
+kaneo_garage_secret_access_key: "{{ vault_kaneo_garage_secret_access_key | default('') }}"
+
+# Garage keeps its small SQLite metadata volume on the NUC, while the object
+# blocks live on the Files NAS share. Same split as roles/kizuna: uploaded
+# attachments grow without bound and do not belong on the NUC's root
+# filesystem, while the metadata volume stays local so Borg can capture it
+# with a consistent snapshot. Set false to fall back to a Compose-managed
+# local volume.
+#
+# There is no migration block here (unlike kizuna): Kaneo's Garage has never
+# run, so there is no pre-existing local data volume to copy from.
+kaneo_garage_data_nas_enabled: true
+kaneo_garage_data_nas_share: Files
+kaneo_garage_data_nas_seed_volume: kaneo-files-nas-root
+kaneo_garage_data_nas_subdirectory: Kaneo/Garage
+kaneo_garage_data_nfs_root_device: ":{{ nfs_base_path }}/{{ kaneo_garage_data_nas_share }}/.data"
+kaneo_garage_data_nfs_device: "{{ kaneo_garage_data_nfs_root_device }}/{{ kaneo_garage_data_nas_subdirectory }}"
+kaneo_garage_data_nfs_options: "{{ nfs_base_opts }}"
+kaneo_garage_data_volume_name: kaneo-garage-data-nas
+kaneo_storage_init_image: alpine:3.20

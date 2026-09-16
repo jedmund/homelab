@@ -1,0 +1,38 @@
+# {{ ansible_managed }}
+# Kaneo prod Garage config.  Mirrors the Kizuna prod config in
+# roles/kizuna/templates/garage.toml.j2; the only way Kaneo differs is that it
+# exposes a single public S3 endpoint (see defaults), because Kaneo has one
+# S3_ENDPOINT var and the browser uploads to it directly.
+# Like Kizuna, data_dir is backed by the Files NAS share while metadata_dir
+# stays on a local volume (see kaneo_garage_data_nas_enabled in defaults).
+#   - rpc_secret / admin / metrics tokens come from the Vault.
+#   - rpc_public_addr points at the container's address inside the
+#     backend network.
+#   - root_domain not exposed (S3 web hosting unused).
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "sqlite"
+
+# Garage is snapshotted for backups while live; periodic snapshots provide a
+# consistent metadata restore point. Object blocks in data_dir are immutable.
+metadata_auto_snapshot_interval = "6h"
+
+replication_factor = 1
+consistency_mode   = "consistent"
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "kaneo-garage:3901"
+rpc_secret      = "{{ kaneo_garage_rpc_secret }}"
+
+[s3_api]
+s3_region    = "{{ kaneo_garage_region }}"
+api_bind_addr = "[::]:3900"
+
+[k2v_api]
+api_bind_addr = "[::]:3904"
+
+[admin]
+api_bind_addr  = "[::]:3903"
+admin_token    = "{{ kaneo_garage_admin_token }}"
+metrics_token  = "{{ kaneo_garage_metrics_token }}"
