@@ -23,11 +23,6 @@ traefik_letsencrypt_ca_server: "https://acme-v02.api.letsencrypt.org/directory"
 # preserves the legacy any-iface behaviour.
 traefik_bind_ip: "0.0.0.0"
 
-# Path Traefik occupied while this role was the infra-gateway stack. Only
-# used by the one-time ACME migration; removable once every host has run
-# this role at least once.
-traefik_legacy_base: "{{ docker_base_path }}/infra-gateway"
-
 # Server IPs for Traefik dynamic configs.
 # Sourced from inventory so the IPs are only ever defined in one place.
 mini_server_ip: "{{ hostvars['nuc-mini'].ansible_host }}"
