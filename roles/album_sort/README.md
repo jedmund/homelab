@@ -30,9 +30,8 @@ Deploy the complete application stack once, not intermediate auth branches.
 
 ## HTTP and log boundary
 
-Before publication, run `ansible-playbook deploy/verify_album_sort_m4.yml` for
-local render-only assertions, plus `ansible-playbook deploy/album_sort.yml
---syntax-check` and `ansible-playbook deploy/traefik.yml --syntax-check`.
+Before publication, run `ansible-playbook deploy/album_sort.yml --syntax-check`
+and `ansible-playbook deploy/traefik.yml --syntax-check`.
 
 The HTTP `/rest` router uses priority 2147482647, above the entrypoint redirect's
 2147482646 but within Traefik's reserved-priority limit. Other HTTP routes retain
