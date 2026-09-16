@@ -11,6 +11,7 @@ Komodo uses the generated Compose files for selected application deployments.
 | Set up a checkout, deploy, or diagnose a failure | [Operations](docs/operations.md) |
 | Create or update vault files | [Secrets](docs/secrets.md) |
 | Add a service or change a role | [Conventions](CONVENTIONS.md) |
+| Work on the repository with a coding agent | [Agent instructions](AGENTS.md) |
 | Configure Komodo Resource Sync or review apps | [Komodo](komodo/README.md) |
 | Check backup coverage and recovery requirements | [Backup](roles/backup/README.md) |
 | Recover a deployment that predates the retired migrations | [Migration record](docs/retired-migrations.md) |
