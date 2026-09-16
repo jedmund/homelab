@@ -88,7 +88,7 @@ In-house (self-developed) services are tagged `[in-house]`; see
 | `kavita` | Kavita |
 | `strudel` | Strudel `[in-house]` |
 | `obsidian_livesync` | CouchDB backend for Obsidian LiveSync |
-| `n8n` | n8n, Postgres |
+| `n8n` | n8n, Postgres, Assistant code sandbox (API + Docker-in-Docker runner) |
 | `changedetection` | ChangeDetection.io |
 | `copyparty` | Copyparty |
 | `hugginghack` | HuggingHack Hugging Face model browser |
@@ -454,6 +454,14 @@ Register this exact PocketID callback before deploying:
 |----------|-------------|
 | `n8n_db_password` | n8n PostgreSQL password |
 | `n8n_encryption_key` | n8n encryption key (optional if already initialized without one) |
+| `n8n_instance_ai_model_api_key` | Open WebUI API key for the "n8n Assistant" user; the model the Assistant runs on |
+| `n8n_sandbox_api_key` | How n8n authenticates to the sandbox API |
+| `n8n_sandbox_runner_api_key` | How the sandbox API authenticates to the sandbox runner |
+| `n8n_sandbox_registration_token` | Shared secret the sandbox runner registers with |
+
+The three `n8n_sandbox_*` values are ours to pick: generate each with
+`openssl rand -hex 32`. They are only ever compared against each other, so
+rotating one means redeploying the stack, nothing more.
 
 ### group_vars/kaneo/vault.yml
 

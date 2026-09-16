@@ -28,6 +28,8 @@
   loop:
     - n8n
     - n8n-db
+    - n8n-sandbox-api
+    - n8n-sandbox-runner
   no_log: true
   notify: Restart {{ stack_name }} stack
 
