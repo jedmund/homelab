@@ -46,10 +46,7 @@ llama_swap_health_check_timeout: 300
 # under familiar names.
 ai_models:
   # Fast everyday driver: Qwen3.6 35B total / 3B active per token MoE.
-  # ~240 tok/s on Blackwell. Multimodal. Also the openclaw vision model:
-  # image-bearing turns get routed here automatically via openclaw's
-  # agents.defaults.imageModel, so it needs to load cleanly while a
-  # code-tier model is resident in VRAM. Using the non-MTP variant
+  # ~240 tok/s on Blackwell. Multimodal. Using the non-MTP variant
   # because MTP barely moves MoE (~1.15x); the dense models below get
   # the real MTP win, this one just keeps the simpler config and saves
   # ~1GB VRAM. Bumped to Q8_K_XL once the second Blackwell arrived:
@@ -105,7 +102,7 @@ ai_models:
       - "qwen3.6:35b-a3b-uncensored"
       - "qwen3.6-uncensored"
 
-  # Quality everyday driver and the default openclaw chat model. Qwen3.6
+  # Quality everyday driver. Qwen3.6
   # 27B dense with multi-token prediction. Currently ~160 tok/s at Q4 on
   # Blackwell, multimodal, 256K native context. Bumped to Q6_K_XL once
   # the second Blackwell arrived: for dense models token decode reads
@@ -145,7 +142,7 @@ ai_models:
 
   # Qwen3.8 27B dense: successor to the qwen3.6 entry above, kept side by
   # side rather than replacing it so the two can be compared on real work
-  # before any consumer default (openclaw, opencode, pi-agents) moves over.
+  # before any consumer default (opencode, pi-agents) moves over.
   # Multimodal, 256K native context.
   #
   # Architecture is the Qwen3.5-lineage hybrid ("qwen35" in the GGUF
@@ -301,7 +298,7 @@ ai_models:
   # Two entries serve two different modes (see ai_model_groups below):
   #
   # - minimax-m27-iq4 (code group): sized for coexistence with a chat
-  #   model so an opencode session and an openclaw DM can run
+  #   model so coding and chat sessions can run
   #   simultaneously. -c 196608 --parallel 3 gives three sticky 64K
   #   slots; live ~135GB, leaving ~54GB chat-tier headroom under the
   #   192GB total budget (enough for qwen3.6 dense Q6 ~36GB live or
@@ -485,7 +482,7 @@ ai_model_default_ttl: 7200
 # request). cpu keeps the CPU-resident compaction model warm.
 # embed swaps between bge-m3 / Qwen3-embed entries.
 ai_model_groups:
-  # Conversational tier: chat, openclaw DMs, quick tasks. Only one
+  # Conversational tier: chat and quick tasks. Only one
   # resident at a time; coexists with code so a heavy coding model can
   # be loaded alongside.
   chat:

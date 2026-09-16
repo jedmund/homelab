@@ -30,8 +30,7 @@ http:
     # cross-role hardcoding caveat as llamaswap above. TinyAuth-gated so
     # the instance isn't reachable from the open internet (would otherwise
     # get rate-limited / banned by upstream engines). LAN clients on the
-    # same network as max (e.g. OpenClaw on the mac-mini) still hit
-    # http://max:8889 directly without Traefik.
+    # same network as max can use http://max:8889 directly without Traefik.
     searxng:
       rule: "Host(`search.{{ traefik_domain }}`)"
       service: searxng

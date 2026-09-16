@@ -216,10 +216,6 @@
 - import_playbook: ai.yml
   tags: [ai]
 
-# Openclaw (targets the `openclaw` group, currently `mac-mini` only)
-- import_playbook: openclaw.yml
-  tags: [openclaw]
-
 # frp tunnel proxy
 - import_playbook: frp.yml
   tags: [frp]
