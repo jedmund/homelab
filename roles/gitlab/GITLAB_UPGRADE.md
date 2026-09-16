@@ -7,7 +7,8 @@ runner with `roles/gitlab`, and the `max-docker` runner with
 
 The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24, then
 patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
-(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). Recheck GitLab's
+(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). It moves to 19.3.2 on
+2026-09-16 for the critical patch release described below. Recheck GitLab's
 current upgrade path and version notes before using this runbook for a later
 release.
 
@@ -15,11 +16,11 @@ release.
 
 | Component | Version |
 | --- | --- |
-| GitLab CE | `19.2.4-ce.0` |
-| `nuc-mini-docker` runner, ID 1 | `19.2.0` |
-| `max-docker` runner, ID 3 | `19.2.0` |
+| GitLab CE | `19.3.2-ce.0` |
+| `nuc-mini-docker` runner, ID 1 | `19.3.3` |
+| `max-docker` runner, ID 3 | `19.3.3` |
 | Embedded PostgreSQL | `17.10` |
-| `mac-mini-xcode` runner, ID 2 | `19.2.0` |
+| `mac-mini-xcode` runner, ID 2 | `19.3.x` |
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -47,6 +48,60 @@ finished. GitLab's advisory directs administrators to continue to the required
 18.5 stop, where the migration is recreated and rescheduled:
 
 <https://federal-support.gitlab.com/hc/en-us/articles/49353859784852-BackfillSentNotificationsAfterPartition-fails-after-upgrade-to-18-2-8>
+
+## 19.2 to 19.3 (2026-09-16)
+
+19.3.2 is the newest 19.3 patch. It is a critical patch release, so this hop is
+not optional maintenance: it fixes CVE-2026-85706 (CVSS 10.0), an
+unauthenticated path traversal in the repository commits API that reads
+arbitrary files off the server, and CVE-2026-87719 (CVSS 9.9), insecure
+deserialization in the GraphQL subscription serializer, among 17 fixes in all.
+19.2.4 is vulnerable to both.
+
+| Stop | GitLab CE | Runner |
+| ---: | --- | --- |
+| 1 | `19.3.2-ce.0` | `19.3.3` |
+
+Only one stop. The required stops in 19.x are 19.2, 19.5, 19.8, and 19.11, and
+the instance already sits on the 19.2 stop, so 19.2.4 goes straight to 19.3.2
+with nothing in between. This is still a minor hop and does carry schema and
+background migrations, so run the full per-hop procedure below, not the
+shortened patch procedure.
+
+The runner series is one patch ahead of the server at `19.3.3`. That is fine:
+only major/minor have to match.
+
+PostgreSQL does not move. 17 remains the 19.x minimum and the embedded cluster
+stays on 17.10. GitLab 19.3 offers PostgreSQL 18.4, but only as an opt-in for
+fresh Linux package installations; GitLab does not support upgrading an
+existing cluster to it yet. Do not attempt `pg-upgrade`.
+
+### require_sha_for_merge on new groups
+
+GitLab 19.2 introduced `require_sha_for_merge`, and on the affected patch
+levels every newly created group gets it enabled by default. The merge a merge
+request API endpoint then rejects any call that omits a valid commit `sha`,
+which breaks automation that merges through the API.
+
+| Release | Affected patches | Fixed in |
+| --- | --- | --- |
+| 19.2 | `19.2.0` - `19.2.5` | `19.2.6` |
+| 19.3 | `19.3.0` - `19.3.1` | `19.3.2` |
+
+The instance has been running an affected version since the 19.2.0 hop on
+2026-07-24, so this upgrade stops the problem for groups created from now on
+but does not retroactively clear it. Any group created between 2026-07-24 and
+this hop may still carry the setting. Existing groups from before 19.2 were
+never touched. After the upgrade, check the groups created in that window:
+
+```sh
+ssh nuc
+docker exec gitlab gitlab-rails runner \
+  'pp Group.where("created_at >= ?", Date.new(2026, 7, 24)).map { |g| [g.full_path, g.namespace_settings&.require_sha_for_merge] }'
+```
+
+Clear it per group in Settings, General, Merge requests, or leave it on if the
+group has no API-driven merges.
 
 ## Patch releases inside one minor series
 
