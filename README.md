@@ -1,823 +1,96 @@
 # Homelab
 
-Ansible playbooks for deploying and managing a homelab infrastructure.
+Ansible configuration for the homelab hosts, container stacks, and native
+macOS services. Ansible manages deployment files and host configuration.
+Komodo uses the generated Compose files for selected application deployments.
 
-## Structure
+## Start here
 
-```
-.
-├── deploy/        # Per-stack playbooks plus the routine deploy/all.yml
-│   └── group_vars -> ../group_vars  # Symlink for variable resolution
-├── group_vars/    # Host group variables and vault files
-├── inventory/     # Host inventory (hosts.yml)
-├── komodo/        # Komodo Resource Sync declarations
-├── roles/         # One role per stack; see the roster below
-├── CONVENTIONS.md # How services are wired up and how to add a new one
-└── Makefile       # Deployment commands
-```
+| Task | Reference |
+| --- | --- |
+| Set up a checkout, deploy, or diagnose a failure | [Operations](docs/operations.md) |
+| Create or update vault files | [Secrets](docs/secrets.md) |
+| Add a service or change a role | [Conventions](CONVENTIONS.md) |
+| Configure Komodo Resource Sync or review apps | [Komodo](komodo/README.md) |
+| Check backup coverage and recovery requirements | [Backup](roles/backup/README.md) |
+| Recover a deployment that predates the retired migrations | [Migration record](docs/retired-migrations.md) |
 
-> **Note:** The `deploy/group_vars` symlink exists because Ansible resolves `group_vars/` relative to the playbook location. Without it, playbooks in `deploy/` wouldn't find variables defined in the root `group_vars/`.
+## Hosts
 
-Each stack is its own Ansible role under `roles/`, deployed by the matching
-`deploy/<role>.yml` playbook to the host group of the same name in
-`inventory/hosts.yml`. Before adding or changing a service, read
-[CONVENTIONS.md](CONVENTIONS.md).
+Assignments are defined in [inventory/hosts.yml](inventory/hosts.yml).
 
-Komodo Stack resources are declared in [komodo/stacks.toml](komodo/stacks.toml)
-for Resource Sync. See [komodo/README.md](komodo/README.md) before applying
-the sync.
+| Host | Managed workloads |
+| --- | --- |
+| `nuc-mini` | Gateway, application stacks, GitLab, Komodo Core, backups, Linux agent tooling |
+| `max` | GPU inference, Linux CI runner, emulator streaming, Komodo Periphery |
+| `mac-mini` | Native macOS runner, Paseo daemon, monitoring |
+| `dokploy-vm` | Dokploy guest, provisioned separately through `dokploy_host` |
 
-### Role roster
+`mac-mini` belongs to `compute_servers` but skips Linux Docker prerequisites.
+The monitoring play still includes it. Inventory membership describes desired
+placement; it does not report whether a service is running.
 
-In-house (self-developed) services are tagged `[in-house]`; see
-[CONVENTIONS.md](CONVENTIONS.md) for how those are built and pulled.
+## Common commands
 
-**Base / prerequisites (compute_servers)**
-| Role | What it sets up |
-|------|-----------------|
-| `prerequisites` | DNS fallback, passwordless sudo, shell env |
-| `docker` | Docker engine + runtime |
-| `networks` | proxy / backend / shared / cibuild / vpn Docker networks |
-| `docker-volumes` | NFS-backed Docker volumes (`nfs_volumes`) |
-| `firewall` | UFW rules grouped by service |
-| `security` | SSH hardening |
-| `monitoring` | Netdata (nuc-mini parent, others children) |
+Run these from the repository root after completing [setup](docs/operations.md#setup).
 
-**Infrastructure (nuc-mini)**
-| Role | Services |
-|------|----------|
-| `infra_gateway` | Traefik, PocketID, TinyAuth, ddclient, OpenSpeedTest, Line `[in-house]` |
-| `infra_core` | Komodo (Core + Periphery + MongoDB) |
-| `infra_periphery` | Komodo Periphery agent on `max` |
-| `dokploy_host` | KVM VM (libvirt) hosting Dokploy |
-
-**Monitoring**
-| Role | Services |
-|------|----------|
-| `beszel` | Beszel hub (`nuc-mini`) |
-| `beszel_agent` | Beszel agents (`max`, `nuc-mini`, `mac-mini`) |
-
-**Product stacks (nuc-mini)**
-| Role | Services |
-|------|----------|
-| `gluetun` | Gluetun VPN gateway |
-| `prowlarr` | Prowlarr |
-| `qbittorrent` | qBittorrent |
-| `sonarr` | Sonarr |
-| `radarr` | Radarr |
-| `lidarr` | Lidarr |
-| `aurral` | Aurral music discovery and playlist companion |
-| `seerr` | Seerr |
-| `unpackerr` | Unpackerr |
-| `jdownloader` | JDownloader |
-| `pinchflat` | Pinchflat |
-| `slskd` | slskd |
-| `qui` | Qui |
-| `immich` | Immich server, machine learning, Redis, Postgres |
-| `papra` | Papra |
-| `homebox` | Homebox |
-| `album_sort` | Album Sort `[in-house]`, Beets |
-| `romm` | RomM, MariaDB |
-| `plex` | Plex |
-| `multi_scrobbler` | Multi-Scrobbler |
-| `tunarr` | Tunarr |
-| `stash` | Stash |
-| `dawarich` | Dawarich app, Sidekiq, Postgres, Redis, Photon |
-| `miniflux` | Miniflux, Postgres, backup helper, Reactflux, FiveFilters |
-| `karakeep` | Karakeep, Chrome, Meilisearch |
-| `kavita` | Kavita |
-| `strudel` | Strudel `[in-house]` |
-| `obsidian_livesync` | CouchDB backend for Obsidian LiveSync |
-| `n8n` | n8n, Postgres, Assistant code sandbox (API + Docker-in-Docker runner) |
-| `changedetection` | ChangeDetection.io |
-| `copyparty` | Copyparty |
-| `bentopdf` | BentoPDF |
-| `hugginghack` | HuggingHack Hugging Face model browser |
-| `kaneo` | Kaneo, PostgreSQL, Redis |
-
-**Content and social (nuc-mini)**
-| Role | Services |
-|------|----------|
-| `social` | Mastodon (+ Postgres, Redis, streaming) |
-| `matrix` | Synapse, MAS (+ Postgres) |
-| `musicbrainz` | MusicBrainz mirror |
-
-**Utilities (nuc-mini)**
-| Role | Services |
-|------|----------|
-| `kibble` | kibble `[in-house]` |
-| `kizuna` | Kizuna API, app, worker, PostgreSQL, Redis, Garage `[in-house]` |
-| `vane` | Vane `[in-house]` |
-| `petlibro` | catbro `[in-house]`, Mosquitto |
-
-**Development (nuc-mini + mac-mini + max)**
-| Role | Services |
-|------|----------|
-| `gitlab` | GitLab, GitLab Runner (Docker), Renovate |
-| `open_webui` | Open WebUI |
-| `paseo_relay` | Paseo Relay |
-| `development_macos` | GitLab Runner (shell executor, iOS builds) |
-| `development_linux` | GitLab Runner (Docker executor, CI capacity on max) |
-| `openclaw` | OpenClaw agent (native macOS; disabled) |
-| `paseo_daemon` | Paseo daemon (native macOS) |
-
-**AI / GPU (max)**
-| Role | Services |
-|------|----------|
-| `ai` | llama-swap, Whisper, Kokoro, TEI, SearXNG, Playwright |
-| `vllm` | DeepSeek V4 Flash (active serving path, port 11437) |
-| `sglang` | SGLang stack (parked; see `roles/sglang/README.md`) |
-| `gpu_tools` | hwsummary, gpu-burn helper scripts |
-
-**Other**
-| Role | Services |
-|------|----------|
-| `backup` | Borgmatic + Borg-UI (nightly Borg snapshots) |
-| `dokploy` | Dokploy bootstrap (runs inside the dokploy_host VM) |
-
-## Prerequisites
-
-- Ansible Core 2.15+
-- `ansible-lint` for `make lint` and `make check`
-- SSH access to target hosts
-- Python 3.x on target hosts
-
-## Setup
-
-1. Clone the repository
-2. Run initial setup:
-   ```
-   make setup
-   ```
-3. Update the inventory file (see Inventory Configuration below)
-4. Configure vault files (see Vault Variables below)
-5. Test connectivity:
-   ```
-   make test-connection
-   ```
-
-## Inventory Configuration
-
-Edit `inventory/hosts.yml` to define your hosts and assign them to stack groups.
-
-### Host Configuration
-
-Each host requires the following variables:
-
-| Variable | Description |
-|----------|-------------|
-| `ansible_host` | IP address or hostname of the target machine |
-| `ansible_port` | SSH port (omit if using default port 22) |
-| `ansible_user` | SSH username |
-| `ansible_connection` | Set to `local` if running against the local machine |
-
-Example host entry:
-
-```yaml
-compute_servers:
-  hosts:
-    my-server:
-      ansible_host: 192.168.1.100
-      ansible_port: 22
-      ansible_user: myuser
-```
-
-### Stack Group Assignment
-
-Assign hosts to stack groups to control which services get deployed to each machine. Add your host under the appropriate group:
-
-```yaml
-infra_gateway:
-  hosts:
-    my-server:
-
-romm:
-  hosts:
-    my-server:
-```
-
-A single host can belong to multiple groups.
-
-## Vault Variables
-
-Each stack requires secrets stored in encrypted vault files. Create these files and encrypt them with `ansible-vault`.
-
-### group_vars/compute_servers/vault.yml
-
-Shared secrets used by multiple stacks.
-
-| Variable | Description |
-|----------|-------------|
-| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon, Dawarich, and Kaneo) |
-| `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
-| `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
-
-### group_vars/hugginghack/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `vault_hugginghack_hf_token` | Optional read-only Hugging Face token for private or gated models |
-| `vault_hugginghack_postgres_password` | Dedicated PostgreSQL password; use a long URL-safe value |
-| `vault_hugginghack_oidc_client_id` | PocketID confidential-client ID |
-| `vault_hugginghack_oidc_client_secret` | PocketID confidential-client secret |
-
-### group_vars/infra_core/vault.yml
-
-#### Komodo
-
-| Variable | Description |
-|----------|-------------|
-| `komodo_db_username` | MongoDB username |
-| `komodo_db_password` | MongoDB password |
-| `komodo_init_admin_username` | Initial admin username |
-| `komodo_init_admin_password` | Initial admin password |
-| `komodo_jwt_secret` | JWT signing secret |
-| `komodo_passkey` | Passkey for periphery authentication |
-| `komodo_webhook_secret` | Webhook signing secret |
-| `komodo_oidc_client_secret` | OIDC client secret (if using SSO) |
-
-### group_vars/infra_periphery/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `komodo_passkey` | Periphery auth passkey (must equal infra_core's `komodo_passkey`) |
-
-### group_vars/infra_gateway/vault.yml
-
-#### Traefik
-
-| Variable | Description |
-|----------|-------------|
-| `traefik_acme_email` | Email for Let's Encrypt certificates |
-| `traefik_cf_dns_api_token` | Cloudflare API token for DNS challenges |
-
-#### ddclient
-
-| Variable | Description |
-|----------|-------------|
-| `ddclient_cloudflare_email` | Cloudflare account email |
-| `ddclient_cloudflare_api_token` | Cloudflare API token for dynamic DNS updates |
-
-#### PocketID
-
-| Variable | Description |
-|----------|-------------|
-| `pocketid_encryption_key` | Encryption key |
-
-#### TinyAuth
-
-| Variable | Description |
-|----------|-------------|
-| `tinyauth_secret` | Session secret |
-| `tinyauth_allowed_user` | Allowed username |
-| `tinyauth_pocketid_client_secret` | PocketID OAuth client secret |
-| `tinyauth_pocketid_token_url` | PocketID token endpoint URL |
-| `tinyauth_pocketid_user_info_url` | PocketID user info endpoint URL |
-
-#### Line (in-house)
-
-[line](https://github.com/jedmund/line) is one of our own projects, built on the server from a clone of the repo (configured via `line_repo` / `line_version` in `roles/infra_gateway/defaults/main.yml`). The clone lives at `{{ docker_base_path }}/infra-gateway/source/line` and is refreshed on every deploy.
-
-| Variable | Description |
-|----------|-------------|
-| `line_oidc_client_id` | OIDC client ID from PocketID |
-| `line_oidc_client_secret` | OIDC client secret from PocketID |
-
-Register the OIDC client manually in PocketID with redirect URI `https://atelier.house/auth/callback`, then drop the values into the vault.
-
-### group_vars/gluetun/vault.yml
-
-#### Gluetun
-
-| Variable | Description |
-|----------|-------------|
-| `gluetun_vpn_provider` | VPN provider |
-| `gluetun_vpn_type` | VPN type (`openvpn` or `wireguard`) |
-| `gluetun_openvpn_user` | OpenVPN username |
-| `gluetun_openvpn_password` | OpenVPN password |
-| `gluetun_wireguard_private_key` | WireGuard private key |
-| `gluetun_wireguard_addresses` | WireGuard address list |
-| `gluetun_server_countries` | Optional server country filter |
-
-### group_vars/unpackerr/vault.yml
-
-#### Unpackerr
-
-| Variable | Description |
-|----------|-------------|
-| `unpackerr_sonarr_api_key` | Sonarr API key |
-| `unpackerr_radarr_api_key` | Radarr API key |
-| `unpackerr_lidarr_api_key` | Lidarr API key |
-
-### group_vars/slskd/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `slskd_slsk_username` | Soulseek username |
-| `slskd_slsk_password` | Soulseek password |
-| `slskd_web_username` | slskd web UI username |
-| `slskd_web_password` | slskd web UI password |
-
-### group_vars/aurral/vault.yml
-
-Aurral is deployed at `https://aurral.atelier.house` with native PocketID
-OIDC. See the [Aurral deployment runbook](roles/aurral/README.md) for its
-first-run order, storage paths, and integration checks.
-
-| Variable | Description |
-|----------|-------------|
-| `vault_aurral_oidc_client_id` | PocketID confidential-client ID |
-| `vault_aurral_oidc_client_secret` | PocketID confidential-client secret |
-| `vault_aurral_oidc_admin_users` | YAML list of PocketID `preferred_username` values promoted to Aurral admin |
-
-Register this exact PocketID callback before deploying:
-`https://aurral.atelier.house/sso/callback`.
-
-### group_vars/qui/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `qui_oidc_client_id` | OIDC client ID |
-| `qui_oidc_client_secret` | OIDC client secret |
-
-### group_vars/romm/vault.yml
-
-#### Romm
-
-| Variable | Description |
-|----------|-------------|
-| `romm_db_password` | MariaDB password |
-| `romm_db_root_password` | MariaDB root password |
-| `romm_auth_secret_key` | Authentication secret key |
-| `romm_oidc_client_id` | OIDC client ID |
-| `romm_oidc_client_secret` | OIDC client secret |
-| `romm_db_user` | MariaDB username (optional override) |
-| `romm_igdb_client_id` | IGDB API client ID (optional) |
-| `romm_igdb_client_secret` | IGDB API client secret |
-| `romm_steamgriddb_api_key` | SteamGridDB API key |
-| `romm_mobygames_api_key` | MobyGames API key |
-| `romm_screenscraper_user` | ScreenScraper username |
-| `romm_screenscraper_password` | ScreenScraper password |
-| `romm_retroachievements_api_key` | RetroAchievements API key |
-
-### group_vars/multi_scrobbler/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `multi_scrobbler_lze_token` | ListenBrainz token for Album Sort |
-| `multi_scrobbler_plex_token` | Plex token |
-| `multi_scrobbler_lastfm_api_key` | Last.fm API key |
-| `multi_scrobbler_lastfm_api_secret` | Last.fm API secret |
-| `multi_scrobbler_mb_contact` | MusicBrainz contact string |
-
-### group_vars/plex/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `plex_claim` | Plex claim token (optional, usually only needed for first bootstrap) |
-
-### group_vars/immich/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `immich_db_password` | Immich PostgreSQL password |
-
-### group_vars/papra/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `papra_auth_secret` | Papra authentication secret |
-| `papra_oidc_client_id` | Papra OIDC client ID |
-| `papra_oidc_client_secret` | Papra OIDC client secret |
-
-### group_vars/homebox/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `homebox_oidc_client_id` | Homebox OIDC client ID |
-| `homebox_oidc_client_secret` | Homebox OIDC client secret |
-
-### group_vars/album_sort/vault.yml
-
-[album-sort](https://github.com/jedmund/album-sort) is built by GitLab CI. Successful default-branch builds publish `latest` for the app and beets images, then ask Komodo to redeploy the stack. The Ansible role renders the stack and defaults to `latest`; set `album_sort_image_tag` to a published short SHA for a rollback or deploy freeze. Album Sort uses the shared-network MusicBrainz mirror at `http://musicbrainz:5000/ws/2` and the public Cover Art Archive by default; override `album_sort_musicbrainz_base_url` or `album_sort_cover_art_archive_base_url` in inventory when needed.
-
-Album Sort pulls images on every Ansible deployment, matching the Compose `pull_policy: always` used by Komodo. Keep both services on `latest` for automatic main-branch rollouts. A manual image-ID pin or `pull_policy: never` in `/opt/docker/album-sort/compose.yaml` bypasses this configuration: Komodo can report a successful redeploy while leaving the old app running. Remove the host pin or reapply `deploy/album_sort.yml` to restore the template, then verify the app container uses the newly published image and is healthy. For a deliberate rollback, use a published immutable tag through `album_sort_image_tag` instead of editing the generated Compose file.
-
-| Variable | Description |
-|----------|-------------|
-| `album_sort_apple_music_team_id` | Apple Music API team ID |
-| `album_sort_apple_music_key_id` | Apple Music API key ID |
-| `album_sort_apple_music_private_key` | Apple Music API private key |
-| `album_sort_discogs_token` | Discogs API token |
-| `album_sort_kagi_api_key` | Kagi API key |
-| `vault_album_sort_registry_username` | GitLab deploy-token username with `read_registry` access |
-| `vault_album_sort_registry_password` | GitLab deploy-token password |
-| `vault_album_sort_oidc_client_id` | PocketID client ID |
-| `vault_album_sort_oidc_client_secret` | PocketID client secret |
-
-### group_vars/dawarich/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `dawarich_db_password` | Dawarich PostgreSQL password |
-| `dawarich_secret_key_base` | Rails secret key base |
-| `dawarich_oidc_client_id` | Dawarich OIDC client ID |
-| `dawarich_oidc_client_secret` | Dawarich OIDC client secret |
-
-### group_vars/miniflux/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `miniflux_admin_password` | Admin password |
-| `miniflux_db_password` | PostgreSQL password |
-| `miniflux_oauth2_client_id` | Miniflux OIDC client ID |
-| `miniflux_oauth2_client_secret` | Miniflux OIDC client secret |
-| `fivefilters_admin_password` | FiveFilters admin password |
-
-### group_vars/karakeep/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `karakeep_meili_master_key` | Meilisearch master key |
-| `karakeep_nextauth_secret` | NextAuth session secret |
-| `karakeep_oauth_client_id` | Karakeep OIDC client ID |
-| `karakeep_oauth_client_secret` | Karakeep OIDC client secret |
-| `karakeep_openai_api_key` | OpenAI API key (for AI features) |
-
-### group_vars/obsidian_livesync/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `obsidian_livesync_couchdb_user` | CouchDB admin user |
-| `obsidian_livesync_couchdb_password` | CouchDB admin password |
-
-### group_vars/n8n/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `n8n_db_password` | n8n PostgreSQL password |
-| `n8n_encryption_key` | n8n encryption key (optional if already initialized without one) |
-| `n8n_instance_ai_model_api_key` | Open WebUI API key for the "n8n Assistant" user; the model the Assistant runs on |
-| `n8n_sandbox_api_key` | How n8n authenticates to the sandbox API |
-| `n8n_sandbox_runner_api_key` | How the sandbox API authenticates to the sandbox runner |
-| `n8n_sandbox_registration_token` | Shared secret the sandbox runner registers with |
-
-The three `n8n_sandbox_*` values are ours to pick: generate each with
-`openssl rand -hex 32`. They are only ever compared against each other, so
-rotating one means redeploying the stack, nothing more.
-
-### group_vars/kaneo/vault.yml
-
-Kaneo is deployed at `https://kaneo.atelier.house` with PostgreSQL, Redis,
-PocketID OIDC, shared SendGrid SMTP, and a GitHub App integration. See the
-[Kaneo deployment runbook](roles/kaneo/README.md) for the exact Vault schema,
-provider callbacks, first-deploy order, and verification commands.
-
-| Variable | Description |
-|----------|-------------|
-| `vault_kaneo_db_password` | Kaneo PostgreSQL password |
-| `vault_kaneo_redis_password` | Redis password; 32 or more hexadecimal characters |
-| `vault_kaneo_auth_secret` | Kaneo session/JWT secret; at least 32 characters |
-| `vault_kaneo_oidc_client_id` | PocketID OIDC client ID |
-| `vault_kaneo_oidc_client_secret` | PocketID OIDC client secret |
-| `vault_kaneo_github_app_id` | Numeric GitHub App ID |
-| `vault_kaneo_github_app_name` | GitHub App slug |
-| `vault_kaneo_github_webhook_secret` | GitHub App webhook signing secret |
-| `vault_kaneo_github_private_key_base64` | Base64-encoded GitHub App private key PEM |
-
-### group_vars/gitlab/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `gitlab_initial_root_password` | GitLab initial root password (auto-generated if empty) |
-| `gitlab_oidc_client_id` | GitLab OIDC client ID (PocketID) |
-| `gitlab_oidc_client_secret` | GitLab OIDC client secret (PocketID) |
-| `gitlab_runner_auth_token` | GitLab Runner auth token (nuc-mini-docker) |
-| `gitlab_cache_garage_rpc_secret` | CI cache Garage RPC secret (nuc-mini only) |
-| `gitlab_cache_garage_admin_token` | CI cache Garage admin API token (nuc-mini only) |
-| `renovate_gitlab_token` | Renovate bot GitLab personal access token |
-| `renovate_github_token` | Renovate GitHub token (optional, for rate limits) |
-
-> The CI cache Garage needs a one-time bootstrap after the first `make deploy-gitlab`: SSH to nuc-mini and run `roles/gitlab/files/ci_cache_bootstrap.sh` to assign a cluster layout, create the `ci-cache` bucket, generate the S3 access key, and set the object-expiry lifecycle. Add the printed key to `group_vars/compute_servers/vault.yml` (`gitlab_cache_s3_access_key_id` / `gitlab_cache_s3_secret_access_key`), then re-run the script to import it. Until those keys are set, both runners fall back to local (per-host) cache. Cache objects expire after `gitlab_cache_s3_expiry_days` (default 14) via a native Garage lifecycle rule, so the bucket stays bounded without a cron.
-
-### group_vars/open_webui/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `open_webui_secret_key` | Open WebUI session secret |
-| `open_webui_oauth_client_id` | Open WebUI OAuth client ID |
-| `open_webui_oauth_client_secret` | Open WebUI OAuth client secret |
-
-### group_vars/development_macos/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `gitlab_runner_macos_auth_token` | GitLab Runner auth token (mac-mini-xcode) |
-
-### group_vars/development_linux/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `gitlab_runner_linux_auth_token` | GitLab Runner auth token (max-docker) |
-
-### group_vars/beszel_agents/vault.yml
-
-Beszel generates agent registration tokens in the hub UI after the first hub
-deploy. Deploy the hub, create the first admin user, then create or enable a
-permanent universal token under `/settings/tokens` before deploying agents.
-The token table shows the token; the public key is embedded in the generated
-agent command from the Add System flow or the token action menu.
-
-| Variable | Description |
-|----------|-------------|
-| `vault_beszel_agent_key` | Hub public key from Beszel's generated agent command |
-| `vault_beszel_agent_token` | Permanent universal token for agent WebSocket registration |
-
-### group_vars/social/vault.yml
-
-| Variable | Description |
-|----------|-------------|
-| `mastodon_db_password` | Mastodon PostgreSQL password |
-| `mastodon_secret_key_base` | Rails secret key base |
-| `mastodon_otp_secret` | OTP secret for 2FA |
-| `mastodon_vapid_private_key` | VAPID private key for push notifications |
-| `mastodon_vapid_public_key` | VAPID public key for push notifications |
-| `mastodon_aws_access_key_id` | AWS access key for S3 |
-| `mastodon_aws_secret_access_key` | AWS secret key for S3 |
-| `mastodon_active_record_encryption_deterministic_key` | Active Record encryption key |
-| `mastodon_active_record_encryption_key_derivation_salt` | Active Record key derivation salt |
-| `mastodon_active_record_encryption_primary_key` | Active Record primary key |
-
-## Usage
-
-Run `make help` to see all available commands. Common operations:
-
-### Deployment
-
-```bash
-# Reconcile routine infrastructure and product stacks
-make deploy-all
-
-# Deploy specific stacks
-make deploy-infra-core
-make deploy-infra-gateway
-make deploy-beszel
-make deploy-beszel-agents
-make deploy-gluetun
-make deploy-prowlarr
-make deploy-qbittorrent
-make deploy-sonarr
-make deploy-radarr
-make deploy-lidarr
-make deploy-aurral
-make deploy-seerr
-make deploy-unpackerr
-make deploy-jdownloader
-make deploy-pinchflat
-make deploy-slskd
-make deploy-qui
-make deploy-romm
-make deploy-plex
-make deploy-multi-scrobbler
-make deploy-tunarr
-make deploy-stash
-make deploy-immich
-make deploy-miniflux
-make deploy-karakeep
-make deploy-obsidian-livesync
-make deploy-gitlab
-make deploy-open-webui
-make deploy-paseo-relay
-make deploy-n8n
-make deploy-changedetection
-make deploy-copyparty
-make deploy-bentopdf
-make deploy-hugginghack
-make deploy-kaneo
-
-# PocketID client callbacks:
-#   Login:  https://hf.atelier.house/api/auth/oidc/callback
-#   Logout: https://hf.atelier.house/
-# The role starts PostgreSQL by itself, stops the old SQLite-backed app,
-# copies and verifies every persistent row, maps the legacy local owner to
-# PocketID user `jedmund`, and only then starts native OIDC. Models remain on
-# the existing filesystem/NFS volume; no Garage service is involved.
-# Keep data/hugginghack.pre-*.sqlite3 after the first successful deployment.
-
-# Before the first HuggingHack deploy, create HuggingHack at the root of the
-# visible Files share, make it writable by the configured puid:pgid, then
-# create the NFS volume (its internal export path includes Files/.data):
-make deploy-prerequisites
-
-# To reorganize models previously downloaded under Files/models, mount the
-# Files share on this machine and preview the owner/repository moves first.
-# FILES_ROOT defaults to /Volumes/Files on macOS.
-make migrate-hugginghack-models FILES_ROOT=/Volumes/Files
-
-# Apply only after the preview is correct. The migration refuses destination
-# conflicts and is safe to rerun after already-completed moves.
-make migrate-hugginghack-models-apply FILES_ROOT=/Volumes/Files
-
-# First Beszel bootstrap:
-# 1. Land DNS labels, then deploy the hub.
-# 2. Create the first Beszel admin user at https://beszel.atelier.house.
-# 3. Create a PocketID OAuth app with this redirect URL:
-#    https://beszel.atelier.house/api/oauth2-redirect
-# 4. In the Beszel superuser UI at https://beszel.atelier.house/_/,
-#    unhide collection controls, edit the users collection, enable OAuth2,
-#    add the PocketID OIDC provider, then hide collection controls again.
-# 5. Create or enable a permanent universal token. Save it as
-#    vault_beszel_agent_token, and save the KEY from Beszel's generated agent
-#    command as vault_beszel_agent_key in group_vars/beszel_agents/vault.yml.
-# 6. Deploy agents on max, nuc-mini, and mac-mini.
-make deploy-infra-gateway
-make deploy-beszel
-make deploy-beszel-agents
-
-# Deploy prerequisites only (Docker, networks, volumes)
-make deploy-prerequisites
-
-# Dry-run before deploying
-make dry-run
-```
-
-`make deploy-all` covers every routine inventory-backed stack, including
-Kizuna and Petlibro. The following standalone workflows remain explicit so a
-routine reconciliation cannot bootstrap hosts or change the active GPU mode:
-
-| Playbook | Why it stays separate | Command |
-|----------|-----------------------|---------|
-| `dokploy_host.yml` | Provisions the host bridge and Dokploy VM | `make deploy-dokploy-host` |
-| `dokploy.yml` | Bootstraps Dokploy and requires first-run operator setup | `make deploy-dokploy` |
-| `ai_split.yml` | Switches GPU allocation and starts the configured vLLM profile | `make deploy-ai-split` |
-| `vllm.yml` | Rendering-only helper used by the split workflow | `make deploy-vllm` |
-| `sglang.yml` | Parked experimental inference stack | `make deploy-sglang` |
-| `gpu_tools.yml` | Its role is already included by `ai.yml` | `make deploy-ai` |
-
-`make check-deploy-all` verifies that every standalone playbook is either
-imported by `deploy/all.yml` or listed there as an intentional exception.
-
-### Targeting Specific Hosts or Services
-
-```bash
-# Deploy to a specific host
-make deploy-limit HOST=mini
-
-# Deploy specific services by tag
-make deploy-tags TAGS=traefik,plex
-
-# Skip specific services
-make deploy-skip-tags TAGS=flood
-```
-
-### Vault Management
-
-```bash
-# Edit a vault file
-make edit-vault FILE=group_vars/infra_core/vault.yml
-
-# View vault contents
-make view-vault FILE=group_vars/infra_core/vault.yml
-
-# Encrypt a new file
-make encrypt FILE=group_vars/new_stack/vault.yml
-
-# Decrypt a file for manual editing
-make decrypt FILE=group_vars/infra_core/vault.yml
-```
-
-### Validation
-
-Static validation is non-interactive. If `~/.ansible-vault-pass` is absent,
-syntax checks run without a vault argument because ignored vault files are not
-required to parse the playbooks. Deployment and dry-run targets still request
-vault access.
-
-```bash
-# Check syntax of all playbooks
-make syntax
-
-# Lint playbooks
-make lint
-
-# Run all checks
+```sh
 make check
+make -C deploy list
+make -C deploy check STACK=prowlarr
+make -C deploy prowlarr
 ```
 
-### Dependency Maintenance
+`make check` runs static checks. `make -C deploy check` connects to the target
+host in Ansible check mode. A successful check-mode run is not a deployment
+or an application health check.
 
-`requirements.yml` contains Ansible Galaxy collections. Install them during
-setup or upgrade the installed collections explicitly:
-
-```bash
-make setup
-make update-collections
+```sh
+make deploy-infra-gateway
+make deploy-all-check
+make deploy-all
 ```
 
-`make update-roles` remains as a compatibility alias for
-`make update-collections`.
+The gateway command deploys Traefik, PocketID, TinyAuth, Line, OpenSpeedTest,
+and ddclient in that order. The full deployment follows
+[deploy/all.yml](deploy/all.yml), including prerequisites and routine stacks.
+Explicit bootstrap and GPU-profile workflows are listed in
+[Operations](docs/operations.md#explicit-workflows).
 
-### Information
+## Repository layout
 
-```bash
-# List all hosts
-make list-hosts
+| Path | Contents |
+| --- | --- |
+| [deploy/](deploy/) | Per-stack playbooks, the full deployment, and a per-stack Makefile |
+| [roles/](roles/) | Defaults, tasks, templates, handlers, and service-specific runbooks |
+| [inventory/hosts.yml](inventory/hosts.yml) | Hosts, connection settings, and group membership |
+| [group_vars/](group_vars/) | Shared and per-group settings; local vault files are ignored by Git |
+| [komodo/stacks.toml](komodo/stacks.toml) | Komodo Stack, Action, and user-group declarations |
+| [requirements.yml](requirements.yml) | Ansible collection dependencies |
+| [ansible.cfg](ansible.cfg) | Inventory, role path, vault password path, and connection defaults |
+| [Makefile](Makefile) | Setup, validation, deployment, and maintenance commands |
 
-# List available tags
-make list-tags
+`deploy/group_vars` is a symlink to `../group_vars`. It allows playbooks under
+`deploy/` to load the repository's group variables.
 
-# Show variables for a host
-make show-vars HOST=mini
-```
+Most container roles write to `/opt/docker/<stack_name>`. The role's defaults
+and tasks define the actual path. For example, Kibble retains
+`/opt/docker/feederhub`, and MusicBrainz uses an upstream checkout with a
+merged Compose file.
 
-### Docker Management
+## Service runbooks
 
-```bash
-# Show running containers on all hosts
-make docker-ps
+Use `make -C deploy list` for the current playbook list. The following roles
+have additional operating instructions:
 
-# View container logs
-make docker-logs HOST=mini CONTAINER=traefik
+| Area | Runbooks |
+| --- | --- |
+| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kizuna](roles/kizuna/README.md) |
+| Media | [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
+| Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
+| Infrastructure | [Backup](roles/backup/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md) |
+| GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md) |
 
-# Prune unused resources
-make docker-prune
-```
-
-## Database Backups
-
-Services using PostgreSQL store metadata in Docker volumes. To migrate to a new machine or create backups, use `pg_dump`.
-
-### PostgreSQL Services
-
-| Service | Container | Database | User |
-|---------|-----------|----------|------|
-| Miniflux | `miniflux-db` | `miniflux` | `miniflux` |
-| Immich | `immich-database` | `immich` | `postgres` |
-| Dawarich | `dawarich_postgres` | `dawarich_production` | `dawarich` |
-| n8n | `n8n_postgres` | `n8n` | `n8n` |
-| Mastodon | `mastodon-db` | `mastodon_production` | `mastodon` |
-| Kaneo | `kaneo_postgres` | `kaneo` | `kaneo` |
-
-GitLab is not in this table because GitLab Omnibus runs its own embedded PostgreSQL and uses its own backup tooling (`gitlab-backup create`). A nightly application-consistent dump is already scheduled in `roles/gitlab/tasks/main.yml`.
-
-### Backup (pg_dump)
-
-```bash
-# Generic format
-docker exec <container> pg_dump -U <user> <database> > backup.sql
-
-# Examples
-docker exec miniflux-db pg_dump -U miniflux miniflux > miniflux_backup.sql
-docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
-docker exec dawarich_postgres pg_dump -U dawarich dawarich_production > dawarich_backup.sql
-docker exec n8n_postgres pg_dump -U n8n n8n > n8n_backup.sql
-docker exec mastodon-db pg_dump -U mastodon mastodon_production > mastodon_backup.sql
-docker exec kaneo_postgres pg_dump -U kaneo kaneo > kaneo_backup.sql
-```
-
-### Restore (pg_restore)
-
-```bash
-# Stop the application container first
-docker stop <app-container>
-
-# Restore the backup
-docker exec -i <container> psql -U <user> <database> < backup.sql
-
-# Restart the application
-docker start <app-container>
-```
-
-### MariaDB Services
-
-| Service | Container | Database | User |
-|---------|-----------|----------|------|
-| Romm | `romm-db` | `romm` | `romm-atelier` |
-
-```bash
-# Backup
-docker exec romm-db mariadb-dump -u romm-atelier -p<password> romm > romm_backup.sql
-
-# Restore
-docker exec -i romm-db mariadb -u romm-atelier -p<password> romm < romm_backup.sql
-```
-
-### Migration to New Machine
-
-1. **Backup on old machine:**
-   ```bash
-   docker exec immich-database pg_dump -U postgres immich > immich_backup.sql
-   scp immich_backup.sql newmachine:/tmp/
-   ```
-
-2. **Deploy stack on new machine** (creates fresh volumes):
-   ```bash
-   ansible-playbook deploy/immich.yml
-   ```
-
-3. **Restore on new machine:**
-   ```bash
-   docker stop immich-server
-   docker exec -i immich-database psql -U postgres immich < /tmp/immich_backup.sql
-   docker start immich-server
-   ```
+Historical upgrade reports and experimental notes describe the configurations
+and dates they record. Use role defaults and inventory for the current
+configuration.

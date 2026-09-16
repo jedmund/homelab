@@ -1,227 +1,156 @@
-# backup
+# Backup
 
-Borgmatic running on `nuc-mini` with a local Borg repo at `/var/backup/borg`.
-Each successful backup rsync's new segment files to an NFS-mounted UniFi
-Drive share at `/mnt/nas/backup`, where the existing UniFi → Backblaze sync
-picks them up.
+Deploys Borgmatic and Borg UI on `nuc-mini`. Borgmatic writes an encrypted
+local repository and mirrors it to an NFS share after archive creation.
+This role does not back up every homelab host or every Docker volume.
 
-## Layout
+## Configuration
 
-- **Borgmatic container** (built locally, extends
-  `ghcr.io/borgmatic-collective/borgmatic` with `rsync` + `nfs-common`) runs
-  continuously and triggers backups via internal cron at the configured
-  schedule (default `02:00` daily).
-- **Source paths:** `/opt/docker` (excludes `musicbrainz`, which is
-  reproducible from upstream MetaBrainz dumps).
-- **Repo:** `/var/backup/borg` on local disk, encrypted with
-  `repokey-blake2`.
-- **Retention:** `keep_daily: 30` — snapshots roll off after one month.
-- **Mirror to NAS:** borgmatic's `after_actions` hook runs
-  `/scripts/post-backup-rsync.sh` inside the container, which rsync's the
-  repo to `/nas/borg-nuc-mini/`.
+[defaults/main.yml](defaults/main.yml) defines the schedule, retention,
+source paths, named volumes, exclusions, and NAS destination.
 
-## Vault keys
+| Setting | Default |
+| --- | --- |
+| Local repository | `/var/backup/borg`, mounted at `/repo` |
+| Database dump directory | `/var/backup/dumps`, mounted at `/dumps` |
+| NAS mount | `/mnt/nas/backup`, mounted at `/nas` |
+| NAS destination | `borg-nuc-mini` under the configured Homelab share |
+| Schedule | `0 2 * * *`, using the configured timezone |
+| Run at container startup | Disabled |
+| Encryption | `repokey-blake2` |
+| Retention | 30 daily archives matching `nuc-mini-*` |
+| Repository check | Weekly |
+| Archive check | Monthly |
 
-Create `group_vars/backup/vault.yml` with `ansible-vault` and add:
+Archive names use the stable repository label rather than the container ID.
+Archives with other names, including historical container-ID prefixes, are
+outside the configured prune pattern.
 
-```yaml
-borg_passphrase: <strong random string, 32+ chars>
-```
+Set `borg_passphrase` and `borg_healthchecks_url` in
+`group_vars/backup/vault.yml`. The generated Borgmatic configuration contains
+database credentials and is written with mode `0600`. Preserve a recovery
+copy of the repository credentials outside the backup host.
 
-Generate one with `openssl rand -base64 48` or similar. **Save it
-somewhere outside this repo too** — losing the passphrase means losing
-access to the repo permanently.
+## Initial deployment
 
-## Bootstrap
+The NAS export must exist and permit `nuc-mini`. Use `nas_nfs_server` and
+`nas_nfs_export` from the defaults for the actual export path. The role creates
+a systemd automount at `nas_mount_host_path`.
 
-After the first deploy completes, the local repo at `/var/backup/borg` is
-empty. Initialize it once manually:
+From the repository root:
 
 ```sh
-ssh nuc-mini
-docker exec -it borgmatic bash -c '
-    BORG_PASSPHRASE="$(grep ^BORG_PASSPHRASE /etc/borgmatic.d/../env/borgmatic.env | cut -d= -f2)" \
-    borg init --encryption=repokey-blake2 /repo
-'
+make -C deploy syntax STACK=backup
+make deploy-backup
 ```
 
-Or simpler, run the borgmatic init helper:
+For a new, empty repository only, run on `nuc-mini`:
 
 ```sh
 docker exec -it borgmatic borgmatic rcreate --encryption repokey-blake2
 ```
 
-After init, trigger the first backup manually before relying on the cron:
+Then create an archive and inspect the result:
 
 ```sh
-docker exec borgmatic borgmatic --verbosity 1
+docker exec borgmatic borgmatic create --verbosity 1
+docker exec borgmatic borgmatic rlist
 ```
 
-The first run will take hours depending on data volume; subsequent runs
-are minutes due to dedup.
+Do not reinitialize an existing repository during a routine deployment.
 
-## NAS share setup
+## Configured coverage
 
-The role expects an NFS export reachable at the address configured in
-`roles/backup/defaults/main.yml` (`nas_nfs_server` + `nas_nfs_export`).
-On the UniFi Drive side:
+The database hooks are defined in
+[borgmatic.yaml.j2](templates/borgmatic.yaml.j2). The current PostgreSQL list
+covers Immich, Mastodon, Synapse, MAS, n8n, Miniflux, Dawarich, Kaneo, Kizuna,
+and HuggingHack. Native hooks also dump RomM's MariaDB and Komodo's MongoDB.
 
-1. Create a share named `homelab-backup` (or adjust `nas_nfs_export` in
-   defaults).
-2. Enable NFS access for the share.
-3. Permit the nuc-mini IP in the NFS access list.
+| Source | Method |
+| --- | --- |
+| PostgreSQL, MariaDB, MongoDB | Native Borgmatic database hooks |
+| Obsidian LiveSync CouchDB | Custom pre-create dump script |
+| Selected SQLite databases | Custom pre-create script; see consistency limits below |
+| `/opt/docker` | File-level backup, subject to exclusions |
+| `/var/backup/dokploy` | VM dump artifacts produced by the Dokploy host role |
+| `karakeep-data` | Read-only named-volume mount |
+| Kizuna and Kaneo Garage metadata | Read-only named-volume mounts, including their periodic metadata snapshots |
 
-The Ansible role mounts it at `/mnt/nas/backup` via a systemd
-`.automount` unit so a NAS hiccup doesn't block boot — the mount activates
-on first access.
+GitLab uses its own scheduled `gitlab-backup create` job. Borgmatic includes
+the resulting artifacts under `/opt/docker/gitlab/data/backups`. The GitLab
+job currently skips registry and artifacts. The Borgmatic exclusions also
+omit live GitLab PostgreSQL, Redis, Prometheus, logs, and registry storage.
 
-## Verification
+Other exclusions include `/opt/docker/musicbrainz` and `/opt/docker/backup`.
+Read `borg_exclude_patterns` for the exact list before relying on coverage.
 
-Check borgmatic's last run:
+## Consistency and coverage limits
+
+The [SQLite dump script](templates/scripts/dump-sqlite.sh.j2) reads files from
+read-only mounts using SQLite's `immutable=1` URI option. Its own implementation
+notes that reads concurrent with writes can produce inconsistent snapshots.
+A successful command is not proof that every SQLite backup is restorable.
+The script skips missing files and returns success if at least one database
+dump succeeds. Inspect its per-database results and test restores.
+
+For a controlled SQLite backup before an upgrade, use the application's
+supported backup procedure or stop all writers before taking a verified copy.
+Do not describe a live file-level copy as an application-consistent backup.
+
+Named volumes are included only when listed in `borg_named_volumes` or covered
+by a database hook. For example, Synapse's named media volume is not included
+in the current named-volume list. Database coverage does not imply media or
+object-store coverage.
+
+Kizuna and Kaneo Garage object blocks reside on the NAS and are not duplicated
+in this local repository. They require a separate NAS backup. Use Garage's
+metadata snapshots for recovery, with compatible object data. Control-machine
+vault files and credentials also require a separate backup.
+
+## NAS mirror
+
+The post-create script uses `rsync --delete` to mirror `/repo` into the NAS
+subdirectory. It refuses to run unless `/nas` is an NFS mount. The Compose
+bind uses `rslave` propagation so a host automount becomes visible inside the
+container.
+
+The mirror is a replica, not a separate retention policy. Deletions in the
+local repository are propagated on a later mirror run. The script runs after
+`create`; it is not a general post-action sync hook.
+
+Any NAS-to-offsite replication is configured outside this repository. Verify
+its status separately from the local Borgmatic run.
+
+## Verify and restore
+
+Run on `nuc-mini`:
 
 ```sh
-docker logs borgmatic | tail -50
+docker logs --tail=100 borgmatic
+docker exec borgmatic borgmatic rlist
+findmnt -T /mnt/nas/backup
+ls -ld /mnt/nas/backup/borg-nuc-mini
 ```
 
-List archives:
+Confirm the expected archive exists, each required database dump succeeded,
+and the NAS mirror completed. Healthchecks sends `finish` and `fail` events
+with logs by default; its alert schedule and grace period are managed outside
+this role.
 
-```sh
-docker exec borgmatic borg list /repo
-```
+Before restoring production data, restore a selected archive into an isolated
+location and validate the database and application files. Identify the
+matching application version and encryption keys. Stop affected writers before
+replacing data. Native database dumps, custom dump files, and raw volume
+files require different restore procedures; consult the deployed Borgmatic
+command help and the service's runbook for the artifact being restored.
 
-Browse a snapshot:
+## Borg UI
 
-```sh
-docker exec borgmatic borg mount /repo::nuc-mini-2026-05-10T02:00:00 /tmp/snapshot
-ls /tmp/snapshot
-docker exec borgmatic borg umount /tmp/snapshot
-```
+Borg UI is exposed at `https://backup.atelier.house` and mounts `/repo`
+read-only. Its application state lives in the `borg-ui-data` volume.
 
-Confirm rsync to NAS is working:
-
-```sh
-ls -la /mnt/nas/backup/borg-nuc-mini/
-```
-
-Should mirror the structure of `/var/backup/borg/`.
-
-## What's covered
-
-**Native borgmatic hooks** (streamed dump, no temp files):
-
-- 8 PostgreSQL instances: Immich, Mastodon, Synapse, MAS, n8n, Miniflux,
-  Dawarich, Kizuna
-- 1 MariaDB: RomM (via `mariadb_databases` hook, dumped as root)
-- 1 MongoDB: Komodo (admin database, full dump)
-
-**Custom `before_backup` scripts** writing to `/var/backup/dumps/`:
-
-- CouchDB (Obsidian LiveSync): per-database JSON dump with attachments
-- SQLite: `sqlite3 .backup` snapshots for PocketID, Line, Papra, Homebox,
-  album-sort, *arrs (Sonarr/Radarr/Lidarr/Prowlarr), qui, Pinchflat,
-  Kavita, Stash, Tunarr, Plex library DB and blobs DB, Karakeep
-
-**File-level snapshots** (`/opt/docker`): every stack's bind-mounted
-configs, env files (encrypted at rest by borg), and other on-disk state.
-Excludes `/opt/docker/musicbrainz` (reproducible from upstream dumps)
-and `/opt/docker/backup` (avoid recursive snapshot).
-
-**Named docker volumes** (`borg_named_volumes` in defaults): for stacks
-that use internal compose volumes rather than bind mounts. The volume is
-mounted read-only into the borgmatic container at a known path, added to
-`source_directories`, and any SQLite inside also gets a dump-sqlite
-entry. Currently: `karakeep-data` -> `/karakeep-data` (captures Karakeep's
-SQLite plus its asset/screenshot store), plus Kizuna's Garage metadata
-volume. Garage writes consistent metadata snapshots every six hours; use one
-of those snapshots for recovery rather than treating the live SQLite files as
-a consistent copy. Garage object blocks live directly on the NAS and must be
-covered by the NAS's own snapshot or offsite-backup policy.
-
-## What's not covered yet
-
-- Named docker volumes for stacks that aren't yet listed in
-  `borg_named_volumes`. Synapse's media store at `matrix_synapse-data`
-  is the main known gap; Mastodon's local media may be another. Add
-  them to `borg_named_volumes` if they need explicit handling.
-
-## Web UI
-
-`borg-ui` runs alongside `borgmatic` in the same stack, mounts the local
-repo read-only at `/repo`, and is exposed via Traefik at
-`https://backup.atelier.house`. Native PocketID OIDC is the auth model.
-
-### One-time bootstrap (after first deploy)
-
-Borg UI's OIDC configuration isn't env-var driven; it lives in the
-in-app Settings panel. Bootstrap procedure:
-
-1. **Register the OIDC client in PocketID:**
-   - Application name: `Borg UI`
-   - Redirect URI: `https://backup.atelier.house` plus whatever
-     callback path borg-ui's Settings panel reports (typically
-     `/api/auth/oidc/callback` or similar - confirm in the UI).
-   - Save client ID and secret somewhere safe.
-
-2. **First-time admin login:**
-   ```
-   open https://backup.atelier.house
-   # Default credentials on a fresh install: admin / admin123
-   ```
-
-3. **Configure OIDC inside borg-ui:**
-   - Navigate to Settings -> Authentication -> OIDC
-   - Issuer URL: `https://id.atelier.house`
-   - Client ID and secret: from step 1
-   - Scopes: `openid profile email`
-   - Save and test
-
-4. **Add the local repo:**
-   - Navigate to Repositories -> Add Local
-   - Path: `/repo`
-   - Passphrase: the value from `borg_passphrase` in
-     `group_vars/backup/vault.yml`
-
-5. **(Optional) Disable the default admin** once OIDC is confirmed
-   working, or rotate its password to something random and forget it.
-
-Subsequent users log in via PocketID, mapped to whatever role you've
-configured on the borg-ui side.
-
-## Monitoring (Healthchecks.io)
-
-Borgmatic pings a per-check URL at `hc-ping.com` on every run. If no
-ping arrives within the configured grace period, Healthchecks.io
-notifies via email (or any channel you've wired up).
-
-### Setup
-
-1. Create a (free) account at https://healthchecks.io.
-2. Create a new check:
-   - Name: `nuc-mini borgmatic`
-   - Schedule: `Cron`, expression `0 2 * * *` (matches `borg_backup_cron`)
-   - Grace time: `1 hour` (allows the run to take up to an hour past the
-     scheduled start before alerting; first runs can be slow)
-3. Copy the ping URL (looks like `https://hc-ping.com/<uuid>`).
-4. Add to vault: `ansible-vault edit group_vars/backup/vault.yml`,
-   add `borg_healthchecks_url: "https://hc-ping.com/<uuid>"`.
-5. Redeploy: `make deploy-backup`.
-
-### What gets sent
-
-The default config sends pings on `finish` (any run completes) and
-`fail` states, with `send_logs: true` so the dashboard at
-healthchecks.io shows the full borgmatic output for the latest few
-runs. Adjust `borg_healthchecks_states` in defaults to also ping on
-`start` if you want visibility into mid-run hangs.
-
-Healthchecks.io's free tier is sufficient for a single check at this
-frequency. Add channels (ntfy, Slack, Pushover, etc.) on the
-Healthchecks.io side, not in borgmatic config.
-
-## Netdata integration (future)
-
-A possible follow-up: ingest borgmatic's metrics into Netdata via the
-`go.d.plugin` Prometheus collector for trend visibility (repo size, run
-duration, dedup ratio). Requires confirming the borgmatic-collective
-Docker image actually exposes a `/metrics` endpoint, which isn't
-documented as of writing. Deferred until verified.
+Configure authentication in the application's settings after first deployment.
+Register a PocketID client using the callback URL shown by the deployed UI,
+configure the issuer as `https://id.atelier.house`, and test login. Add the
+local repository at `/repo` with its passphrase. These UI settings are not
+rendered by Ansible. Repository write operations remain with Borgmatic.
