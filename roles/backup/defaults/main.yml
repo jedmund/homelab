@@ -59,6 +59,10 @@ borg_named_volumes:
   # local and its periodic consistent snapshots are still backed up here.
   - volume: kizuna_kizuna-garage-meta
     path: /kizuna-garage-meta
+  # Same split for Kaneo: attachment blocks sit on the NAS, only the local
+  # metadata volume is captured here.
+  - volume: kaneo_kaneo-garage-meta
+    path: /kaneo-garage-meta
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
