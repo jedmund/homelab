@@ -57,18 +57,16 @@ but its large object-block directory is stored under
 local `kizuna_kizuna-garage-meta` volume because database metadata should not
 live on NFS.
 
-The first deployment performs a one-time, consistent migration:
+The local-to-NAS migration has completed on `nuc-mini`. Routine deployment
+creates the NAS directory and volume, but no longer stops services or copies
+the old local data. See [retired migrations](../../docs/retired-migrations.md)
+for completion evidence and the archived implementation.
 
-1. Create the NAS subdirectory and dedicated `kizuna-garage-data-nas` NFS
-   volume.
-2. Stop the API, both workers, and Garage briefly.
-3. Copy the existing `kizuna_kizuna-garage-data` contents to the NAS.
-4. Record a migration marker and start the stack against the NAS volume.
-
-The old local volume is deliberately retained as a rollback copy. To roll
-back, set `kizuna_garage_data_nas_enabled: false` and redeploy. Remove the old
-volume only after uploads, archived playback, and a Garage integrity check
-have all passed:
+The old local volume is a historical snapshot, not a current rollback copy.
+Setting `kizuna_garage_data_nas_enabled: false` selects that local volume;
+returning to local storage requires a separate consistent transfer of current
+data before redeployment. Retain the old volume until uploads, archived
+playback, and a Garage integrity check have all passed:
 
 ```sh
 docker volume inspect kizuna-garage-data-nas

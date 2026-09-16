@@ -102,8 +102,9 @@ kizuna_garage_bucket: kizuna
 # Garage keeps its small SQLite metadata volume on the NUC, while the large
 # immutable object blocks live on the Files NAS share. This moves
 # uploaded media and archived videos off the NUC without changing the S3 API
-# consumed by Rails or the browser. Set false for an immediate rollback to the
-# retained Compose-managed local volume.
+# consumed by Rails or the browser. Set false to use the Compose-managed
+# local volume; restoring current data there is a separate operation
+# (see README.md).
 kizuna_garage_data_nas_enabled: true
 kizuna_garage_data_nas_share: Files
 kizuna_garage_data_nas_seed_volume: kizuna-files-nas-root
@@ -112,8 +113,6 @@ kizuna_garage_data_nfs_root_device: ":{{ nfs_base_path }}/{{ kizuna_garage_data_
 kizuna_garage_data_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_garage_data_nas_subdirectory }}"
 kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
 kizuna_garage_data_volume_name: kizuna-garage-data-nas
-kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
-kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
 # yt-dlp needs scratch space for the selected stream plus its merged/re-encoded
 # output. Keep that transient data on the Files NAS as well so best-quality
 # archives are not constrained by the NUC's root filesystem.
