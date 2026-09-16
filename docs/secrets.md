@@ -415,4 +415,3 @@ runner, and n8n receive matching configuration.
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
 | `unpackerr_lidarr_api_key` | Lidarr API key |
-
