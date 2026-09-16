@@ -1,0 +1,7 @@
+---
+# Reviewed inspection deployment; use immutable registry digests on every redeploy.
+kaneo_image: registry.atelier.house/jedmund/kaneo
+kaneo_image_tag: inspection-a90372bf56b3@sha256:9390b0c696d916766c3b62521012244defbb2bd74188fc82c61cb2efec34c8d2
+kaneo_agent_inspections_enabled: true
+kaneo_inspection_adapter_image: registry.atelier.house/jedmund/kaneo/inspection-adapter@sha256:672185f007e0babb8a062c51fd1426e1cbe8a2e9545eff13f9bd70e171317b8b
+kaneo_inspection_paseo_image: registry.atelier.house/jedmund/kaneo/inspection-paseo@sha256:6ed8de987afdc2d7610460bd8d861fea8da7da2a852b0913f8a12528081d1089
