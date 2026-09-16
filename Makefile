@@ -75,9 +75,11 @@ deploy-infra-periphery: ## Deploy Komodo Periphery agent (max)
 	@echo "$(BLUE)Deploying Komodo Periphery agent...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_periphery.yml $(VAULT_FLAG)
 
-deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
+deploy-infra-gateway: ## Deploy gateway services (Traefik, PocketID, TinyAuth, Line, OpenSpeedTest, ddclient)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
+	@for stack in traefik pocketid tinyauth line openspeedtest ddclient; do \
+		$(ANSIBLE) -i $(INVENTORY) deploy/$$stack.yml $(VAULT_FLAG) || exit $$?; \
+	done
 
 deploy-beszel: ## Deploy Beszel monitoring hub
 	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
@@ -340,7 +342,7 @@ deploy-petlibro: ## Deploy Petlibro stack (catbro-server + Mosquitto on nuc-mini
 
 deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
+	@$(ANSIBLE) -i $(INVENTORY) deploy/traefik.yml $(VAULT_FLAG)
 
 ##@ Testing & Validation
 
