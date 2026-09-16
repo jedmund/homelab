@@ -9,7 +9,7 @@ x-runtime: &runtime
   cpus: 2
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
-  tmpfs: [/tmp:rw,nosuid,nodev,size=256m]
+  tmpfs: ['/tmp:rw,nosuid,nodev,size=256m']
   logging:
     driver: json-file
     options: {max-size: '10m', max-file: '3'}
