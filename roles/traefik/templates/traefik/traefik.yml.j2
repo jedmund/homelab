@@ -45,6 +45,10 @@ entryPoints:
               - "*.review.{{ traefik_domain }}"
           - main: "*.sort.{{ traefik_domain }}"
           - main: "*.tun.{{ traefik_domain }}"
+          # Kaneo's Garage S3 endpoint (files.kaneo). A three-level name is
+          # not covered by the single-label "*.{{ traefik_domain }}" wildcard
+          # above, so it needs its own entry, same as *.sort and *.tun.
+          - main: "*.kaneo.{{ traefik_domain }}"
 # Providers
 providers:
   docker:
