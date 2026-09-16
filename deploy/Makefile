@@ -29,8 +29,13 @@ NC     := \033[0m
 ROOT      := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 ANSIBLE   := ansible-playbook
 INVENTORY := $(ROOT)/inventory/hosts.yml
+ANSIBLE_CONFIG := $(ROOT)/ansible.cfg
+ANSIBLE_LOCAL_TEMP ?= $(ROOT)/.ansible/tmp
+export ANSIBLE_CONFIG ANSIBLE_LOCAL_TEMP
 VAULT_PASS := $(HOME)/.ansible-vault-pass
 VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS),--ask-vault-pass)
+
+VALIDATION_VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(VAULT_PASS))
 
 # Auto-discover all *.yml playbooks in this directory (excluding all.yml,
 # which is the meta-playbook driven by the root Makefile's deploy-all).
@@ -64,7 +69,7 @@ check: _require_stack ## Dry-run a stack (STACK=<name>)
 
 syntax: _require_stack ## Syntax-check a stack (STACK=<name>)
 	@printf "$(BLUE)Syntax check for $(STACK)...$(NC)\n"
-	@$(ANSIBLE) -i $(INVENTORY) $(STACK).yml $(VAULT_FLAG) --syntax-check
+	@$(ANSIBLE) -i $(INVENTORY) $(STACK).yml $(VALIDATION_VAULT_FLAG) --syntax-check
 
 _require_stack:
 	@if [ -z "$(STACK)" ]; then \
