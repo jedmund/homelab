@@ -101,10 +101,9 @@
   no_log: true
 
 # Object blocks live on the Files NAS share; the metadata volume stays local.
-# Mirrors roles/kizuna, minus its migration block: Kaneo's Garage has never
-# run, so there is no pre-existing local data volume to copy from. The seed
-# volume mounts the share root only so the per-stack subdirectory can be
-# created before the dedicated volume points at it.
+# Mirrors roles/kizuna. The seed volume mounts the share root only so the
+# per-stack subdirectory can be created before the dedicated volume points
+# at it.
 - name: Prepare NAS-backed Garage object storage
   when: kaneo_garage_data_nas_enabled
   block:
