@@ -38,7 +38,7 @@
         owner: "{{ ansible_user }}"
         mode: '0600'
       no_log: true
-      notify: Restart Beszel agent
+      register: beszel_agent_deploy_beszel_agent_environment_file
 
     - name: Deploy Beszel agent compose file
       ansible.builtin.template:
@@ -46,7 +46,6 @@
         dest: "{{ beszel_agent_config_base }}/compose.yaml"
         owner: "{{ ansible_user }}"
         mode: '0644'
-      notify: Restart Beszel agent
 
     - name: Deploy Beszel agent stack
       community.docker.docker_compose_v2:
@@ -54,6 +53,10 @@
         state: present
         remove_orphans: true
         pull: "{{ docker_pull_policy | default('missing') }}"
+        recreate: >-
+          {{ 'always' if
+             (beszel_agent_deploy_beszel_agent_environment_file.changed | default(false))
+             else 'auto' }}
       register: beszel_agent_compose_result
 
 - name: Deploy Beszel Homebrew agent on macOS hosts
