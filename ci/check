@@ -9,30 +9,83 @@ unset ANSIBLE_VAULT_PASSWORD_FILE
 export ANSIBLE_CONFIG=/workspace/ci/ansible.cfg
 export ANSIBLE_LOCAL_TEMP=/tmp/ansible-local
 
-make check VAULT_PASS=/nonexistent ANSIBLE_CONFIG="$ANSIBLE_CONFIG"
-python tests/compose_lifecycle.py --static-only
+mode=${1:-full}
+if [ "$#" -gt 0 ]; then
+    shift
+fi
+daemon_pid=
 
-# Start a daemon inside this container. The runner's socket is never mounted.
-unset DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH
-export DOCKER_HOST=unix:///var/run/docker.sock
-export DOCKER_TLS_CERTDIR=
-dockerd --host="$DOCKER_HOST" > /results/dockerd.log 2>&1 &
-daemon_pid=$!
-trap 'kill "$daemon_pid" 2>/dev/null || true; wait "$daemon_pid" 2>/dev/null || true' EXIT
-ready=false
-for attempt in $(seq 1 60); do
-    if docker info >/dev/null 2>&1; then
-        ready=true
-        break
+cleanup() {
+    if [ -n "$daemon_pid" ]; then
+        kill "$daemon_pid" 2>/dev/null || true
+        wait "$daemon_pid" 2>/dev/null || true
     fi
-    if ! kill -0 "$daemon_pid" 2>/dev/null; then
+}
+trap cleanup EXIT
+
+record_duration() {
+    local phase=$1
+    local seconds=$2
+    printf '{"phase":"%s","duration_seconds":%s}\n' "$phase" "$seconds" \
+        > "/results/${phase}-duration.json"
+}
+
+run_static() {
+    local started=$SECONDS
+    make check VAULT_PASS=/nonexistent ANSIBLE_CONFIG="$ANSIBLE_CONFIG"
+    python tests/compose_lifecycle.py --static-only --report /results/static-fixtures.json
+    record_duration static "$((SECONDS - started))"
+}
+
+start_docker() {
+    # Start a daemon inside this container. The runner's socket is never mounted.
+    unset DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+    export DOCKER_HOST=unix:///var/run/docker.sock
+    export DOCKER_TLS_CERTDIR=
+    dockerd --host="$DOCKER_HOST" > /results/dockerd.log 2>&1 &
+    daemon_pid=$!
+    local ready=false
+    for _attempt in $(seq 1 60); do
+        if docker info >/dev/null 2>&1; then
+            ready=true
+            break
+        fi
+        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+            cat /results/dockerd.log
+            exit 1
+        fi
+        sleep 1
+    done
+    if [ "$ready" != true ]; then
         cat /results/dockerd.log
         exit 1
     fi
-    sleep 1
-done
-if [ "$ready" != true ]; then
-    cat /results/dockerd.log
-    exit 1
-fi
-python tests/compose_lifecycle.py
+}
+
+run_lifecycle() {
+    local started=$SECONDS
+    start_docker
+    local arguments=(--lifecycle-only --report /results/lifecycle-fixtures.json)
+    if [ "$#" -gt 0 ]; then
+        arguments+=(--roles "$@")
+    fi
+    python tests/compose_lifecycle.py "${arguments[@]}"
+    record_duration lifecycle "$((SECONDS - started))"
+}
+
+case "$mode" in
+    static)
+        run_static
+        ;;
+    lifecycle)
+        run_lifecycle "$@"
+        ;;
+    full)
+        run_static
+        run_lifecycle "$@"
+        ;;
+    *)
+        echo "Unknown validation mode: $mode" >&2
+        exit 2
+        ;;
+esac

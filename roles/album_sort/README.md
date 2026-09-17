@@ -13,7 +13,7 @@ from the default branch and can request a Komodo redeployment. Use a published
 commit tag for a deployment freeze or compatible rollback.
 
 Store credentials in `group_vars/album_sort/vault.yml` as described in
-[Secrets](../../docs/secrets.md#group_varsalbum_sortvaultyml). Required inputs
+[Secrets](../../docs/secrets.md#groupvarsalbumsortvaultyml). Required inputs
 include registry access, PocketID credentials, and
 `vault_album_sort_user_secret_encryption_key`.
 

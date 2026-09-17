@@ -2,9 +2,17 @@
 name: Validation
 
 on:
-  # Automatic runs are paused while validation cost and scope are corrected.
-  # Track re-enablement in docs/komodo-improvements.md.
+  pull_request:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Validation suite
+        type: choice
+        required: true
+        default: fast
+        options:
+          - fast
+          - full
 
 permissions:
   contents: read
@@ -14,19 +22,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validation:
+  fast-validation:
+    name: Fast validation
+    if: ${{ github.event_name == 'pull_request' || inputs.suite == 'fast' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Plan and run fast validation
+        env:
+          PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p ci-results
+          base="$PULL_REQUEST_BASE"
+          if [ -z "$base" ]; then
+            base=$(git rev-parse HEAD^ 2>/dev/null || true)
+          fi
+          if [ -z "$base" ]; then
+            base=0000000000000000000000000000000000000000
+          fi
+          python3 ci/validation.py plan --base "$base" \
+            --output ci-results/selection.json
+          python3 tests/test_validation.py
+          if git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            python3 ci/validation.py fast --base "$base" \
+              --report ci-results/fast.json
+          else
+            python3 ci/validation.py fast --report ci-results/fast.json
+          fi
+      - name: Retain validation reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fast-validation-reports
+          path: ci-results/
+          retention-days: 7
+
+  full-validation:
+    name: Full validation
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.suite == 'full' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Validate Ansible and Compose lifecycle
-        run: bash ci/run
-      - name: Retain failure logs
-        if: failure()
+        run: bash ci/run full
+      - name: Retain validation reports and failure logs
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: validation-logs
+          name: full-validation-results
           path: ci-results/
           retention-days: 7

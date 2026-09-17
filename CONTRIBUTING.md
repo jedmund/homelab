@@ -83,10 +83,14 @@ Normal collection setup uses [requirements.yml](requirements.yml).
 
 | Command | Purpose |
 | --- | --- |
+| `python3 ci/validation.py fast` | Markdown links, Komodo declaration structure, and whitespace |
+| `python3 tests/test_validation.py` | Change-selection and fast-validator regression tests |
 | `make check` | Full-deployment coverage, playbook syntax, and lint; no managed-host contact |
 | `git diff --check` | Whitespace errors in the working diff |
-| `python3 tests/compose_lifecycle.py --static-only` | Compose lifecycle structure checks |
-| `python3 tests/compose_lifecycle.py --roles prowlarr line` | Focused lifecycle fixtures using local Docker |
+| `python3 tests/compose_lifecycle.py --static-only` | Compose structure, decision, and rendered-template checks |
+| `python3 tests/compose_lifecycle.py --lifecycle-only --roles prowlarr line` | Focused lifecycle fixtures using local Docker |
+| `bash ci/run static` | Static validation in an isolated Docker environment |
+| `bash ci/run lifecycle prowlarr line` | Selected lifecycle fixtures in an isolated Docker environment |
 | `bash ci/run` | Full validation in an isolated Docker environment |
 | `make -C deploy check STACK=<service>` | Ansible check mode against managed hosts |
 | `make -C deploy <service>` | Apply a deployment to managed hosts |
@@ -102,7 +106,10 @@ Tests should establish observable behavior: applied configuration, container
 identity, rebuild decisions, failure recovery, or application readiness. Do not
 add tests that merely repeat implementation details. Run focused checks during
 development; repeat full suites only after relevant changes or to investigate a
-failure. Both CI platforms run the shared validation launcher and do not deploy.
+failure. GitHub runs fast validation on pull requests and reserves the full suite
+for manual dispatch. GitLab classifies changes, runs selected static and lifecycle
+jobs, and runs the full matrix for scheduled pipelines or `CI_SUITE=full`. Neither
+pipeline deploys.
 
 ## Deployment
 

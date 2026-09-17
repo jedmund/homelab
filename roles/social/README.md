@@ -10,7 +10,7 @@ Application and streaming images are pinned to matching release tags in
 [defaults](defaults/main.yml). Keep both on glitch-soc when updating.
 
 Store credentials in `group_vars/social/vault.yml`; see
-[Secrets](../../docs/secrets.md#group_varssocialvaultyml). Preserve the three
+[Secrets](../../docs/secrets.md#groupvarssocialvaultyml). Preserve the three
 `mastodon_active_record_encryption_*` values across deployments. The role
 checks that they are present before writing files and passes them to the
 application as `ACTIVE_RECORD_ENCRYPTION_*` environment variables.
