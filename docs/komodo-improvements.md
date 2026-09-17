@@ -287,6 +287,10 @@ All nine role fixtures passed. These figures confirm the split and resource
 isolation locally; GitLab runner timings and GitHub billed minutes remain to be
 measured after publication.
 
+The first automatic [GitHub pull-request run](https://github.com/jedmund/homelab/actions/runs/35209700326)
+on 2026-09-17 passed the fast job in five seconds; the full job remained skipped.
+GitLab full-matrix timing and account-level GitHub billing data remain outstanding.
+
 Done when routine changes run the relevant gates, full validation remains
 available, and measured runtime and cost justify the chosen automatic triggers.
 This work changes repository validation, not homelab deployment behavior.
