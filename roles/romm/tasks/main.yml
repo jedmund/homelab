@@ -51,7 +51,7 @@
     dest: "{{ config_base }}/config/config.yml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  register: romm_merge_streaming_settings_into_config_yml
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -61,4 +61,8 @@
     pull: "{{ docker_pull_policy | default('missing') }}"
     wait: true
     wait_timeout: 600
+    recreate: >-
+      {{ 'always' if
+         (romm_merge_streaming_settings_into_config_yml.changed | default(false))
+         else 'auto' }}
   register: compose_result
