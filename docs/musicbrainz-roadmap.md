@@ -1,8 +1,9 @@
 # MusicBrainz recovery and maintenance roadmap
 
-Status: production recovery is planned but not deployed. Replication monitoring
-is being prepared in GitHub PR #212. Recheck live state before every phase;
-the observations below are a dated incident record, not current host evidence.
+Status: replication monitoring is deployed. The schema-31 migration is being
+prepared in a dependent pull request and has not run. Recheck live state before
+every phase; the observations below are a dated incident record, not current
+host evidence.
 
 The [MusicBrainz runbook](../roles/musicbrainz/README.md) owns operating
 commands and verification. This document tracks the staged recovery and the
@@ -25,12 +26,12 @@ work needed to prevent another silent stale mirror.
 
 ### 1. Restore replication visibility
 
-- [ ] Rebase and merge PR #212 without changing the upstream release pin.
-- [ ] Create a dedicated Healthchecks.io check for `0 3 * * *` UTC with six
+- [x] Rebase and merge PR #212 without changing the upstream release pin.
+- [x] Create a dedicated Healthchecks.io check for `0 3 * * *` UTC with six
       hours of grace, and store its ping URL in the MusicBrainz vault.
-- [ ] Deploy the role in an authorized window and confirm the wrapper reports
+- [x] Deploy the role in an authorized window and confirm the wrapper reports
       the existing schema mismatch as a failure despite upstream exiting zero.
-- [ ] Confirm the alert is received, container logs contain the wrapper verdict,
+- [x] Confirm the alert is received, container logs contain the wrapper verdict,
       and a second Ansible run does not rebuild unchanged images.
 
 Done when failed, stale, and missing replication runs are externally visible
@@ -38,14 +39,14 @@ while the schema-30 stack remains pinned and usable.
 
 ### 2. Prepare the schema-31 migration
 
-- [ ] Create a dependent PR with the release-specific procedure and final pin.
+- [x] Create a dependent PR with the release-specific procedure and final pin.
       Use `v-2026-05-13.0-mbdb31-pg18` for the corrected migration step, then
       advance to the reviewed current release (`v-2026-07-30.1` as observed).
-- [ ] Re-read both release notes immediately before maintenance and update the
+- [x] Re-read both release notes immediately before maintenance and update the
       procedure if the target or prerequisites changed.
 - [ ] Put MusicBrainz deployments under a maintenance freeze from the first
       host checkout change until the final version pin is merged and deployed.
-- [ ] Record current checkout, image IDs, schema, PostgreSQL version,
+- [x] Record current checkout, image IDs, schema, PostgreSQL version,
       replication control row, service state, volume sizes, and free space.
 - [ ] Stop the stack and clone `musicbrainz_pgdata` and
       `musicbrainz_solrdata` to dated rollback volumes. Verify both copies before
