@@ -8,6 +8,7 @@ import gzip
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import textwrap
@@ -116,6 +117,21 @@ class BentoPdfMaintenanceTests(unittest.TestCase):
                 for execution in (executions[0], executions[2])
             )
         )
+
+    def test_renovate_detects_pinned_bentopdf_as_application_image(self):
+        config = json.loads((ROOT / ".renovaterc.json").read_text(encoding="utf-8"))
+        expression = config["customManagers"][0]["matchStrings"][0]
+        python_expression = expression.replace("(?<", "(?P<")
+        match = re.search(
+            python_expression,
+            (ROOT / "roles/bentopdf/defaults/main.yml").read_text(encoding="utf-8"),
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group("depType"), "application-image")
+        self.assertEqual(match.group("currentValue"), "2.8.8")
+        self.assertTrue(match.group("currentDigest").startswith("sha256:"))
+        self.assertFalse(config["automerge"])
+
 
 class BackupStatusTests(unittest.TestCase):
     def setUp(self):

@@ -180,8 +180,8 @@ maintenance Procedure. Database upgrades remain separate decisions.
       automatic deployment.
 - [x] Exclude local-build stacks and account for pinned images and private
       registry authentication.
-- [ ] Classify application updates separately from database-engine upgrades.
 - [x] Produce one reviewable alert listing available changes and lookup errors.
+- [x] Classify Renovate application and database-engine proposals separately.
 - [ ] Route approved updates through the maintenance workflow and record the
       deployed image versions.
 
@@ -196,6 +196,13 @@ polling and auto-update settings remain disabled. The 13 local-build,
 private-registry, merged-Compose, or profiled exceptions are listed in the
 Komodo runbook. Live registry success and the first scheduled execution remain
 rollout gates; the tags and Action have not been synced.
+
+The repository-level Renovate policy recognizes explicitly annotated pinned
+image tag/digest pairs, labels application and database-engine merge requests
+separately, and disables auto-merge. BentoPDF is the first annotated application
+image. Database changes require the owning role runbook to define migration and
+restore prerequisites before approval. Renovate may propose changes after the
+GitLab repository cutover; it never deploys them.
 
 ### 5. Verify backups operationally
 
