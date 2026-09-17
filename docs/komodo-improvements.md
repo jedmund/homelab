@@ -222,11 +222,10 @@ with enforced read-only access and documented credential handling.
 
 ### 7. Reduce validation time and cost
 
-Automatic GitHub Actions runs are paused at the operator's request. Keep manual
-dispatch available for explicit full validation, and leave GitLab pipelines
-enabled. Use the contributor guide's local checks during this pause. Do not
-treat an absent GitHub check as a pass or automatically dispatch a paid run to
-replace a skipped one.
+GitHub runs the fast, host-independent checks for pull requests. It does not run
+validation on pushes to `main`; full GitHub validation remains an explicit manual
+dispatch because it consumes Actions minutes. GitLab selects static and lifecycle
+jobs from the change set and retains scheduled and explicit full validation.
 
 The successful [PR #261 validation run](https://github.com/jedmund/homelab/actions/runs/35198849488)
 took about 12 minutes for documentation changes. Its timestamps give this
@@ -249,35 +248,44 @@ jobs reduce elapsed time but may increase billed minutes through repeated setup.
 Cache work should follow the measured bottlenecks rather than assuming the
 image build dominates.
 
-- [x] Pause automatic GitHub PR and `main` push runs; retain manual dispatch.
-- [ ] Add shared change classification for GitHub and GitLab, using the actual
+- [x] Replace the temporary GitHub pause with automatic fast pull-request checks,
+      no `main` push trigger, and manual fast or full dispatch.
+- [x] Add shared change classification for GitHub and GitLab, using the actual
       review base. Cover renames, missing history, and shared inputs; unknown
       changes must select full validation rather than silently skip it.
-- [ ] Give documentation-only changes local-link, path, and diff checks without
+- [x] Give documentation-only changes local-link, path, and diff checks without
       building the Docker validation image.
-- [ ] Validate Komodo declarations with TOML parsing and structural checks
+- [x] Validate Komodo declarations with TOML parsing and structural checks
       without running unrelated Compose lifecycle fixtures or contacting hosts.
-- [ ] Run static Ansible checks for configuration changes and select affected
+- [x] Run static Ansible checks for configuration changes and select affected
       role fixtures. Shared lifecycle code, tooling, inventory, or test changes
       require the broader suite. Preserve all existing behavioral scenarios.
-- [ ] Run full lifecycle fixtures in bounded parallel jobs, with isolated
+- [x] Run full lifecycle fixtures in four fixed parallel jobs, with isolated
       Docker daemons, temporary roots, and retained per-role failure logs. Set
-      concurrency from measured runner capacity, especially on shared GitLab
-      hosts, rather than assuming more workers always shorten the run.
+      each job to three CPUs and 6 GiB; revise these limits from runner timing
+      and contention data.
 - [ ] Cache or publish a pinned validation tool image, rebuilding it when the
       Dockerfile or pinned requirements change. Use a cache usable on the
-      destination platform; keep credentials out of layers and artifacts.
-- [ ] Remove duplicate static checks and report phase and fixture timings as
+      destination platform; keep credentials out of layers and artifacts. The
+      current launcher reuses the runner's Docker layer cache but does not share
+      it with fresh GitHub runners.
+- [x] Remove duplicate static checks and report phase and fixture timings as
       separate CI steps. Keep an always-running aggregate result so conditional
       jobs cannot strand required checks.
-- [ ] Retain full scheduled and explicit validation on GitLab. Measure both
-      elapsed time and billed GitHub runner minutes before deciding which
-      automatic GitHub checks to restore.
-- [ ] Demonstrate change-selection coverage and measure representative runs.
+- [x] Retain full scheduled and explicit validation on GitLab.
+- [x] Cover change selection, rename parsing, safe fallback, Markdown links, and
+      Komodo structure with regression tests.
+- [ ] Measure representative CI runs, including elapsed time and billed GitHub
+      runner minutes before expanding automatic GitHub checks.
       Targets are under one minute for documentation/declaration changes and
       three to five minutes for full validation; these are targets, not results.
-- [ ] Restore automatic GitHub triggers only after reviewing those results and
-      the minutes budget. Check branch requirements before changing check names.
+
+Local warm-cache validation on 2026-09-17 completed the fast phase in 0.03
+seconds and the static job in 63 seconds. Four concurrent lifecycle jobs took
+80, 85, 96, and 101 seconds, including their cached one-second image builds.
+All nine role fixtures passed. These figures confirm the split and resource
+isolation locally; GitLab runner timings and GitHub billed minutes remain to be
+measured after publication.
 
 Done when routine changes run the relevant gates, full validation remains
 available, and measured runtime and cost justify the chosen automatic triggers.
