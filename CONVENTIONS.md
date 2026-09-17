@@ -15,7 +15,6 @@ A typical container stack has:
 roles/<service>/
   defaults/main.yml
   tasks/main.yml
-  handlers/main.yml
   templates/compose.yaml.j2
   templates/env/<service>.env.j2
 deploy/<service>.yml
@@ -99,9 +98,18 @@ stack. Templates start with the managed-file header and explicit project name:
 name: {{ stack_name }}
 ```
 
-Use `community.docker.docker_compose_v2` for the normal deployment. Match the
-role's existing pull/build policy. Existing handlers use `state: present`
-and `recreate: always` to apply configuration changes.
+Use one `community.docker.docker_compose_v2` task for the normal deployment.
+Compose-file changes use automatic recreation. Register results from runtime
+configuration tasks and pass `recreate: always` to that same deployment when
+any result changed; otherwise use `auto`. Use `changed | default(false)` for
+optional and skipped inputs. A registered loop result already aggregates
+changes across its items.
+
+Do not also notify a Compose restart handler. Keep required non-Compose
+handlers, such as systemd reloads or application-specific reconfiguration.
+Apply configuration before deployment and run health checks and provisioning
+after it. Seed application-managed configuration only when absent; preserve
+existing settings when applying targeted edits.
 
 File permissions are `0644` for public configuration and `0600` for files
 containing secrets. Put secret environment variables in an environment file
@@ -111,7 +119,10 @@ do not assume the shared `puid` and `pgid` apply to every image.
 Use shared logging variables unless the service requires a documented
 exception. Define health checks that test the service being deployed.
 Mounted configuration changes need an explicit reload or restart strategy.
-Avoid introducing a second unconditional deployment or recreation step.
+Preserve each role's configured pull policy. For local-build stacks, separate
+runtime changes from build inputs. See [local builds](docs/operations.md#local-image-builds)
+for fingerprints, retries, and explicit rebuilds. Keep any build inspection
+that resolves environment variables under `no_log: true`.
 
 ## Networks and routing
 
