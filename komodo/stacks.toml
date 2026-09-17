@@ -3,6 +3,26 @@
 # and any env/config files. Komodo reads those host files and may redeploy
 # them on demand, but it should not clone stack repos or auto-update images.
 
+[[alerter]]
+name = "homelab-operations"
+description = "Operational alerts to the Discord destination shared with Gatus; see komodo/README.md."
+tags = ["homelab", "operations"]
+[alerter.config]
+enabled = true
+alert_types = [
+  "ServerUnreachable",
+  "ServerDisk",
+  "StackStateChange",
+  "BuildFailed",
+  "RepoBuildFailed",
+  "ProcedureFailed",
+  "ActionFailed",
+]
+[alerter.config.endpoint]
+type = "Discord"
+[alerter.config.endpoint.params]
+url = "[[HOMELAB_DISCORD_WEBHOOK_URL]]"
+
 [[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
@@ -485,6 +505,8 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/gitlab"
 file_paths = ["compose.yaml"]
+# Renovate runs only through the cron profile; absence is expected.
+ignore_services = ["renovate"]
 poll_for_updates = false
 auto_update = false
 
@@ -521,6 +543,8 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/n8n"
 file_paths = ["compose.yaml"]
+# Certificate initialization exits after success; its dependents enforce completion.
+ignore_services = ["sandbox-certs"]
 poll_for_updates = false
 auto_update = false
 
