@@ -90,6 +90,7 @@ alert-type list applies across this Komodo installation. Stacks must also have
 | Disk usage | Komodo: warning at 75%, critical at 95% on both configured servers; inspect the named filesystem and growth before deleting data |
 | Unexpected stack state change | Komodo: inspect container state and health output; a transition back to `running` reports recovery |
 | Failed Build, Repo build, Procedure, or Action | Komodo: inspect the linked operation and fix its cause before retrying |
+| Custom maintenance report | Komodo: review image changes or registry lookup failures in the single aggregated message |
 | HTTP reachability, certificate expiry, GitLab runner liveness | Gatus: follow the failing endpoint's condition in the [runbook](../roles/gatus/README.md) |
 | CPU and memory trends | Beszel dashboards; these are outside the initial Komodo notification scope |
 
@@ -149,6 +150,29 @@ make -C deploy stage STACK=bentopdf
 Staging does not invoke Compose. Record the container ID before and after staging
 to prove it was untouched. Recovery and the absence of persistent data are
 documented in the [BentoPDF runbook](../roles/bentopdf/README.md).
+
+### Image digest report
+
+`report-image-digest-updates` runs Mondays at 09:00
+`America/Los_Angeles`. It selects the 45 stacks tagged `update-monitor`, invokes
+`CheckStackForUpdate` separately with `skip_auto_update = true`, and collects
+both changed service images and lookup failures. It sends one Custom alert to
+`homelab-operations` only when either list is nonempty. A no-change run remains
+visible only in Komodo execution history.
+
+The excluded stacks are `line`, `musicbrainz`, `album-sort`, `strudel`, `gitlab`,
+`vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, and `sglang`.
+They use local builds, private registry paths without the shared Komodo
+credential, externally merged Compose files, or inactive profiles that make a
+whole-stack registry check unreliable. Kizuna is included because Periphery has
+its dedicated registry credential. Recheck every proposed tag during the first
+rollout preview and remove any tag whose live registry query does not succeed.
+
+Every Stack keeps `auto_update = false` and `poll_for_updates = false`. The
+Action calls the update check directly. The result monitors digest changes for
+the image references already rendered in Compose; it does not discover a newer
+semantic tag when a Compose file pins an older tag. See Komodo's
+[Compose update behavior](https://komo.do/docs/deploy/compose).
 
 ### Expected completed or absent services
 
