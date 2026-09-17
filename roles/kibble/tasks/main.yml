@@ -170,7 +170,7 @@
         owner: "{{ ansible_user }}"
         mode: '0600'
       no_log: true
-      notify: Restart {{ stack_name }} stack
+      register: kibble_deploy_garage_toml
 
     - name: Deploy garage_bootstrap.sh
       copy:
@@ -185,7 +185,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment file
   template:
@@ -194,7 +193,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kibble_deploy_environment_file
 
 - name: Authenticate with kibble image registry
   community.docker.docker_login:
@@ -210,6 +209,11 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (kibble_deploy_garage_toml.changed | default(false)) or
+         (kibble_deploy_environment_file.changed | default(false))
+         else 'auto' }}
   register: compose_result
 
 # Deploy self-heal (the kizuna role's lesson: a key existing with no

@@ -18,7 +18,6 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment file
   ansible.builtin.template:
@@ -27,7 +26,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: unpackerr_deploy_environment_file
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -35,4 +34,8 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (unpackerr_deploy_environment_file.changed | default(false))
+         else 'auto' }}
   register: compose_result

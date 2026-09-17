@@ -36,7 +36,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_garage_config
 
 - name: Deploy compose file
   template:
@@ -44,7 +44,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
   template:
@@ -58,7 +57,7 @@
     - garage
     - screenshotter
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_environment_files
 
 - name: Deploy optional YouTube cookies
   template:
@@ -67,7 +66,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_optional_youtube_cookies
 
 - name: Stage Garage bootstrap script
   copy:
@@ -182,6 +181,12 @@
     pull: "{{ docker_pull_policy | default('missing') }}"
     wait: true
     wait_timeout: 180
+    recreate: >-
+      {{ 'always' if
+         (kizuna_deploy_garage_config.changed | default(false)) or
+         (kizuna_deploy_environment_files.changed | default(false)) or
+         (kizuna_deploy_optional_youtube_cookies.changed | default(false))
+         else 'auto' }}
   register: compose_result
 
 # Apply storage access before optional external-tool provisioning so a

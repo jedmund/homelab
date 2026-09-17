@@ -20,7 +20,7 @@
   ansible.builtin.file:
     path: "{{ docker_base_path }}/{{ stack_name }}/config/ms-scrobble.cache"
     state: absent
-  notify: Restart {{ stack_name }} stack
+  register: multi_scrobbler_reset_multi_scrobbler_dead_letter_cache
   tags:
     - never
     - multi-scrobbler-reset
@@ -32,7 +32,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: multi_scrobbler_deploy_multi_scrobbler_config
 
 - name: Deploy compose file
   ansible.builtin.template:
@@ -40,7 +40,6 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -48,4 +47,10 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (multi_scrobbler_reset_multi_scrobbler_dead_letter_cache.changed | default(false)) or
+         (multi_scrobbler_deploy_multi_scrobbler_config.changed | default(false))
+         else 'auto' }}
   register: compose_result
+  tags: [multi-scrobbler-reset]

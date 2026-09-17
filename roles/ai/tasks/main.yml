@@ -36,7 +36,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy llama-swap config
   template:
@@ -44,7 +43,7 @@
     dest: "{{ config_base }}/config/llama-swap.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  register: ai_deploy_llama_swap_config
 
 - name: Deploy SearXNG settings
   template:
@@ -53,7 +52,7 @@
     owner: "{{ ansible_user }}"
     mode: '0640'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: ai_deploy_searxng_settings
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -68,6 +67,11 @@
 # "Server Connection Error" with no useful detail. The model lives in
 # the ai_whisper-cache volume, so the POST is only real work on first
 # deploy (or after the volume is wiped).
+    recreate: >-
+      {{ 'always' if
+         (ai_deploy_llama_swap_config.changed | default(false)) or
+         (ai_deploy_searxng_settings.changed | default(false))
+         else 'auto' }}
 - name: Wait for whisper to accept requests
   ansible.builtin.uri:
     url: "http://localhost:{{ whisper_port }}/health"

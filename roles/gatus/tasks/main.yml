@@ -20,7 +20,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: gatus_deploy_environment_file
 
 # Secrets stay out of these files: they carry ${VAR} placeholders that Gatus
 # substitutes from the environment at load, so they are readable config.
@@ -33,7 +33,7 @@
   loop:
     - config.yaml
     - endpoints.yaml
-  notify: Restart {{ stack_name }} stack
+  register: gatus_deploy_gatus_config
 
 - name: Deploy compose file
   ansible.builtin.template:
@@ -41,7 +41,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -49,4 +48,9 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (gatus_deploy_environment_file.changed | default(false)) or
+         (gatus_deploy_gatus_config.changed | default(false))
+         else 'auto' }}
   register: compose_result
