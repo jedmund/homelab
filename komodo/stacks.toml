@@ -877,7 +877,7 @@ let exitCode = 'Early exit without code'
 await komodo.execute_server_terminal({
   server: 'Atelier',
   terminal: 'verify-backup-status',
-  command: '/opt/docker/backup/scripts/verify-backup-status.sh',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-backup-status.sh',
   init: { command: 'bash', recreate: 'Always' },
 }, {
   onLine: (line) => console.log(line),
@@ -905,7 +905,7 @@ let exitCode = 'Early exit without code'
 await komodo.execute_server_terminal({
   server: 'Atelier',
   terminal: 'verify-prowlarr-restore',
-  command: '/opt/docker/backup/scripts/verify-prowlarr-restore.sh',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-prowlarr-restore.sh',
   init: { command: 'bash', recreate: 'Always' },
 }, {
   onLine: (line) => console.log(line),
