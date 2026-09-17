@@ -28,6 +28,7 @@ source paths, named volumes, exclusions, and NAS destination.
 | Retention | 30 daily archives matching `nuc-mini-*` |
 | Repository check | Weekly |
 | Archive check | Monthly |
+| Verification freshness threshold | 27 hours |
 
 Archive names use the stable repository label rather than the container ID.
 Archives with other names, including historical container-ID prefixes, are
@@ -143,6 +144,49 @@ Confirm the expected archive exists, each required database dump succeeded,
 and the NAS mirror completed. Healthchecks sends `finish` and `fail` events
 with logs by default; its alert schedule and grace period are managed outside
 this role.
+
+The deployed verification scripts provide the checks used by the scheduled
+Komodo Actions. Run them directly on `nuc-mini` without printing credentials:
+
+```sh
+/opt/docker/backup/scripts/verify-backup-status.sh
+/opt/docker/backup/scripts/verify-prowlarr-restore.sh
+```
+
+`verify-backup-status.sh` requires all of the following:
+
+- the newest Borg archive and newest Komodo Core backup are no older than 27
+  hours;
+- `Action.gz`, `Alerter.gz`, `ApiKey.gz`, `Permission.gz`, `Procedure.gz`,
+  `ResourceSync.gz`, `Server.gz`, `Stack.gz`, `Tag.gz`, `User.gz`,
+  `UserGroup.gz`, `Variable.gz`, and the top-level `Stats.gz` exist, are
+  nonempty, and pass `gzip -t`;
+- `/mnt/nas/backup` resolves to an active NFS filesystem; and
+- the newest archive ID from `/repo` equals the newest ID from
+  `/nas/borg-nuc-mini`.
+
+A successful run ends with `Backup status verification passed` and prints the
+Core backup name, artifact count, ages, Borg archive name, and archive ID. A
+failure identifies the missing, stale, corrupt, unmounted, or divergent input.
+Do not repair divergence by deleting either repository. Confirm the most recent
+backup and rsync logs, restore the NFS mount, and rerun the normal Borgmatic
+create/mirror workflow.
+
+`verify-prowlarr-restore.sh` uses Borgmatic's targeted
+[extract workflow](https://torsion.org/borgmatic/how-to/extract-a-backup/) to
+restore `dumps/sqlite/prowlarr_config_prowlarr.db` from the latest archive under
+`/opt/docker/backup/restore-tests`. It requires a nonempty schema and
+`PRAGMA integrity_check` result of `ok`. Its trap removes the temporary directory
+on success, command failure, or integrity failure. It never writes under
+`/opt/docker/prowlarr`. A successful run ends with
+`Prowlarr restore verification passed` and reports `integrity=ok`.
+
+If the restore proof fails, preserve the Action log, inspect the source dump
+result from the corresponding backup, and test an earlier retained archive.
+Do not replace the production database during this exercise. Production restore
+requires stopping Prowlarr, selecting a verified artifact compatible with the
+application version, preserving the failed database, and following a separately
+authorized recovery window.
 
 Before restoring production data, restore a selected archive into an isolated
 location and validate the database and application files. Identify the

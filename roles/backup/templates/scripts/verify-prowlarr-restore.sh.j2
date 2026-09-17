@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Extract and validate one Prowlarr SQLite backup without touching production.
+
+set -euo pipefail
+
+BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
+ARCHIVE_PATH="${PROWLARR_ARCHIVE_PATH:-{{ prowlarr_restore_archive_path }}}"
+RESTORE_TMP_ROOT="${RESTORE_TMP_ROOT:-{{ docker_base_path }}/{{ stack_name }}/restore-tests}"
+RESTORE_CONTAINER_TMP_ROOT="${RESTORE_CONTAINER_TMP_ROOT:-/restore-tests}"
+DOCKER_BIN="${DOCKER_BIN:-docker}"
+
+temporary="$(mktemp -d "${RESTORE_TMP_ROOT%/}/prowlarr-restore.XXXXXX")"
+cleanup() {
+    rm -rf -- "$temporary"
+}
+trap cleanup EXIT INT TERM
+
+leaf="$(basename "$temporary")"
+container_destination="${RESTORE_CONTAINER_TMP_ROOT%/}/$leaf"
+container_database="$container_destination/$ARCHIVE_PATH"
+
+"$DOCKER_BIN" exec "$BORG_CONTAINER" borgmatic extract \
+    --archive latest \
+    --path "$ARCHIVE_PATH" \
+    --destination "$container_destination"
+
+host_database="$temporary/$ARCHIVE_PATH"
+[ -s "$host_database" ] || {
+    printf 'ERROR: extracted Prowlarr database is missing or empty: %s\n' "$host_database" >&2
+    exit 1
+}
+
+schema="$($DOCKER_BIN exec "$BORG_CONTAINER" sqlite3 "$container_database" '.schema')"
+[ -n "$schema" ] || {
+    printf 'ERROR: extracted Prowlarr database has an empty schema\n' >&2
+    exit 1
+}
+
+integrity="$($DOCKER_BIN exec "$BORG_CONTAINER" sqlite3 "$container_database" 'PRAGMA integrity_check;')"
+[ "$integrity" = "ok" ] || {
+    printf 'ERROR: Prowlarr SQLite integrity check failed: %s\n' "$integrity" >&2
+    exit 1
+}
+
+schema_bytes="$(printf '%s' "$schema" | wc -c | tr -d ' ')"
+printf 'Prowlarr restore verification passed: schema_bytes=%s integrity=%s\n' "$schema_bytes" "$integrity"
