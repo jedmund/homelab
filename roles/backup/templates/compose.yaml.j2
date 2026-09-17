@@ -12,6 +12,7 @@ services:
       context: ./build
       dockerfile: Dockerfile
     image: {{ stack_name }}/borgmatic:local
+    pull_policy: build
     restart: {{ restart_policy }}
     env_file:
       - ./env/borgmatic.env
@@ -44,6 +45,7 @@ services:
   borg-ui:
     container_name: borg-ui
     image: {{ borg_ui_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     environment:
       - TZ={{ timezone }}

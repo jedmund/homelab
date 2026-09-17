@@ -36,8 +36,9 @@ make -C deploy album_sort
 ```
 
 The role renders configuration, logs into the registry, pulls both images,
-and waits for the application container to report healthy. A change to a
-mounted configuration file can also trigger the role's recreation handler.
+and waits for the application container to report healthy. Environment changes
+request recreation in that same deployment, before the health check; there is
+no later Compose restart handler.
 
 Do not pin image IDs or change pull policy in the generated host Compose file.
 Set `album_sort_image_tag` in Ansible instead. Both the role and Compose

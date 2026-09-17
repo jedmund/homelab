@@ -77,3 +77,6 @@ mas_oidc_display_name: "PocketID"
 mas_oidc_scopes: "openid profile email"
 # mas_oidc_client_id - defined in vault
 # mas_oidc_client_secret - defined in vault
+
+# Request one cached build even when recorded inputs and local images match.
+matrix_force_rebuild: false

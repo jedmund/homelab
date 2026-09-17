@@ -52,7 +52,7 @@
     group: "{{ synapse_container_gid }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: matrix_generate_synapse_homeserver_config
 
 - name: Generate MAS config
   template:
@@ -62,7 +62,7 @@
     group: "{{ mas_container_gid }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: matrix_generate_mas_config
 
 - name: Generate Element config
   template:
@@ -70,7 +70,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/config/element-config.json"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  register: matrix_generate_element_config
 
 - name: Generate LiveKit config
   template:
@@ -80,7 +80,7 @@
     group: root
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: matrix_generate_livekit_config
 
 - name: Deploy Synapse Dockerfile
   template:
@@ -88,7 +88,6 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/Dockerfile.synapse"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy compose file
   template:
@@ -96,7 +95,6 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
   template:
@@ -110,12 +108,35 @@
     - mas-db
     - livekit-jwt
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: matrix_deploy_environment_files
+
+- name: Inspect matrix build requirements
+  ansible.builtin.import_tasks: build.yml
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    # Explicitly override service build policies to avoid no-op rebuilds.
+    build: "{{ 'always' if (matrix_build_required | default(true)) else 'never' }}"
+    pull: policy
     remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (matrix_generate_synapse_homeserver_config.changed | default(false)) or
+         (matrix_generate_mas_config.changed | default(false)) or
+         (matrix_generate_element_config.changed | default(false)) or
+         (matrix_generate_livekit_config.changed | default(false)) or
+         (matrix_deploy_environment_files.changed | default(false))
+         else 'auto' }}
   register: compose_result
+
+- name: Record successful matrix build inputs
+  ansible.builtin.copy:
+    content: "{{ {'fingerprint': matrix_build_fingerprint} | to_json }}\n"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/.ansible-build-inputs.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - matrix_build_services | default([]) | length > 0

@@ -8,6 +8,7 @@ services:
       context: {{ line_source_path }}
       dockerfile: deploy/Dockerfile
     image: {{ line_image }}
+    pull_policy: build
     restart: {{ restart_policy }}
     networks:
       - proxy

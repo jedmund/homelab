@@ -58,8 +58,11 @@ make -C deploy deploy STACK=petlibro EXTRA_ARGS='-e petlibro_catbro_enabled=fals
 ```
 
 The Compose deployment uses `remove_orphans: true`, so disabling catbro removes
-its container. A source revision change triggers a rebuild. Pin
-`catbro_repo_ref` when a capture requires a reproducible binary.
+its container. Source, Dockerfile, or build-setting changes trigger one build
+before deployment. An unchanged image is reused. Use `petlibro_force_rebuild`
+to request a cached build while catbro is enabled; see
+[local image builds](../../docs/operations.md#local-image-builds) for fingerprint
+and retry behavior. Pin `catbro_repo_ref` for a reproducible source revision.
 
 | Default port | Owner | Use |
 | --- | --- | --- |

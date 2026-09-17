@@ -101,7 +101,6 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
   register: backup_dockerfile
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy borgmatic config
   ansible.builtin.template:
@@ -110,7 +109,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: backup_deploy_borgmatic_config
 
 - name: Deploy environment file
   ansible.builtin.template:
@@ -119,7 +118,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: backup_deploy_environment_file
 
 - name: Deploy post-backup rsync script
   ansible.builtin.template:
@@ -127,7 +126,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/post-backup-rsync.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
-  notify: Restart {{ stack_name }} stack
+  register: backup_deploy_post_backup_rsync_script
 
 - name: Deploy CouchDB dump script
   ansible.builtin.template:
@@ -135,7 +134,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/dump-couchdb.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
-  notify: Restart {{ stack_name }} stack
+  register: backup_deploy_couchdb_dump_script
 
 - name: Deploy SQLite dump script
   ansible.builtin.template:
@@ -143,7 +142,7 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/dump-sqlite.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
-  notify: Restart {{ stack_name }} stack
+  register: backup_deploy_sqlite_dump_script
 
 - name: Deploy compose file
   ansible.builtin.template:
@@ -151,15 +150,34 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+
+- name: Inspect backup build requirements
+  ansible.builtin.import_tasks: build.yml
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ docker_base_path }}/{{ stack_name }}"
     state: present
+    # Explicitly override service build policies to avoid no-op rebuilds.
+    build: "{{ 'always' if (backup_build_required | default(true)) else 'never' }}"
+    pull: policy
     remove_orphans: true
-    # Rebuild only when the Dockerfile changed; `policy` still builds the
-    # image when it's missing, so first runs work and re-runs are no-ops.
-    build: "{{ 'always' if backup_dockerfile.changed else 'policy' }}"
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (backup_deploy_borgmatic_config.changed | default(false)) or
+         (backup_deploy_environment_file.changed | default(false)) or
+         (backup_deploy_post_backup_rsync_script.changed | default(false)) or
+         (backup_deploy_couchdb_dump_script.changed | default(false)) or
+         (backup_deploy_sqlite_dump_script.changed | default(false))
+         else 'auto' }}
   register: compose_result
+
+- name: Record successful backup build inputs
+  ansible.builtin.copy:
+    content: "{{ {'fingerprint': backup_build_fingerprint} | to_json }}\n"
+    dest: "{{ docker_base_path }}/{{ stack_name }}/.ansible-build-inputs.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - backup_build_services | default([]) | length > 0

@@ -75,7 +75,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment file
   ansible.builtin.template:
@@ -84,7 +83,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: album_sort_deploy_environment_file
 
 - name: Authenticate with Album Sort image registry
   community.docker.docker_login:
@@ -101,6 +100,10 @@
     remove_orphans: true
     # CI republishes latest; every deploy must resolve the current image.
     pull: always
+    recreate: >-
+      {{ 'always' if
+         (album_sort_deploy_environment_file.changed | default(false))
+         else 'auto' }}
   register: compose_result
 
 - name: Wait for Album Sort container health

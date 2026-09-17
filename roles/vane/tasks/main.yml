@@ -24,7 +24,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment file
   template:
@@ -33,7 +32,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: vane_deploy_environment_file
 
 - name: Authenticate with Vane image registry
   community.docker.docker_login:
@@ -49,6 +48,10 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (vane_deploy_environment_file.changed | default(false))
+         else 'auto' }}
   register: compose_result
 
 - name: Print post-deploy reminder

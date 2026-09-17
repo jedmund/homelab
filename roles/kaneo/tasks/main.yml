@@ -52,7 +52,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart Kaneo stack
+  register: kaneo_deploy_kaneo_garage_config
 
 - name: Deploy Kaneo compose file
   ansible.builtin.template:
@@ -60,7 +60,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart Kaneo stack
 
 - name: Deploy Kaneo environment files
   ansible.builtin.template:
@@ -74,7 +73,7 @@
     - redis
     - garage
   no_log: true
-  notify: Restart Kaneo stack
+  register: kaneo_deploy_kaneo_environment_files
 
 - name: Deploy Redis entrypoint
   ansible.builtin.template:
@@ -82,7 +81,7 @@
     dest: "{{ config_base }}/config/redis-entrypoint.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
-  notify: Restart Kaneo stack
+  register: kaneo_deploy_redis_entrypoint
 
 # Staged to the host so the one-time bootstrap (layout + bucket + key) can be
 # run over SSH without a repo checkout. See files/garage_bootstrap.sh.
@@ -149,6 +148,12 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (kaneo_deploy_kaneo_garage_config.changed | default(false)) or
+         (kaneo_deploy_kaneo_environment_files.changed | default(false)) or
+         (kaneo_deploy_redis_entrypoint.changed | default(false))
+         else 'auto' }}
   register: kaneo_compose_result
 
 # Apply storage access before first uploads so a Garage failure during the

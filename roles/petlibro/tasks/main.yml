@@ -42,7 +42,6 @@
     recursive: true    # embedded go2rtc may use submodules
   register: catbro_git
   when: petlibro_catbro_enabled | default(false)
-  notify: Rebuild and restart {{ stack_name }} stack
 
 - name: Deploy Dockerfile
   template:
@@ -51,7 +50,6 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
   when: petlibro_catbro_enabled | default(false)
-  notify: Rebuild and restart {{ stack_name }} stack
 
 - name: Deploy compose file
   template:
@@ -59,7 +57,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy mosquitto config
   template:
@@ -67,7 +64,7 @@
     dest: "{{ config_base }}/config/mosquitto/mosquitto.conf"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
+  register: petlibro_deploy_mosquitto_config
 
 - name: Deploy catbro creds.toml
   template:
@@ -76,7 +73,7 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
   when: petlibro_catbro_enabled | default(false)
-  notify: Restart {{ stack_name }} stack
+  register: petlibro_deploy_catbro_creds_toml
 
 - name: Deploy go2rtc config
   template:
@@ -85,7 +82,7 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
   when: petlibro_catbro_enabled | default(false)
-  notify: Restart {{ stack_name }} stack
+  register: petlibro_deploy_go2rtc_config
 
 # ---------------------------------------------------------------------------
 # kalay-mock — RETIRED.  kibble runs Kalay in-process (internal/kalay)
@@ -121,19 +118,35 @@
     state: absent
   become: true
 
+- name: Inspect petlibro build requirements
+  ansible.builtin.import_tasks: build.yml
+  when: petlibro_catbro_enabled | default(false) | bool
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
     state: present
-    # remove_orphans removes the catbro container when the flag flips
-    # back to false — without it the stale container would keep running
-    # holding :8554 + :8555 hostage from kibble.
-    remove_orphans: true
-    # Force a rebuild when the catbro source changed; otherwise defer to
-    # the compose file (where catbro has `pull_policy: build`, so docker
-    # compose will build the image if it's missing and skip rebuilds when
-    # it's not).  catbro_git is only registered when the clone task ran,
-    # so default it to a never-changed shape when the flag is off.
-    build: "{{ 'always' if (catbro_git.changed | default(false)) else 'policy' }}"
+    # Explicitly override service build policies to avoid no-op rebuilds.
+    build: >-
+      {{ 'always' if (petlibro_catbro_enabled | default(false) | bool)
+         and (petlibro_build_required | default(true)) else 'never' }}
     pull: policy
+    remove_orphans: true
+    recreate: >-
+      {{ 'always' if
+         (petlibro_deploy_mosquitto_config.changed | default(false)) or
+         (petlibro_deploy_catbro_creds_toml.changed | default(false)) or
+         (petlibro_deploy_go2rtc_config.changed | default(false))
+         else 'auto' }}
   register: compose_result
+
+- name: Record successful petlibro build inputs
+  ansible.builtin.copy:
+    content: "{{ {'fingerprint': petlibro_build_fingerprint} | to_json }}\n"
+    dest: "{{ config_base }}/.ansible-build-inputs.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - petlibro_catbro_enabled | default(false) | bool
+    - petlibro_build_services | default([]) | length > 0

@@ -56,7 +56,7 @@
     - renovate
     - gitlab-cache-garage
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: gitlab_deploy_environment_files
 
 - name: Deploy CI cache Garage config
   ansible.builtin.template:
@@ -65,7 +65,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: gitlab_deploy_ci_cache_garage_config
 
 # Staged to the host so the one-time bootstrap (layout + bucket + key) can be
 # run over SSH without a repo checkout. See files/ci_cache_bootstrap.sh.
@@ -130,6 +130,11 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (gitlab_deploy_environment_files.changed | default(false)) or
+         (gitlab_deploy_ci_cache_garage_config.changed | default(false))
+         else 'auto' }}
   register: compose_result
 
 # The one-time files/ci_cache_bootstrap.sh handles layout + bucket + key
