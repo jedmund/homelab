@@ -123,3 +123,31 @@
       Album Sort {{ album_sort_image_tag }} is healthy. TinyAuth transition
       middleware is {{ 'enabled' if album_sort_use_tinyauth else 'disabled' }};
       filesystem mutations are {{ 'enabled' if album_sort_mutations_enabled == 'true' else 'disabled' }}.
+
+- name: Provision isolated Storybook registry access
+  when: album_sort_storybook_registry_enabled | bool
+  tags: [storybook-registry]
+  block:
+    - name: Require dedicated read-registry credentials
+      ansible.builtin.assert:
+        that:
+          - album_sort_storybook_registry_username | length > 0
+          - album_sort_storybook_registry_password | length > 0
+      no_log: true
+
+    - name: Create isolated Storybook Docker configuration directory
+      ansible.builtin.file:
+        path: /etc/komodo/album-sort-storybook
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Authenticate Storybook without changing shared registry credentials
+      community.docker.docker_login:
+        registry_url: https://registry.atelier.house
+        username: "{{ album_sort_storybook_registry_username }}"
+        password: "{{ album_sort_storybook_registry_password }}"
+        config_path: /etc/komodo/album-sort-storybook/config.json
+        reauthorize: true
+      no_log: true

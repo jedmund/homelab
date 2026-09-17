@@ -67,3 +67,9 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret,
 # vault_album_sort_user_secret_encryption_key
+
+# Opt-in registry setup for the independent private Storybook catalog.
+# Its Docker config must never replace Kizuna's /etc/komodo/docker login.
+album_sort_storybook_registry_enabled: false
+album_sort_storybook_registry_username: "{{ vault_album_sort_storybook_registry_username | default('') }}"
+album_sort_storybook_registry_password: "{{ vault_album_sort_storybook_registry_password | default('') }}"

@@ -1127,8 +1127,11 @@ if (operation === 'destroy') {
 
   const config = {
     server_id: SERVER,
-    registry_provider: 'registry.atelier.house',
-    registry_account: 'album-sort-storybook-pull',
+    // Never let Komodo's shared docker login replace Kizuna credentials.
+    registry_provider: '',
+    registry_account: '',
+    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]',
+    compose_cmd_wrapper_include: ['config', 'pull', 'up', 'run'],
     project_name: stackName,
     auto_pull: true,
     file_contents: YAML.stringify(compose),

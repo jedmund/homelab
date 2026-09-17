@@ -44,7 +44,11 @@ const komodo = {{
             self.assertEqual(service['networks'], ['proxy-network'])
             self.assertNotIn('ports', service)
             self.assertIn('tinyauth@file', service['labels'].values())
-            self.assertEqual(config['registry_account'], 'album-sort-storybook-pull')
+            self.assertEqual(config['registry_account'], '')
+            self.assertEqual(config['registry_provider'], '')
+            self.assertEqual(config['compose_cmd_wrapper'], 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]')
+            self.assertIn('pull', config['compose_cmd_wrapper_include'])
+            self.assertIn('up', config['compose_cmd_wrapper_include'])
             expected = 'album-sort-storybook' if target == 'main' else 'album-sort-storybook-mr-12'
             self.assertEqual(config['links'], [f'https://{expected}.review.atelier.house'])
 
