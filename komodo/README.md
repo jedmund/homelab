@@ -1,7 +1,10 @@
 # Komodo
 
-[stacks.toml](stacks.toml) declares the repository's Komodo stacks, review-app
-Action, and associated user-group permissions.
+[stacks.toml](stacks.toml) declares the repository's Komodo stacks, operational
+Alerter, review-app Action, and associated user-group permissions.
+
+Planned operational work and the dated inventory audit are tracked in
+[Komodo operations improvements](../docs/komodo-improvements.md).
 
 ## Ownership
 
@@ -27,7 +30,9 @@ resource_path = ["komodo/stacks.toml"]
 
 Enable **Include Resources** and **Include User Groups**. The user-group
 setting is required to apply the review Action's permission declarations.
-Use the `homelab` match tag to scope the sync to these resources. Review the
+Set `match_tags = ["homelab"]` to scope the sync to these resources; this
+filter expects tag names, not internal tag IDs. Keep `delete = false` for
+routine reconciliation. Review the
 resource and permission diff before applying it.
 
 The declarations expect these Komodo Server resource names:
@@ -39,6 +44,111 @@ The declarations expect these Komodo Server resource names:
 
 Deploy the Ansible stack before adding its Komodo resource so the referenced
 host files exist.
+
+Before syncing the Alerter, create the secret Komodo variable
+`HOMELAB_DISCORD_WEBHOOK_URL` from `vault_gatus_discord_webhook_url` in the ignored
+`group_vars/gatus/vault.yml`. Mark it secret before supplying the value. Keep
+**Include Variables** disabled: the repository declares the reference, not the
+credential. Rotate the vault value and Komodo variable together when replacing
+the Discord webhook.
+
+### GitLab cutover
+
+After the repository is available on GitLab and the selected Komodo Git account
+can read it, update the existing Resource Sync to:
+
+```toml
+git_provider = "git.atelier.house"
+git_https = true
+repo = "jedmund/homelab"
+branch = "main"
+resource_path = ["komodo/stacks.toml"]
+match_tags = ["homelab"]
+delete = false
+```
+
+Keep resource and user-group inclusion enabled. Refresh and review the pending
+diff before applying it; a provider change should not introduce unintended
+resource or permission changes. The sync currently uses GitHub. Configure any
+GitLab webhook separately; switching the Git provider does not create one.
+
+## Operational alerts
+
+The `homelab-operations` Alerter sends to Gatus's Discord destination. Its explicit
+alert-type list applies across this Komodo installation. Stacks must also have
+`send_alerts` enabled; temporary Storybook review stacks keep it disabled.
+
+| Signal | Owner and response |
+| --- | --- |
+| Unreachable Periphery | Komodo: check the host, network, and Periphery process |
+| Disk usage | Komodo: warning at 75%, critical at 95% on both configured servers; inspect the named filesystem and growth before deleting data |
+| Unexpected stack state change | Komodo: inspect container state and health output; a transition back to `running` reports recovery |
+| Failed Build, Repo build, Procedure, or Action | Komodo: inspect the linked operation and fix its cause before retrying |
+| HTTP reachability, certificate expiry, GitLab runner liveness | Gatus: follow the failing endpoint's condition in the [runbook](../roles/gatus/README.md) |
+| CPU and memory trends | Beszel dashboards; these are outside the initial Komodo notification scope |
+
+Beszel had no configured alert rules in the 2026-09-17 audit. Review ownership
+before adding rules there. The tools do not deduplicate notifications across
+systems; an outage can still trigger both a stack alert and an HTTP alert.
+
+Komodo 2.2 does not expose a general deployment-failed alert type. A deployment
+that fails while leaving the old stack healthy may produce no stack-state
+notification. Use a Procedure or Action with failure alerts for maintenance
+workflows; successful retries of those operations do not emit a dedicated
+recovery alert. Image-update and scheduled-start notifications are excluded.
+
+For Compose stacks, Komodo 2.2 calculates state from container process states
+and missing services. It does not treat Docker's `unhealthy` health-check status
+as a stack-state change while the container remains running. This was reproduced
+with the disposable probe. Gatus covers only its configured endpoints, so it
+does not close this gap for every container or internal dependency.
+
+Komodo suppresses stack-state notifications while it records that stack as
+deploying, and suppresses unknown-state transitions when the server cannot be
+reached. Direct Ansible deployments do not set Komodo's deploying flag. For
+planned maintenance that would generate noise, use a bounded Alerter maintenance
+window with an explicit timezone. Do not leave the Alerter disabled afterward.
+
+Core runs on `nuc-mini`, so it cannot report that host's complete outage or its
+own failure. An independent external monitor remains necessary for that case.
+Enabling delivery does not replay existing incidents; inspect current health and
+open alerts during setup.
+
+### Expected completed or absent services
+
+Only these Compose services are excluded from aggregate stack health:
+
+| Stack | Ignored service | Reason |
+| --- | --- | --- |
+| `gitlab` | `renovate` | Optional `cron` profile; not a continuously running service |
+| `n8n` | `sandbox-certs` | Certificate initialization exits after success; sandbox services require successful completion |
+
+These exclusions affect monitoring, not Compose dependencies or deployment.
+Check Renovate job results separately. A failed certificate initializer is not
+reported directly by aggregate health; deployment failure and unhealthy or absent
+dependent services still need investigation.
+
+### Test delivery
+
+Use **Test Alerter** on `homelab-operations` and verify the message in Discord.
+The operation must succeed; merely saving the destination is insufficient.
+
+For a full monitor test, use a disposable stack with no production data or
+network access. Establish a running baseline, stop its container, then restart
+it. Wait for both state-change alerts and check delivery before removing
+the test container and resource. Editing a resource's health exclusions can
+refresh its displayed state without exercising the monitor's alert path.
+
+On 2026-09-17, Test Alerter succeeded and the disposable probe produced both
+`running → stopped` and `stopped → running` alerts. Core logged no delivery
+errors. The probe, test files, and temporary resources were removed afterward;
+GitLab and n8n retained their original container start times and restart counts.
+The operator confirmed receipt of all three Discord messages.
+
+The behavior above was checked against Komodo 2.2.0's
+[alert routing](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/alert/mod.rs),
+[stack monitoring](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/monitor/alert/stack.rs),
+and [Compose state calculation](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/helpers/query.rs).
 
 ## Paths and lifecycle exceptions
 
@@ -109,6 +219,12 @@ Old thematic resources such as `media-acquisition`, `media-consumption`,
 `content-management`, `reading`, `productivity`, `utilities`, and `development`
 are not the current stack layout. If any remain in Komodo, confirm that their
 replacement resources are in use before removing the resource entries.
-Removing obsolete resources does not require deleting application volumes or
-host data. Historical data migrations are recorded in
+In Komodo 2.2, deleting a Stack resource can run `compose down --remove-orphans`
+when its cached state indicates that it is up. For metadata-only removal,
+first verify that the old container project and host deployment are absent and
+that no active workflow or permission depends on the resource. Clear the
+resource's server or swarm association, verify it is detached, then delete it.
+Do not use Destroy Stack or remove volumes to clean up inventory entries.
+
+Historical data migrations are recorded in
 [retired migrations](../docs/retired-migrations.md).
