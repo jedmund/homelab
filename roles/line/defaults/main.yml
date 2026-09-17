@@ -23,3 +23,6 @@ line_admin_emails: "{{ vault_line_admin_emails }}"
 # line_reddit_client_id, line_twitch_client_id, line_twitch_client_secret,
 # line_youtube_api_key, line_bart_api_key, line_bay_511_api_key,
 # line_github_oauth_client_id, line_github_oauth_client_secret
+
+# Request one cached build even when recorded inputs and local images match.
+line_force_rebuild: false
