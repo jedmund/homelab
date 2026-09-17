@@ -26,7 +26,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
   template:
@@ -37,7 +36,7 @@
   loop:
     - line
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: line_deploy_environment_files
 
 - name: Pull latest line source
   ansible.builtin.git:
@@ -48,15 +47,30 @@
     accept_hostkey: true
   become: false
   register: line_git
-  notify: Restart {{ stack_name }} stack
+
+- name: Inspect line build requirements
+  ansible.builtin.import_tasks: build.yml
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
     state: present
+    # Explicitly override service build policies to avoid no-op rebuilds.
+    build: "{{ 'always' if (line_build_required | default(true)) else 'never' }}"
+    pull: policy
     remove_orphans: true
-    # Rebuild only when the line source moved; `policy` still builds the
-    # image when it's missing.
-    build: "{{ 'always' if line_git.changed else 'policy' }}"
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (line_deploy_environment_files.changed | default(false))
+         else 'auto' }}
   register: compose_result
+
+- name: Record successful line build inputs
+  ansible.builtin.copy:
+    content: "{{ {'fingerprint': line_build_fingerprint} | to_json }}\n"
+    dest: "{{ config_base }}/.ansible-build-inputs.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - line_build_services | default([]) | length > 0

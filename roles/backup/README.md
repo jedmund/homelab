@@ -4,6 +4,13 @@ Deploys Borgmatic and Borg UI on `nuc-mini`. Borgmatic writes an encrypted
 local repository and mirrors it to an NFS share after archive creation.
 This role does not back up every homelab host or every Docker volume.
 
+The Borgmatic image builds when its Dockerfile or build settings change, when
+the local image is missing, or when `backup_force_rebuild` is true. Configuration
+and script changes recreate the stack in the normal deployment without an
+additional build or restart handler. See
+[local image builds](../../docs/operations.md#local-image-builds) for the initial
+fingerprint rebuild and retry behavior.
+
 ## Configuration
 
 [defaults/main.yml](defaults/main.yml) defines the schedule, retention,

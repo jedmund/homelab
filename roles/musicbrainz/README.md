@@ -29,6 +29,13 @@ to produce a single fully-resolved compose file at `local/compose.merged.yml`
 and points both `.env` (`COMPOSE_FILE=`) and Komodo's `file_paths` at that
 one file. The merged file is regenerated on every Ansible run.
 
+Ansible builds local images when the upstream revision or effective build
+inputs change, when an image is missing, or when `musicbrainz_force_rebuild`
+is true. The normal deployment applies configuration once; there is no later
+Compose restart handler. See
+[local image builds](../../docs/operations.md#local-image-builds) for fingerprint
+and retry behavior.
+
 Implications when something breaks:
 
 - `local/compose.merged.yml` is auto-generated, do not edit by hand. Source

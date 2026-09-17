@@ -153,6 +153,49 @@ manual edits to generated Compose, environment, and configuration files.
 [Komodo](../komodo/README.md) uses those same files; application CI may trigger
 redeployment without rerunning Ansible.
 
+### Local image builds
+
+Line, Backup, Matrix, MusicBrainz, Strudel, and Petlibro's optional catbro
+inspect their local images and effective build inputs before deployment.
+Ansible builds when an image is missing, build inputs differ from the last
+successful deployment, or the role's force-rebuild variable is true. Runtime
+configuration changes can recreate the stack without rebuilding its images.
+
+The roles store a fingerprint in `.ansible-build-inputs.json` in the Compose
+project directory. It contains a hash, not configuration or credentials.
+The first deployment without a record rebuilds once. The record is updated
+only after a successful Compose apply, so a failed build or deployment remains
+eligible for retry. Check mode does not build or update the record.
+
+| Role | Explicit rebuild variable |
+| --- | --- |
+| Line | `line_force_rebuild` |
+| Backup | `backup_force_rebuild` |
+| Matrix | `matrix_force_rebuild` |
+| MusicBrainz | `musicbrainz_force_rebuild` |
+| Strudel | `strudel_force_rebuild` |
+| Petlibro | `petlibro_force_rebuild` (only while catbro is enabled) |
+
+For example:
+
+```sh
+make -C deploy deploy STACK=line EXTRA_ARGS='-e line_force_rebuild=true'
+```
+
+This requests a cached build. It does not disable the build cache or force
+new base images to be downloaded. Changes to upstream branches fetched inside
+a Dockerfile are not tracked by Ansible; use an explicit source/image update
+procedure when refreshing those dependencies.
+
+The build fingerprints cover rendered build settings, Dockerfiles, ignore
+files, and source checkout revisions where present. Hand edits to other files
+in host build directories are not a supported source-update mechanism.
+
+Ansible explicitly controls building on its own deployments. Direct Compose
+and Komodo deployments still follow the rendered service policies. In
+particular, `pull_policy: build` requests a build even if an image exists.
+HuggingHack retains its separate database-first startup and application build.
+
 ## Backups and maintenance
 
 [Backup](../roles/backup/README.md) defines the configured sources, database

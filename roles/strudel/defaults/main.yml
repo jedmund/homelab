@@ -7,3 +7,6 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 strudel_image: strudel:local
 strudel_port: 80
 strudel_domain: strudel.atelier.house
+
+# Request one cached build even when recorded inputs and local images match.
+strudel_force_rebuild: false
