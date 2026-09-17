@@ -239,17 +239,24 @@ for source_volume in musicbrainz_pgdata musicbrainz_solrdata; do
     -v "${source_volume}:/source:ro" \
     -v "${rollback_volume}:/rollback" \
     alpine:3.22 sh -ec 'cp -a /source/. /rollback/'
-  source_stats=$(docker run --rm -v "${source_volume}:/data:ro" alpine:3.22 \
-    sh -ec 'find /data -type f | wc -l; du -sk /data | cut -f1')
-  rollback_stats=$(docker run --rm -v "${rollback_volume}:/data:ro" alpine:3.22 \
-    sh -ec 'find /data -type f | wc -l; du -sk /data | cut -f1')
-  test "$source_stats" = "$rollback_stats"
-  printf '%s -> %s: %s\n' "$source_volume" "$rollback_volume" "$source_stats"
+  source_files=$(docker run --rm -v "${source_volume}:/data:ro" \
+    alpine:3.22 sh -ec 'find /data -type f | wc -l')
+  rollback_files=$(docker run --rm -v "${rollback_volume}:/data:ro" \
+    alpine:3.22 sh -ec 'find /data -type f | wc -l')
+  test "$source_files" = "$rollback_files"
+  docker run --rm \
+    -v "${source_volume}:/source:ro" \
+    -v "${rollback_volume}:/rollback:ro" \
+    alpine:3.22 diff -qr /source /rollback
+  printf '%s -> %s: %s files verified\n' \
+    "$source_volume" "$rollback_volume" "$source_files"
 done
 ```
 
-Both comparisons must succeed. Record the two rollback volume names and their
-file-count/size output. Do not restart a writer if either comparison fails.
+Both recursive comparisons must succeed. Record the two rollback volume names
+and their file-count output. Do not restart a writer if either comparison
+fails. Do not compare `du` allocation: copying can expand sparse files without
+changing their contents.
 
 ### 3. Prepare the corrected migration release
 
@@ -276,7 +283,8 @@ must not list `mq` or `redis`.
 ### 4. Upgrade PostgreSQL and rebuild collation indexes
 
 ```sh
-./admin/upgrade-to-postgres18
+DOCKER_CMD=docker DOCKER_COMPOSE_CMD='docker compose' \
+  ./admin/upgrade-to-postgres18
 docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
   'SHOW server_version;'
 docker compose exec -T musicbrainz bash -c \
@@ -296,7 +304,7 @@ docker compose up -d musicbrainz indexer
 docker compose exec -T musicbrainz upgrade-db-schema.sh
 docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
   'SELECT current_schema_sequence FROM replication_control;'
-./admin/setup-sir install
+DOCKER_CMD=docker DOCKER_COMPOSE_CMD='docker compose' ./admin/setup-sir install
 docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
   "SELECT to_regclass('sir.pending_data');"
 ```
