@@ -1,90 +1,48 @@
-# Repository instructions
+# Working on Homelab
 
-This repository manages live homelab hosts with Ansible. Most application
-roles deploy Docker Compose stacks; host provisioning and native macOS
-services have separate task layouts.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing this repository. It owns
+the contributor workflow, validation requirements, and publishing rules. Read
+[README.md](README.md), [CONVENTIONS.md](CONVENTIONS.md), and the affected role's
+runbook. Use [Operations](docs/operations.md) for deployment commands and
+[Secrets](docs/secrets.md) for vault placement and inputs.
 
-`CLAUDE.md` is a symlink to this file. Keep shared instructions here.
+`CLAUDE.md` is a symlink to this file. Keep shared agent instructions here.
 
-## Before editing
+## Work within the existing structure
 
-Read [README.md](README.md), [CONVENTIONS.md](CONVENTIONS.md), and the affected
-role's runbook. Use [Operations](docs/operations.md) for deployment commands
-and [Secrets](docs/secrets.md) for vault inputs and placement.
+- Survey the working tree and preserve unrelated edits and local secrets.
+- Inspect defaults, tasks, templates, inventory, and tests before changing
+  behavior. Historical reports are not evidence of current host state.
+- Keep applications and their required databases, workers, and caches in the
+  owning role. Follow Conventions for the single Compose deployment lifecycle.
+- Preserve deployment paths, project names, volume identities, and persistent
+  keys unless the task includes migrating them.
+- Check all service registrations when adding or removing a service. Retire
+  migration code only after verifying completion on its assigned hosts.
+- Use placeholder values for local rendering. Preserve `no_log`; never print
+  credentials or commit vaults, generated deployment files, or debug output.
+- Check existing vault locations before replacing a missing worktree credential.
+  Do not generate new persistent keys to bypass a failed deployment.
 
-Inspect the working tree and preserve existing edits. Treat role defaults,
-tasks, templates, and inventory as the source for configured behavior.
-Historical reports describe their recorded date, not current host state.
+## Validate and report
 
-## Repository map
+Follow [Contributing: Validation](CONTRIBUTING.md#validation). Ansible, inventory,
+template, and Make changes require `make check` and `git diff --check`, plus
+focused checks for behavior that syntax and lint cannot establish. Documentation
+changes need link, path, command, and diff checks. Do not weaken a gate or hide a
+failure to pass validation.
 
-- `inventory/hosts.yml`: hosts, connection settings, and deployment groups.
-- `deploy/`: standalone playbooks and `all.yml`; its `group_vars` symlink
-  points to the root group variables.
-- `roles/<service>/`: defaults, tasks, handlers, templates, and runbooks.
-- `group_vars/`: shared and per-group variables, including ignored local vaults.
-- `komodo/stacks.toml`: declarations for deployments using generated files.
-- `Makefile` and `deploy/Makefile`: validation and deployment entry points.
+Deploy only within the user's authorized scope. Check mode contacts managed
+hosts and may execute tasks. An edit or PR request alone does not authorize a
+deployment. Verify service health and affected behavior after deploying; report
+which host and checks were used and what remains untested.
 
-## Changes
+When asked to commit or publish, follow
+[Contributing: Commits and pull requests](CONTRIBUTING.md#commits-and-pull-requests).
+Print the exact-path commit plan before staging, use focused Conventional Commits,
+inspect each commit, and check the remote before selecting `gh` or `glab`.
+Never bypass hooks or signing. Opening a PR does not authorize merging it.
 
-Keep required databases, workers, and caches with their application role.
-Follow the affected role's layout and the conventions for new configuration.
-Preserve deployment paths, Compose project names, and volume identities
-unless the task explicitly includes moving the data.
-
-When adding or removing a service, check the inventory, standalone playbook,
-`deploy/all.yml`, Make targets, DNS, Traefik, authentication, backup coverage,
-Komodo declarations, and documentation. Explicit workflows excluded from the
-full deployment need a `deploy-all-exclude` annotation with a reason.
-
-Deleting deployment code does not uninstall software, delete existing DNS
-records, or revoke credentials. Distinguish repository cleanup from changes
-applied to hosts or external services.
-
-Do not commit credentials, decrypted vaults, generated deployment files, or
-debug output. Avoid printing secrets during inspection or validation. Use
-placeholder values when checking templates locally, and retain `no_log` on
-tasks that handle credentials.
-
-## Validation and deployment
-
-Run commands from the repository root unless using `make -C deploy`.
-
-```sh
-make check
-git diff --check
-```
-
-Run these after changing Ansible, inventory, templates, or Make targets.
-`make check` checks full-deployment coverage, playbook syntax, and lint.
-For documentation-only changes, check local links, referenced paths, and
-command names, then run `git diff --check`.
-
-Use targeted rendering or configuration checks when syntax and lint cannot
-verify the changed behavior. Do not add tests that merely repeat the source.
-
-These commands contact managed hosts:
-
-```sh
-make -C deploy check STACK=<service>
-make -C deploy <service>
-```
-
-The first runs Ansible check mode; the second applies the playbook. Check
-mode can still execute tasks marked to run in that mode. Deploy within the
-scope authorized by the user. A request to edit documentation or code alone
-does not call for a deployment. When applying changes, verify the affected
-service and report which host and checks were used.
-
-## Documentation and handoff
-
-Use plain, clinical language. Describe current behavior, prerequisites,
-commands, expected results, and known limitations. Avoid promotional prose,
-conversation history, and unsupported claims about live state. Keep detailed
-service instructions in the role's runbook and link to them from shared docs.
-
-Report what changed, what was verified, and anything left unresolved. Say
-whether changes were deployed. When asked to commit, use focused Conventional
-Commits and stage explicit paths. Inspect remotes before publishing; do not
-assume every remote uses the same hosting service.
+Use plain, clinical documentation. Report what changed, what passed or failed,
+whether it was deployed, and anything unresolved. Keep service procedures in
+role runbooks and link to them from shared documentation.
