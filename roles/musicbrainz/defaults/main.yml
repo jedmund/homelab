@@ -39,3 +39,6 @@ musicbrainz_source_compose_files:
 musicbrainz_merged_compose_path: local/compose.merged.yml
 
 # musicbrainz_replication_token - defined in vault
+
+# Request one cached build even when recorded inputs and local images match.
+musicbrainz_force_rebuild: false
