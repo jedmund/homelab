@@ -50,4 +50,6 @@
       {{ 'always' if
          (social_deploy_environment_files.changed | default(false))
          else 'auto' }}
+    wait: true
+    wait_timeout: 180
   register: compose_result
