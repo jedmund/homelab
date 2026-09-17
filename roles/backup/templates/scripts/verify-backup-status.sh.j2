@@ -6,7 +6,12 @@ set -euo pipefail
 
 MAX_AGE_SECONDS="${BACKUP_MAX_AGE_SECONDS:-{{ backup_verification_max_age_hours * 60 * 60 }}}"
 CORE_BACKUP_ROOT="${CORE_BACKUP_ROOT:-{{ komodo_core_backup_host_path }}}"
-NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_host_path }}}"
+BORG_DIRECT="${BORG_DIRECT:-false}"
+if [ "$BORG_DIRECT" = "true" ]; then
+    NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_container_path }}}"
+else
+    NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_host_path }}}"
+fi
 BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
 LOCAL_REPOSITORY="${LOCAL_REPOSITORY:-{{ borg_repo_container_path }}}"
 NAS_REPOSITORY="${NAS_REPOSITORY:-{{ nas_mount_container_path }}/{{ nas_share_subpath }}}"
@@ -37,21 +42,28 @@ require_fresh() {
 
 archive_record() {
     repository="$1"
-    docker_args=(exec)
     if [ "$repository" = "$NAS_REPOSITORY" ]; then
-        docker_args+=(
-            -e BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
-            -e "BORG_CACHE_DIR=$NAS_BORG_CACHE_DIR"
-            -e "BORG_SECURITY_DIR=$NAS_BORG_SECURITY_DIR"
+        borg_env=(
+            BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+            "BORG_CACHE_DIR=$NAS_BORG_CACHE_DIR"
+            "BORG_SECURITY_DIR=$NAS_BORG_SECURITY_DIR"
         )
     else
-        docker_args+=(
-            -e "BORG_CACHE_DIR=$LOCAL_BORG_CACHE_DIR"
-            -e "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
+        borg_env=(
+            "BORG_CACHE_DIR=$LOCAL_BORG_CACHE_DIR"
+            "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
         )
     fi
-    docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")
-    "$DOCKER_BIN" "${docker_args[@]}" |
+    if [ "$BORG_DIRECT" = "true" ]; then
+        env "${borg_env[@]}" borg list --json --last 1 "$repository"
+    else
+        docker_args=(exec)
+        for variable in "${borg_env[@]}"; do
+            docker_args+=(-e "$variable")
+        done
+        docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")
+        "$DOCKER_BIN" "${docker_args[@]}"
+    fi |
         "$PYTHON_BIN" -c '
 import datetime
 import json

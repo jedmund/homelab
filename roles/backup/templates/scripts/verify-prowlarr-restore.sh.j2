@@ -5,39 +5,52 @@
 set -euo pipefail
 
 BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
+BORG_DIRECT="${BORG_DIRECT:-false}"
 ARCHIVE_PATH="${PROWLARR_ARCHIVE_PATH:-{{ prowlarr_restore_archive_path }}}"
-RESTORE_TMP_ROOT="${RESTORE_TMP_ROOT:-{{ docker_base_path }}/{{ stack_name }}/restore-tests}"
-RESTORE_CONTAINER_TMP_ROOT="${RESTORE_CONTAINER_TMP_ROOT:-/restore-tests}"
+if [ "$BORG_DIRECT" = "true" ]; then
+    RESTORE_TMP_ROOT="${RESTORE_TMP_ROOT:-/restore-tests}"
+    RESTORE_CONTAINER_TMP_ROOT="${RESTORE_CONTAINER_TMP_ROOT:-$RESTORE_TMP_ROOT}"
+else
+    RESTORE_TMP_ROOT="${RESTORE_TMP_ROOT:-{{ docker_base_path }}/{{ stack_name }}/restore-tests}"
+    RESTORE_CONTAINER_TMP_ROOT="${RESTORE_CONTAINER_TMP_ROOT:-/restore-tests}"
+fi
 DOCKER_BIN="${DOCKER_BIN:-docker}"
+
+borg_exec() {
+    if [ "$BORG_DIRECT" = "true" ]; then
+        "$@"
+    else
+        "$DOCKER_BIN" exec "$BORG_CONTAINER" "$@"
+    fi
+}
 
 temporary="$(mktemp -d "${RESTORE_TMP_ROOT%/}/prowlarr-restore.XXXXXX")"
 leaf="$(basename "$temporary")"
 container_destination="${RESTORE_CONTAINER_TMP_ROOT%/}/$leaf"
 container_database="$container_destination/$ARCHIVE_PATH"
 cleanup() {
-    "$DOCKER_BIN" exec "$BORG_CONTAINER" rm -rf -- "$container_destination" \
-        >/dev/null 2>&1 || true
+    borg_exec rm -rf -- "$container_destination" >/dev/null 2>&1 || true
     rm -rf -- "$temporary"
 }
 trap cleanup EXIT INT TERM
 
-"$DOCKER_BIN" exec "$BORG_CONTAINER" borgmatic extract \
+borg_exec borgmatic extract \
     --archive latest \
     --path "$ARCHIVE_PATH" \
     --destination "$container_destination"
 
-if ! "$DOCKER_BIN" exec "$BORG_CONTAINER" test -s "$container_database"; then
+if ! borg_exec test -s "$container_database"; then
     printf 'ERROR: extracted Prowlarr database is missing or empty: %s\n' "$container_database" >&2
     exit 1
 fi
 
-schema="$($DOCKER_BIN exec "$BORG_CONTAINER" sqlite3 "$container_database" '.schema')"
+schema="$(borg_exec sqlite3 "$container_database" '.schema')"
 [ -n "$schema" ] || {
     printf 'ERROR: extracted Prowlarr database has an empty schema\n' >&2
     exit 1
 }
 
-integrity="$($DOCKER_BIN exec "$BORG_CONTAINER" sqlite3 "$container_database" 'PRAGMA integrity_check;')"
+integrity="$(borg_exec sqlite3 "$container_database" 'PRAGMA integrity_check;')"
 [ "$integrity" = "ok" ] || {
     printf 'ERROR: Prowlarr SQLite integrity check failed: %s\n' "$integrity" >&2
     exit 1
