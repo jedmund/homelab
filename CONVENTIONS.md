@@ -1,7 +1,8 @@
 # Conventions
 
-Use these conventions when adding or changing a service. Operating commands
-are in [Operations](docs/operations.md).
+Use these conventions when adding or changing a service. Contributor workflow
+and validation requirements are in [Contributing](CONTRIBUTING.md). Operating
+commands are in [Operations](docs/operations.md).
 
 ## Role boundaries
 
