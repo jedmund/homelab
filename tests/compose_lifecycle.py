@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 import yaml
@@ -21,6 +22,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = 'community.docker.docker_compose_v2'
 BUILD_ROLES = ('line', 'backup', 'matrix', 'strudel', 'petlibro', 'musicbrainz')
+DEFAULT_ROLES = ('prowlarr', 'aurral', 'stash', *BUILD_ROLES)
 
 
 def run(argv, **kwargs):
@@ -358,36 +360,72 @@ def exercise(root, role, docker, env, base):
         f.cleanup()
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--roles', nargs='+', default=['prowlarr', 'aurral', 'stash', *BUILD_ROLES])
-    parser.add_argument('--base-image', default='alpine:3.20')
-    parser.add_argument('--static-only', action='store_true')
-    args = parser.parse_args()
-    static_checks()
-    if args.static_only:
-        return
-    docker = shutil.which('docker')
-    context_endpoint = require([docker, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
-    endpoint = context_endpoint if os.environ.get('DOCKER_CONTEXT') else os.environ.get('DOCKER_HOST', context_endpoint)
-    if not endpoint.startswith('unix://'):
-        raise SystemExit('Tests require a local Docker Unix socket; remote daemons are not supported.')
-    root = Path(tempfile.mkdtemp(prefix='homelab-compose-tests-'))
-    print(f'Fixture logs: {root}', flush=True)
+def fixture_environment(root):
     config = root / 'ansible.cfg'
     config.write_text('[defaults]\nretry_files_enabled = False\nhost_key_checking = False\n')
     docker_config = root / 'docker-config'
     docker_config.mkdir()
-    (docker_config / 'config.json').write_text(json.dumps({'cliPluginsExtraDirs': [str(Path.home() / '.docker/cli-plugins')]}))
-    env = dict(os.environ, DOCKER_CONFIG=str(docker_config), ANSIBLE_CONFIG=str(config), ANSIBLE_LOCAL_TEMP=str(root / 'ansible-tmp'),
-               DOCKER_HOST=endpoint, ANSIBLE_REMOTE_TEMP=str(root / 'remote-tmp'), ANSIBLE_NOCOLOR='1')
+    (docker_config / 'config.json').write_text(json.dumps({
+        'cliPluginsExtraDirs': [str(Path.home() / '.docker/cli-plugins')],
+    }))
+    values = {
+        'DOCKER_CONFIG': str(docker_config),
+        'ANSIBLE_CONFIG': str(config),
+        'ANSIBLE_LOCAL_TEMP': str(root / 'ansible-tmp'),
+        'ANSIBLE_REMOTE_TEMP': str(root / 'remote-tmp'),
+        'ANSIBLE_NOCOLOR': '1',
+    }
+    env = dict(os.environ, **values)
     env.pop('DOCKER_CONTEXT', None)
+    return env
+
+
+def record_timing(report, name, started, destination):
+    report['phases'][name] = round(time.monotonic() - started, 3)
+    if destination:
+        path = Path(destination)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--roles', nargs='+', choices=DEFAULT_ROLES, default=list(DEFAULT_ROLES))
+    parser.add_argument('--base-image', default='alpine:3.20')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--static-only', action='store_true')
+    modes.add_argument('--lifecycle-only', action='store_true')
+    parser.add_argument('--report')
+    args = parser.parse_args()
+    docker = shutil.which('docker')
+    if not docker:
+        raise SystemExit('Tests require the Docker CLI with the Compose plugin.')
+    root = Path(tempfile.mkdtemp(prefix='homelab-compose-tests-'))
+    print(f'Fixture logs: {root}', flush=True)
+    report = {'version': 1, 'phases': {}, 'roles': args.roles}
+    env = fixture_environment(root)
+
+    if not args.lifecycle_only:
+        started = time.monotonic()
+        static_checks()
+        decision_checks(root, env)
+        template_checks(root, env, docker)
+        record_timing(report, 'static', started, args.report)
+        if args.static_only:
+            print('PASS: all requested static scenarios', flush=True)
+            return
+
+    context_endpoint = require([docker, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
+    endpoint = context_endpoint if os.environ.get('DOCKER_CONTEXT') else os.environ.get('DOCKER_HOST', context_endpoint)
+    if not endpoint.startswith('unix://'):
+        raise SystemExit('Tests require a local Docker Unix socket; remote daemons are not supported.')
+    env['DOCKER_HOST'] = endpoint
     if run([docker, 'image', 'inspect', args.base_image], env=env).returncode:
         require([docker, 'pull', args.base_image], env=env)
-    decision_checks(root, env)
-    template_checks(root, env, docker)
     for role in args.roles:
+        started = time.monotonic()
         exercise(root, role, docker, env, args.base_image)
+        record_timing(report, role, started, args.report)
     print('PASS: all requested lifecycle scenarios; fixture containers and images removed', flush=True)
 
 
