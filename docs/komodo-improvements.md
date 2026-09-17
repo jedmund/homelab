@@ -131,6 +131,20 @@ credential rotation, monitoring exceptions, and coverage limits.
 
 ### 3. Add a maintenance Procedure
 
+Purpose: make an approved update repeatable and observable. Today an operator
+must remember backup checks, the deployed version, deployment commands, and
+post-deployment checks. A Procedure records those steps in one execution and
+stops when a prerequisite or readiness check fails. Its failure alert also
+covers an update that fails while the old containers remain running.
+
+The initial workflow should accept one named stack and an approved image
+revision. Check required backup freshness, record current image references,
+apply Ansible configuration if needed, deploy, and verify application readiness.
+Start with manual execution for one low-risk service. Keep automatic updates
+disabled; extending the workflow to other services requires their own health
+checks and recovery prerequisites. A successful container start alone is not
+a successful maintenance operation.
+
 - [ ] Choose one low-risk stack as the initial target.
 - [ ] Record current image references and verify required backups and inputs.
 - [ ] Apply Ansible configuration when needed, then deploy the selected stack.
@@ -147,6 +161,10 @@ execution and application-specific checks.
 
 ### 4. Separate update discovery from deployment
 
+Benefit: one reviewable update list replaces repeated registry and dashboard
+checks. Discovery does not change running services; approved updates use the
+maintenance Procedure. Database upgrades remain separate decisions.
+
 - [ ] Evaluate image-update polling for registry-backed stacks without enabling
       automatic deployment.
 - [ ] Exclude local-build stacks and account for pinned images and private
@@ -160,6 +178,10 @@ Done when available updates are visible without changing running services, and
 applying an update has a defined validation and recovery procedure.
 
 ### 5. Verify backups operationally
+
+Benefit: establish that recent backup artifacts exist and can be restored before
+depending on them for maintenance. A green scheduled job is not proof that its
+output is usable. Restore exercises use isolated storage, never production data.
 
 - [ ] Check successful execution and freshness of the existing Core database
       backup Procedure, including where its artifacts are retained.
@@ -198,12 +220,76 @@ This is not yet a persistent agent connection or a full compatibility test.
 Done when an agent can inspect the homelab through a reproducible connection
 with enforced read-only access and documented credential handling.
 
+### 7. Reduce validation time and cost
+
+Automatic GitHub Actions runs are paused at the operator's request. Keep manual
+dispatch available for explicit full validation, and leave GitLab pipelines
+enabled. Use the contributor guide's local checks during this pause. Do not
+treat an absent GitHub check as a pass or automatically dispatch a paid run to
+replace a skipped one.
+
+The successful [PR #261 validation run](https://github.com/jedmund/homelab/actions/runs/35198849488)
+took about 12 minutes for documentation changes. Its timestamps give this
+baseline:
+
+| Phase | Approximate duration | Cause |
+| --- | --- | --- |
+| Validation image build | 1 minute | Tool and collection installation on a fresh runner |
+| Playbook syntax | 37 seconds | Each standalone playbook launches Ansible serially |
+| Lint | 79 seconds | Whole-repository Ansible lint |
+| Lifecycle suite | 9 minutes | Nine role fixtures run serially, including repeated build and deployment scenarios |
+
+The subsequent [PR #262 run](https://github.com/jedmund/homelab/actions/runs/35203408930)
+took about 18 minutes: image setup about 68 seconds, syntax 54 seconds, lint
+137 seconds, and lifecycle checks about 14 minutes. Both runs passed. The
+variation affected several phases; the serial lifecycle suite dominated both.
+
+Change selection has the largest potential saving in billed minutes. Parallel
+jobs reduce elapsed time but may increase billed minutes through repeated setup.
+Cache work should follow the measured bottlenecks rather than assuming the
+image build dominates.
+
+- [x] Pause automatic GitHub PR and `main` push runs; retain manual dispatch.
+- [ ] Add shared change classification for GitHub and GitLab, using the actual
+      review base. Cover renames, missing history, and shared inputs; unknown
+      changes must select full validation rather than silently skip it.
+- [ ] Give documentation-only changes local-link, path, and diff checks without
+      building the Docker validation image.
+- [ ] Validate Komodo declarations with TOML parsing and structural checks
+      without running unrelated Compose lifecycle fixtures or contacting hosts.
+- [ ] Run static Ansible checks for configuration changes and select affected
+      role fixtures. Shared lifecycle code, tooling, inventory, or test changes
+      require the broader suite. Preserve all existing behavioral scenarios.
+- [ ] Run full lifecycle fixtures in bounded parallel jobs, with isolated
+      Docker daemons, temporary roots, and retained per-role failure logs. Set
+      concurrency from measured runner capacity, especially on shared GitLab
+      hosts, rather than assuming more workers always shorten the run.
+- [ ] Cache or publish a pinned validation tool image, rebuilding it when the
+      Dockerfile or pinned requirements change. Use a cache usable on the
+      destination platform; keep credentials out of layers and artifacts.
+- [ ] Remove duplicate static checks and report phase and fixture timings as
+      separate CI steps. Keep an always-running aggregate result so conditional
+      jobs cannot strand required checks.
+- [ ] Retain full scheduled and explicit validation on GitLab. Measure both
+      elapsed time and billed GitHub runner minutes before deciding which
+      automatic GitHub checks to restore.
+- [ ] Demonstrate change-selection coverage and measure representative runs.
+      Targets are under one minute for documentation/declaration changes and
+      three to five minutes for full validation; these are targets, not results.
+- [ ] Restore automatic GitHub triggers only after reviewing those results and
+      the minutes budget. Check branch requirements before changing check names.
+
+Done when routine changes run the relevant gates, full validation remains
+available, and measured runtime and cost justify the chosen automatic triggers.
+This work changes repository validation, not homelab deployment behavior.
+
 ## Suggested order
 
-Reconcile Resource Sync, establish alerts, and implement one maintenance
-Procedure first. Add update reporting and backup verification around that
-workflow. Persistent read-only MCP access can be prepared alongside the inventory
-audit; write access should follow the operational permission design.
+Address validation runtime and cost next. Resource reconciliation and initial
+alerts are already applied. Then implement one manually executed maintenance
+Procedure with backup preconditions, followed by update reporting and restore
+verification. Persistent read-only MCP access can be prepared independently;
+write access should follow the operational permission design.
 
 Track implementations through linked PRs and replace checklist items with dated
 validation results as work completes. Updating this document does not authorize
