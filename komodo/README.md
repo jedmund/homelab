@@ -309,6 +309,46 @@ The resource name is `kizuna-storybook-mr-<iid>`. GitLab CI supplies deployment
 and stop events. The stop operation removes the review containers and Stack
 resource. Review containers have no published host port.
 
+## Album Sort Storybook catalogs
+
+The separate `album-sort-storybook` Action accepts `operation` (`deploy` or
+`destroy`), `target` (`main` or a positive MR IID), and a full lowercase 40-character
+`revision` for deployment. CI cannot destroy main. Registry, host, network, router,
+authentication and image repository are derived inside the Action, never from CI
+arguments. Deployments use the `Atelier` server and `tinyauth@file` on every path.
+The main hostname is `album-sort-storybook.review.atelier.house`; MR hosts are
+`album-sort-storybook-mr-<iid>.review.atelier.house`. There are no host ports or
+persistent volumes. Deletion is idempotent and preserves Kizuna resources.
+
+Activation is a separate requested operation:
+
+1. Verify existing wildcard DNS/TLS and TinyAuth/PocketID access on the gateway.
+2. Create a GitLab deploy token scoped to read the Album Sort registry. Add it
+   to Komodo as Docker registry account `album-sort-storybook-pull` for
+   `registry.atelier.house`. Keep the token in the owning encrypted Album Sort
+   vault and Komodo's secret account store; do not replace Kizuna's registry login.
+3. Create dedicated user `album-sort-storybook-ci`. Preview Resource Sync with
+   resources and user groups included; apply only the new Action/group. Verify
+   execute-only permission on this Action, without generic Stack write access.
+4. Set Album Sort's dedicated masked `KOMODO_STORYBOOK_API_KEY` and
+   `KOMODO_STORYBOOK_API_SECRET`, plus `KOMODO_URL`. Review jobs require these
+   on trusted same-project MR branches. Fork pipelines must not receive them.
+5. Enable GitLab **Prevent outdated deployment jobs** and disable retries of
+   outdated deployment jobs. Main and MR environments have separate resource
+   groups; stop shares the MR group. Then set `STORYBOOK_HOSTING_ENABLED=true`
+   only after activation approval. Schedules/full suites never publish.
+6. Verify anonymous `/`, `/iframe.html`, `/index.json`, `/revision.json` and an
+   `/assets/` URL deny access or redirect to authentication. Authenticate and
+   check the full SHA from `/revision.json`, docs, fonts and a nested overlay.
+7. Test an MR update, one-week expiry/manual stop, and stop after branch deletion.
+   Repeat stop to establish idempotence. Roll back by deploying a prior immutable
+   full revision through the Action after pausing newer deployment jobs.
+
+The static image supplies `/healthz` and uncached `/revision.json`. Container
+health does not prove private access or revision correctness. Diagnose image pull
+failures in the dedicated registry account, router failures in Traefik, and action
+failures in Komodo's update logs. No configuration in this change is activated.
+
 ## Retired resources
 
 Old thematic resources such as `media-acquisition`, `media-consumption`,
