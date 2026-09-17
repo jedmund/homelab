@@ -1036,3 +1036,126 @@ users = ["kizuna-storybook-review-ci"]
 permissions = [
   { target.type = "Action", target.id = "kizuna-storybook-review", level = "Execute" },
 ]
+
+[[action]]
+name = "album-sort-storybook"
+description = "Manage private Album Sort main and merge-request Storybook catalogs"
+tags = ["homelab", "album-sort", "ci", "review-app"]
+[action.config]
+failure_alert = true
+file_contents = '''
+type Operation = 'deploy' | 'destroy'
+
+const SERVER = 'Atelier'
+const REVIEW_DOMAIN = 'review.atelier.house'
+const PROXY_NETWORK = 'proxy-network'
+const AUTH_MIDDLEWARE = 'tinyauth@file'
+const CERTIFICATE_RESOLVER = 'letsencrypt'
+const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/album-sort/storybook'
+
+const required = (name: string): string => {
+  const value = String(ARGS[name] ?? '').trim()
+  if (!value) throw new Error(`Missing Action argument: ${name}`)
+  return value
+}
+
+const matches = (name: string, pattern: RegExp): string => {
+  const value = required(name)
+  if (!pattern.test(value)) throw new Error(`Invalid Action argument: ${name}`)
+  return value
+}
+
+const operation = required('operation') as Operation
+if (operation !== 'deploy' && operation !== 'destroy') {
+  throw new Error('operation must be deploy or destroy')
+}
+
+const target = matches('target', /^(main|[1-9][0-9]*)$/)
+if (target === 'main' && operation === 'destroy') throw new Error('Main catalog cannot be destroyed by CI')
+const stackName = target === 'main' ? 'album-sort-storybook' : `album-sort-storybook-mr-${target}`
+const stacks = await komodo.read('ListStacks', {})
+const existing = stacks.find((stack) => stack.name === stackName)
+
+if (operation === 'destroy') {
+  if (!existing) {
+    console.log(`${stackName} is already absent`)
+  } else {
+    const update = await komodo.execute_and_poll('DestroyStack', {
+      stack: existing.id,
+      remove_orphans: true,
+      stop_time: 10,
+    })
+    if (Array.isArray(update) || !update.success) {
+      throw new Error(`Failed to destroy ${stackName}`)
+    }
+    await komodo.write('DeleteStack', { id: existing.id })
+    console.log(`Destroyed and deleted ${stackName}`)
+  }
+} else {
+  const revision = matches('revision', /^[a-f0-9]{40}$/)
+  const image = `${IMAGE_REPOSITORY}:${revision}`
+  const host = `${stackName}.${REVIEW_DOMAIN}`
+  const router = stackName
+
+  const compose: DockerCompose = {
+    services: {
+      storybook: {
+        image,
+        restart: 'unless-stopped',
+        read_only: true,
+        tmpfs: ['/var/cache/nginx', '/var/run'],
+        security_opt: ['no-new-privileges:true'],
+        labels: {
+          'traefik.enable': 'true',
+          'traefik.docker.network': PROXY_NETWORK,
+          [`traefik.http.routers.${router}.rule`]: `Host(\`${host}\`)`,
+          [`traefik.http.routers.${router}.entrypoints`]: 'websecure',
+          [`traefik.http.routers.${router}.tls`]: 'true',
+          [`traefik.http.routers.${router}.tls.certresolver`]: CERTIFICATE_RESOLVER,
+          [`traefik.http.routers.${router}.middlewares`]: AUTH_MIDDLEWARE,
+          [`traefik.http.services.${router}.loadbalancer.server.port`]: '80',
+        },
+        networks: [PROXY_NETWORK],
+      },
+    },
+    networks: {
+      [PROXY_NETWORK]: {
+        external: true,
+      },
+    },
+  }
+
+  const config = {
+    server_id: SERVER,
+    registry_provider: 'registry.atelier.house',
+    registry_account: 'album-sort-storybook-pull',
+    project_name: stackName,
+    auto_pull: true,
+    file_contents: YAML.stringify(compose),
+    links: [`https://${host}`],
+    send_alerts: false,
+  }
+
+  const stack = existing
+    ? await komodo.write('UpdateStack', { id: existing.id, config })
+    : await komodo.write('CreateStack', { name: stackName, config })
+
+  const update = await komodo.execute_and_poll('DeployStack', {
+    stack: stack.name,
+    stop_time: 10,
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error(`Failed to deploy ${stackName}`)
+  }
+
+  console.log(`Deployed ${stackName} at https://${host} (${revision})`)
+}
+'''
+
+
+[[user_group]]
+name = "album-sort-storybook-ci"
+users = ["album-sort-storybook-ci"]
+permissions = [
+  { target.type = "Action", target.id = "album-sort-storybook", level = "Execute" },
+]
