@@ -147,6 +147,9 @@ def musicbrainz_replication_checks(root, env, docker):
     """Render and exercise the monitored MusicBrainz replication wrapper."""
     common = yaml.safe_load((ROOT / 'group_vars/compute_servers/common.yml').read_text())
     defaults = yaml.safe_load((ROOT / 'roles/musicbrainz/defaults/main.yml').read_text())
+    assert defaults['musicbrainz_upstream_version'] == 'v-2026-07-30.1'
+    assert defaults['musicbrainz_expected_schema_sequence'] == 31
+    assert 'compose/live-indexing-search.yml' in defaults['musicbrainz_source_compose_files']
     values = common | defaults | {
         'docker_base_path': str(root),
         'musicbrainz_healthchecks_url': 'https://hc.example/check-id',
@@ -277,6 +280,47 @@ exit "${FAKE_CURL_RC:-0}"
     completed, _, _ = check_case(curl_rc='22')
     assert completed.returncode == 0
     print('PASS: MusicBrainz replication rendering and failure detection', flush=True)
+
+
+def musicbrainz_schema_guard_checks(root, env):
+    """Exercise the existing-volume schema guard without contacting a host."""
+    main = yaml.safe_load((ROOT / 'roles/musicbrainz/tasks/main.yml').read_text())
+    names = {
+        'Require an inspectable database when persistent data exists',
+        'Require the database schema expected by the pinned release',
+    }
+    guard = [copy.deepcopy(task) for task in main if task['name'] in names]
+    assert len(guard) == 2
+
+    cases = [
+        ('fresh', {'volume_rc': 1, 'container_rc': 1, 'container': '', 'schema': ''}, True),
+        ('schema31', {'volume_rc': 0, 'container_rc': 0,
+                      'container': '[{"State":{"Running":true}}]', 'schema': '31'}, True),
+        ('missing-container', {'volume_rc': 0, 'container_rc': 1,
+                               'container': '', 'schema': ''}, False),
+        ('schema30', {'volume_rc': 0, 'container_rc': 0,
+                      'container': '[{"State":{"Running":true}}]', 'schema': '30'}, False),
+    ]
+    for label, case, expected in cases:
+        file = root / f'musicbrainz-schema-guard-{label}.yml'
+        variables = {
+            'musicbrainz_upstream_version': 'v-2026-07-30.1',
+            'musicbrainz_expected_schema_sequence': 31,
+            'musicbrainz_database_volume': {'rc': case['volume_rc']},
+            'musicbrainz_database_container': {
+                'rc': case['container_rc'], 'stdout': case['container'],
+            },
+            'musicbrainz_database_schema': {'stdout': case['schema']},
+        }
+        file.write_text(yaml.safe_dump([{
+            'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
+            'vars': variables, 'tasks': guard,
+        }], sort_keys=False))
+        result = run(['ansible-playbook', '-i', 'localhost,', str(file)], env=env)
+        (root / f'musicbrainz-schema-guard-{label}.log').write_text(
+            result.stdout + result.stderr)
+        assert (result.returncode == 0) == expected, (label, result.stdout, result.stderr)
+    print('PASS: MusicBrainz schema deployment guard', flush=True)
 
 
 class Fixture:
@@ -547,6 +591,7 @@ def main():
         decision_checks(root, env)
         template_checks(root, env, docker)
         musicbrainz_replication_checks(root, env, docker)
+        musicbrainz_schema_guard_checks(root, env)
         record_timing(report, 'static', started, args.report)
         if args.static_only:
             print('PASS: all requested static scenarios', flush=True)

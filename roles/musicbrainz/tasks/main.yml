@@ -13,6 +13,76 @@
       defined in group_vars/musicbrainz/vault.yml
   no_log: true
 
+# Updating the checkout before inspecting an existing database can put
+# schema-31 server and PostgreSQL definitions in front of schema-30 storage.
+# Refuse that transition in the routine role. A new installation has neither
+# the named volume nor a container and follows the documented first-run path.
+- name: Inspect existing MusicBrainz database volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - volume
+      - inspect
+      - musicbrainz_pgdata
+  register: musicbrainz_database_volume
+  changed_when: false
+  failed_when: musicbrainz_database_volume.rc not in [0, 1]
+  check_mode: false
+
+- name: Inspect existing MusicBrainz database container
+  ansible.builtin.command:
+    argv:
+      - docker
+      - container
+      - inspect
+      - musicbrainz-db-1
+  register: musicbrainz_database_container
+  changed_when: false
+  failed_when: musicbrainz_database_container.rc not in [0, 1]
+  check_mode: false
+
+- name: Require an inspectable database when persistent data exists
+  ansible.builtin.assert:
+    that:
+      - >-
+        musicbrainz_database_volume.rc != 0 or
+        (musicbrainz_database_container.rc == 0 and
+         (musicbrainz_database_container.stdout | from_json | first).State.Running)
+    fail_msg: >-
+      musicbrainz_pgdata exists but musicbrainz-db-1 is not running. Start and
+      inspect the existing database before deploying; the role will not infer
+      its schema from a persistent volume.
+
+- name: Read existing MusicBrainz database schema sequence
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - musicbrainz-db-1
+      - psql
+      - -U
+      - musicbrainz
+      - -d
+      - musicbrainz_db
+      - -tAc
+      - SELECT current_schema_sequence FROM replication_control;
+  register: musicbrainz_database_schema
+  changed_when: false
+  check_mode: false
+  when: musicbrainz_database_volume.rc == 0
+
+- name: Require the database schema expected by the pinned release
+  ansible.builtin.assert:
+    that:
+      - musicbrainz_database_schema.stdout | trim | int == musicbrainz_expected_schema_sequence
+    fail_msg: >-
+      The existing MusicBrainz database is schema
+      {{ musicbrainz_database_schema.stdout | default('unknown') | trim }}, but
+      {{ musicbrainz_upstream_version }} requires schema
+      {{ musicbrainz_expected_schema_sequence }}. Follow the schema-31 upgrade
+      procedure in roles/musicbrainz/README.md before applying this role.
+  when: musicbrainz_database_volume.rc == 0
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"

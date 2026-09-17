@@ -10,11 +10,12 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # `metabrainz/musicbrainz-docker-musicbrainz:<tag>-build0` 404s during build).
 # Latest tags: https://github.com/metabrainz/musicbrainz-docker/tags
 musicbrainz_upstream_repo: https://github.com/metabrainz/musicbrainz-docker.git
-# Keep this at the last schema-30 release until the release-specific schema-31
-# maintenance in docs/musicbrainz-roadmap.md is complete. A normal Ansible run
-# must not put schema-31 server code in front of the schema-30 database.
-musicbrainz_upstream_version: v-2026-04-27.0
+# This pin is the final target of the schema-31 maintenance procedure in the
+# role runbook. The role refuses to deploy it over an existing schema-30
+# database; perform the release-specific migration before applying the role.
+musicbrainz_upstream_version: v-2026-07-30.1
 musicbrainz_upstream_path: "{{ config_base }}/upstream"
+musicbrainz_expected_schema_sequence: 31
 
 # MusicBrainz web service (WS/2 endpoint)
 musicbrainz_domain: musicbrainz.atelier.house
@@ -36,6 +37,7 @@ musicbrainz_source_compose_files:
   - docker-compose.yml
   - compose/replication-token.yml
   - compose/replication-cron.yml
+  - compose/live-indexing-search.yml
   - local/compose/atelier.yml
 
 # Merged compose path (written by `docker compose config` on the host).

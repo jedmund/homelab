@@ -7,6 +7,11 @@ limits, ~10ms latency vs ~600ms against musicbrainz.org).
 Current recovery and maintenance work is tracked in the
 [MusicBrainz roadmap](../../docs/musicbrainz-roadmap.md).
 
+The configured target is `v-2026-07-30.1`, PostgreSQL 18, and database schema
+31. Production must complete the one-time procedure below before this role is
+applied. The role rejects an existing database whose schema does not match the
+configured release.
+
 ## Layout
 
 The role clones the upstream repo to `/opt/docker/musicbrainz/upstream/` and
@@ -160,9 +165,255 @@ maintenance plan. Upstream supplied an in-place PostgreSQL 16 to 18 and schema
 engine, collation, and SIR transitions.
 
 The [roadmap](../../docs/musicbrainz-roadmap.md) records the current schema-31
-recovery. Keep the configured release pinned until that maintenance reaches
-its version-pin step. Pause routine MusicBrainz deployments while the host is
-temporarily ahead of the repository.
+recovery. Pause routine MusicBrainz deployments from the first host checkout
+change until the final version pin is merged and deployed.
+
+## Schema 30 to 31 maintenance
+
+This procedure applies only to the production state recorded on 2026-09-17:
+`v-2026-04-27.0`, PostgreSQL 16, schema 30, and replication sequence 185879.
+Recheck every precondition before using it. The corrected migration release is
+`v-2026-05-13.0-mbdb31-pg18`; the final release is `v-2026-07-30.1`.
+
+Do not run the normal Ansible role until step 8. Run the host commands as root
+from `/opt/docker/musicbrainz/upstream`. Keep the same shell open where a step
+defines `rollback_stamp` or `COMPOSE_FILE`.
+
+### 1. Record the source state
+
+Open a maintenance window and stop unrelated MusicBrainz deployments. Record
+the output of these commands in the maintenance notes:
+
+```sh
+ssh nuc
+sudo -i
+cd /opt/docker/musicbrainz/upstream
+git status --short
+git describe --tags --always
+docker compose ps
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SHOW server_version; SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control;'
+docker system df
+df -h /var/lib/docker
+```
+
+Require tag `v-2026-04-27.0`, PostgreSQL 16, and schema 30. Stop if the Git
+checkout has an unexplained tracked change, a service is failing, or free disk
+is less than the space needed for copies of both persistent volumes plus the
+PostgreSQL upgrade.
+
+Confirm that the next packet is the schema boundary:
+
+```sh
+docker compose exec -T musicbrainz \
+  bash -c 'carton exec -- ./admin/replication/LoadReplicationChanges'
+```
+
+The command must report that the packet matches schema 31 while the database
+is schema 30. A different result changes the migration starting point; stop and
+review upstream instructions again.
+
+The 2026-09-17 inspection found no `amqp` extension, SIR schema, or AMQP
+triggers, so the old trigger uninstaller was not required. Recheck instead of
+assuming that remains true:
+
+```sh
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  "SELECT extname FROM pg_extension WHERE extname = 'amqp'; SELECT nspname FROM pg_namespace WHERE nspname = 'sir'; SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND pg_get_triggerdef(oid) ILIKE '%amqp%';"
+```
+
+If AMQP triggers are present, run `./admin/setup-amqp-triggers uninstall` on
+the schema-30 checkout before continuing.
+
+### 2. Stop writers and create rollback volumes
+
+```sh
+docker compose down
+rollback_stamp=$(date -u +%Y%m%dT%H%M%SZ)
+printf '%s\n' "$rollback_stamp" > /opt/docker/musicbrainz/schema31-rollback-stamp
+
+for source_volume in musicbrainz_pgdata musicbrainz_solrdata; do
+  rollback_volume="${source_volume}_schema30_${rollback_stamp}"
+  docker volume create "$rollback_volume"
+  docker run --rm \
+    -v "${source_volume}:/source:ro" \
+    -v "${rollback_volume}:/rollback" \
+    alpine:3.22 sh -ec 'cp -a /source/. /rollback/'
+  source_files=$(docker run --rm -v "${source_volume}:/data:ro" \
+    alpine:3.22 sh -ec 'find /data -type f | wc -l')
+  rollback_files=$(docker run --rm -v "${rollback_volume}:/data:ro" \
+    alpine:3.22 sh -ec 'find /data -type f | wc -l')
+  test "$source_files" = "$rollback_files"
+  docker run --rm \
+    -v "${source_volume}:/source:ro" \
+    -v "${rollback_volume}:/rollback:ro" \
+    alpine:3.22 diff -qr /source /rollback
+  printf '%s -> %s: %s files verified\n' \
+    "$source_volume" "$rollback_volume" "$source_files"
+done
+```
+
+Both recursive comparisons must succeed. Record the two rollback volume names
+and their file-count output. Do not restart a writer if either comparison
+fails. Do not compare `du` allocation: copying can expand sparse files without
+changing their contents.
+
+### 3. Prepare the corrected migration release
+
+```sh
+git fetch --tags origin
+git checkout v-2026-05-13.0-mbdb31-pg18
+cp admin/lib/upgrade-db-schema/musicbrainz-stopped.yml \
+  local/compose/musicbrainz-stopped.yml
+docker compose \
+  -f docker-compose.yml \
+  -f compose/replication-token.yml \
+  -f local/compose/atelier.yml \
+  -f local/compose/musicbrainz-stopped.yml \
+  config > local/compose.schema31-migration.yml
+export COMPOSE_FILE=local/compose.schema31-migration.yml
+docker compose config --services
+```
+
+The migration Compose configuration intentionally omits replication cron and
+live indexing. It keeps the MusicBrainz container asleep while database work
+runs. It must list `db`, `indexer`, `musicbrainz`, `search`, and `valkey`, and
+must not list `mq` or `redis`.
+
+### 4. Upgrade PostgreSQL and rebuild collation indexes
+
+```sh
+DOCKER_CMD=docker DOCKER_COMPOSE_CMD='docker compose' \
+  ./admin/upgrade-to-postgres18
+docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SHOW server_version;'
+docker compose exec -T musicbrainz bash -c \
+  'carton exec -- ./admin/RebuildIndexesUsingCollations.pl --noconcurrently'
+```
+
+The upstream upgrader must end with `Upgrade complete!`, and PostgreSQL must
+report major version 18. Stop on any other result. The collation command may
+emit the version-mismatch warnings documented by upstream, but it must exit
+successfully.
+
+### 5. Upgrade the database schema and install SIR
+
+```sh
+docker compose build musicbrainz
+docker compose up -d musicbrainz indexer
+docker compose exec -T musicbrainz upgrade-db-schema.sh
+docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SELECT current_schema_sequence FROM replication_control;'
+DOCKER_CMD=docker DOCKER_COMPOSE_CMD='docker compose' ./admin/setup-sir install
+docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
+  "SELECT to_regclass('sir.pending_data');"
+```
+
+Require schema 31 and relation `sir.pending_data` before continuing.
+
+### 6. Apply the first schema-31 packet
+
+```sh
+docker compose exec -T musicbrainz bash -c \
+  'carton exec -- ./admin/replication/LoadReplicationChanges --limit=1'
+docker compose exec -T db psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control;'
+```
+
+Upstream identifies the first packet as beginning at
+`2026-05-11 19:54:55.563573+00`. Require schema 31 and a replication sequence
+greater than 185879. The documented warning about the packet's old schema
+value is expected for this one packet.
+
+### 7. Move to the final release while services remain stopped
+
+```sh
+git checkout v-2026-07-30.1
+cp admin/lib/upgrade-db-schema/musicbrainz-stopped.yml \
+  local/compose/musicbrainz-stopped.yml
+docker compose \
+  -f docker-compose.yml \
+  -f compose/replication-token.yml \
+  -f local/compose/atelier.yml \
+  -f local/compose/musicbrainz-stopped.yml \
+  config > local/compose.schema31-migration.yml
+export COMPOSE_FILE=local/compose.schema31-migration.yml
+docker compose up --build -d
+```
+
+Do not enable replication from this temporary configuration.
+
+### 8. Return ownership to Ansible
+
+Merge the migration PR only after steps 1 through 7 pass. From the merged
+repository checkout with the MusicBrainz vault present, apply the normal role:
+
+```sh
+make -C deploy musicbrainz
+```
+
+The role verifies schema 31 before changing the upstream checkout. It renders
+the final Compose configuration with monitored replication and live SIR
+indexing, starts Valkey, and removes orphaned RabbitMQ and Redis containers.
+Do not use `--check` as a substitute for the maintenance checkpoints.
+
+### 9. Catch up and accept the upgrade
+
+```sh
+ssh nuc
+sudo -i
+cd /opt/docker/musicbrainz/upstream
+docker exec musicbrainz-musicbrainz-1 /local/replication-check.sh
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SHOW server_version; SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control; SELECT count(*) FROM sir.pending_data;'
+docker compose ps
+curl -fsS 'http://localhost:5000/ws/2/recording/?query=artist:cornelius&fmt=json' | jq '.count'
+```
+
+Repeat the wrapper until it reports no pending packet. Compare the local
+sequence with the newest authenticated upstream packet and require replication
+age below 36 hours. Wait for `sir.pending_data` to reach zero. `docker compose
+ps` must show `db`, `indexer`, `musicbrainz`, `search`, and `valkey`, with no
+`mq` or `redis` container. Run the WS/2 check from Multi-Scrobbler and Album
+Sort, confirm a successful Healthchecks ping, and repeat the Ansible deployment
+to establish idempotence.
+
+Keep both rollback volumes for seven days after acceptance. Removing them and
+the orphaned RabbitMQ volume is a separate destructive cleanup requiring
+explicit approval.
+
+### Roll back before acceptance
+
+Rollback discards all writes made after the snapshots. Stop the stack and read
+the recorded stamp before changing a volume. Restore both members of the
+snapshot pair; never restore only PostgreSQL or only Solr.
+
+```sh
+cd /opt/docker/musicbrainz/upstream
+docker compose down --remove-orphans
+rollback_stamp=$(cat /opt/docker/musicbrainz/schema31-rollback-stamp)
+
+for target_volume in musicbrainz_pgdata musicbrainz_solrdata; do
+  rollback_volume="${target_volume}_schema30_${rollback_stamp}"
+  docker volume inspect "$rollback_volume"
+  docker volume rm "$target_volume"
+  docker volume create "$target_volume"
+  docker run --rm \
+    -v "${rollback_volume}:/source:ro" \
+    -v "${target_volume}:/restore" \
+    alpine:3.22 sh -ec 'cp -a /source/. /restore/'
+done
+
+git checkout v-2026-04-27.0
+unset COMPOSE_FILE
+docker compose up -d
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SHOW server_version; SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control;'
+```
+
+Require PostgreSQL 16, schema 30, and replication sequence 185879 after the
+restore. Keep routine deployments frozen because the repository pin remains
+schema 31; repair the migration or prepare a rollback PR before resuming them.
 
 ## Notes
 
