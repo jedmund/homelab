@@ -323,10 +323,15 @@ persistent volumes. Deletion is idempotent and preserves Kizuna resources.
 Activation is a separate requested operation:
 
 1. Verify existing wildcard DNS/TLS and TinyAuth/PocketID access on the gateway.
-2. Create a GitLab deploy token scoped to read the Album Sort registry. Add it
-   to Komodo as Docker registry account `album-sort-storybook-pull` for
-   `registry.atelier.house`. Keep the token in the owning encrypted Album Sort
-   vault and Komodo's secret account store; do not replace Kizuna's registry login.
+2. Create a GitLab deploy token scoped to read the Album Sort registry. Store
+   `vault_album_sort_storybook_registry_username` and
+   `vault_album_sort_storybook_registry_password` in the encrypted Album Sort
+   vault. After authorization, run the Album Sort playbook with
+   `--tags storybook-registry -e album_sort_storybook_registry_enabled=true`.
+   This writes `/etc/komodo/album-sort-storybook/config.json`, visible through
+   Periphery's existing writable `/etc/komodo` mount. The Action wraps Compose
+   config/pull/up/run with that dedicated `DOCKER_CONFIG`. Komodo registry login
+   fields stay empty because its shared login would replace Kizuna credentials.
 3. Create dedicated user `album-sort-storybook-ci`. Preview Resource Sync with
    resources and user groups included; apply only the new Action/group. Verify
    execute-only permission on this Action, without generic Stack write access.

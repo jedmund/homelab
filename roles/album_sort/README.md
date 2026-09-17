@@ -92,3 +92,17 @@ Back up application state and the encryption key before incompatible upgrades.
 For a rollback, select an image compatible with the current database and
 credential format. Restore older data only through the application's recovery
 procedure. The former M4 cutover verifier is retired.
+
+## Private Storybook registry
+
+Storybook is an independent static catalog managed by the dedicated Komodo Action;
+it does not join the application network or require a music root. See the
+[Komodo activation runbook](../../komodo/README.md#album-sort-storybook-catalogs).
+
+Registry provisioning is disabled by default. Place
+`vault_album_sort_storybook_registry_username` and
+`vault_album_sort_storybook_registry_password` in this role's encrypted vault.
+After activation is authorized, the `storybook-registry` tag with
+`album_sort_storybook_registry_enabled=true` provisions only the dedicated Docker
+config. Do not reuse or replace `/etc/komodo/docker/config.json`: Kizuna owns that
+shared login. No Storybook service is deployed by this tag.
