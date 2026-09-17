@@ -115,7 +115,7 @@ def template_checks(root, env, docker):
     common.update(yaml.safe_load((ROOT / 'group_vars/compute_servers/docker.yml').read_text()))
     checks = []
     outputs = []
-    for role in ('line', 'backup', 'matrix', 'strudel', 'petlibro'):
+    for role in ('line', 'backup', 'bentopdf', 'matrix', 'strudel', 'petlibro'):
         defaults = yaml.safe_load((ROOT / 'roles' / role / 'defaults/main.yml').read_text())
         for enabled in ([False, True] if role == 'petlibro' else [False]):
             file = root / f'{role}-{enabled}.yaml'
@@ -135,12 +135,19 @@ def template_checks(root, env, docker):
         services = yaml.safe_load(file.read_text())['services']
         if role == 'petlibro':
             assert ('catbro' in services) == enabled
+        if role == 'bentopdf':
+            service = services['bentopdf']
+            assert service['image'].endswith(
+                ':2.8.8@sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74'
+            )
+            assert 'wget --quiet --spider' in service['healthcheck']['test'][-1]
+            continue
         for service in services.values():
             if 'build' in service:
                 assert service['pull_policy'] == 'build', (role, service)
             else:
                 assert service['pull_policy'] == ('missing' if role == 'petlibro' else 'always'), role
-    print('PASS: six rendered production Compose configurations and image pull policies', flush=True)
+    print('PASS: seven rendered production Compose configurations and image pull policies', flush=True)
 
 
 def musicbrainz_replication_checks(root, env, docker):

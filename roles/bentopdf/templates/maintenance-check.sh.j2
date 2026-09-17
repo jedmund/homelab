@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Fixed preflight and post-deployment gates for the Komodo maintenance Procedure.
+
+set -euo pipefail
+
+PHASE="${1:-}"
+COMPOSE_FILE="{{ config_base }}/compose.yaml"
+CONTAINER="bentopdf"
+EXPECTED_IMAGE="{{ bentopdf_image_reference }}"
+EXPECTED_REPO_DIGEST="{{ bentopdf_image }}@{{ bentopdf_image_digest }}"
+WAIT_SECONDS=120
+
+container_record() {
+    docker container inspect "$CONTAINER" | python3 -c '
+import json, sys
+item = json.load(sys.stdin)[0]
+print("container_id=" + item["Id"])
+print("configured_image=" + item["Config"]["Image"])
+print("image_id=" + item["Image"])
+print("state=" + item["State"]["Status"])
+print("health=" + item["State"].get("Health", {}).get("Status", "none"))
+print("mount_count=" + str(len(item.get("Mounts", []))))
+'
+}
+
+preflight() {
+    mapfile -t images < <(docker compose -f "$COMPOSE_FILE" config --images)
+    image_count="$(printf '%s\n' "${images[@]}" | wc -l | tr -d ' ')"
+    if [ "$image_count" -ne 1 ] || [ "${images[0]}" != "$EXPECTED_IMAGE" ]; then
+        printf 'ERROR: rendered image does not exactly match %s\n' "$EXPECTED_IMAGE" >&2
+        printf 'Rendered images: %s\n' "${images[*]:-none}" >&2
+        return 1
+    fi
+
+    inspect_json="$(docker container inspect "$CONTAINER")"
+    state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"]["Status"])' <<<"$inspect_json")"
+    mount_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)[0].get("Mounts", [])))' <<<"$inspect_json")"
+    if [ "$state" != "running" ]; then
+        printf 'ERROR: %s is %s, expected running\n' "$CONTAINER" "$state" >&2
+        return 1
+    fi
+    if [ "$mount_count" -ne 0 ]; then
+        printf 'ERROR: %s has %s mounts; the backup exemption requires zero\n' "$CONTAINER" "$mount_count" >&2
+        return 1
+    fi
+
+    printf 'Preflight passed: rendered_image=%s\n' "$EXPECTED_IMAGE"
+    container_record
+    printf 'backup_exemption=no mounts or persistent data\n'
+}
+
+postdeploy() {
+    deadline=$((SECONDS + WAIT_SECONDS))
+    while true; do
+        inspect_json="$(docker container inspect "$CONTAINER")"
+        state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"]["Status"])' <<<"$inspect_json")"
+        health="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"].get("Health", {}).get("Status", "none"))' <<<"$inspect_json")"
+        if [ "$state" = "running" ] && [ "$health" = "healthy" ]; then
+            break
+        fi
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            printf 'ERROR: %s did not become healthy within %s seconds (state=%s health=%s)\n' \
+                "$CONTAINER" "$WAIT_SECONDS" "$state" "$health" >&2
+            return 1
+        fi
+        sleep 2
+    done
+
+    configured_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Image"])' <<<"$inspect_json")"
+    image_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Image"])' <<<"$inspect_json")"
+    mount_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)[0].get("Mounts", [])))' <<<"$inspect_json")"
+    if [ "$configured_image" != "$EXPECTED_IMAGE" ]; then
+        printf 'ERROR: running image reference is %s, expected %s\n' "$configured_image" "$EXPECTED_IMAGE" >&2
+        return 1
+    fi
+    if [ "$mount_count" -ne 0 ]; then
+        printf 'ERROR: %s gained %s mounts; backup exemption is invalid\n' "$CONTAINER" "$mount_count" >&2
+        return 1
+    fi
+
+    repo_digests="$(docker image inspect "$image_id" | python3 -c '
+import json, sys
+print("\n".join(json.load(sys.stdin)[0].get("RepoDigests", [])))
+')"
+    if ! grep -Fqx "$EXPECTED_REPO_DIGEST" <<<"$repo_digests"; then
+        printf 'ERROR: running image lacks expected repository digest %s\n' "$EXPECTED_REPO_DIGEST" >&2
+        printf '%s\n' "$repo_digests" >&2
+        return 1
+    fi
+
+    printf 'Post-deployment verification passed\n'
+    container_record
+    printf 'verified_repo_digest=%s\n' "$EXPECTED_REPO_DIGEST"
+}
+
+case "$PHASE" in
+    preflight) preflight ;;
+    postdeploy) postdeploy ;;
+    *)
+        printf 'Usage: %s {preflight|postdeploy}\n' "$0" >&2
+        exit 2
+        ;;
+esac

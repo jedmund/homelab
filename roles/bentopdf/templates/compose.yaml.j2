@@ -4,8 +4,14 @@ name: {{ stack_name }}
 services:
   bentopdf:
     container_name: bentopdf
-    image: "{{ bentopdf_image }}:{{ bentopdf_image_tag }}"
+    image: "{{ bentopdf_image_reference }}"
     restart: {{ restart_policy }}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:{{ bentopdf_port }}/ || exit 1"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 20s
     networks:
       - proxy
     security_opt:
