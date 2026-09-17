@@ -316,6 +316,22 @@ class BackupActionRuntimeTests(unittest.TestCase):
             )
 
 
+class ImageDigestReportTests(unittest.TestCase):
+    def test_action_uses_write_api_without_enabling_auto_update(self):
+        document = tomllib.loads(
+            (ROOT / "komodo/stacks.toml").read_text(encoding="utf-8")
+        )
+        action = next(
+            item
+            for item in document["action"]
+            if item["name"] == "report-image-digest-updates"
+        )
+        contents = action["config"]["file_contents"]
+        self.assertIn("komodo.write('CheckStackForUpdate'", contents)
+        self.assertNotIn("komodo.execute('CheckStackForUpdate'", contents)
+        self.assertIn("skip_auto_update: true", contents)
+
+
 class ProwlarrRestoreTests(unittest.TestCase):
     def _run(self, corrupt: bool) -> tuple[subprocess.CompletedProcess[str], list[Path]]:
         with tempfile.TemporaryDirectory() as temporary:

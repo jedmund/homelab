@@ -806,7 +806,7 @@ const changes: string[] = []
 const errors: string[] = []
 for (const stack of stacks) {
   try {
-    const result = await komodo.execute('CheckStackForUpdate', {
+    const result = await komodo.write('CheckStackForUpdate', {
       stack: stack.name,
       skip_auto_update: true,
       wait_for_auto_update: true,
