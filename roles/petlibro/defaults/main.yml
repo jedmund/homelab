@@ -70,3 +70,6 @@ petlibro_feeders:
 # in-process (internal/kalay, `kibble_kalay_enabled: true` in
 # roles/kibble/).  The mock's scripts live in the petlibro app repo
 # (feeder-re/mock-kalay) if a standalone fallback is ever needed again.
+
+# Request one cached build even when recorded inputs and local images match.
+petlibro_force_rebuild: false
