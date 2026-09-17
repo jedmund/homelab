@@ -18,7 +18,7 @@ const ARGS = {json.dumps(args)};
 const calls = [];
 const YAML = {{ stringify: JSON.stringify }};
 const komodo = {{
-  read: async () => {json.dumps([{'id': 'owned', 'name': 'album-sort-storybook-mr-12'}] if existing else [])},
+  read: async () => {json.dumps([{'id': 'owned', 'name': 'music-storybook-mr-12'}] if existing else [])},
   write: async (operation, params) => {{ calls.push({{operation, params}}); return {{name: params.name ?? 'owned'}}; }},
   execute_and_poll: async (operation, params) => {{ calls.push({{operation, params}}); return {{success: {str(succeeds).lower()}}}; }}
 }};
@@ -49,7 +49,7 @@ const komodo = {{
             self.assertEqual(config['compose_cmd_wrapper'], 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]')
             self.assertIn('pull', config['compose_cmd_wrapper_include'])
             self.assertIn('up', config['compose_cmd_wrapper_include'])
-            expected = 'album-sort-storybook' if target == 'main' else 'album-sort-storybook-mr-12'
+            expected = 'music-storybook' if target == 'main' else 'music-storybook-mr-12'
             self.assertEqual(config['links'], [f'https://{expected}.review.atelier.house'])
 
     def test_rejects_invalid_inputs_before_mutation(self):
