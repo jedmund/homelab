@@ -33,6 +33,7 @@ record_duration() {
 run_static() {
     local started=$SECONDS
     make check VAULT_PASS=/nonexistent ANSIBLE_CONFIG="$ANSIBLE_CONFIG"
+    python tests/test_maintenance.py
     python tests/compose_lifecycle.py --static-only --report /results/static-fixtures.json
     record_duration static "$((SECONDS - started))"
 }
