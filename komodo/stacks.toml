@@ -485,6 +485,8 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/gitlab"
 file_paths = ["compose.yaml"]
+# Renovate runs only through the cron profile; absence is expected.
+ignore_services = ["renovate"]
 poll_for_updates = false
 auto_update = false
 
@@ -521,6 +523,8 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/n8n"
 file_paths = ["compose.yaml"]
+# Certificate initialization exits after success; its dependents enforce completion.
+ignore_services = ["sandbox-certs"]
 poll_for_updates = false
 auto_update = false
 
