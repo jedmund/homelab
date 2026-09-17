@@ -10,6 +10,9 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # `metabrainz/musicbrainz-docker-musicbrainz:<tag>-build0` 404s during build).
 # Latest tags: https://github.com/metabrainz/musicbrainz-docker/tags
 musicbrainz_upstream_repo: https://github.com/metabrainz/musicbrainz-docker.git
+# Keep this at the last schema-30 release until the release-specific schema-31
+# maintenance in docs/musicbrainz-roadmap.md is complete. A normal Ansible run
+# must not put schema-31 server code in front of the schema-30 database.
 musicbrainz_upstream_version: v-2026-04-27.0
 musicbrainz_upstream_path: "{{ config_base }}/upstream"
 
@@ -42,3 +45,11 @@ musicbrainz_merged_compose_path: local/compose.merged.yml
 
 # Request one cached build even when recorded inputs and local images match.
 musicbrainz_force_rebuild: false
+
+# Replication schedule and health reporting. The container runs in UTC.
+musicbrainz_replication_cron: "0 3 * * *"
+# Alert after one missed daily run plus twelve hours of grace.
+musicbrainz_replication_max_age_hours: 36
+# Required Healthchecks.io ping URL, defined in the musicbrainz vault. The
+# value is rendered to a Docker secret and never embedded in the wrapper.
+musicbrainz_healthchecks_url: ""

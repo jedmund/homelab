@@ -143,6 +143,142 @@ def template_checks(root, env, docker):
     print('PASS: six rendered production Compose configurations and image pull policies', flush=True)
 
 
+def musicbrainz_replication_checks(root, env, docker):
+    """Render and exercise the monitored MusicBrainz replication wrapper."""
+    common = yaml.safe_load((ROOT / 'group_vars/compute_servers/common.yml').read_text())
+    defaults = yaml.safe_load((ROOT / 'roles/musicbrainz/defaults/main.yml').read_text())
+    values = common | defaults | {
+        'docker_base_path': str(root),
+        'musicbrainz_healthchecks_url': 'https://hc.example/check-id',
+        'musicbrainz_replication_token': 'placeholder',
+    }
+    wrapper = root / 'musicbrainz-replication-check.sh'
+    cron = root / 'musicbrainz-replication.cron'
+    overlay = root / 'musicbrainz-atelier.yaml'
+    play = root / 'musicbrainz-templates.yml'
+    render = [
+        {
+            'name': 'Render MusicBrainz replication wrapper',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/replication-check.sh.j2'),
+                'dest': str(wrapper),
+                'mode': '0755',
+            },
+        },
+        {
+            'name': 'Render MusicBrainz replication cron',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/replication.cron.j2'),
+                'dest': str(cron),
+                'mode': '0644',
+            },
+        },
+        {
+            'name': 'Render MusicBrainz atelier overlay',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/compose/atelier.yml.j2'),
+                'dest': str(overlay),
+                'mode': '0644',
+            },
+        },
+    ]
+    play.write_text(yaml.safe_dump([{
+        'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
+        'vars': values, 'tasks': render,
+    }], sort_keys=False))
+    result = run(['ansible-playbook', '-i', 'localhost,', str(play)], env=env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    require(['bash', '-n', str(wrapper)], env=env)
+    assert '0 3 * * * /local/replication-check.sh' in cron.read_text()
+    assert 'MAX_AGE_SECONDS=129600' in wrapper.read_text()
+
+    base = root / 'musicbrainz-base.yaml'
+    base.write_text(yaml.safe_dump({'services': {
+        'indexer': {'image': 'alpine:3.20'},
+        'musicbrainz': {'image': 'alpine:3.20'},
+    }}))
+    merged = yaml.safe_load(require([
+        docker, 'compose', '-f', str(base), '-f', str(overlay),
+        'config', '--no-env-resolution',
+    ], env=env))
+    musicbrainz = merged['services']['musicbrainz']
+    assert any(item['target'] == '/local/replication-check.sh'
+               for item in musicbrainz['volumes'])
+    assert any(item['source'] == 'musicbrainz_healthchecks_url'
+               for item in musicbrainz['secrets'])
+
+    fake_bin = root / 'musicbrainz-fake-bin'
+    fake_bin.mkdir()
+    psql = fake_bin / 'psql'
+    psql.write_text("""#!/bin/sh
+if [ "${FAKE_SQL_FAIL:-0}" = 1 ]; then exit 1; fi
+last=
+for argument in "$@"; do last=$argument; done
+case "$last" in
+  *last_replication_date*) printf '%s\\n' "${FAKE_AGE:-0}" ;;
+  *)
+    count=$(cat "$FAKE_PSQL_STATE" 2>/dev/null || printf 0)
+    if [ "$count" -eq 0 ]; then printf '%s\\n' "$FAKE_BEFORE"; else printf '%s\\n' "$FAKE_AFTER"; fi
+    printf '%s\\n' "$((count + 1))" > "$FAKE_PSQL_STATE"
+    ;;
+esac
+""")
+    replication = fake_bin / 'replication'
+    replication.write_text("""#!/bin/sh
+printf '%s\\n' "${FAKE_REPLICATION_OUTPUT:-}"
+exit "${FAKE_REPLICATION_RC:-0}"
+""")
+    curl = fake_bin / 'curl'
+    curl.write_text("""#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_CURL_LOG"
+exit "${FAKE_CURL_RC:-0}"
+""")
+    for executable in (psql, replication, curl):
+        executable.chmod(0o755)
+
+    healthchecks = root / 'musicbrainz-healthchecks-url'
+    healthchecks.write_text('https://hc.example/check-id\n')
+    state = root / 'musicbrainz-psql-state'
+    output = root / 'musicbrainz-replication-output'
+    curl_log = root / 'musicbrainz-curl-log'
+
+    def check_case(*, before='100', after='101', age='60', message='applied',
+                   replication_rc='0', sql_fail='0', curl_rc='0'):
+        state.write_text('0\n')
+        output.write_text('')
+        curl_log.write_text('')
+        case_env = dict(env, PATH=f'{fake_bin}{os.pathsep}{env["PATH"]}',
+                        MUSICBRAINZ_REPLICATION_COMMAND=str(replication),
+                        MUSICBRAINZ_PSQL_COMMAND=str(psql),
+                        MUSICBRAINZ_HEALTHCHECKS_FILE=str(healthchecks),
+                        MUSICBRAINZ_OUTPUT_PATH=str(output),
+                        FAKE_PSQL_STATE=str(state), FAKE_CURL_LOG=str(curl_log),
+                        FAKE_BEFORE=before, FAKE_AFTER=after, FAKE_AGE=age,
+                        FAKE_REPLICATION_OUTPUT=message,
+                        FAKE_REPLICATION_RC=replication_rc,
+                        FAKE_SQL_FAIL=sql_fail, FAKE_CURL_RC=curl_rc)
+        completed = run(['bash', str(wrapper)], env=case_env)
+        return completed, output.read_text(), curl_log.read_text()
+
+    completed, message, pings = check_case()
+    assert completed.returncode == 0 and 'sequence 100 -> 101' in message
+    assert '/start' in pings and 'https://hc.example/check-id\n' in pings
+    completed, message, _ = check_case(after='100')
+    assert completed.returncode == 0 and 'no new packets upstream' in message
+    completed, message, pings = check_case(
+        after='100', message='LoadReplicationChanges failed (rc=3)')
+    assert completed.returncode == 1 and 'replication command returned 0' in message
+    assert '/fail' in pings
+    completed, message, _ = check_case(after='100', age='129601')
+    assert completed.returncode == 1 and 'over the 36h threshold' in message
+    completed, message, pings = check_case(sql_fail='1')
+    assert completed.returncode == 1 and 'cannot read current replication sequence' in message
+    assert '/fail' in pings
+    completed, _, _ = check_case(curl_rc='22')
+    assert completed.returncode == 0
+    print('PASS: MusicBrainz replication rendering and failure detection', flush=True)
+
+
 class Fixture:
     def __init__(self, root, role, docker, env, base):
         self.role = role
@@ -410,6 +546,7 @@ def main():
         static_checks()
         decision_checks(root, env)
         template_checks(root, env, docker)
+        musicbrainz_replication_checks(root, env, docker)
         record_timing(report, 'static', started, args.report)
         if args.static_only:
             print('PASS: all requested static scenarios', flush=True)

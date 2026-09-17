@@ -3,6 +3,16 @@
 # layers a local/ overlay (Traefik labels, network attachment) on top.
 # Initial DB import is a manual one-shot; see roles/musicbrainz/README.md.
 
+- name: Validate MusicBrainz secret inputs
+  ansible.builtin.assert:
+    that:
+      - musicbrainz_replication_token | default('') | length > 0
+      - musicbrainz_healthchecks_url | default('') | length > 0
+    fail_msg: >-
+      musicbrainz_replication_token and musicbrainz_healthchecks_url must be
+      defined in group_vars/musicbrainz/vault.yml
+  no_log: true
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
@@ -49,6 +59,31 @@
     mode: '0644'
   register: musicbrainz_deploy_atelier_compose_overlay
 
+- name: Deploy replication health-check wrapper
+  ansible.builtin.template:
+    src: local/replication-check.sh.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication-check.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  register: musicbrainz_deploy_replication_check
+
+- name: Deploy replication crontab
+  ansible.builtin.template:
+    src: local/replication.cron.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication.cron"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: musicbrainz_deploy_replication_cron
+
+- name: Deploy replication Healthchecks URL
+  ansible.builtin.template:
+    src: local/secrets/musicbrainz_healthchecks_url.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/secrets/musicbrainz_healthchecks_url"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: musicbrainz_deploy_healthchecks_url
+
 - name: Deploy MetaBrainz replication access token
   template:
     src: local/secrets/metabrainz_access_token.j2
@@ -57,6 +92,11 @@
     mode: '0600'
   no_log: true
   register: musicbrainz_deploy_metabrainz_replication_access_token
+
+- name: Remove superseded schema-upgrade helper
+  ansible.builtin.file:
+    path: "{{ config_base }}/schema-upgrade.sh"
+    state: absent
 
 # Render the multi-file overlay chain into a single self-contained compose
 # file so Komodo only sees one definition per service. `-f` flags here
@@ -111,6 +151,9 @@
       {{ 'always' if
          (musicbrainz_deploy_upstream_env.changed | default(false)) or
          (musicbrainz_deploy_atelier_compose_overlay.changed | default(false)) or
+         (musicbrainz_deploy_replication_check.changed | default(false)) or
+         (musicbrainz_deploy_replication_cron.changed | default(false)) or
+         (musicbrainz_deploy_healthchecks_url.changed | default(false)) or
          (musicbrainz_deploy_metabrainz_replication_access_token.changed | default(false))
          else 'auto' }}
   register: compose_result
