@@ -10,18 +10,22 @@ CONTAINER="bentopdf"
 EXPECTED_IMAGE="{{ bentopdf_image_reference }}"
 EXPECTED_REPO_DIGEST="{{ bentopdf_image }}@{{ bentopdf_image_digest }}"
 WAIT_SECONDS=120
+CONTAINER_FORMAT='{% raw %}{{.Id}}|{{.Config.Image}}|{{.Image}}|{{.State.Status}}|{{with index .State "Health"}}{{index . "Status"}}{{else}}none{{end}}|{{len .Mounts}}{% endraw %}'
+REPO_DIGESTS_FORMAT='{% raw %}{{range .RepoDigests}}{{println .}}{{end}}{% endraw %}'
+
+read_container_record() {
+    IFS='|' read -r container_id configured_image image_id state health mount_count \
+        < <(docker container inspect --format "$CONTAINER_FORMAT" "$CONTAINER")
+}
 
 container_record() {
-    docker container inspect "$CONTAINER" | python3 -c '
-import json, sys
-item = json.load(sys.stdin)[0]
-print("container_id=" + item["Id"])
-print("configured_image=" + item["Config"]["Image"])
-print("image_id=" + item["Image"])
-print("state=" + item["State"]["Status"])
-print("health=" + item["State"].get("Health", {}).get("Status", "none"))
-print("mount_count=" + str(len(item.get("Mounts", []))))
-'
+    read_container_record
+    printf 'container_id=%s\n' "$container_id"
+    printf 'configured_image=%s\n' "$configured_image"
+    printf 'image_id=%s\n' "$image_id"
+    printf 'state=%s\n' "$state"
+    printf 'health=%s\n' "$health"
+    printf 'mount_count=%s\n' "$mount_count"
 }
 
 preflight() {
@@ -33,9 +37,7 @@ preflight() {
         return 1
     fi
 
-    inspect_json="$(docker container inspect "$CONTAINER")"
-    state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"]["Status"])' <<<"$inspect_json")"
-    mount_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)[0].get("Mounts", [])))' <<<"$inspect_json")"
+    read_container_record
     if [ "$state" != "running" ]; then
         printf 'ERROR: %s is %s, expected running\n' "$CONTAINER" "$state" >&2
         return 1
@@ -53,9 +55,7 @@ preflight() {
 postdeploy() {
     deadline=$((SECONDS + WAIT_SECONDS))
     while true; do
-        inspect_json="$(docker container inspect "$CONTAINER")"
-        state="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"]["Status"])' <<<"$inspect_json")"
-        health="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["State"].get("Health", {}).get("Status", "none"))' <<<"$inspect_json")"
+        read_container_record
         if [ "$state" = "running" ] && [ "$health" = "healthy" ]; then
             break
         fi
@@ -67,9 +67,6 @@ postdeploy() {
         sleep 2
     done
 
-    configured_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Config"]["Image"])' <<<"$inspect_json")"
-    image_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Image"])' <<<"$inspect_json")"
-    mount_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)[0].get("Mounts", [])))' <<<"$inspect_json")"
     if [ "$configured_image" != "$EXPECTED_IMAGE" ]; then
         printf 'ERROR: running image reference is %s, expected %s\n' "$configured_image" "$EXPECTED_IMAGE" >&2
         return 1
@@ -79,10 +76,7 @@ postdeploy() {
         return 1
     fi
 
-    repo_digests="$(docker image inspect "$image_id" | python3 -c '
-import json, sys
-print("\n".join(json.load(sys.stdin)[0].get("RepoDigests", [])))
-')"
+    repo_digests="$(docker image inspect --format "$REPO_DIGESTS_FORMAT" "$image_id")"
     if ! grep -Fqx "$EXPECTED_REPO_DIGEST" <<<"$repo_digests"; then
         printf 'ERROR: running image lacks expected repository digest %s\n' "$EXPECTED_REPO_DIGEST" >&2
         printf '%s\n' "$repo_digests" >&2
