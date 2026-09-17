@@ -153,6 +153,23 @@ class BackupStatusTests(unittest.TestCase):
                 from pathlib import Path
                 import sys
                 source = "NAS_JSON" if sys.argv[-1] == "/nas/borg-nuc-mini" else "LOCAL_JSON"
+                if source == "NAS_JSON":
+                    required = {
+                        "BORG_RELOCATED_REPO_ACCESS_IS_OK=yes",
+                        "BORG_CACHE_DIR=/root/.cache/borg-nas-mirror",
+                        "BORG_SECURITY_DIR=/root/.config/borg/security-nas-mirror",
+                    }
+                    missing = required.difference(sys.argv)
+                    if missing:
+                        raise SystemExit(f"NAS mirror lookup is missing isolated Borg settings: {missing}")
+                else:
+                    required = {
+                        "BORG_CACHE_DIR=/root/.cache/borg-status-local",
+                        "BORG_SECURITY_DIR=/root/.config/borg/security-status-local",
+                    }
+                    missing = required.difference(sys.argv)
+                    if missing:
+                        raise SystemExit(f"local lookup is missing isolated Borg settings: {missing}")
                 print(Path(os.environ[source]).read_text(), end="")
                 """
             ),
@@ -162,6 +179,12 @@ class BackupStatusTests(unittest.TestCase):
         self.fake_findmnt = self.root / "findmnt"
         self.fake_findmnt.write_text("#!/usr/bin/env bash\nprintf 'nfs4\\n'\n", encoding="utf-8")
         self.fake_findmnt.chmod(0o755)
+        self.automount_marker = self.root / "automount-active"
+        self.fake_ls = self.root / "ls"
+        self.fake_ls.write_text(
+            "#!/usr/bin/env bash\ntouch \"$AUTOMOUNT_MARKER\"\n", encoding="utf-8"
+        )
+        self.fake_ls.chmod(0o755)
         self.local_json = self.root / "local.json"
         self.nas_json = self.root / "nas.json"
         self._write_archive_json("same-id", "same-id")
@@ -204,6 +227,8 @@ class BackupStatusTests(unittest.TestCase):
             "CORE_BACKUP_ROOT": str(self.core),
             "DOCKER_BIN": str(self.fake_docker),
             "FINDMNT_BIN": str(self.fake_findmnt),
+            "LS_BIN": str(self.fake_ls),
+            "AUTOMOUNT_MARKER": str(self.automount_marker),
             "LOCAL_JSON": str(self.local_json),
             "NAS_JSON": str(self.nas_json),
         }
@@ -220,12 +245,35 @@ class BackupStatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Backup status verification passed", result.stdout)
 
+    def test_repository_lookups_use_isolated_borg_state(self):
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_active_nfs_below_autofs_trigger_passes(self):
         self.fake_findmnt.write_text(
             "#!/usr/bin/env bash\nprintf 'autofs\\nnfs\\n'\n", encoding="utf-8"
         )
         result = self._run()
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("nas_mount_type=nfs", result.stdout)
+
+    def test_idle_autofs_activates_nfs_mount(self):
+        self.fake_findmnt.write_text(
+            textwrap.dedent(
+                """\
+                #!/usr/bin/env bash
+                if [ -f "$AUTOMOUNT_MARKER" ]; then
+                    printf 'autofs\\nnfs\\n'
+                else
+                    printf 'autofs\\n'
+                fi
+                """
+            ),
+            encoding="utf-8",
+        )
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.automount_marker.exists())
         self.assertIn("nas_mount_type=nfs", result.stdout)
 
     def test_stale_core_backup_fails(self):

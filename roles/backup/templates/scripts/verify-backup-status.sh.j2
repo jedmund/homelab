@@ -10,8 +10,13 @@ NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_host_path }}}"
 BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
 LOCAL_REPOSITORY="${LOCAL_REPOSITORY:-{{ borg_repo_container_path }}}"
 NAS_REPOSITORY="${NAS_REPOSITORY:-{{ nas_mount_container_path }}/{{ nas_share_subpath }}}"
+LOCAL_BORG_CACHE_DIR="${LOCAL_BORG_CACHE_DIR:-/root/.cache/borg-status-local}"
+LOCAL_BORG_SECURITY_DIR="${LOCAL_BORG_SECURITY_DIR:-/root/.config/borg/security-status-local}"
+NAS_BORG_CACHE_DIR="${NAS_BORG_CACHE_DIR:-/root/.cache/borg-nas-mirror}"
+NAS_BORG_SECURITY_DIR="${NAS_BORG_SECURITY_DIR:-/root/.config/borg/security-nas-mirror}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 FINDMNT_BIN="${FINDMNT_BIN:-findmnt}"
+LS_BIN="${LS_BIN:-ls}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 fail() {
@@ -32,7 +37,21 @@ require_fresh() {
 
 archive_record() {
     repository="$1"
-    "$DOCKER_BIN" exec "$BORG_CONTAINER" borg list --json --last 1 "$repository" |
+    docker_args=(exec)
+    if [ "$repository" = "$NAS_REPOSITORY" ]; then
+        docker_args+=(
+            -e BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+            -e "BORG_CACHE_DIR=$NAS_BORG_CACHE_DIR"
+            -e "BORG_SECURITY_DIR=$NAS_BORG_SECURITY_DIR"
+        )
+    else
+        docker_args+=(
+            -e "BORG_CACHE_DIR=$LOCAL_BORG_CACHE_DIR"
+            -e "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
+        )
+    fi
+    docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")
+    "$DOCKER_BIN" "${docker_args[@]}" |
         "$PYTHON_BIN" -c '
 import datetime
 import json
@@ -57,13 +76,22 @@ print("{}\t{}\t{}".format(
 '
 }
 
+select_nfs_filesystem() {
+    filesystem=""
+    while IFS= read -r candidate; do
+        case "$candidate" in
+            nfs|nfs4) filesystem="$candidate" ;;
+        esac
+    done <<<"$filesystems"
+}
+
 filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
-filesystem=""
-while IFS= read -r candidate; do
-    case "$candidate" in
-        nfs|nfs4) filesystem="$candidate" ;;
-    esac
-done <<<"$filesystems"
+select_nfs_filesystem
+if [ -z "$filesystem" ] && grep -Fxq autofs <<<"$filesystems"; then
+    "$LS_BIN" -A "$NAS_MOUNT" >/dev/null || fail "cannot activate NAS mount at $NAS_MOUNT"
+    filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
+    select_nfs_filesystem
+fi
 if [ -z "$filesystem" ]; then
     display_types="$(printf '%s' "${filesystems:-none}" | tr '\n' ',')"
     fail "$NAS_MOUNT is not an active NFS mount (types=${display_types%,})"
