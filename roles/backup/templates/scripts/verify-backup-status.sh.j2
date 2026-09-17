@@ -12,6 +12,7 @@ LOCAL_REPOSITORY="${LOCAL_REPOSITORY:-{{ borg_repo_container_path }}}"
 NAS_REPOSITORY="${NAS_REPOSITORY:-{{ nas_mount_container_path }}/{{ nas_share_subpath }}}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 FINDMNT_BIN="${FINDMNT_BIN:-findmnt}"
+LS_BIN="${LS_BIN:-ls}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 fail() {
@@ -57,13 +58,22 @@ print("{}\t{}\t{}".format(
 '
 }
 
+select_nfs_filesystem() {
+    filesystem=""
+    while IFS= read -r candidate; do
+        case "$candidate" in
+            nfs|nfs4) filesystem="$candidate" ;;
+        esac
+    done <<<"$filesystems"
+}
+
 filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
-filesystem=""
-while IFS= read -r candidate; do
-    case "$candidate" in
-        nfs|nfs4) filesystem="$candidate" ;;
-    esac
-done <<<"$filesystems"
+select_nfs_filesystem
+if [ -z "$filesystem" ] && grep -Fxq autofs <<<"$filesystems"; then
+    "$LS_BIN" -A "$NAS_MOUNT" >/dev/null || fail "cannot activate NAS mount at $NAS_MOUNT"
+    filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
+    select_nfs_filesystem
+fi
 if [ -z "$filesystem" ]; then
     display_types="$(printf '%s' "${filesystems:-none}" | tr '\n' ',')"
     fail "$NAS_MOUNT is not an active NFS mount (types=${display_types%,})"
