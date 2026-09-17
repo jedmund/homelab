@@ -3,6 +3,26 @@
 # and any env/config files. Komodo reads those host files and may redeploy
 # them on demand, but it should not clone stack repos or auto-update images.
 
+[[alerter]]
+name = "homelab-operations"
+description = "Operational alerts to the Discord destination shared with Gatus; see komodo/README.md."
+tags = ["homelab", "operations"]
+[alerter.config]
+enabled = true
+alert_types = [
+  "ServerUnreachable",
+  "ServerDisk",
+  "StackStateChange",
+  "BuildFailed",
+  "RepoBuildFailed",
+  "ProcedureFailed",
+  "ActionFailed",
+]
+[alerter.config.endpoint]
+type = "Discord"
+[alerter.config.endpoint.params]
+url = "[[HOMELAB_DISCORD_WEBHOOK_URL]]"
+
 [[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
