@@ -50,7 +50,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
   template:
@@ -61,7 +60,7 @@
   loop:
     - traefik
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: traefik_deploy_environment_files
 
 - name: Deploy Traefik static config
   template:
@@ -70,7 +69,7 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
   when: traefik_enabled | bool
-  notify: Restart {{ stack_name }} stack
+  register: traefik_deploy_traefik_static_config
 
 - name: Deploy Traefik dynamic configs
   template:
@@ -83,7 +82,7 @@
     - services-max.yml.j2
     - services-other.yml.j2
   when: traefik_enabled | bool
-  notify: Restart {{ stack_name }} stack
+  register: traefik_deploy_traefik_dynamic_configs
 
 - name: Deploy Traefik static files
   copy:
@@ -95,7 +94,7 @@
     - middlewares.yml
     - tls.yml
   when: traefik_enabled | bool
-  notify: Restart {{ stack_name }} stack
+  register: traefik_deploy_traefik_static_files
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -103,4 +102,11 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (traefik_deploy_environment_files.changed | default(false)) or
+         (traefik_deploy_traefik_static_config.changed | default(false)) or
+         (traefik_deploy_traefik_dynamic_configs.changed | default(false)) or
+         (traefik_deploy_traefik_static_files.changed | default(false))
+         else 'auto' }}
   register: compose_result
