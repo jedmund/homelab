@@ -246,3 +246,5 @@
 # deploy-all-exclude: monitoring -- The monitoring role is already applied by prerequisites.yml; this playbook exists for --limit runs.
 # deploy-all-exclude: sglang -- Parked experimental stack; no model is deployed by default.
 # deploy-all-exclude: vllm -- Rendered and started by ai_split.yml when split-mode inference is requested.
+
+# deploy-all-exclude: kaneo-inspection -- Coordinated rollout requires idle jobs and a Kaneo backup.

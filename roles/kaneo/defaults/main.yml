@@ -131,3 +131,8 @@ kaneo_garage_data_nfs_device: "{{ kaneo_garage_data_nfs_root_device }}/{{ kaneo_
 kaneo_garage_data_nfs_options: "{{ nfs_base_opts }}"
 kaneo_garage_data_volume_name: kaneo-garage-data-nas
 kaneo_storage_init_image: alpine:3.20
+
+# Dedicated manual inspections are opt-in per instance and project.
+kaneo_agent_inspections_enabled: false
+kaneo_agent_service_encryption_key: "{{ vault_kaneo_agent_service_encryption_key | default('') }}"
+kaneo_agent_service_allowed_origins: http://adapter:1338

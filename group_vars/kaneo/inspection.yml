@@ -1,0 +1,7 @@
+---
+# Updated deliberately after smoke testing; record resolved digests in each deployment backup.
+kaneo_image: registry.atelier.house/jedmund/kaneo
+kaneo_image_tag: inspection
+kaneo_agent_inspections_enabled: true
+kaneo_inspection_adapter_image: registry.atelier.house/jedmund/kaneo/inspection-adapter:inspection
+kaneo_inspection_paseo_image: registry.atelier.house/jedmund/kaneo/inspection-paseo@sha256:6ed8de987afdc2d7610460bd8d861fea8da7da2a852b0913f8a12528081d1089

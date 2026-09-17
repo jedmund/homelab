@@ -1,0 +1,13 @@
+---
+kaneo_inspection_root: "{{ docker_base_path }}/kaneo-inspection"
+kaneo_inspection_adapter_image: ''
+kaneo_inspection_paseo_image: ''
+kaneo_inspection_api_network: kaneo-inspection-api
+kaneo_inspection_model_address: 192.168.1.100
+kaneo_inspection_model_port: 11437
+kaneo_inspection_relay_address: 192.168.1.6
+kaneo_inspection_relay_port: 8411
+kaneo_inspection_relay_public_endpoint: paseo.relay.atelier.house:443
+kaneo_inspection_bearer_token: "{{ vault_kaneo_inspection_bearer_token | default('') }}"
+kaneo_inspection_paseo_password: "{{ vault_kaneo_inspection_paseo_password | default('') }}"
+kaneo_inspection_model_auth: "{{ vault_kaneo_inspection_model_auth | default('vllm') }}"

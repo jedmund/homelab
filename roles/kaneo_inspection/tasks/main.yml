@@ -1,0 +1,65 @@
+---
+- name: Require configured images and dedicated secrets
+  ansible.builtin.assert:
+    that:
+      - kaneo_inspection_adapter_image | length > 0
+      - kaneo_inspection_paseo_image is match('^.+@sha256:[a-f0-9]{64}$')
+      - kaneo_inspection_bearer_token | length >= 32
+      - kaneo_inspection_paseo_password is match('^[a-f0-9]{64}$')
+      - (vault_kaneo_agent_service_encryption_key | default('') | length) >= 32
+  no_log: true
+
+- name: Create isolated persistent directories
+  ansible.builtin.file:
+    path: "{{ kaneo_inspection_root }}/{{ item }}"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0700'
+  loop: ['', state, snapshots, paseo, paseo/paseo]
+
+- name: Create private Kaneo-to-adapter network
+  community.docker.docker_network:
+    name: "{{ kaneo_inspection_api_network }}"
+    internal: true
+
+- name: Configure only the managed local provider
+  ansible.builtin.copy:
+    dest: "{{ kaneo_inspection_root }}/paseo/paseo/config.json"
+    owner: '1000'
+    group: '1000'
+    mode: '0600'
+    content: |
+      {
+        "daemon": {"mcp": {"enabled": false, "injectIntoAgents": false}},
+        "agents": {"providers": {
+          "claude": {"enabled": false}, "codex": {"enabled": false}, "pi": {"enabled": false},
+          "opencode": {"enabled": true, "command": ["node", "/app/apps/inspection-adapter/deadline-wrapper.mjs"]}
+        }}
+      }
+
+- name: Write service environments
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ kaneo_inspection_root }}/{{ item }}"
+    owner: '1000'
+    group: '1000'
+    mode: '0600'
+  loop: [adapter.env, paseo.env]
+  no_log: true
+  register: kaneo_inspection_environments
+
+- name: Render the isolated inspection stack
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ kaneo_inspection_root }}/compose.yaml"
+    mode: '0644'
+
+- name: Start only the dedicated inspection stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ kaneo_inspection_root }}"
+    state: present
+    pull: always
+    recreate: "{{ 'always' if kaneo_inspection_environments.changed else 'auto' }}"
+    wait: true
+    wait_timeout: 180
