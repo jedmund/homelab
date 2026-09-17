@@ -4,8 +4,8 @@ stack_name: social
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Mastodon settings
-mastodon_image: ghcr.io/glitch-soc/mastodon:latest
-mastodon_streaming_image: ghcr.io/glitch-soc/mastodon-streaming:latest
+mastodon_image: ghcr.io/glitch-soc/mastodon:v4.7.2
+mastodon_streaming_image: ghcr.io/glitch-soc/mastodon-streaming:v4.7.2
 mastodon_domain: fireplace.cafe
 mastodon_web_port: 3000
 mastodon_web_host_port: 3002
