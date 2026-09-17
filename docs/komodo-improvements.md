@@ -176,17 +176,26 @@ Benefit: one reviewable update list replaces repeated registry and dashboard
 checks. Discovery does not change running services; approved updates use the
 maintenance Procedure. Database upgrades remain separate decisions.
 
-- [ ] Evaluate image-update polling for registry-backed stacks without enabling
+- [x] Evaluate direct image-update checks for registry-backed stacks without enabling
       automatic deployment.
-- [ ] Exclude local-build stacks and account for pinned images and private
+- [x] Exclude local-build stacks and account for pinned images and private
       registry authentication.
-- [ ] Produce a reviewable list of available updates and affected services.
 - [ ] Classify application updates separately from database-engine upgrades.
+- [x] Produce one reviewable alert listing available changes and lookup errors.
 - [ ] Route approved updates through the maintenance workflow and record the
       deployed image versions.
 
 Done when available updates are visible without changing running services, and
 applying an update has a defined validation and recovery procedure.
+
+Repository implementation (2026-09-17): 45 eligible Stack declarations carry
+`update-monitor`. `report-image-digest-updates` checks them individually each
+Monday at 09:00 `America/Los_Angeles` with `skip_auto_update = true`. It emits
+one Custom `homelab-operations` alert only for changes or failures. All Stack
+polling and auto-update settings remain disabled. The 13 local-build,
+private-registry, merged-Compose, or profiled exceptions are listed in the
+Komodo runbook. Live registry success and the first scheduled execution remain
+rollout gates; the tags and Action have not been synced.
 
 ### 5. Verify backups operationally
 
