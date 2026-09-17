@@ -5,6 +5,7 @@ importable, `ansible-playbook` must be on PATH, and the Docker CLI must include
 the Compose plugin:
 
 ```sh
+python3 tests/test_maintenance.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
@@ -14,6 +15,10 @@ and rendered production Compose files. The lifecycle phase loads the repository'
 actual build and deployment tasks with fixture variables and files. It tests
 container identity, applied configuration, build decisions, failed-build retries,
 check mode, and removal of an optional service.
+
+The maintenance tests cover the staging allowlist, BentoPDF image/health and
+Procedure contracts, backup freshness and required artifacts, NFS archive
+divergence, Prowlarr SQLite integrity failure, and temporary-file cleanup.
 
 Integration checks require a local Docker Unix socket. They use a small
 `alpine:3.20` image, pulling it if absent, and create UUID-named Compose projects

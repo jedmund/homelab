@@ -203,17 +203,34 @@ Benefit: establish that recent backup artifacts exist and can be restored before
 depending on them for maintenance. A green scheduled job is not proof that its
 output is usable. Restore exercises use isolated storage, never production data.
 
-- [ ] Check successful execution and freshness of the existing Core database
+- [x] Bring the Core database backup Procedure under Resource Sync with explicit
+      timezone and failure alerts.
+- [x] Check freshness and required artifact structure for the Core database
       backup Procedure, including where its artifacts are retained.
-- [ ] Check Borgmatic backup freshness and failure reporting against the
+- [x] Check Borgmatic backup freshness, NFS state, and local/NAS archive identity against the
       [backup runbook](../roles/backup/README.md).
-- [ ] Add a status workflow that reports missing or stale backups.
-- [ ] Define an isolated restore exercise with disposable storage and no writes
+- [x] Add a status workflow that fails on missing or stale backups.
+- [x] Define an isolated restore exercise with disposable storage and no writes
       to production databases or volumes.
 - [ ] Record the restore result and recovery prerequisites.
 
 Done when backup status reflects usable recent artifacts and a documented
 restore exercise has succeeded. A successful scheduled job alone is insufficient.
+
+Repository implementation (2026-09-17): `verify-backup-status` runs daily at
+04:00 and uses a 27-hour threshold for Borg and Core artifacts. It verifies the
+required Core gzip files, active NFS mount, and matching newest local/NAS Borg
+archive ID. `verify-prowlarr-restore` runs Sunday at 05:00, extracts the latest
+Prowlarr SQLite dump into mounted temporary storage, requires a schema and an
+`ok` integrity result, and always cleans up. Both Actions run fixed scripts
+installed by the backup role, suppress success notifications, and retain
+failure logs. Focused disposable tests pass, but neither script has run against
+production data and no live timestamps, archive IDs, or integrity result have
+been recorded.
+
+Keep the disabled `Global Auto Update` Procedure until the digest report and
+both backup workflows have completed successfully. Confirm it has no workflow,
+webhook, or permission references before removing it in a later reviewed sync.
 
 ### 6. Make MCP access durable
 
@@ -317,11 +334,12 @@ This work changes repository validation, not homelab deployment behavior.
 
 ## Suggested order
 
-Address validation runtime and cost next. Resource reconciliation and initial
-alerts are already applied. Then implement one manually executed maintenance
-Procedure with backup preconditions, followed by update reporting and restore
-verification. Persistent read-only MCP access can be prepared independently;
-write access should follow the operational permission design.
+Resource reconciliation and initial alerts are already applied. Publish the
+maintenance work as separate BentoPDF, image-reporting, backup-verification, and
+post-GitLab Renovate changes. Roll out each merged change separately, with a
+no-deletion Resource Sync preview. Persistent read-only MCP access can be
+prepared independently; write access should follow the operational permission
+design.
 
 Track implementations through linked PRs and replace checklist items with dated
 validation results as work completes. Updating this document does not authorize

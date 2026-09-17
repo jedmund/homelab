@@ -841,6 +841,81 @@ if (changes.length === 0 && errors.length === 0) {
 }
 '''
 
+[[procedure]]
+name = "Backup Core Database"
+description = "Create the scheduled Komodo Core database backup"
+tags = ["homelab", "system", "backup"]
+[procedure.config]
+schedule_format = "English"
+schedule = "Every day at 01:00"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Back up Core database"
+executions = [
+  { execution.type = "BackupCoreDatabase", execution.params = {}, enabled = true },
+]
+
+[[action]]
+name = "verify-backup-status"
+description = "Require fresh matching local, NAS, and Komodo Core backup artifacts"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 4 * * ?"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: 'verify-backup-status',
+  command: '/opt/docker/backup/scripts/verify-backup-status.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Backup status verification failed with exit code ${exitCode}`)
+}
+'''
+
+[[action]]
+name = "verify-prowlarr-restore"
+description = "Extract and integrity-check the latest Prowlarr SQLite backup in temporary storage"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 5 ? * SUN"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: 'verify-prowlarr-restore',
+  command: '/opt/docker/backup/scripts/verify-prowlarr-restore.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Prowlarr restore verification failed with exit code ${exitCode}`)
+}
+'''
+
 [[action]]
 name = "kizuna-storybook-review"
 description = "Create and destroy authenticated Kizuna Storybook stacks for GitLab merge requests"

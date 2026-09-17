@@ -174,6 +174,42 @@ the image references already rendered in Compose; it does not discover a newer
 semantic tag when a Compose file pins an older tag. See Komodo's
 [Compose update behavior](https://komo.do/docs/deploy/compose).
 
+### Backup verification
+
+`Backup Core Database` is declared with its existing daily 01:00 schedule,
+explicit `America/Los_Angeles` timezone, and failure alerts. Two Actions execute
+only scripts installed by the backup role:
+
+| Action | Schedule | Contract |
+| --- | --- | --- |
+| `verify-backup-status` | Daily 04:00 | Core and Borg artifacts are newer than 27 hours, required Core gzip files exist, the NFS mount is active, and local/NAS newest Borg archive IDs match |
+| `verify-prowlarr-restore` | Sunday 05:00 | Latest Prowlarr SQLite dump extracts into temporary storage, has a schema, passes integrity, and is removed |
+
+Both use `America/Los_Angeles`, suppress successful schedule notifications, and
+retain failures in Action logs while the Alerter sends the failure. Details and
+manual commands are in the [backup runbook](../roles/backup/README.md).
+
+Keep the disabled live `Global Auto Update` Procedure until the digest report,
+backup status, and restore Action have each completed successfully. Then confirm
+that no Action, Procedure, webhook, or permission refers to it before retiring
+it. Resource deletion requires a separately reviewed reconciliation.
+
+### Rollout records
+
+Roll out the BentoPDF, image-reporting, backup-verification, and Renovate work
+from separate merged changes. Deployment and Resource Sync require separate
+authorization. For the BentoPDF pilot, record the container ID and start time
+before staging, repeat them after staging, then record the final image reference,
+repository digest, Docker health, and Komodo Procedure execution URL. The first
+rehearsal uses the existing pinned digest; the first later image change proves
+container replacement.
+
+For backup rollout, record the newest Core backup timestamp, local and NAS Borg
+archive IDs, Prowlarr SQLite integrity result, temporary-directory cleanup, and
+both Action execution URLs. Before each sync, save or transcribe the preview and
+confirm it has no deletions or deployments. A repository validation result is
+not a substitute for these live records.
+
 ### Expected completed or absent services
 
 Only these Compose services are excluded from aggregate stack health:

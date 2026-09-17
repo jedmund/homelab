@@ -183,5 +183,23 @@ nas_nfs_server: 192.168.1.3        # UniFi NAS
 nas_nfs_export: /volume/3184c922-dd97-43b0-b873-8bcb99ac2668/.srv/.unifi-drive/Homelab/.data
 nas_nfs_options: "rw,soft,timeo=30,retrans=2,noatime,_netdev,nofail"
 
+# Scheduled verification thresholds and fixed restore-proof input.
+backup_verification_max_age_hours: 27
+komodo_core_backup_host_path: "{{ docker_base_path }}/infra-core/backups"
+komodo_core_required_artifacts:
+  - Action.gz
+  - Alerter.gz
+  - ApiKey.gz
+  - Permission.gz
+  - Procedure.gz
+  - ResourceSync.gz
+  - Server.gz
+  - Stack.gz
+  - Tag.gz
+  - User.gz
+  - UserGroup.gz
+  - Variable.gz
+prowlarr_restore_archive_path: dumps/sqlite/prowlarr_config_prowlarr.db
+
 # Request one cached build even when recorded inputs and local images match.
 backup_force_rebuild: false
