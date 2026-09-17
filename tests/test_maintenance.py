@@ -299,6 +299,23 @@ class BackupStatusTests(unittest.TestCase):
         self.assertIn("NAS divergence", result.stderr)
 
 
+class BackupActionRuntimeTests(unittest.TestCase):
+    def test_actions_run_repository_scripts_inside_borgmatic(self):
+        document = tomllib.loads(
+            (ROOT / "komodo/stacks.toml").read_text(encoding="utf-8")
+        )
+        actions = {item["name"]: item for item in document["action"]}
+        expected = {
+            "verify-backup-status": "/scripts/verify-backup-status.sh",
+            "verify-prowlarr-restore": "/scripts/verify-prowlarr-restore.sh",
+        }
+        for name, script in expected.items():
+            contents = actions[name]["config"]["file_contents"]
+            self.assertIn(
+                f"docker exec -e BORG_DIRECT=true borgmatic {script}", contents
+            )
+
+
 class ProwlarrRestoreTests(unittest.TestCase):
     def _run(self, corrupt: bool) -> tuple[subprocess.CompletedProcess[str], list[Path]]:
         with tempfile.TemporaryDirectory() as temporary:
