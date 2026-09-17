@@ -2,6 +2,15 @@
 # Social Stack - Mastodon
 # Uses docker_compose_v2 for container orchestration
 
+- name: Validate Mastodon encryption keys before changing deployment files
+  ansible.builtin.assert:
+    that:
+      - mastodon_active_record_encryption_deterministic_key | default('') | length > 0
+      - mastodon_active_record_encryption_key_derivation_salt | default('') | length > 0
+      - mastodon_active_record_encryption_primary_key | default('') | length > 0
+    fail_msg: Store the existing Mastodon Active Record encryption keys in group_vars/social/vault.yml.
+  no_log: true
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
@@ -41,4 +50,6 @@
       {{ 'always' if
          (social_deploy_environment_files.changed | default(false))
          else 'auto' }}
+    wait: true
+    wait_timeout: 180
   register: compose_result
