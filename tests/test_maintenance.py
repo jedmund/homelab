@@ -85,6 +85,9 @@ class BentoPdfMaintenanceTests(unittest.TestCase):
                 "sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74"
             ),
         )
+        self.assertNotIn("python3", script)
+        self.assertIn("docker container inspect --format", script)
+        self.assertIn("docker image inspect --format", script)
         syntax = subprocess.run(
             ["bash", "-n"],
             input=script,
