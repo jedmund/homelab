@@ -153,6 +153,8 @@ class BackupStatusTests(unittest.TestCase):
                 from pathlib import Path
                 import sys
                 source = "NAS_JSON" if sys.argv[-1] == "/nas/borg-nuc-mini" else "LOCAL_JSON"
+                if source == "NAS_JSON" and "BORG_RELOCATED_REPO_ACCESS_IS_OK=yes" not in sys.argv:
+                    raise SystemExit("NAS mirror lookup did not allow the relocated repository")
                 print(Path(os.environ[source]).read_text(), end="")
                 """
             ),
@@ -227,6 +229,10 @@ class BackupStatusTests(unittest.TestCase):
         result = self._run()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Backup status verification passed", result.stdout)
+
+    def test_nas_mirror_allows_relocated_repository(self):
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_active_nfs_below_autofs_trigger_passes(self):
         self.fake_findmnt.write_text(

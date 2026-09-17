@@ -33,7 +33,12 @@ require_fresh() {
 
 archive_record() {
     repository="$1"
-    "$DOCKER_BIN" exec "$BORG_CONTAINER" borg list --json --last 1 "$repository" |
+    docker_args=(exec)
+    if [ "$repository" = "$NAS_REPOSITORY" ]; then
+        docker_args+=(-e BORG_RELOCATED_REPO_ACCESS_IS_OK=yes)
+    fi
+    docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")
+    "$DOCKER_BIN" "${docker_args[@]}" |
         "$PYTHON_BIN" -c '
 import datetime
 import json
