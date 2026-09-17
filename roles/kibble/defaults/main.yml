@@ -110,8 +110,7 @@ kibble_feeders: "{{ vault_feederhub_feeders | default('') }}"
 # cloud itself, so feeders register locally and pkg/tutk can dial them.
 # This REPLACES the external `kalay-mock` systemd unit shipped by
 # roles/petlibro/: this role's "take over Kalay" task stops + disables
-# it, and roles/petlibro gates it behind `petlibro_kalay_mock_enabled`
-# (default false) so a petlibro redeploy won't fight for the UDP ports.
+# it. The Petlibro role removes the retired unit and installation directory.
 #
 # HOST_LAN_IP is advertised to feeders as the relay endpoint and used as
 # the PUNCH_TO2 source — it's the nuc's LAN address (same as the ONVIF
