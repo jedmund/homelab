@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /workspace
+mkdir -p /results
+export TMPDIR=/results
+# CI has no deployment credentials. Override the control-machine defaults.
+unset ANSIBLE_VAULT_PASSWORD_FILE
+export ANSIBLE_CONFIG=/workspace/ci/ansible.cfg
+export ANSIBLE_LOCAL_TEMP=/tmp/ansible-local
+
+make check VAULT_PASS=/nonexistent ANSIBLE_CONFIG="$ANSIBLE_CONFIG"
+python tests/compose_lifecycle.py --static-only
+
+# Start a daemon inside this container. The runner's socket is never mounted.
+unset DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+export DOCKER_HOST=unix:///var/run/docker.sock
+export DOCKER_TLS_CERTDIR=
+dockerd --host="$DOCKER_HOST" > /results/dockerd.log 2>&1 &
+daemon_pid=$!
+trap 'kill "$daemon_pid" 2>/dev/null || true; wait "$daemon_pid" 2>/dev/null || true' EXIT
+ready=false
+for attempt in $(seq 1 60); do
+    if docker info >/dev/null 2>&1; then
+        ready=true
+        break
+    fi
+    if ! kill -0 "$daemon_pid" 2>/dev/null; then
+        cat /results/dockerd.log
+        exit 1
+    fi
+    sleep 1
+done
+if [ "$ready" != true ]; then
+    cat /results/dockerd.log
+    exit 1
+fi
+python tests/compose_lifecycle.py

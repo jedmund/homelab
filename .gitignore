@@ -10,6 +10,7 @@
 
 # Ansible local cache and temporary files
 /.ansible/
+/ci-results/
 
 # Backup files
 *.backup
