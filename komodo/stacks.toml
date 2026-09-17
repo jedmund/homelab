@@ -729,6 +729,61 @@ poll_for_updates = false
 auto_update = false
 
 [[action]]
+name = "bentopdf-maintenance-check"
+description = "Run fixed BentoPDF preflight and post-deployment maintenance gates"
+tags = ["homelab", "bentopdf", "maintenance"]
+[action.config]
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const phase = String(ARGS.phase ?? '')
+if (phase !== 'preflight' && phase !== 'postdeploy') {
+  throw new Error('phase must be preflight or postdeploy')
+}
+
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: `bentopdf-maintenance-${phase}`,
+  command: `/opt/docker/bentopdf/scripts/maintenance-check.sh ${phase}`,
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`BentoPDF ${phase} check failed with exit code ${exitCode}`)
+}
+'''
+
+[[procedure]]
+name = "maintain-bentopdf"
+description = "Preflight, deploy, and verify the Git-pinned stateless BentoPDF stack"
+tags = ["homelab", "bentopdf", "maintenance"]
+[procedure.config]
+schedule_enabled = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Preflight"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "preflight", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Deploy host-rendered stack"
+executions = [
+  { execution.type = "DeployStack", execution.params.stack = "bentopdf", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Verify health and digest"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "postdeploy", enabled = true },
+]
+
+[[action]]
 name = "kizuna-storybook-review"
 description = "Create and destroy authenticated Kizuna Storybook stacks for GitLab merge requests"
 tags = ["homelab", "kizuna", "ci", "review-app"]

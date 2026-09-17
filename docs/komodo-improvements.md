@@ -145,19 +145,30 @@ disabled; extending the workflow to other services requires their own health
 checks and recovery prerequisites. A successful container start alone is not
 a successful maintenance operation.
 
-- [ ] Choose one low-risk stack as the initial target.
-- [ ] Record current image references and verify required backups and inputs.
-- [ ] Apply Ansible configuration when needed, then deploy the selected stack.
-- [ ] Verify application readiness and the affected behavior after deployment.
-- [ ] Stop the workflow on failure and retain the operation's results.
-- [ ] Document recovery steps. Do not assume an image rollback can reverse a
+- [x] Choose one low-risk stack as the initial target.
+- [x] Pin BentoPDF `2.8.8`, add Docker health, and enforce its zero-mount backup
+      exemption in the preflight.
+- [x] Add allowlisted Ansible staging and a fixed, sequential, failure-alerting
+      Komodo Procedure.
+- [ ] Deploy the health-check bootstrap, prove staging preserves container
+      identity, reconcile the resources, and rehearse at the existing digest.
+- [x] Stop the workflow on failure and retain the operation's results.
+- [x] Document recovery steps. Do not assume an image rollback can reverse a
       database migration.
-- [ ] Define execution permissions before exposing the workflow to CI or agents.
+- [x] Keep execution admin-only; expose nothing to CI, agents, or MCP.
 
 Done when a named-stack maintenance operation is repeatable, produces a useful
 execution record, and fails when the application fails to become ready.
 Use [Procedures and Actions](https://komo.do/docs/automate/procedures) for staged
 execution and application-specific checks.
+
+Repository implementation (2026-09-17): BentoPDF `2.8.8` is pinned to OCI index
+digest `sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74`.
+`make -C deploy stage STACK=bentopdf` renders its Compose and maintenance check
+without running Compose. `maintain-bentopdf` runs preflight, `DeployStack`, and
+post-deployment health/digest verification in separate stages. This repository
+work was not deployed; no container identities or Komodo execution URLs exist
+yet. The first real image upgrade remains the replacement test.
 
 ### 4. Separate update discovery from deployment
 

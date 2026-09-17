@@ -1,7 +1,8 @@
 # Komodo
 
 [stacks.toml](stacks.toml) declares the repository's Komodo stacks, operational
-Alerter, review-app Action, and associated user-group permissions.
+Alerter, maintenance Procedures, scheduled Actions, review-app Action, and
+associated user-group permissions.
 
 Planned operational work and the dated inventory audit are tracked in
 [Komodo operations improvements](../docs/komodo-improvements.md).
@@ -34,6 +35,11 @@ Set `match_tags = ["homelab"]` to scope the sync to these resources; this
 filter expects tag names, not internal tag IDs. Keep `delete = false` for
 routine reconciliation. Review the
 resource and permission diff before applying it.
+
+Before every reconciliation, refresh and inspect the preview. It must contain
+only the expected Stack tags, Action, Procedure, Alerter, and permission changes,
+with no deletions. Do not execute a sync whose preview contains an unexpected
+deployment or removal.
 
 The declarations expect these Komodo Server resource names:
 
@@ -113,6 +119,36 @@ Core runs on `nuc-mini`, so it cannot report that host's complete outage or its
 own failure. An independent external monitor remains necessary for that case.
 Enabling delivery does not replay existing incidents; inspect current health and
 open alerts during setup.
+
+## Maintenance workflows
+
+Maintenance execution remains available only to Komodo administrators. No user
+group grants Execute permission on the maintenance Actions or Procedures. CI,
+service users, agents, and MCP identities must not receive those permissions.
+Create a dedicated operator group only after a named account and required
+workflow set are known.
+
+### BentoPDF pilot
+
+`maintain-bentopdf` is a manual, failure-alerting Procedure with three sequential
+stages:
+
+1. `bentopdf-maintenance-check` verifies the host-rendered image reference,
+   records the existing running container, and enforces its zero-mount backup
+   exemption.
+2. Komodo deploys the `bentopdf` Stack from the staged host file.
+3. The check Action waits for Docker health and verifies the running image's
+   pinned repository digest.
+
+Before running it, merge the approved image reference and stage the files with:
+
+```sh
+make -C deploy stage STACK=bentopdf
+```
+
+Staging does not invoke Compose. Record the container ID before and after staging
+to prove it was untouched. Recovery and the absence of persistent data are
+documented in the [BentoPDF runbook](../roles/bentopdf/README.md).
 
 ### Expected completed or absent services
 
