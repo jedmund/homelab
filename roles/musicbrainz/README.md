@@ -4,6 +4,9 @@ Self-hosted MusicBrainz mirror via the official `metabrainz/musicbrainz-docker`
 project. Used by `multi-scrobbler` for unrestricted MB API access (no rate
 limits, ~10ms latency vs ~600ms against musicbrainz.org).
 
+Current recovery and maintenance work is tracked in the
+[MusicBrainz roadmap](../../docs/musicbrainz-roadmap.md).
+
 ## Layout
 
 The role clones the upstream repo to `/opt/docker/musicbrainz/upstream/` and
@@ -11,6 +14,8 @@ drops customizations under `local/`:
 
 - `local/compose/atelier.yml` — Traefik labels + network attachment
 - `local/secrets/metabrainz_access_token` — replication token (vault)
+- `local/secrets/musicbrainz_healthchecks_url` — replication dead-man URL (vault)
+- `local/replication-check.sh` and `local/replication.cron` — monitored replication
 - `local/compose.merged.yml` — auto-generated merged compose (see below)
 - `.env` — `COMPOSE_FILE` pointing at the merged file, plus version pins
 
@@ -57,6 +62,8 @@ Implications when something breaks:
 
 - `musicbrainz_replication_token` — from `https://metabrainz.org/account/applications`
   (create a "MusicBrainz Replication" token)
+- `musicbrainz_healthchecks_url` — dedicated Healthchecks.io ping URL configured
+  for `0 3 * * *` UTC with six hours of grace
 
 ## First-run import (manual, ~3-6 hours)
 
@@ -91,14 +98,71 @@ docker exec multi-scrobbler curl -fsS \
 
 ## Replication
 
-The `compose/replication-cron.yml` overlay adds a crontab inside the
-`musicbrainz` container that runs `replication.sh` hourly. After the import
-finishes, replication keeps the mirror within an hour of upstream. Check it's
-working:
+The `compose/replication-cron.yml` overlay binds a crontab into the
+`musicbrainz` container. We replace upstream's default crontab (via
+`MUSICBRAINZ_CRONTAB_PATH`) with `local/replication.cron`, which runs
+`local/replication-check.sh` daily at 03:00 UTC rather than calling
+`replication.sh` directly.
+
+MetaBrainz publishes hourly packets and `mirror.sh` applies every pending one
+per run, so a successful daily run normally keeps the mirror within a day of
+upstream.
+
+### Why the wrapper exists
+
+Upstream's `replication.sh` exits 0 even when the packet fails to apply, and
+cron output goes nowhere, so a mirror that has stopped replicating is
+indistinguishable from one that is current. Replication broke on 2026-05-11
+at the schema 31 change and went unnoticed for three months.
+
+The wrapper writes all output to the container's stdout, judges success from
+the database instead of the exit code, and fails if the database cannot be
+queried or the last successful replication is older than
+`musicbrainz_replication_max_age_hours`. Healthchecks receives start, success,
+and failure pings; a missing run is detected independently of the container.
+
+Check it's working:
 
 ```sh
-docker compose -f /opt/docker/musicbrainz/upstream/docker-compose.yml logs musicbrainz | grep -i replication | tail
+# Recent replication activity and wrapper verdicts
+docker logs musicbrainz-musicbrainz-1 2>&1 | grep -E 'replication-check|LoadReplication' | tail
+
+# Run it on demand; non-zero exit means the mirror is unhealthy
+docker exec musicbrainz-musicbrainz-1 /local/replication-check.sh; echo "exit=$?"
+
+# Ground truth
+docker exec musicbrainz-db-1 psql -U musicbrainz -d musicbrainz_db -tAc \
+  'SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control;'
 ```
+
+## Schema changes
+
+When `musicbrainz_upstream_version` crosses a schema change (the `-mbdbNN-`
+release tags), server code, database schema, PostgreSQL, search indexing, and
+the replication boundary can all change together. Bumping the tag as an
+ordinary deployment can leave new server code in front of an old database and
+make every subsequent packet fail.
+
+Recent schema releases have landed in May:
+
+| Release | Schema |
+| --- | --- |
+| `v-2022-05-17-mbdb27` | 27 |
+| `v-2023-05-15-mbdb28` | 28 |
+| `v-2024-05-13-mbdb29-pg16` | 29 |
+| `v-2025-05-20.0-mbdb30` | 30 |
+| `v-2026-05-11.0-mbdb31-pg18` | 31 |
+
+Treat that timing as a prompt to review upstream, not a guaranteed schedule.
+For every schema release, read its release notes and write a release-specific
+maintenance plan. Upstream supplied an in-place PostgreSQL 16 to 18 and schema
+30 to 31 path in 2026; a generic recreate script would have skipped required
+engine, collation, and SIR transitions.
+
+The [roadmap](../../docs/musicbrainz-roadmap.md) records the current schema-31
+recovery. Keep the configured release pinned until that maintenance reaches
+its version-pin step. Pause routine MusicBrainz deployments while the host is
+temporarily ahead of the repository.
 
 ## Notes
 

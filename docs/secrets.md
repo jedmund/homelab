@@ -286,6 +286,17 @@ Use the secret references in [defaults](../roles/matrix/defaults/main.yml) and
 | `miniflux_oauth2_client_secret` | Miniflux OIDC client secret |
 | `fivefilters_admin_password` | FiveFilters admin password |
 
+### group_vars/musicbrainz/vault.yml
+
+| Variable | Description |
+| --- | --- |
+| `musicbrainz_replication_token` | MetaBrainz access token for the live replication feed |
+| `musicbrainz_healthchecks_url` | Dedicated Healthchecks.io ping URL for the daily replication job |
+
+Configure the Healthchecks check for `0 3 * * *` UTC with six hours of grace.
+The role requires both values and renders them as `0600` Docker secret files.
+See the [MusicBrainz runbook](../roles/musicbrainz/README.md).
+
 ### group_vars/multi_scrobbler/vault.yml
 
 | Variable | Description |
