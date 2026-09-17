@@ -10,6 +10,8 @@ NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_host_path }}}"
 BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
 LOCAL_REPOSITORY="${LOCAL_REPOSITORY:-{{ borg_repo_container_path }}}"
 NAS_REPOSITORY="${NAS_REPOSITORY:-{{ nas_mount_container_path }}/{{ nas_share_subpath }}}"
+LOCAL_BORG_CACHE_DIR="${LOCAL_BORG_CACHE_DIR:-/root/.cache/borg-status-local}"
+LOCAL_BORG_SECURITY_DIR="${LOCAL_BORG_SECURITY_DIR:-/root/.config/borg/security-status-local}"
 NAS_BORG_CACHE_DIR="${NAS_BORG_CACHE_DIR:-/root/.cache/borg-nas-mirror}"
 NAS_BORG_SECURITY_DIR="${NAS_BORG_SECURITY_DIR:-/root/.config/borg/security-nas-mirror}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
@@ -41,6 +43,11 @@ archive_record() {
             -e BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
             -e "BORG_CACHE_DIR=$NAS_BORG_CACHE_DIR"
             -e "BORG_SECURITY_DIR=$NAS_BORG_SECURITY_DIR"
+        )
+    else
+        docker_args+=(
+            -e "BORG_CACHE_DIR=$LOCAL_BORG_CACHE_DIR"
+            -e "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
         )
     fi
     docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")

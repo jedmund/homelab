@@ -162,6 +162,14 @@ class BackupStatusTests(unittest.TestCase):
                     missing = required.difference(sys.argv)
                     if missing:
                         raise SystemExit(f"NAS mirror lookup is missing isolated Borg settings: {missing}")
+                else:
+                    required = {
+                        "BORG_CACHE_DIR=/root/.cache/borg-status-local",
+                        "BORG_SECURITY_DIR=/root/.config/borg/security-status-local",
+                    }
+                    missing = required.difference(sys.argv)
+                    if missing:
+                        raise SystemExit(f"local lookup is missing isolated Borg settings: {missing}")
                 print(Path(os.environ[source]).read_text(), end="")
                 """
             ),
@@ -237,7 +245,7 @@ class BackupStatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Backup status verification passed", result.stdout)
 
-    def test_nas_mirror_uses_isolated_borg_state(self):
+    def test_repository_lookups_use_isolated_borg_state(self):
         result = self._run()
         self.assertEqual(result.returncode, 0, result.stderr)
 
