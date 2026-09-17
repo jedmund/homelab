@@ -220,6 +220,14 @@ class BackupStatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Backup status verification passed", result.stdout)
 
+    def test_active_nfs_below_autofs_trigger_passes(self):
+        self.fake_findmnt.write_text(
+            "#!/usr/bin/env bash\nprintf 'autofs\\nnfs\\n'\n", encoding="utf-8"
+        )
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("nas_mount_type=nfs", result.stdout)
+
     def test_stale_core_backup_fails(self):
         old = time.time() - (28 * 60 * 60)
         os.utime(self.latest, (old, old))

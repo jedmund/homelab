@@ -57,11 +57,18 @@ print("{}\t{}\t{}".format(
 '
 }
 
-filesystem="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
-case "$filesystem" in
-    nfs|nfs4) printf 'nas_mount_type=%s\n' "$filesystem" ;;
-    *) fail "$NAS_MOUNT is not an active NFS mount (type=${filesystem:-none})" ;;
-esac
+filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
+filesystem=""
+while IFS= read -r candidate; do
+    case "$candidate" in
+        nfs|nfs4) filesystem="$candidate" ;;
+    esac
+done <<<"$filesystems"
+if [ -z "$filesystem" ]; then
+    display_types="$(printf '%s' "${filesystems:-none}" | tr '\n' ',')"
+    fail "$NAS_MOUNT is not an active NFS mount (types=${display_types%,})"
+fi
+printf 'nas_mount_type=%s\n' "$filesystem"
 
 core_backup_path=""
 for candidate in "$CORE_BACKUP_ROOT"/*; do

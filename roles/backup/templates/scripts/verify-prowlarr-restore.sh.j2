@@ -11,25 +11,25 @@ RESTORE_CONTAINER_TMP_ROOT="${RESTORE_CONTAINER_TMP_ROOT:-/restore-tests}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 
 temporary="$(mktemp -d "${RESTORE_TMP_ROOT%/}/prowlarr-restore.XXXXXX")"
-cleanup() {
-    rm -rf -- "$temporary"
-}
-trap cleanup EXIT INT TERM
-
 leaf="$(basename "$temporary")"
 container_destination="${RESTORE_CONTAINER_TMP_ROOT%/}/$leaf"
 container_database="$container_destination/$ARCHIVE_PATH"
+cleanup() {
+    "$DOCKER_BIN" exec "$BORG_CONTAINER" rm -rf -- "$container_destination" \
+        >/dev/null 2>&1 || true
+    rm -rf -- "$temporary"
+}
+trap cleanup EXIT INT TERM
 
 "$DOCKER_BIN" exec "$BORG_CONTAINER" borgmatic extract \
     --archive latest \
     --path "$ARCHIVE_PATH" \
     --destination "$container_destination"
 
-host_database="$temporary/$ARCHIVE_PATH"
-[ -s "$host_database" ] || {
-    printf 'ERROR: extracted Prowlarr database is missing or empty: %s\n' "$host_database" >&2
+if ! "$DOCKER_BIN" exec "$BORG_CONTAINER" test -s "$container_database"; then
+    printf 'ERROR: extracted Prowlarr database is missing or empty: %s\n' "$container_database" >&2
     exit 1
-}
+fi
 
 schema="$($DOCKER_BIN exec "$BORG_CONTAINER" sqlite3 "$container_database" '.schema')"
 [ -n "$schema" ] || {
