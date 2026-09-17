@@ -110,8 +110,7 @@ kibble_feeders: "{{ vault_feederhub_feeders | default('') }}"
 # cloud itself, so feeders register locally and pkg/tutk can dial them.
 # This REPLACES the external `kalay-mock` systemd unit shipped by
 # roles/petlibro/: this role's "take over Kalay" task stops + disables
-# it, and roles/petlibro gates it behind `petlibro_kalay_mock_enabled`
-# (default false) so a petlibro redeploy won't fight for the UDP ports.
+# it. The Petlibro role removes the retired unit and installation directory.
 #
 # HOST_LAN_IP is advertised to feeders as the relay endpoint and used as
 # the PUNCH_TO2 source — it's the nuc's LAN address (same as the ONVIF
@@ -177,18 +176,12 @@ kibble_onvif_devices:
   - name: kiki_feeder
     ip: 192.168.1.186
     mac: "02:F1:CB:8A:74:03"
-  # Temporary duplicate identity for testing Protect audio without removing
-  # kiki_feeder (and risking its existing recording history). The alias below
-  # points this camera at the original kiki_feeder stream.
-  - name: kiki_audio_test
-    ip: 192.168.1.188
-    mac: "02:F1:CB:8A:74:04"
 kibble_onvif_bridge: br0
 kibble_onvif_advertise_host: "192.168.1.6"
 
-kibble_onvif_aliases:
-  - source: kiki_feeder
-    name: kiki_audio_test
+# Enable aliases only with an application image that supports them. The
+# deployed image expects one bind address per physical feeder.
+kibble_onvif_aliases: []
 
 # Backwards-compat: derived from the structured devices list above so the env
 # template can keep emitting a flat comma-separated bind IPs string into the
