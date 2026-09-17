@@ -1,0 +1,93 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Upstream's replication.sh can exit zero after LoadReplicationChanges fails.
+# Judge the run from its output and the database's recorded freshness, then
+# report the result to container logs and an external dead-man's switch.
+
+set -uo pipefail
+
+MAX_AGE_SECONDS={{ musicbrainz_replication_max_age_hours * 3600 }}
+REPLICATION_COMMAND="${MUSICBRAINZ_REPLICATION_COMMAND:-/usr/local/bin/replication.sh}"
+PSQL_COMMAND="${MUSICBRAINZ_PSQL_COMMAND:-psql}"
+HEALTHCHECKS_FILE="${MUSICBRAINZ_HEALTHCHECKS_FILE:-/run/secrets/musicbrainz_healthchecks_url}"
+OUTPUT_PATH="${MUSICBRAINZ_OUTPUT_PATH:-/proc/1/fd/1}"
+
+emit() {
+    # Cron has no terminal. PID 1's stdout lands in `docker logs`; the
+    # fallback keeps manual and test runs observable.
+    if [ -n "$OUTPUT_PATH" ] && [ -w "$OUTPUT_PATH" ]; then
+        printf '%s\n' "$*" > "$OUTPUT_PATH"
+    else
+        printf '%s\n' "$*"
+    fi
+}
+
+healthchecks_url=
+if [ -r "$HEALTHCHECKS_FILE" ]; then
+    IFS= read -r healthchecks_url < "$HEALTHCHECKS_FILE" || true
+    healthchecks_url=${healthchecks_url%/}
+fi
+
+ping_healthchecks() {
+    [ -n "$healthchecks_url" ] || return 0
+    if ! curl -fsS -m 10 --retry 3 -o /dev/null "${healthchecks_url}${1}"; then
+        emit "replication-check: WARNING - Healthchecks ping failed"
+    fi
+}
+
+fail() {
+    emit "replication-check: FAILED - $*"
+    ping_healthchecks /fail
+    exit 1
+}
+
+psql_value() {
+    PGPASSWORD="${POSTGRES_PASSWORD:-}" "$PSQL_COMMAND" \
+        -h "${MUSICBRAINZ_POSTGRES_SERVER:-db}" \
+        -U "${POSTGRES_USER:-musicbrainz}" \
+        -d musicbrainz_db -tAc "$1" 2>/dev/null | tr -d '[:space:]'
+}
+
+is_nonnegative_integer() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+ping_healthchecks /start
+
+if ! before=$(psql_value 'SELECT current_replication_sequence FROM replication_control;') || \
+   ! is_nonnegative_integer "$before"; then
+    fail "cannot read current replication sequence before the run"
+fi
+
+output=$("$REPLICATION_COMMAND" 2>&1)
+rc=$?
+emit "$output"
+
+# Upstream reports per-step failures in its output while still exiting zero.
+if [ "$rc" -ne 0 ] || printf '%s' "$output" | grep -q 'failed (rc='; then
+    fail "replication command returned ${rc}; sequence remains ${before}. See /musicbrainz-server/mirror.log"
+fi
+
+if ! after=$(psql_value 'SELECT current_replication_sequence FROM replication_control;') || \
+   ! is_nonnegative_integer "$after"; then
+    fail "cannot read current replication sequence after the run"
+fi
+
+if ! age=$(psql_value 'SELECT COALESCE(EXTRACT(EPOCH FROM (now() - last_replication_date))::bigint, -1) FROM replication_control;') || \
+   ! is_nonnegative_integer "$age"; then
+    fail "cannot read a valid last replication age"
+fi
+
+if [ "$age" -gt "$MAX_AGE_SECONDS" ]; then
+    fail "last successful replication is $((age / 3600))h old, over the {{ musicbrainz_replication_max_age_hours }}h threshold; sequence ${after}"
+fi
+
+if [ "$before" != "$after" ]; then
+    emit "replication-check: OK - sequence ${before} -> ${after}"
+else
+    emit "replication-check: OK - no new packets upstream, sequence ${after}"
+fi
+ping_healthchecks ""
