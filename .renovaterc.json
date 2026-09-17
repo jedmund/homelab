@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "automerge": false,
+  "platformAutomerge": false,
+  "pinDigests": true,
+  "rangeStrategy": "pin",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Git-pinned Ansible application and database image references",
+      "fileMatch": ["^roles/[^/]+/defaults/main\\.yml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) depType=(?<depType>\\S+)\\n(?<indentation>\\s*)[a-z0-9_]+_image_tag:\\s*[\\\"']?(?<currentValue>[^\\\"'\\s]+)[\\\"']?\\n\\s*[a-z0-9_]+_image_digest:\\s*(?<currentDigest>sha256:[a-f0-9]{64})"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Application image proposals require review",
+      "matchDepTypes": ["application-image"],
+      "addLabels": ["maintenance::application-image"],
+      "automerge": false
+    },
+    {
+      "description": "Database engine proposals require migration and restore review",
+      "matchDepTypes": ["database-engine"],
+      "addLabels": ["maintenance::database-engine", "migration-review-required"],
+      "automerge": false
+    }
+  ]
+}
