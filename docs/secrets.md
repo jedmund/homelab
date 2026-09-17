@@ -387,6 +387,9 @@ runner, and n8n receive matching configuration.
 | `mastodon_db_password` | Mastodon PostgreSQL password |
 | `mastodon_secret_key_base` | Rails secret key base |
 | `mastodon_otp_secret` | OTP secret for 2FA |
+| `mastodon_active_record_encryption_deterministic_key` | Persistent Active Record encryption key; preserve across deployments |
+| `mastodon_active_record_encryption_key_derivation_salt` | Persistent Active Record key derivation salt; preserve across deployments |
+| `mastodon_active_record_encryption_primary_key` | Persistent Active Record primary key; preserve across deployments |
 | `mastodon_vapid_private_key` | VAPID private key for push notifications |
 | `mastodon_vapid_public_key` | VAPID public key for push notifications |
 | `mastodon_aws_access_key_id` | AWS access key for S3 |
