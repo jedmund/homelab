@@ -177,18 +177,12 @@ kibble_onvif_devices:
   - name: kiki_feeder
     ip: 192.168.1.186
     mac: "02:F1:CB:8A:74:03"
-  # Temporary duplicate identity for testing Protect audio without removing
-  # kiki_feeder (and risking its existing recording history). The alias below
-  # points this camera at the original kiki_feeder stream.
-  - name: kiki_audio_test
-    ip: 192.168.1.188
-    mac: "02:F1:CB:8A:74:04"
 kibble_onvif_bridge: br0
 kibble_onvif_advertise_host: "192.168.1.6"
 
-kibble_onvif_aliases:
-  - source: kiki_feeder
-    name: kiki_audio_test
+# Enable aliases only with an application image that supports them. The
+# deployed image expects one bind address per physical feeder.
+kibble_onvif_aliases: []
 
 # Backwards-compat: derived from the structured devices list above so the env
 # template can keep emitting a flat comma-separated bind IPs string into the
