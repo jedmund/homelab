@@ -17,7 +17,7 @@
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help list deploy check syntax
+.PHONY: help list deploy check syntax stage
 
 # Colors
 GREEN  := \033[0;32m
@@ -40,6 +40,9 @@ VALIDATION_VAULT_FLAG := $(if $(wildcard $(VAULT_PASS)),--vault-password-file $(
 # Auto-discover all *.yml playbooks in this directory (excluding all.yml,
 # which is the meta-playbook driven by the root Makefile's deploy-all).
 STACKS := $(filter-out all,$(basename $(notdir $(wildcard *.yml))))
+# Staging renders host files but deliberately skips Compose. A role must opt in
+# after implementing and testing the homelab_stage guard.
+STAGE_STACKS := bentopdf
 
 help: ## Show this help and list available stacks
 	@printf "$(BLUE)Per-stack deployment$(NC)\n\n"
@@ -48,6 +51,7 @@ help: ## Show this help and list available stacks
 	@printf "  make $(GREEN)deploy STACK=<stack>$(NC) same, parameterised\n"
 	@printf "  make $(GREEN)check  STACK=<stack>$(NC) dry-run (--check --diff)\n"
 	@printf "  make $(GREEN)syntax STACK=<stack>$(NC) --syntax-check\n"
+	@printf "  make $(GREEN)stage  STACK=<stack>$(NC) render approved files without Compose\n"
 	@printf "  make $(GREEN)list$(NC)                 list discoverable stacks\n\n"
 	@printf "$(YELLOW)Available stacks:$(NC)\n"
 	@printf "  %s\n" $(sort $(STACKS))
@@ -71,6 +75,10 @@ syntax: _require_stack ## Syntax-check a stack (STACK=<name>)
 	@printf "$(BLUE)Syntax check for $(STACK)...$(NC)\n"
 	@$(ANSIBLE) -i $(INVENTORY) $(STACK).yml $(VALIDATION_VAULT_FLAG) --syntax-check
 
+stage: _require_stage_stack ## Render approved stack files without running Compose (STACK=<name>)
+	@printf "$(BLUE)Staging $(STACK) files without Compose...$(NC)\n"
+	@$(ANSIBLE) -i $(INVENTORY) $(STACK).yml $(VAULT_FLAG) -e homelab_stage=true $(EXTRA_ARGS)
+
 _require_stack:
 	@if [ -z "$(STACK)" ]; then \
 		printf "$(RED)Error: STACK is required. e.g. make deploy STACK=petlibro$(NC)\n"; \
@@ -79,6 +87,13 @@ _require_stack:
 	@if [ ! -f "$(STACK).yml" ]; then \
 		printf "$(RED)Error: $(STACK).yml not found in $(CURDIR)$(NC)\n"; \
 		printf "Available: %s\n" "$(sort $(STACKS))"; \
+		exit 1; \
+	fi
+
+_require_stage_stack: _require_stack
+	@if [[ " $(STAGE_STACKS) " != *" $(STACK) "* ]]; then \
+		printf "$(RED)Error: $(STACK) has not implemented staging$(NC)\n"; \
+		printf "Approved staging stacks: %s\n" "$(sort $(STAGE_STACKS))"; \
 		exit 1; \
 	fi
 

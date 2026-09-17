@@ -10,6 +10,14 @@
     mode: '0755'
   loop:
     - "{{ config_base }}"
+    - "{{ config_base }}/scripts"
+
+- name: Deploy maintenance check
+  ansible.builtin.template:
+    src: maintenance-check.sh.j2
+    dest: "{{ config_base }}/scripts/maintenance-check.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
 
 - name: Deploy compose file
   ansible.builtin.template:
@@ -25,3 +33,4 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
   register: compose_result
+  when: not (homelab_stage | default(false) | bool)

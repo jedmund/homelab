@@ -22,7 +22,7 @@ FIXTURE_GROUPS = {
     "4": ("matrix", "backup"),
 }
 FIXTURE_ROLES = {role for roles in FIXTURE_GROUPS.values() for role in roles}
-RESOURCE_TYPES = ("stack", "action", "alerter", "user_group")
+RESOURCE_TYPES = ("stack", "action", "alerter", "procedure", "user_group")
 ZERO_SHA = "0" * 40
 
 
@@ -263,7 +263,7 @@ def validate_komodo(path: Path) -> list[str]:
             seen.add(identity)
             if "tags" in resource:
                 validate_string_list(resource["tags"], f"{label}.tags", errors)
-            if kind in {"stack", "action", "alerter"} and not isinstance(
+            if kind in {"stack", "action", "alerter", "procedure"} and not isinstance(
                 resource.get("config"), dict
             ):
                 errors.append(f"{label}.config must be a table")
@@ -275,6 +275,36 @@ def validate_komodo(path: Path) -> list[str]:
                 for key in ("files_on_host", "poll_for_updates", "auto_update", "send_alerts"):
                     if key in config and not isinstance(config[key], bool):
                         errors.append(f"{label}.config.{key} must be a boolean")
+            if kind == "procedure" and isinstance(resource.get("config"), dict):
+                stages = resource["config"].get("stage", [])
+                if not isinstance(stages, list):
+                    errors.append(f"{label}.config.stage must be a list of tables")
+                else:
+                    for stage_index, stage in enumerate(stages):
+                        stage_label = f"{label}.config.stage[{stage_index}]"
+                        if not isinstance(stage, dict):
+                            errors.append(f"{stage_label} must be a table")
+                            continue
+                        executions = stage.get("executions")
+                        if not isinstance(executions, list) or not all(
+                            isinstance(item, dict) for item in executions
+                        ):
+                            errors.append(
+                                f"{stage_label}.executions must be a list of tables"
+                            )
+                            continue
+                        for execution_index, item in enumerate(executions):
+                            execution_label = (
+                                f"{stage_label}.executions[{execution_index}].execution"
+                            )
+                            execution = item.get("execution")
+                            if not isinstance(execution, dict):
+                                errors.append(f"{execution_label} must be a table")
+                                continue
+                            if not isinstance(execution.get("type"), str):
+                                errors.append(f"{execution_label}.type must be a string")
+                            if not isinstance(execution.get("params"), dict):
+                                errors.append(f"{execution_label}.params must be a table")
             if kind == "user_group":
                 validate_string_list(resource.get("users"), f"{label}.users", errors)
                 permissions = resource.get("permissions")

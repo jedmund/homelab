@@ -159,6 +159,16 @@ manual edits to generated Compose, environment, and configuration files.
 [Komodo](../komodo/README.md) uses those same files; application CI may trigger
 redeployment without rerunning Ansible.
 
+BentoPDF implements a render-only staging mode for reviewed Komodo maintenance:
+
+```sh
+make -C deploy stage STACK=bentopdf
+```
+
+The deployment Makefile rejects this target for roles that have not implemented
+the staging guard. Staging writes the approved host files but does not invoke
+Compose or establish application health.
+
 ### Local image builds
 
 Line, Backup, Matrix, MusicBrainz, Strudel, and Petlibro's optional catbro

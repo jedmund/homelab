@@ -108,6 +108,27 @@ class FastValidationTests(unittest.TestCase):
             path.write_text("[[stack]\n", encoding="utf-8")
             self.assertTrue(validation.validate_komodo(path))
 
+    def test_komodo_validates_procedure_structure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "stacks.toml"
+            path.write_text(
+                '[[procedure]]\nname="maintain"\n[procedure.config]\n'
+                '[[procedure.config.stage]]\nname="Deploy"\nexecutions=['
+                '{execution.type="DeployStack", execution.params.stack="app"}'
+                ']\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(validation.validate_komodo(path), [])
+            path.write_text(
+                '[[procedure]]\nname="maintain"\n[procedure.config]\n'
+                'stage="invalid"\n',
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "procedure[0].config.stage must be a list of tables",
+                validation.validate_komodo(path),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
