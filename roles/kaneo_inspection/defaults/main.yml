@@ -11,3 +11,17 @@ kaneo_inspection_relay_public_endpoint: paseo.relay.atelier.house:443
 kaneo_inspection_bearer_token: "{{ vault_kaneo_inspection_bearer_token | default('') }}"
 kaneo_inspection_paseo_password: "{{ vault_kaneo_inspection_paseo_password | default('') }}"
 kaneo_inspection_model_auth: "{{ vault_kaneo_inspection_model_auth | default('vllm') }}"
+
+# Explicitly permitted OpenCode models; this catalog does not provision egress.
+kaneo_inspection_configuration:
+  defaultModel: vllm-max/DeepSeek-V4-Flash
+  providers:
+    - id: vllm-max
+      label: Local inference
+      npm: '@ai-sdk/openai-compatible'
+      baseURL: http://model-egress:11437/v1
+      apiKeyEnvironment: INSPECTION_MODEL_AUTH
+      models:
+        - id: DeepSeek-V4-Flash
+          label: DeepSeek-V4-Flash
+kaneo_inspection_provider_credentials: "{{ vault_kaneo_inspection_provider_credentials | default({}) }}"
