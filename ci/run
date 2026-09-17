@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+name="homelab-validation-$(date +%s)-$$-${RANDOM}"
+image="$name:local"
+results="${CI_RESULTS_DIR:-ci-results}"
+mkdir -p "$results"
+logs_pid=
+wait_pid=
+
+cleanup() {
+    result=$?
+    trap - EXIT
+    for pid in "$logs_pid" "$wait_pid"; do
+        if [ -n "$pid" ]; then
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+        fi
+    done
+    if docker container inspect "$name" >/dev/null 2>&1; then
+        docker cp "$name:/results/." "$results/" >/dev/null 2>&1 || true
+        docker rm --force --volumes "$name" >/dev/null 2>&1 || true
+    fi
+    docker image rm "$image" >/dev/null 2>&1 || true
+    exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+docker build --file ci/Dockerfile --tag "$image" .
+docker create --privileged --name "$name" "$image" >/dev/null
+docker start "$name" >/dev/null
+docker logs --follow "$name" &
+logs_pid=$!
+docker wait "$name" > "$results/exit-code" &
+wait_pid=$!
+# Waiting on a child lets the signal traps clean up promptly on cancellation.
+wait "$wait_pid"
+wait "$logs_pid"
+test "$(cat "$results/exit-code")" = 0

@@ -1,0 +1,25 @@
+---
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
+stages: [validate]
+
+validation:
+  stage: validate
+  image: docker:29.4.0-cli
+  tags: [docker, atelier-max]
+  timeout: 30m
+  interruptible: true
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - bash ci/run
+  artifacts:
+    when: on_failure
+    expire_in: 7 days
+    paths:
+      - ci-results/

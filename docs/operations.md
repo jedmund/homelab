@@ -41,6 +41,11 @@ These checks do not connect to hosts, render every template with production
 values, or verify application health. Installed collections are required;
 vault handling depends on which local vault files are present.
 
+GitHub Actions and GitLab CI run these checks and the isolated Compose
+lifecycle fixtures through `bash ci/run`. CI uses pinned validation tools and
+does not require deployment vaults. See [CI requirements and execution](../tests/README.md#continuous-integration)
+for runner requirements, local execution, and failure logs.
+
 For a targeted check-mode run:
 
 ```sh
