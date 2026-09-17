@@ -2,9 +2,8 @@
 name: Validation
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  # Automatic runs are paused while validation cost and scope are corrected.
+  # Track re-enablement in docs/komodo-improvements.md.
   workflow_dispatch:
 
 permissions:

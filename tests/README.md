@@ -47,7 +47,14 @@ The launcher removes its container, anonymous volumes, and image tag on exit.
 Build cache remains on the runner. Logs are copied to `ci-results/`, which is
 ignored by Git. Both platforms retain failure logs for seven days.
 
-GitHub runs validation for pull requests, pushes to `main`, and manual runs.
+GitHub validation is manual-only while runtime and Actions cost are addressed.
+Automatic PR and `main` push triggers are paused; see the
+[validation work queue](../docs/komodo-improvements.md#7-reduce-validation-time-and-cost)
+for the measured baseline and re-enablement criteria. Run the contributor
+guide's local checks for each change. A missing GitHub check is not evidence
+that validation passed. Manual dispatch still runs the full suite and consumes
+Actions minutes.
+
 GitLab runs merge-request and branch pipelines, suppressing duplicate push
 pipelines when a merge request is open. The GitLab job uses the existing
 `docker` and `atelier-max` runner tags and its mounted Docker socket to launch
