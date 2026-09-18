@@ -352,7 +352,29 @@ Activation is a separate requested operation:
 The static image supplies `/healthz` and uncached `/revision.json`. Container
 health does not prove private access or revision correctness. Diagnose image pull
 failures in the dedicated registry account, router failures in Traefik, and action
-failures in Komodo's update logs. No configuration in this change is activated.
+failures in Komodo's update logs.
+
+### Album Sort activation — 2026-09-17
+
+The `album-sort-storybook` Action and execute-only `album-sort-storybook-ci` group
+are applied. The dedicated registry credential is installed on `nuc-mini` in
+`/etc/komodo/album-sort-storybook/config.json`. The application CI identity sees
+only this Action and has no generic Stack access. Masked credentials support
+trusted same-project MR jobs; parent-project fork pipelines and outdated
+deployment retries are disabled.
+
+`music-storybook` and `music-storybook-mr-349` were deployed with immutable
+revision `9ee076cb01d7fe3e12597fb9612c50f8b0abd561`. Both containers are healthy,
+read-only and have no host ports. Revision checks passed. Anonymous catalog,
+iframe, metadata, asset, font and worker requests return 401; HTML requests
+redirect to TinyAuth. Interactive PocketID login and post-login browser behavior
+remain unverified. Preview update/cleanup verification remains outstanding.
+
+GitLab pipeline 3785 validated and published the image. Docker Hub rate-limited
+the deployment job's Node image, so initial activation used the exact CI script
+from the control machine with the dedicated identity. The CI mirror correction
+and application activation record are tracked in
+[Album Sort MR 349](https://git.atelier.house/jedmund/album-sort/-/merge_requests/349).
 
 ## Retired resources
 
