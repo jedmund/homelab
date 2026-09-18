@@ -1072,7 +1072,7 @@ if (operation !== 'deploy' && operation !== 'destroy') {
 
 const target = matches('target', /^(main|[1-9][0-9]*)$/)
 if (target === 'main' && operation === 'destroy') throw new Error('Main catalog cannot be destroyed by CI')
-const stackName = target === 'main' ? 'album-sort-storybook' : `album-sort-storybook-mr-${target}`
+const stackName = target === 'main' ? 'music-storybook' : `music-storybook-mr-${target}`
 const stacks = await komodo.read('ListStacks', {})
 const existing = stacks.find((stack) => stack.name === stackName)
 

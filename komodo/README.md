@@ -316,8 +316,8 @@ The separate `album-sort-storybook` Action accepts `operation` (`deploy` or
 `revision` for deployment. CI cannot destroy main. Registry, host, network, router,
 authentication and image repository are derived inside the Action, never from CI
 arguments. Deployments use the `Atelier` server and `tinyauth@file` on every path.
-The main hostname is `album-sort-storybook.review.atelier.house`; MR hosts are
-`album-sort-storybook-mr-<iid>.review.atelier.house`. There are no host ports or
+The main hostname is `music-storybook.review.atelier.house`; MR hosts are
+`music-storybook-mr-<iid>.review.atelier.house`. There are no host ports or
 persistent volumes. Deletion is idempotent and preserves Kizuna resources.
 
 Activation is a separate requested operation:
