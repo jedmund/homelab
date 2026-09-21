@@ -3,122 +3,94 @@
 stack_name: vllm
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# vLLM is the working DeepSeek V4 Flash slot on max. SGLang's
-# matching image (lavd/sglang-d4f-b12x:5-24) trips a huggingface_hub
-# strict dataclass validator on the NVFP4 quant's `kv_lora_rank: null`
-# config field, which the dsv4 attention backend doesn't actually
-# need but the loader still enforces. lavd's vLLM build doesn't go
-# through that code path because it loads the FP8 base from HF Hub
-# directly, so this is the path that has actually run for days at a
-# time on this box.
-vllm_image: lavd/vllm:jasl-dsv4-5-21-13.2
-
-# /dev/shm sizing for the vLLM container. Multi-GPU TP and the dsv4
-# fused MoE both push intermediate state through tmpfs; 32 GB matches
-# the docker run command that we know works.
+# Karmic Kraken beta, September 20 assembly. Pin the registry digest;
+# the short channel tag moves independently of this deployment.
+vllm_image: ghcr.io/local-inference-lab/vllm@sha256:60dc178fe69015eb289db12b6183b8d6aec75613e0c659ce7e1f9ba05e8bbed1
 vllm_default_shm_size: "32gb"
 
-# Reuse the existing on-host caches so the ~235 GB HF Hub download is
-# not repeated. Layered exactly the way the working docker run set up:
-#   ~/.cache/deepseek      -> /root/.cache         (vllm + flashinfer
-#                                                   build artifacts)
-#   ~/.cache/huggingface   -> /root/.cache/huggingface (model weights)
-# The second mount nests inside the first; docker handles the overlay.
+# Preserve the existing model download and broad cache mounts. The image
+# puts its runtime/compiler cache in the separate /cache mount below.
 vllm_cache_root: "/home/{{ ansible_user }}/.cache/deepseek"
 vllm_hf_cache_dir: "/home/{{ ansible_user }}/.cache/huggingface"
-
-# Per-model scratch/JIT dirs bind-mounted by launcher-style images.
-# Created by tasks/main.yml so docker doesn't make them root-owned.
 vllm_model_cache_dirs:
+  # Keep the prior runtime cache available for rollback.
   - "{{ config_base }}/cache/ds4-v20-r15"
   - "{{ config_base }}/cache/ds4-v20-r15/tmp"
+  - "{{ config_base }}/cache/ds4-karmic-22f3f98b"
+  - "{{ config_base }}/cache/ds4-karmic-22f3f98b/tmp"
+  - "{{ config_base }}/cache/glm53-spark-22f3f98b"
+  - "{{ config_base }}/cache/glm53-spark-22f3f98b/tmp"
 
-# Manual lifecycle: each model is a compose service gated behind a
-# profile, so `docker compose up` (and the ansible deploy) creates
-# nothing by default. Bring a model up:
-#   docker compose --profile deepseek-v4-flash-0731 up -d
-# Stop it to hand VRAM back to llama-swap:
-#   docker compose --profile deepseek-v4-flash-0731 down
-
-# Env applied to every vLLM container.
-#   CUDA_DEVICE_ORDER=PCI_BUS_ID  vLLM warns on this box because the
-#     three Pro 6000 cards are heterogeneous (2x Max-Q 300 W + 1x full
-#     WS 600 W); CUDA's default order is by performance, which can
-#     reshuffle device indices. Pinning to PCI_BUS_ID makes
-#     CUDA_VISIBLE_DEVICES=0,1 deterministically mean the Max-Q pair.
+# Manual lifecycle: rendering this role does not start a model.
+# Start the existing profile explicitly after reviewing its configuration.
 vllm_common_env:
+  # GPUs 0,1 are the Max-Q pair; GPU 2 remains with the AI side services.
   CUDA_DEVICE_ORDER: "PCI_BUS_ID"
 
 vllm_models:
-  # DeepSeek V4 Flash 0731, the official release. This is the only
-  # served checkpoint: the earlier preview (deepseek-ai/DeepSeek-V4-Flash,
-  # a June revision of the rolling repo) was retired once 0731 was
-  # validated on this box, and its weights were removed from the HF
-  # cache to reclaim 149 GB. Served by the voipmonitor gilded-gnosis
-  # v20-r15 image from local-inference-lab/blackwell-llm-docker, which
-  # is the same SM120 + b12x lineage as the lavd builds we ran before.
-  #
-  # This image works differently from the lavd one: its ENTRYPOINT is
-  # /usr/local/bin/serve-ds4-flash.sh and every serving choice comes
-  # from env vars, so there is no `args` list here. Upstream reference
-  # config is examples/docker-compose-ds4-v20-r15.yml in that repo.
-  #
   - name: deepseek-v4-flash-0731
-    image: voipmonitor/vllm:gilded-gnosis-v20-vllm0bc48c5-sieec30ff-fi801d57a-cu132-20260731-r15
     host_port: 11437
     container_port: 11437
-    entrypoint: ["/usr/local/bin/serve-ds4-flash.sh"]
-    # Upstream's reference compose runs this host-networked. We publish
-    # a port instead, matching the preview entry above, because docker
-    # port publishing installs a DOCKER-chain iptables rule that is
-    # traversed before ufw's INPUT rules. Host networking publishes
-    # nothing, so ufw's default deny applies and LAN clients get
-    # dropped unless 11437 is opened explicitly. Publishing keeps the
-    # reachability identical to the preview with no new firewall rule.
-    #
-    # Same host port as the preview (11437), so the two profiles remain
-    # mutually exclusive and no client config changes between them.
+    init: true
+    # First K5 startup took about 7.5 minutes while compiling kernels.
+    healthcheck_start_period: "10m"
+    # Preserve published-port LAN access, host IPC, and GPU visibility.
     privileged: true
     shm_size: "32gb"
     cuda_visible_devices: "0,1"
     extra_volumes:
-      - "{{ config_base }}/cache/ds4-v20-r15:/cache"
-      - "{{ config_base }}/cache/ds4-v20-r15/tmp:/container-tmp"
+      - "{{ config_base }}/cache/ds4-karmic-22f3f98b:/cache"
+      - "{{ config_base }}/cache/ds4-karmic-22f3f98b/tmp:/container-tmp"
     extra_env:
-      # Keep aligned with host_port: host networking means the
-      # launcher binds this directly, and the healthcheck uses it.
+      PROFILE: ds4-flash
+      HARDWARE_PROFILE: rtx-pro-6000-pcie
+      TP: "2"
+      DCP: "1"
       PORT: "11437"
-      # Pin the OpenAI model id to what the preview already serves, so
-      # opencode/pi keep working unchanged and swapping profiles is
-      # transparent to clients. This image family honours
-      # SERVED_MODEL_NAME (its GLM launchers export it with a default),
-      # but serve-ds4-flash.sh sets no default we can read from outside
-      # the image: confirm with `curl :11437/v1/models` on first start.
       SERVED_MODEL_NAME: DeepSeek-V4-Flash
-      # dspark is the only speculative contract 0731 ships. The
-      # standard MTP path (MODE=mtp2/mtp3) silently selects the older
-      # preview checkpoint instead, because 0731 does not provide the
-      # standard MTP serving contract.
-      MODE: dspark
-      BACKEND: b12x-a8
-      TP_SIZE: "2"
-      DCP_SIZE: "1"
-      DSPARK_DEPTH_MODE: fixed
-      # 5, NOT 7. Both the DeepSeek model card and this image's own
-      # compose example default to 7, and 7 produces garbled output
-      # (confirmed by several operators on 2x Pro 6000 on release day,
-      # most visibly above ~16 concurrent sequences). 5 is safe.
-      DSPARK_TOKENS: "5"
-      # Upstream defaults this to 16. Starting low until output
-      # quality is validated on our box; raise deliberately and
-      # re-check output each step. The launcher derives its CUDA graph
-      # cap from this value.
       MAX_NUM_SEQS: "4"
       MAX_MODEL_LEN: "131072"
-      MAX_NUM_BATCHED_TOKENS: "8192"
-      # 0731 is ~167 GB against the pair's 192 GB, tighter than the
-      # preview's ~150 GB. Upstream runs 0.975 to claw back headroom;
-      # if this OOMs, pin cudagraph capture sizes before lowering it.
+      # Use the shared profile's budget; 8192 reduced K5 KV headroom.
+      MAX_NUM_BATCHED_TOKENS: "4096"
       GPU_MEMORY_UTILIZATION: "0.975"
-      LOAD_FORMAT: instanttensor
+      CACHE_MODE: vram
       INSTANTTENSOR_BACKEND: BUFFERED
+    # Keep the image's unified entrypoint. Native arguments override the
+    # model profile; do not reuse the old serve-ds4-flash.sh launcher.
+    args:
+      - --mode
+      - dspark
+      - --draft-tokens
+      - "5"
+      - --revision
+      - 9e165c30e2704aec5d9d593cce3eebd58bbef1cb
+      - --code-revision
+      - 9e165c30e2704aec5d9d593cce3eebd58bbef1cb
+      # Match the old server's default sampling during runtime comparison.
+      - --override-generation-config
+      - '{"temperature":1.0,"top_p":1.0}'
+
+  # Alternative on the same GPU pair: stop DeepSeek before starting GLM.
+  - name: glm-5.3-flash-spark
+    host_port: 11438
+    container_port: 11438
+    init: true
+    healthcheck_start_period: "10m"
+    privileged: true
+    shm_size: "32gb"
+    cuda_visible_devices: "0,1"
+    extra_volumes:
+      - "{{ config_base }}/cache/glm53-spark-22f3f98b:/cache"
+      - "{{ config_base }}/cache/glm53-spark-22f3f98b/tmp:/container-tmp"
+    extra_env:
+      PRESET: glm53-spark-tp2
+      PORT: "11438"
+      CACHE_MODE: vram
+      INSTANTTENSOR_BACKEND: BUFFERED
+    # The preset supplies TP2/DCP2, MTP3, four slots and a 3072-token
+    # prefill budget. Keep its two-card memory settings together.
+    args:
+      - --revision
+      - a608241037e4c2565356bff7ca293f2133888f88
+      - --code-revision
+      - a608241037e4c2565356bff7ca293f2133888f88

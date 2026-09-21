@@ -1,7 +1,5 @@
 ---
-# vLLM stack - the working DeepSeek V4 Flash slot. lavd's vllm image
-# loads weights from HF Hub on first run; the existing on-host HF cache
-# is bind-mounted in so the ~140 GB download is reused.
+# vLLM stack: render manual model profiles and preserve their caches.
 
 - name: Create {{ stack_name }} directory
   file:

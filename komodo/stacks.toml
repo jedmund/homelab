@@ -707,7 +707,7 @@ auto_update = false
 
 [[stack]]
 name = "vllm"
-description = "vLLM DeepSeek serving stack"
+description = "vLLM DeepSeek and GLM serving profiles"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]
 [stack.config]
 server = "max"
