@@ -706,6 +706,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "degoog"
+description = "Degoog search experiment at search.atelier.house"
+tags = ["homelab", "ansible", "max", "search", "update-monitor"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/degoog"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "vllm"
 description = "vLLM DeepSeek and GLM serving profiles"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]

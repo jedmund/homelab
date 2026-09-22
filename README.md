@@ -88,7 +88,7 @@ have additional operating instructions:
 
 | Area | Runbooks |
 | --- | --- |
-| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md) |
+| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Degoog](roles/degoog/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md) |
 | Media | [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
 | Infrastructure | [Backup](roles/backup/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md) |

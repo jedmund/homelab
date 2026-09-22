@@ -1,0 +1,55 @@
+---
+# Degoog search service on max. The public route is provided by Traefik on
+# nuc-mini; the host port is restricted to that Traefik host by the firewall.
+
+- name: Validate Degoog settings password
+  ansible.builtin.assert:
+    that:
+      - degoog_settings_password | length > 0
+    fail_msg: >-
+      vault_degoog_settings_password must be set before deploying Degoog.
+  no_log: true
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(ansible_user) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - path: "{{ config_base }}"
+    - path: "{{ config_base }}/data"
+      owner: "{{ degoog_puid }}"
+      group: "{{ degoog_pgid }}"
+    - path: "{{ config_base }}/env"
+
+- name: Deploy Degoog environment file
+  ansible.builtin.template:
+    src: env/degoog.env.j2
+    dest: "{{ config_base }}/env/degoog.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: degoog_deploy_environment_file
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: degoog_deploy_compose_file
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (degoog_deploy_environment_file.changed | default(false)) or
+         (degoog_deploy_compose_file.changed | default(false))
+         else 'auto' }}
+  register: compose_result

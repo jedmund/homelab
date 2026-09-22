@@ -16,6 +16,12 @@
 - import_playbook: prerequisites.yml
   tags: [always, prerequisites]
 
+# Degoog is reconciled before the gateway route switches away from SearXNG.
+# TinyAuth and Traefik follow immediately below, so the final route is
+# authenticated before the routine deployment completes.
+- import_playbook: degoog.yml
+  tags: [degoog]
+
 # Infrastructure layer
 - import_playbook: traefik.yml
   tags: [infra, traefik]
