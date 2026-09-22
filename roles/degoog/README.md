@@ -104,6 +104,10 @@ ansible-playbook deploy/degoog_maps.yml
 ```
 
 The patch uses Degoog's injected plugin ID for the canonical tab and API path.
+The Maps tile layer uses OSM's canonical `https://tile.openstreetmap.org` host
+and `referrerPolicy: "strict-origin"`, preserving attribution and browser cache
+defaults. This supplies the site origin required by OSM's tile usage policy
+without sending the search query or changing the global referrer policy.
 It changes only the installed frontend, preserves other code and settings, and
 fails on unfamiliar upstream content. Repeat runs make no changes. Reapply after
 updating the plugin through the store. No service restart is requested; refresh

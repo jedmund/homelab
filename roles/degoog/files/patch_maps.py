@@ -9,6 +9,9 @@ REPLACEMENTS = (
      'return type === "tab:" + __PLUGIN_ID__ + "-tab" || tab === __PLUGIN_ID__ + "-tab";'),
     ('`/api/plugin/maps/search?q=${encodeURIComponent(query)}&limit=15`',
      '`/api/plugin/${__PLUGIN_ID__}/search?q=${encodeURIComponent(query)}&limit=15`'),
+    ('L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {',
+     'L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {\n'
+     '      referrerPolicy: "strict-origin",'),
 )
 
 PLACES_REPLACEMENTS = (

@@ -11,6 +11,14 @@ spec.loader.exec_module(patch)
 
 
 class MapsPatchTests(unittest.TestCase):
+    def test_osm_layer_preserves_attribution_and_cache_defaults(self):
+        source = '\n'.join(a for a, _ in patch.REPLACEMENTS) + '\n      attribution: "OpenStreetMap",\n      maxZoom: 19,\n    });'
+        result = patch.patched(source)
+        self.assertIn('https://tile.openstreetmap.org/{z}/{x}/{y}.png', result)
+        self.assertIn('referrerPolicy: "strict-origin"', result)
+        self.assertTrue(result.endswith('attribution: "OpenStreetMap",\n      maxZoom: 19,\n    });'))
+        self.assertEqual(patch.patched(result), result)
+
     def test_places_referrer_is_scoped_to_https_carto(self):
         old, new = patch.PLACES_REPLACEMENTS[0]
         self.assertEqual(patch.patched(old, patch.PLACES_REPLACEMENTS), new)
