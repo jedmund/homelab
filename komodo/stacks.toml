@@ -718,6 +718,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "flaresolverr"
+description = "Private challenge-solving API on nuc-mini"
+tags = ["homelab", "ansible", "nuc-mini", "search", "update-monitor"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/flaresolverr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "vllm"
 description = "vLLM DeepSeek and GLM serving profiles"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]
