@@ -18,4 +18,3 @@ table inet homelab_flaresolverr {
         ip daddr {{ flaresolverr_bind_address }} tcp dport {{ flaresolverr_port }} ip saddr != @allowed_v4 drop
     }
 }
-
