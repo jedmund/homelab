@@ -163,6 +163,12 @@ gatus_endpoints:
     group: apps
     url: "https://track.atelier.house/"
     status: 401
+  - name: Degoog search
+    group: apps
+    url: "https://search.atelier.house/"
+    # TinyAuth redirects an anonymous probe through PocketID; Gatus follows
+    # that flow and should receive the Degoog UI after the route is healthy.
+    status: 200
 
 # Certificate expiry on the wildcard. Traefik renews via the Cloudflare DNS
 # challenge; this catches a renewal that quietly stopped working, with
