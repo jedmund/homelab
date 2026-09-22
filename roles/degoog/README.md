@@ -92,6 +92,30 @@ FlareSolverr remains a separate standalone service. Its URL is not configured by
 this migration. Existing Open WebUI, n8n, Vane, and Kizuna integrations continue
 using SearXNG on `max:8889`.
 
+## Maps frontend compatibility
+
+The user-installed `lazerleif/degoog-maps` frontend hard-codes the old `maps`
+tab and route names. Apply the guarded compatibility patch with:
+
+```sh
+python3 tests/test_degoog_maps.py
+ansible-playbook deploy/degoog_maps.yml --check
+ansible-playbook deploy/degoog_maps.yml
+```
+
+The patch uses Degoog's injected plugin ID for the canonical tab and API path.
+It changes only the installed frontend, preserves other code and settings, and
+fails on unfamiliar upstream content. Repeat runs make no changes. Reapply after
+updating the plugin through the store. No service restart is requested; refresh
+the browser without cache after applying and verify the Maps tab renders tiles
+and markers. Check mode inspects the installed file but does not modify it.
+
+The separate HERE Places widget requires default coordinates. Its CARTO tile
+requests inherit Degoog's `Referrer-Policy: no-referrer`; a CARTO key that requires
+a Referer header can therefore reject browser requests even when the key works
+in a manual request with that header. This patch does not change tile credentials
+or the application's referrer policy.
+
 ## Storage and native browser
 
 The NUC backup role includes `/opt/docker`, subject to its exclusions. This
