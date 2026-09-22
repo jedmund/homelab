@@ -82,6 +82,10 @@ split mode assigns llama-swap to GPU 2 and vLLM to GPUs 0 and 1. See
 [AI defaults](defaults/main.yml) for allocation modes and the
 [inference upgrade plan](../../docs/inference-upgrade-plan.md) for planned work.
 
+The optional [Qwen Flash Next experiment](../vllm/README.md#qwen-flash-next-on-gpu-2)
+uses GPU 2 while llama-swap is stopped. The AI role stops that experiment
+before deploying normal AI services, avoiding competing model allocations.
+
 ## Llama.cpp version requirement
 
 The `qwen3.6` (Qwen3.6-27B-MTP) entry uses the `--spec-type draft-mtp` flag,

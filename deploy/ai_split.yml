@@ -10,12 +10,23 @@
 # The profile defaults to DeepSeek 0731; GLM Spark is an alternative.
 # The play below stops any other running model profile first, so the
 # deploy is declarative: whatever was running before, the configured
-# profile is what runs after. These profiles share GPUs 0,1, so stop
+# profile is what runs after. The pair profiles share GPUs 0,1, so stop
 # the previous model before loading another. See roles/vllm/README.md.
+# Qwen Flash Next is a manual GPU 2 experiment, not a split-pair choice.
 #
 # The SGLang role and deploy/sglang.yml are kept in the repo for the
 # day someone gets the NVFP4 + dsv4 backend past the strict-config
 # loader; until then, vLLM is the path that actually serves DSV4 Flash.
+- name: Validate the split-pair profile
+  hosts: ai
+  gather_facts: false
+  tasks:
+    - name: Require a profile assigned to GPUs 0 and 1
+      ansible.builtin.assert:
+        that:
+          - ai_split_vllm_profile | default('deepseek-v4-flash-0731') in ['deepseek-v4-flash-0731', 'glm-5.3-flash-spark']
+        fail_msg: "Qwen Flash Next uses GPU 2; use its manual workflow in roles/vllm/README.md."
+
 - import_playbook: ai.yml
 - import_playbook: vllm.yml
 

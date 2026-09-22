@@ -20,11 +20,13 @@ vllm_model_cache_dirs:
   - "{{ config_base }}/cache/ds4-karmic-22f3f98b/tmp"
   - "{{ config_base }}/cache/glm53-spark-22f3f98b"
   - "{{ config_base }}/cache/glm53-spark-22f3f98b/tmp"
+  - "{{ config_base }}/cache/qwen38-next-22f3f98b"
+  - "{{ config_base }}/cache/qwen38-next-22f3f98b/tmp"
 
 # Manual lifecycle: rendering this role does not start a model.
 # Start the existing profile explicitly after reviewing its configuration.
 vllm_common_env:
-  # GPUs 0,1 are the Max-Q pair; GPU 2 remains with the AI side services.
+  # GPUs 0,1 are the Max-Q pair; the optional Qwen profile uses GPU 2.
   CUDA_DEVICE_ORDER: "PCI_BUS_ID"
 
 vllm_models:
@@ -94,3 +96,33 @@ vllm_models:
       - a608241037e4c2565356bff7ca293f2133888f88
       - --code-revision
       - a608241037e4c2565356bff7ca293f2133888f88
+
+  # GPU 2 experiment: stop llama-swap before starting this profile.
+  # DeepSeek can remain on GPUs 0,1. Preserve room for GPU side services.
+  - name: qwen3.8-flash-next
+    host_port: 11439
+    container_port: 11439
+    init: true
+    healthcheck_start_period: "10m"
+    privileged: true
+    shm_size: "32gb"
+    cuda_visible_devices: "2"
+    extra_volumes:
+      - "{{ config_base }}/cache/qwen38-next-22f3f98b:/cache"
+      - "{{ config_base }}/cache/qwen38-next-22f3f98b/tmp:/container-tmp"
+    extra_env:
+      PROFILE: qwen38-flash-next
+      HARDWARE_PROFILE: rtx-pro-6000-pcie
+      TP: "1"
+      DCP: "1"
+      PORT: "11439"
+      MAX_NUM_SEQS: "4"
+      GPU_MEMORY_UTILIZATION: "0.90"
+      CACHE_MODE: vram
+      INSTANTTENSOR_BACKEND: BUFFERED
+    args:
+      - --revision
+      - 7c4f1bc1a2d6847e0cbc01ac6b823f00251de8dd
+      - --code-revision
+      - 7c4f1bc1a2d6847e0cbc01ac6b823f00251de8dd
+      - --language-model-only

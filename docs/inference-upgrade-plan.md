@@ -159,6 +159,22 @@ propose it as the default. A successful startup alone is not enough.
 
 ## 5. Try Qwen Flash Next on the third card
 
+The user chose this experiment next, deferring the interactive client/stability
+checks and old-runtime rollback drill. Qwen is downloaded, checksum-verified,
+and configured as an optional manual profile. API and isolated 120K checks
+passed, but short decode was slower than llama-swap, handoffs still included
+unsupported claims, and overlapping long-prompt/decode traffic caused a CUDA
+crash. Keep llama-swap as the normal GPU 2 service; it was restored after testing.
+Measurements and limitations are in the
+[Qwen experiment report](inference-qwen-setup-2026-09-21.md).
+
+**Disposition:** evaluation recorded; further Qwen troubleshooting deferred at
+the user's request. Related [B12X issue #399](https://github.com/local-inference-lab/b12x/issues/399)
+had no documented fix or confirmed workaround when checked September 21.
+Keep the profile stopped and proceed with other inference work. See the
+[issue assessment](inference-qwen-setup-2026-09-21.md#upstream-issue-and-deferred-investigation)
+for the hardware differences, evidence limits, and conditions for revisiting.
+
 Use the [Qwen3.8-Flash-Next one-GPU profile][qwen]. This is a different model
 from our Qwen3.8-27B GGUF entries. Its recipe moves some model tables into
 host RAM, so budget that memory separately from prompt caching.

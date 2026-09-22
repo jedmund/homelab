@@ -19,6 +19,10 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # (or the make deploy-ai-shared / deploy-ai-split shortcuts).
 ai_gpu_mode: split
 
+# The optional vLLM experiment uses the same card as llama-swap. Stop it
+# before an AI deployment restores normal GPU 2 workloads.
+ai_gpu2_experiment_container: qwen3.8-flash-next
+
 # Concrete device_ids passed through the nvidia docker runtime per mode.
 # These map to nvidia-smi indices (see inventory/hosts.yml). Sourced via
 # ai_gpu_devices[ai_gpu_mode] inside templates so the compose file picks
