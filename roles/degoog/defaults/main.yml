@@ -4,8 +4,10 @@ stack_name: degoog
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Degoog settings. Keep the release immutable so the experiment can be
-# reproduced and rolled back without silently changing the image.
-degoog_image: ghcr.io/degoog-org/degoog:0.26.0@sha256:69e28fe2dc8008981b0ea8b9276f0b5b482d107b8a3dfa71d8acdac37f4b77c0
+# reproduced and rolled back without silently changing the image. max is
+# amd64; pin its platform manifest because GHCR currently does not resolve
+# the 0.26.0 multi-platform index by digest from this host.
+degoog_image: ghcr.io/degoog-org/degoog@sha256:20874795da56014a8cdbea9cfae02286b33ab38dd83d772d348dd6fb2fd5f421
 degoog_port: 4444
 degoog_base_url: "https://search.{{ traefik_domain | default('atelier.house') }}"
 degoog_distrust_proxy: "false"
