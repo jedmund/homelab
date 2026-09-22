@@ -1,0 +1,243 @@
+---
+- name: Require existing credentials before stopping the source
+  ansible.builtin.assert:
+    that:
+      - degoog_settings_password | length > 0
+      - degoog_4play_password | length > 0
+  no_log: true
+
+- name: Inspect destination before any source changes
+  ansible.builtin.script:
+    cmd: "{{ playbook_dir }}/../roles/degoog/files/migration.py preflight /opt/docker/degoog"
+    executable: python3
+  register: degoog_migration_state
+  changed_when: false
+
+- name: Prepare and transfer data
+  when: degoog_migration_state.stdout | trim not in ['restored', 'complete']
+  block:
+    - name: Require the existing native bridge configuration
+      ansible.builtin.stat:
+        path: /etc/degoog-4play/nginx.conf
+      register: degoog_migration_bridge
+
+    - name: Require the destination proxy network
+      community.docker.docker_network_info:
+        name: "{{ proxy_network }}"
+      register: degoog_migration_network
+
+    - name: Validate destination integration prerequisites
+      ansible.builtin.assert:
+        that:
+          - degoog_migration_bridge.stat.exists
+          - degoog_migration_network.exists
+
+    - name: Check destination port availability
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ degoog_port }}"
+        state: stopped
+        timeout: 2
+
+    - name: Read source data size
+      ansible.builtin.command: du -sk /opt/docker/degoog/data
+      delegate_to: max
+      register: degoog_migration_size
+      changed_when: false
+
+    - name: Read destination available space
+      ansible.builtin.command: df -Pk /opt/docker
+      register: degoog_migration_space
+      changed_when: false
+
+    - name: Require space for archive and staged extraction
+      ansible.builtin.assert:
+        that:
+          - >-
+            degoog_migration_space.stdout_lines[-1].split()[3] | int >
+            (degoog_migration_size.stdout.split()[0] | int * 3 + 1048576)
+
+    - name: Pull the unchanged Degoog image before downtime
+      community.docker.docker_image:
+        name: "{{ degoog_image }}"
+        source: pull
+
+    - name: Inspect source image before changing its deployment
+      community.docker.docker_container_info:
+        name: degoog
+      delegate_to: max
+      register: degoog_migration_source_container
+      no_log: true
+
+    - name: Require the pinned image to match the source when present
+      ansible.builtin.assert:
+        that:
+          - >-
+            not degoog_migration_source_container.exists or
+            degoog_migration_source_container.container.Config.Image == degoog_image
+        fail_msg: Source image differs from the migration pin; review before proceeding.
+      no_log: true
+
+    - name: Create private migration directories
+      ansible.builtin.file:
+        path: /opt/docker/degoog/.migration
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      delegate_to: "{{ item }}"
+      loop: [max, nuc-mini]
+
+    - name: Retire the source Compose filename before stopping it
+      ansible.builtin.command:
+        argv: [mv, /opt/docker/degoog/compose.yaml, /opt/docker/degoog/compose.retired.yaml]
+        creates: /opt/docker/degoog/compose.retired.yaml
+      delegate_to: max
+
+    - name: Stop and remove the source container without deleting data
+      community.docker.docker_compose_v2:
+        project_src: /opt/docker/degoog
+        files: [compose.retired.yaml]
+        state: absent
+        remove_volumes: false
+      delegate_to: max
+
+    - name: Inspect an existing stopped-source archive
+      ansible.builtin.stat:
+        path: /opt/docker/degoog/.migration/data.tar.gz
+        checksum_algorithm: sha256
+      delegate_to: max
+      register: degoog_migration_archive
+      no_log: true
+
+    - name: Verify SQLite and archive stopped source data
+      ansible.builtin.script:
+        cmd: >-
+          {{ playbook_dir }}/../roles/degoog/files/migration.py archive
+          /opt/docker/degoog --archive /opt/docker/degoog/.migration/data.tar.gz
+        executable: python3
+      delegate_to: max
+      when: not degoog_migration_archive.stat.exists
+      changed_when: true
+      no_log: true
+
+    - name: Read the source archive checksum
+      ansible.builtin.stat:
+        path: /opt/docker/degoog/.migration/data.tar.gz
+        checksum_algorithm: sha256
+      delegate_to: max
+      register: degoog_migration_archive
+      no_log: true
+
+    - name: Create private controller transfer directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: degoog-transfer-
+      delegate_to: localhost
+      become: false
+      register: degoog_migration_temp
+
+    - name: Transfer and restore the archive
+      block:
+        - name: Fetch stopped source archive
+          ansible.builtin.fetch:
+            src: /opt/docker/degoog/.migration/data.tar.gz
+            dest: "{{ degoog_migration_temp.path }}/data.tar.gz"
+            flat: true
+          delegate_to: max
+          no_log: true
+
+        - name: Copy archive to destination
+          ansible.builtin.copy:
+            src: "{{ degoog_migration_temp.path }}/data.tar.gz"
+            dest: /opt/docker/degoog/.migration/data.tar.gz
+            owner: root
+            group: root
+            mode: '0600'
+          no_log: true
+
+        - name: Verify and atomically restore destination data
+          ansible.builtin.script:
+            cmd: >-
+              {{ playbook_dir }}/../roles/degoog/files/migration.py restore
+              /opt/docker/degoog --archive /opt/docker/degoog/.migration/data.tar.gz
+              --sha256 {{ degoog_migration_archive.stat.checksum }}
+            executable: python3
+          register: degoog_migration_restore
+          changed_when: "'restored' in degoog_migration_restore.stdout"
+          no_log: true
+      always:
+        - name: Remove private controller transfer directory
+          ansible.builtin.file:
+            path: "{{ degoog_migration_temp.path }}"
+            state: absent
+          delegate_to: localhost
+          become: false
+          no_log: true
+
+- name: Apply the destination and switch the route
+  when: degoog_migration_state.stdout | trim != 'complete'
+  block:
+    - name: Set restored data ownership
+      ansible.builtin.file:
+        path: /opt/docker/degoog/data
+        owner: "{{ degoog_puid }}"
+        group: "{{ degoog_pgid }}"
+        recurse: true
+
+    - name: Start Degoog without changing extension settings
+      ansible.builtin.include_role:
+        name: degoog
+      vars:
+        degoog_manage_extensions: false
+
+    - name: Remove the retired max route from Traefik
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../roles/traefik/templates/traefik/dynamic/services-max.yml.j2"
+        dest: /opt/docker/traefik/config/traefik/dynamic/services-max.yml
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+      vars:
+        max_server_ip: "{{ hostvars['max'].ansible_host }}"
+        traefik_domain: atelier.house
+
+    - name: Update only the existing native browser bridge
+      ansible.builtin.include_role:
+        name: degoog_4play
+        tasks_from: bridge
+
+    - name: Apply the native bridge reload
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify public route remains behind authentication
+      ansible.builtin.uri:
+        url: "{{ degoog_base_url }}"
+        follow_redirects: none
+        status_code: [302, 303, 307]
+      register: degoog_migration_public
+      until: degoog_migration_public.status in [302, 303, 307]
+      retries: 15
+      delay: 2
+      changed_when: false
+
+    - name: Remove obsolete Degoog LAN firewall allowance
+      community.general.ufw:
+        rule: allow
+        port: '4444'
+        proto: tcp
+        src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+        delete: true
+      delegate_to: "{{ item }}"
+      loop: [max, nuc-mini]
+
+    - name: Mark the forward migration complete
+      ansible.builtin.script:
+        cmd: "{{ playbook_dir }}/../roles/degoog/files/migration.py complete /opt/docker/degoog"
+        executable: python3
+      changed_when: true
+
+- name: Verify the destination is ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/readyz"
+    status_code: 200
+  changed_when: false

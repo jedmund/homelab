@@ -1,6 +1,17 @@
 ---
-# Degoog search service on max. The public route is provided by Traefik on
-# nuc-mini; the host port is restricted to that Traefik host by the firewall.
+# Degoog on nuc-mini. A migration checkpoint prevents an accidental empty deployment.
+
+- name: Require the forward migration checkpoint before normal deployment
+  ansible.builtin.slurp:
+    src: "{{ config_base }}/.degoog-migration.json"
+  register: degoog_migration_checkpoint
+
+- name: Reject unverified destination data
+  ansible.builtin.assert:
+    that:
+      - (degoog_migration_checkpoint.content | b64decode | from_json).migration == 'degoog-max-to-nuc-mini-v1'
+      - (degoog_migration_checkpoint.content | b64decode | from_json).state in ['restored', 'complete']
+    fail_msg: Run the explicitly authorized degoog_migrate playbook before routine deployment.
 
 - name: Validate Degoog settings password
   ansible.builtin.assert:
@@ -75,114 +86,8 @@
   changed_when: false
   when: not ansible_check_mode
 
-- name: Authenticate with Degoog settings API
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ degoog_port }}/api/settings/auth"
-    method: POST
-    body_format: json
-    body:
-      password: "{{ degoog_settings_password }}"
-    status_code: 200
-    return_content: true
-  register: degoog_settings_auth
-  no_log: true
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Inspect Degoog extension repositories
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ degoog_port }}/api/store/repos"
-    method: GET
-    headers:
-      x-settings-token: "{{ degoog_settings_auth.json.token }}"
-    status_code: 200
-  register: degoog_store_repositories
-  no_log: true
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Add the official Degoog extension repository
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ degoog_port }}/api/store/repos"
-    method: POST
-    headers:
-      x-settings-token: "{{ degoog_settings_auth.json.token }}"
-    body_format: json
-    body:
-      url: "{{ degoog_4play_repo_url }}"
-    status_code: 200
-  register: degoog_4play_repository
-  no_log: true
-  changed_when: false
+- name: Reconcile extension settings when requested
+  ansible.builtin.include_tasks: extensions.yml
   when:
+    - degoog_manage_extensions | default(true) | bool
     - not ansible_check_mode
-    - >-
-      (degoog_store_repositories.json.repos | default([])
-      | selectattr('url', 'equalto', degoog_4play_repo_url) | list | length) == 0
-
-- name: Install the official 4play transport
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ degoog_port }}/api/store/install"
-    method: POST
-    headers:
-      x-settings-token: "{{ degoog_settings_auth.json.token }}"
-    body_format: json
-    body:
-      repoUrl: "{{ degoog_4play_repo_url }}"
-      itemPath: "{{ degoog_4play_item_path }}"
-      type: transport
-    status_code: 200
-  register: degoog_4play_install
-  no_log: true
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Inspect the current official 4play settings
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ degoog_port }}/api/extensions?type=transport"
-    method: GET
-    headers:
-      x-settings-token: "{{ degoog_settings_auth.json.token }}"
-    status_code: 200
-  register: degoog_transport_extensions
-  no_log: true
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Select the current official 4play settings
-  ansible.builtin.set_fact:
-    degoog_4play_current_settings: >-
-      {{ degoog_transport_extensions.json.transports | default([])
-         | selectattr('id', 'equalto', degoog_4play_settings_id)
-         | map(attribute='settings') | list | first | default({}) }}
-  no_log: true
-  when: not ansible_check_mode
-
-- name: Configure the official 4play transport
-  ansible.builtin.uri:
-    url: >-
-      http://127.0.0.1:{{ degoog_port }}/api/extensions/{{ degoog_4play_settings_id }}/settings
-    method: POST
-    headers:
-      x-settings-token: "{{ degoog_settings_auth.json.token }}"
-    body_format: json
-    body:
-      password: "{{ degoog_4play_password }}"
-      timeout: "{{ degoog_4play_timeout }}"
-      useContainer: "{{ degoog_4play_use_container }}"
-    status_code: 200
-  register: degoog_4play_settings
-  no_log: true
-  changed_when: >-
-    degoog_4play_force_restart | bool or
-    (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
-    (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
-    (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
-  notify: Restart Degoog after extension configuration
-  when:
-    - not ansible_check_mode
-    - >-
-      degoog_4play_force_restart | bool or
-      (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
-      (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
-      (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)

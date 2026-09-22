@@ -707,10 +707,10 @@ auto_update = false
 
 [[stack]]
 name = "degoog"
-description = "Degoog search experiment at search.atelier.house"
-tags = ["homelab", "ansible", "max", "search", "update-monitor"]
+description = "Degoog on nuc-mini at search.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "search", "update-monitor"]
 [stack.config]
-server = "max"
+server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/degoog"
 file_paths = ["compose.yaml"]

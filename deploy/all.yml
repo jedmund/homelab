@@ -16,9 +16,8 @@
 - import_playbook: prerequisites.yml
   tags: [always, prerequisites]
 
-# Degoog is reconciled before the gateway route switches away from SearXNG.
-# TinyAuth and Traefik follow immediately below, so the final route is
-# authenticated before the routine deployment completes.
+# The Degoog role refuses an empty deployment until degoog_migrate has restored
+# the max data onto nuc-mini. Run the explicit migration before deploy-all.
 - import_playbook: degoog.yml
   tags: [degoog]
 
@@ -250,6 +249,7 @@
 #
 # deploy-all-exclude: ai_split -- Explicitly switches the GPU allocation mode and starts a vLLM profile.
 # deploy-all-exclude: degoog_4play -- Experimental native Firefox/Xorg client; deploy explicitly after checking EDID.
+# deploy-all-exclude: degoog_migrate -- Explicit stopped-data cutover from max to nuc-mini.
 # deploy-all-exclude: dokploy_host -- Provisions host networking and a VM; run as an explicit bootstrap.
 # deploy-all-exclude: dokploy -- Bootstraps the guest and requires first-run operator setup.
 # deploy-all-exclude: gpu_tools -- The gpu_tools role is already applied by ai.yml.
