@@ -1,97 +1,104 @@
 # Degoog
 
-Degoog runs as an independent search experiment on `max` at
-`/opt/docker/degoog`. The public URL is `https://search.atelier.house`.
+Degoog's desired host is `nuc-mini`, at `/opt/docker/degoog`. The existing
+installation on `max` must be transferred with the explicit migration below
+before ordinary deployment. The role refuses to start an empty replacement.
 
-The route is protected by TinyAuth, whose only configured identity provider is
-PocketID. The Degoog application uses an allow-all OAuth rule, so every
-PocketID account can access it after login; the existing Atelier email
-allowlist is not used for this route.
+The public URL remains `https://search.atelier.house`. Traefik reaches the
+container through `proxy-network`; TinyAuth continues to allow every PocketID
+account. Only the NUC loopback interface publishes port 4444, for provisioning
+and the native 4play bridge. There is no LAN backend listener.
 
-Degoog's host port is reachable only from `nuc-mini`, where Traefik runs. Do
-not add a general LAN firewall rule for port 4444. The public route is the
-authenticated access path.
+## Forward-only migration
 
-## First deployment
+This procedure stops Degoog on `max` and causes a brief search outage. It does
+not deploy FlareSolverr, configure consumers, upgrade the Degoog image, reset
+credentials, change installed extensions, or restart the Firefox/Xorg desktop.
 
-Add the settings password to the Degoog vault at
-`group_vars/degoog/vault.yml`:
+Before the authorized window:
 
-```yaml
-vault_degoog_settings_password: "<strong password>"
-```
-
-Deploy the stack and gateway configuration:
+- Update the main checkout and retain the existing encrypted
+  `group_vars/degoog/vault.yml`. Required inputs remain
+  `vault_degoog_settings_password` and `vault_degoog_4play_password`.
+- Verify SSH and privilege escalation for both hosts, available NUC disk space,
+  the NUC proxy network, and the existing native 4play bridge.
+- Reconcile the changed Komodo declaration before cutover so it no longer
+  attempts to deploy Degoog on `max`. Do not run an empty NUC deployment.
+- Run static checks and disposable migration tests.
 
 ```sh
-make deploy-prerequisites
+make check
+python3 tests/test_degoog_migration.py
+git diff --check
+ansible-playbook -i inventory/hosts.yml deploy/degoog_migrate.yml \
+  -e degoog_migration_confirm=true
+```
+
+The explicit confirmation is required. Check mode is rejected rather than
+pretending to simulate a data transfer. Do not use `--limit nuc-mini` as an
+isolation boundary: the play intentionally delegates source operations to max.
+
+The playbook verifies destination safety, reserves headroom for staging, and
+pulls the unchanged image before stopping the source. It retires
+`max:/opt/docker/degoog/compose.yaml` to `compose.retired.yaml` and removes
+the source container without removing volumes or data. This also prevents the
+boot-time Compose scanner from resurrecting a second instance.
+
+Stopped data is checked for SQLite integrity, archived with restrictive
+permissions, transferred through a private temporary controller directory, and
+verified by SHA-256 before extraction. Symlinks and special archive entries are
+rejected. The destination data directory is installed atomically, with a
+checkpoint that distinguishes prepared, restored, and completed transfers.
+Re-running the play resumes an incomplete cutover but never replaces restored
+data with the old archive. Unexpected destination data causes a refusal.
+
+The destination starts without extension provisioning; routing switches to
+Traefik Docker labels and only the native WebSocket bridge is reloaded. The
+obsolete source-scoped UFW rule is removed from both hosts. Source data and
+root-only transfer archives remain; their deletion is a separate authorized
+operation. Controller temporary files are removed even after failure.
+
+There is no automatic rollback or reverse-copy path. On failure, inspect the
+failed phase and rerun after correcting it. Do not remove checkpoints or replace
+destination data to bypass a refusal. After completion the play only checks readiness.
+
+## Verify the cutover
+
+- NUC `http://127.0.0.1:4444/readyz` returns 200.
+- Anonymous public requests redirect to authentication; sign in with a PocketID
+  account and verify the search UI and settings password.
+- Confirm existing engines, settings, and indexed data are present; run a known
+  working engine query and test the 4play connection.
+- Confirm Firefox retained its existing profile and the bridge points to
+  `127.0.0.1:4444`.
+- Confirm no Degoog container remains on max and neither host offers port 4444
+  over the LAN. Inspect Komodo's host assignment after resource synchronization.
+- Repeat the migration command: it must not copy data or restart the application.
+
+Automated redirect/readiness checks do not establish a successful PocketID login
+or browser extension reconnection. Report those checks separately.
+
+## Routine deployment
+
+```sh
 make deploy-degoog
-make deploy-infra-gateway
 ```
 
-The normal `make deploy-all` workflow includes Degoog before the gateway route
-is reconciled. After deployment, visit `https://search.atelier.house`, sign in
-through PocketID, and install the desired engines from Degoog's Store. A fresh
-instance has no engines until this step is completed.
+Extension provisioning can be skipped with `-e degoog_manage_extensions=false`.
+The migration always skips it. Changing the transport through normal provisioning
+retains its existing settings-password authentication and restart behavior.
 
-For later API compatibility experiments, enable Degoog's “Serve the SearXNG
-API shape” setting. The compatible endpoint is `/api/search`; existing
-Open WebUI, n8n, Vane, and Kizuna integrations remain on the separate SearXNG
-instance at `max:8889`.
+FlareSolverr remains a separate standalone service. Its URL is not configured by
+this migration. Existing Open WebUI, n8n, Vane, and Kizuna integrations continue
+using SearXNG on `max:8889`.
 
-## Verification
+## Storage and native browser
 
-On `max`, verify the stack and readiness endpoint:
+The NUC backup role includes `/opt/docker`, subject to its exclusions. This
+covers deployment files but does not guarantee a consistent live SQLite snapshot.
+Stop writers for a controlled copy and verify restored databases before relying
+on them; see the [backup runbook](../backup/README.md).
 
-```sh
-cd /opt/docker/degoog
-docker compose ps
-docker compose exec -T degoog curl -fsS http://127.0.0.1:4444/readyz
-```
-
-From a normal LAN client, `max:4444` should not be reachable. Through the
-public hostname, anonymous requests should redirect to TinyAuth and an
-authenticated PocketID user should reach Degoog.
-
-## Rollback
-
-Restore the SearXNG route and its TinyAuth application label, then deploy
-Traefik and TinyAuth. Leave the Degoog stack in place for further experiments;
-its data is independent of the SearXNG stack.
-
-The existing backup role runs on `nuc-mini` and does not currently cover
-`max:/opt/docker/degoog`. Treat this installation as rebuildable experiment
-state until backup coverage is added.
-
-## Native 4play browser
-
-The official 4play transport is configured on `max` by the Degoog role. Its
-Firefox client is a separate experimental deployment on `nuc-mini`, owned by
-the `degoog_4play` role. The client requires a connected display adapter that
-provides EDID; the current Comet X connection is sufficient, and an HDMI EDID
-dummy is a fallback.
-
-Add `vault_degoog_4play_password` to the existing Degoog vault, then deploy the
-transport and browser separately:
-
-```sh
-make deploy-degoog
-make -C deploy degoog_4play
-```
-
-The browser runs as the locked `degoog-firefox` user on Xorg display `:1`. A
-host-local WebSocket bridge listens only on `127.0.0.1:3031`; it forwards to
-the private Degoog transport endpoint on `max`. It does not change the public
-PocketID/TinyAuth route.
-
-Verify the native services on `nuc-mini`:
-
-```sh
-systemctl --no-pager --full status \
-  degoog-4play-bridge.service \
-  degoog-4play-xorg.service \
-  degoog-4play-session.service \
-  degoog-4play-firefox.service
-DISPLAY=:1 xrandr --query
-ss -ltn | grep ':3031'
-```
+The [native 4play role](../degoog_4play/README.md) remains separately managed and
+excluded from routine full deployments. Its Firefox profile, Xorg display
+`:1`, and local bridge URL `ws://127.0.0.1:3031/cnc` are preserved.
