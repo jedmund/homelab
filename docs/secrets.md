@@ -148,6 +148,7 @@ below, then run `make deploy-beszel-agents`.
 | Variable | Description |
 | --- | --- |
 | `gitlab_runner_linux_auth_token` | GitLab Runner auth token (max-docker) |
+| `gitlab_runner_linux_large_auth_token` | GitLab Runner auth token (max-docker-large); optional, the large runner entry is omitted until set |
 
 ### group_vars/development_macos/vault.yml
 
