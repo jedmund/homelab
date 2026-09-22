@@ -29,8 +29,10 @@ It does not use the normal proxy-network Docker-label route.
 
 The role creates macvlan interfaces for the ONVIF devices listed in
 `kibble_onvif_devices`. Each device has its own IP and MAC address on the
-configured bridge. The list also supports test aliases; do not infer the
-number of physical feeders from the number of interfaces.
+configured bridge. Defaults configure the three physical feeders. Test
+aliases require an application image that supports `KIBBLE_ONVIF_ALIASES`;
+the deployed image expects one bind address per feeder. Keep aliases disabled
+until a compatible image is released.
 
 Kalay runs in-process when `kibble_kalay_enabled` is true and binds UDP 10001
 and 10240. The role stops an existing `kalay-mock.service` to avoid a port
