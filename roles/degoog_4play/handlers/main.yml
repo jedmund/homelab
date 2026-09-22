@@ -1,0 +1,35 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Reload Degoog 4play bridge
+  ansible.builtin.systemd_service:
+    name: degoog-4play-bridge.service
+    state: reloaded
+  when: not ansible_check_mode
+
+- name: Restart Degoog 4play bridge
+  ansible.builtin.systemd_service:
+    name: degoog-4play-bridge.service
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Restart Degoog 4play Xorg
+  ansible.builtin.systemd_service:
+    name: degoog-4play-xorg.service
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Restart Degoog 4play desktop session
+  ansible.builtin.systemd_service:
+    name: degoog-4play-session.service
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Restart Degoog 4play Firefox
+  ansible.builtin.systemd_service:
+    name: degoog-4play-firefox.service
+    state: restarted
+  when: not ansible_check_mode

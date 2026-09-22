@@ -302,6 +302,10 @@ deploy-degoog: ## Deploy Degoog search experiment on max
 	@echo "$(BLUE)Deploying Degoog stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog.yml $(VAULT_FLAG)
 
+deploy-degoog-4play: ## Deploy the experimental native Degoog Firefox client on nuc-mini
+	@echo "$(BLUE)Deploying Degoog 4play client...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog_4play.yml $(VAULT_FLAG)
+
 deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM DeepSeek V4 Flash up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
 	@echo "$(BLUE)Deploying AI stack in split mode + starting vLLM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
