@@ -298,6 +298,10 @@ deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 
+deploy-degoog: ## Deploy Degoog search experiment on max
+	@echo "$(BLUE)Deploying Degoog stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog.yml $(VAULT_FLAG)
+
 deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM DeepSeek V4 Flash up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
 	@echo "$(BLUE)Deploying AI stack in split mode + starting vLLM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
