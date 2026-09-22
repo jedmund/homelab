@@ -1,0 +1,69 @@
+# {{ ansible_managed }}
+name: kaneo-inspection
+x-runtime: &runtime
+  restart: unless-stopped
+  init: true
+  read_only: true
+  user: '1000:1000'
+  pids_limit: 256
+  mem_limit: 2g
+  cpus: 2
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ['/tmp:rw,nosuid,nodev,size=256m']
+  logging:
+    driver: json-file
+    options: {max-size: '10m', max-file: '3'}
+services:
+  adapter:
+    <<: *runtime
+    image: '{{ kaneo_inspection_adapter_image }}'
+    env_file: [adapter.env]
+    networks: [api, control]
+    volumes:
+      - ./inspection.json:/configuration/inspection.json:ro
+      - ./state:/state
+      - ./snapshots:/snapshots
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:1338/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  paseo:
+    <<: *runtime
+    image: '{{ kaneo_inspection_paseo_image }}'
+    env_file:
+      - paseo.env
+{% if kaneo_inspection_provider_credentials | length > 0 %}
+      - path: providers.env
+        format: raw
+{% endif %}
+    networks: [control, inference, relay]
+    volumes:
+      - ./paseo:/home/node
+      - ./snapshots:/snapshots:ro
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:6767/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  model-egress:
+    <<: *runtime
+    image: '{{ kaneo_inspection_adapter_image }}'
+    command: [node, apps/inspection-adapter/tcp-forwarder.mjs]
+    environment: {FORWARD_HOST: '{{ kaneo_inspection_model_address }}', FORWARD_PORT: '{{ kaneo_inspection_model_port }}', LISTEN_PORT: '11437'}
+    networks: [inference, egress]
+  relay-egress:
+    <<: *runtime
+    image: '{{ kaneo_inspection_adapter_image }}'
+    command: [node, apps/inspection-adapter/tcp-forwarder.mjs]
+    environment: {FORWARD_HOST: '{{ kaneo_inspection_relay_address }}', FORWARD_PORT: '{{ kaneo_inspection_relay_port }}', LISTEN_PORT: '8411'}
+    networks: [relay, egress]
+networks:
+  api:
+    external: true
+    name: '{{ kaneo_inspection_api_network }}'
+  control: {internal: true}
+  inference: {internal: true}
+  relay: {internal: true}
+  egress: {}
