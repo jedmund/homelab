@@ -6,10 +6,19 @@ services:
     container_name: degoog
     image: {{ degoog_image }}
     restart: {{ restart_policy }}
+    networks:
+      - proxy
     ports:
-      # Traefik runs on nuc-mini and is the only permitted source for this
-      # cross-host backend port. Do not expose Degoog directly to the LAN.
-      - "{{ degoog_port }}:4444"
+      # Local provisioning and the native 4play bridge only.
+      - "127.0.0.1:{{ degoog_port }}:4444"
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.degoog.rule: "Host(`{{ degoog_base_url | urlsplit('hostname') }}`)"
+      traefik.http.routers.degoog.entrypoints: websecure
+      traefik.http.routers.degoog.tls.certresolver: letsencrypt
+      traefik.http.routers.degoog.middlewares: tinyauth@file
+      traefik.http.services.degoog.loadbalancer.server.port: "4444"
     env_file:
       - ./env/degoog.env
     environment:
@@ -31,3 +40,8 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

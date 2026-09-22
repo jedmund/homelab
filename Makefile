@@ -301,7 +301,7 @@ deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max
 deploy-flaresolverr: ## Deploy the private FlareSolverr API on nuc-mini
 	@$(ANSIBLE) -i $(INVENTORY) deploy/flaresolverr.yml $(VAULT_FLAG)
 
-deploy-degoog: ## Deploy Degoog search experiment on max
+deploy-degoog: ## Deploy Degoog on nuc-mini after the explicit migration
 	@echo "$(BLUE)Deploying Degoog stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog.yml $(VAULT_FLAG)
 

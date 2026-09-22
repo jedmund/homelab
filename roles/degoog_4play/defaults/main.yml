@@ -4,8 +4,8 @@ degoog_4play_group: degoog-firefox
 degoog_4play_home: /home/degoog-firefox
 degoog_4play_profile: "{{ degoog_4play_home }}/profile"
 
-degoog_4play_degoog_host: max
-degoog_4play_upstream_host: "{{ hostvars[degoog_4play_degoog_host].ansible_host }}"
+degoog_4play_degoog_host: nuc-mini
+degoog_4play_upstream_host: "127.0.0.1"
 degoog_4play_upstream_port: "{{ hostvars[degoog_4play_degoog_host].degoog_port | default(4444) }}"
 degoog_4play_transport_id: degoog-org-official-extensions-lolcat-4play-transport
 degoog_4play_transport_password: "{{ hostvars[degoog_4play_degoog_host].vault_degoog_4play_password | default('') }}"
