@@ -62,3 +62,36 @@ its data is independent of the SearXNG stack.
 The existing backup role runs on `nuc-mini` and does not currently cover
 `max:/opt/docker/degoog`. Treat this installation as rebuildable experiment
 state until backup coverage is added.
+
+## Native 4play browser
+
+The official 4play transport is configured on `max` by the Degoog role. Its
+Firefox client is a separate experimental deployment on `nuc-mini`, owned by
+the `degoog_4play` role. The client requires a connected display adapter that
+provides EDID; the current Comet X connection is sufficient, and an HDMI EDID
+dummy is a fallback.
+
+Add `vault_degoog_4play_password` to the existing Degoog vault, then deploy the
+transport and browser separately:
+
+```sh
+make deploy-degoog
+make -C deploy degoog_4play
+```
+
+The browser runs as the locked `degoog-firefox` user on Xorg display `:1`. A
+host-local WebSocket bridge listens only on `127.0.0.1:3031`; it forwards to
+the private Degoog transport endpoint on `max`. It does not change the public
+PocketID/TinyAuth route.
+
+Verify the native services on `nuc-mini`:
+
+```sh
+systemctl --no-pager --full status \
+  degoog-4play-bridge.service \
+  degoog-4play-xorg.service \
+  degoog-4play-session.service \
+  degoog-4play-firefox.service
+DISPLAY=:1 xrandr --query
+ss -ltn | grep ':3031'
+```
