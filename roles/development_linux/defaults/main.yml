@@ -58,6 +58,7 @@ gitlab_runner_linux_run_untagged: true
 gitlab_runner_linux_limit: 4
 gitlab_runner_linux_cpus: "3"
 gitlab_runner_linux_memory: 6g
+gitlab_runner_linux_tmpfs_size: 2g
 gitlab_runner_linux_concurrent: "{{ gitlab_runner_linux_limit + gitlab_runner_linux_large_limit }}"
 
 # Large pool. A separate GitLab runner registration, because tags and the
@@ -66,7 +67,7 @@ gitlab_runner_linux_concurrent: "{{ gitlab_runner_linux_limit + gitlab_runner_li
 # config.toml until its vault token exists, and metadata reconciliation
 # skips it while the ID is 0.
 gitlab_runner_linux_large_name: "{{ inventory_hostname }}-docker-large"
-gitlab_runner_linux_large_id: 0
+gitlab_runner_linux_large_id: 4
 gitlab_runner_linux_large_tags:
   - amd64
   - atelier-max-large
@@ -77,6 +78,14 @@ gitlab_runner_linux_large_run_untagged: false
 gitlab_runner_linux_large_limit: 2
 gitlab_runner_linux_large_cpus: "12"
 gitlab_runner_linux_large_memory: 24g
+gitlab_runner_linux_large_tmpfs_size: 8g
+
+# Job containers get a RAM-backed /tmp. Test suites that open SQLite
+# databases under os.tmpdir() fsync constantly, and the NVMe drives here take
+# about 5 ms per flush (no power-loss protection), which made album-sort's
+# Vitest run 3.6x slower on the overlay filesystem than on tmpfs (237 s vs
+# 66 s). tmpfs pages count against the job's memory limit, so each size
+# stays well under its pool's cap; a job that outgrows it gets ENOSPC.
 
 gitlab_runner_linux_default_image: alpine:latest
 gitlab_runner_linux_log_level: info
