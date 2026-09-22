@@ -65,6 +65,7 @@ Shared secrets used by multiple stacks.
 | Variable | Description |
 | --- | --- |
 | `vault_degoog_settings_password` | Degoog settings password; required to manage engines and extensions |
+| `vault_degoog_4play_password` | Password embedded in the private 4play transport WebSocket path |
 
 ### group_vars/album_sort/vault.yml
 
