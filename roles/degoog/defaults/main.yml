@@ -28,3 +28,4 @@ degoog_4play_settings_id: degoog-org-official-extensions-lolcat-4play-transport
 degoog_4play_password: "{{ vault_degoog_4play_password | default('') }}"
 degoog_4play_timeout: "30000"
 degoog_4play_use_container: "false"
+degoog_4play_force_restart: false
