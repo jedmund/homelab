@@ -60,6 +60,12 @@ Shared secrets used by multiple stacks.
 | `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
 | `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
 
+### group_vars/degoog/vault.yml
+
+| Variable | Description |
+| --- | --- |
+| `vault_degoog_settings_password` | Degoog settings password; required to manage engines and extensions |
+
 ### group_vars/album_sort/vault.yml
 
 Album Sort pulls CI-built images. Deployment, proxy trust, and encryption-key
