@@ -83,6 +83,8 @@ gatus_gitlab_runners:
     name: mac-mini-xcode
   - id: 3
     name: max-docker
+  - id: 4
+    name: max-docker-large
 
 # Names pinned to Traefik instead of being resolved normally. Two unrelated
 # reasons land here, both discovered by probing rather than by reading config:
