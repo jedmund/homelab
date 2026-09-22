@@ -1,0 +1,291 @@
+---
+- name: Validate the Degoog 4play host
+  ansible.builtin.assert:
+    that:
+      - degoog_4play_upstream_host | length > 0
+      - degoog_4play_transport_password | length > 0
+    fail_msg: >-
+      The Degoog host and vault_degoog_4play_password must be available before
+      deploying the native 4play client.
+  no_log: true
+
+- name: Check for a connected display with EDID
+  ansible.builtin.shell: |
+    set -o pipefail
+    for connector in /sys/class/drm/card*-*; do
+      if [ -f "$connector/status" ] \
+        && [ "$(cat "$connector/status")" = connected ] \
+        && [ "$(wc -c < "$connector/edid")" -gt 0 ]; then
+        printf '%s\n' "$connector"
+        exit 0
+      fi
+    done
+    exit 1
+  args:
+    executable: /bin/bash
+  register: degoog_4play_edid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  # noqa command-instead-of-shell
+
+- name: Require an EDID-backed display for Firefox 4play
+  ansible.builtin.assert:
+    that:
+      - degoog_4play_edid.rc == 0
+    fail_msg: >-
+      No connected DRM display with EDID was found. Keep the Comet X switched
+      to the NUC or plug in the HDMI EDID dummy before deploying.
+
+- name: Install native 4play packages
+  ansible.builtin.apt:
+    name: "{{ degoog_4play_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    policy_rc_d: 101
+
+- name: Remove the Firefox Snap from the previous runtime attempt
+  community.general.snap:
+    name: firefox
+    state: absent
+
+- name: Create Firefox cache and installation directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ degoog_4play_firefox_cache_dir }}"
+    - "{{ degoog_4play_firefox_install_dir }}"
+
+- name: Download the pinned Mozilla Firefox release
+  ansible.builtin.get_url:
+    url: "{{ degoog_4play_firefox_url }}"
+    dest: "{{ degoog_4play_firefox_cache_dir }}/firefox-{{ degoog_4play_firefox_version }}.tar.xz"
+    checksum: "{{ degoog_4play_firefox_checksum }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create the versioned Firefox extraction directory
+  ansible.builtin.file:
+    path: "{{ degoog_4play_firefox_install_dir }}/firefox-{{ degoog_4play_firefox_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Extract the pinned Mozilla Firefox release
+  ansible.builtin.unarchive:
+    src: "{{ degoog_4play_firefox_cache_dir }}/firefox-{{ degoog_4play_firefox_version }}.tar.xz"
+    dest: "{{ degoog_4play_firefox_install_dir }}/firefox-{{ degoog_4play_firefox_version }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: "{{ degoog_4play_firefox_install_dir }}/firefox-{{ degoog_4play_firefox_version }}/firefox"
+
+- name: Create the Firefox distribution policy directory
+  ansible.builtin.file:
+    path: "{{ degoog_4play_firefox_install_dir }}/firefox-{{ degoog_4play_firefox_version }}/distribution"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Point the managed Firefox path at the pinned release
+  ansible.builtin.file:
+    src: "{{ degoog_4play_firefox_install_dir }}/firefox-{{ degoog_4play_firefox_version }}"
+    dest: "{{ degoog_4play_firefox_install_dir }}/firefox"
+    state: link
+    force: true
+
+- name: Ensure the Degoog Firefox group exists
+  ansible.builtin.group:
+    name: "{{ degoog_4play_group }}"
+    system: true
+    state: present
+
+- name: Ensure the Degoog Firefox user exists
+  ansible.builtin.user:
+    name: "{{ degoog_4play_user }}"
+    group: "{{ degoog_4play_group }}"
+    groups:
+      - video
+      - render
+    append: true
+    home: "{{ degoog_4play_home }}"
+    create_home: true
+    shell: /usr/sbin/nologin
+    system: true
+    state: present
+
+- name: Stop the distribution nginx unit
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: stopped
+    enabled: false
+  when: not ansible_check_mode
+
+- name: Create Degoog 4play directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - path: /etc/degoog-4play
+    - path: /usr/local/libexec
+    - path: "{{ degoog_4play_home }}"
+      owner: "{{ degoog_4play_user }}"
+      group: "{{ degoog_4play_group }}"
+      mode: '0700'
+    - path: "{{ degoog_4play_profile }}"
+      owner: "{{ degoog_4play_user }}"
+      group: "{{ degoog_4play_group }}"
+      mode: '0700'
+
+- name: Deploy the host-local WebSocket bridge configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/degoog-4play/nginx.conf
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  notify:
+    - Reload Degoog 4play bridge
+
+- name: Deploy Degoog 4play Xorg configuration
+  ansible.builtin.template:
+    src: xorg.conf.j2
+    dest: /etc/degoog-4play/xorg.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Restart Degoog 4play Xorg
+
+- name: Deploy the Xauthority initializer
+  ansible.builtin.template:
+    src: xauth.sh.j2
+    dest: /usr/local/libexec/degoog-4play-xauth
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Restart Degoog 4play Xorg
+
+- name: Deploy Degoog 4play bridge unit
+  ansible.builtin.template:
+    src: systemd/degoog-4play-bridge.service.j2
+    dest: /etc/systemd/system/degoog-4play-bridge.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Degoog 4play bridge
+
+- name: Deploy Degoog 4play Xorg unit
+  ansible.builtin.template:
+    src: systemd/degoog-4play-xorg.service.j2
+    dest: /etc/systemd/system/degoog-4play-xorg.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Degoog 4play Xorg
+
+- name: Deploy Degoog 4play desktop session unit
+  ansible.builtin.template:
+    src: systemd/degoog-4play-session.service.j2
+    dest: /etc/systemd/system/degoog-4play-session.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Degoog 4play desktop session
+
+- name: Deploy Degoog 4play Firefox unit
+  ansible.builtin.template:
+    src: systemd/degoog-4play-firefox.service.j2
+    dest: /etc/systemd/system/degoog-4play-firefox.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Degoog 4play Firefox
+
+- name: Deploy Firefox enterprise policy
+  ansible.builtin.template:
+    src: policies.json.j2
+    dest: "{{ degoog_4play_firefox_policy_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Degoog 4play Firefox
+
+- name: Deploy managed Firefox profile preferences
+  ansible.builtin.template:
+    src: user.js.j2
+    dest: "{{ degoog_4play_profile }}/user.js"
+    owner: "{{ degoog_4play_user }}"
+    group: "{{ degoog_4play_group }}"
+    mode: '0644'
+  notify: Restart Degoog 4play Firefox
+
+- name: Deploy managed Firefox extension storage settings
+  ansible.builtin.template:
+    src: extension-storage.json.j2
+    dest: /etc/degoog-4play/extension-storage.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Degoog 4play Firefox
+
+- name: Deploy the Firefox profile bootstrap
+  ansible.builtin.template:
+    src: profile-bootstrap.sh.j2
+    dest: /usr/local/libexec/degoog-4play-profile
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Restart Degoog 4play Firefox
+
+- name: Enable and start the Degoog 4play bridge
+  ansible.builtin.systemd_service:
+    name: degoog-4play-bridge.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Enable and start Degoog 4play Xorg
+  ansible.builtin.systemd_service:
+    name: degoog-4play-xorg.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Enable and start the Degoog 4play desktop session
+  ansible.builtin.systemd_service:
+    name: degoog-4play-session.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Enable and start Degoog 4play Firefox
+  ansible.builtin.systemd_service:
+    name: degoog-4play-firefox.service
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode

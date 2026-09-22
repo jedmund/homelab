@@ -246,6 +246,7 @@
 # The deploy-all-exclude annotations are checked by bin/check-deploy-all.
 #
 # deploy-all-exclude: ai_split -- Explicitly switches the GPU allocation mode and starts a vLLM profile.
+# deploy-all-exclude: degoog_4play -- Experimental native Firefox/Xorg client; deploy explicitly after checking EDID.
 # deploy-all-exclude: dokploy_host -- Provisions host networking and a VM; run as an explicit bootstrap.
 # deploy-all-exclude: dokploy -- Bootstraps the guest and requires first-run operator setup.
 # deploy-all-exclude: gpu_tools -- The gpu_tools role is already applied by ai.yml.

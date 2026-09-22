@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Degoog 4play XFCE session
+Requires=degoog-4play-xorg.service
+After=degoog-4play-xorg.service
+PartOf=degoog-4play-xorg.service
+
+[Service]
+Type=simple
+User={{ degoog_4play_user }}
+Group={{ degoog_4play_group }}
+WorkingDirectory={{ degoog_4play_home }}
+Environment=HOME={{ degoog_4play_home }}
+Environment=DISPLAY={{ degoog_4play_display }}
+Environment=XAUTHORITY={{ degoog_4play_xauthority }}
+ExecStart=/usr/bin/dbus-run-session -- /usr/bin/startxfce4
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

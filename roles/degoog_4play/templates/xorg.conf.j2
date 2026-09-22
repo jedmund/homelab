@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+Section "Device"
+    Identifier "degoog-modesetting"
+    Driver "modesetting"
+    Option "AccelMethod" "glamor"
+EndSection
+
+Section "Screen"
+    Identifier "degoog-screen"
+    Device "degoog-modesetting"
+    DefaultDepth 24
+EndSection
