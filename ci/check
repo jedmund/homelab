@@ -36,6 +36,7 @@ run_static() {
     python tests/test_maintenance.py
     python tests/test_flaresolverr.py
     python tests/test_degoog_migration.py
+    python tests/test_degoog_maps.py
     python tests/compose_lifecycle.py --static-only --report /results/static-fixtures.json
     record_duration static "$((SECONDS - started))"
 }
