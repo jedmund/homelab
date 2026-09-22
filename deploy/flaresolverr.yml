@@ -1,0 +1,7 @@
+---
+- name: Deploy FlareSolverr
+  hosts: flaresolverr
+  become: true
+  roles:
+    - flaresolverr
+

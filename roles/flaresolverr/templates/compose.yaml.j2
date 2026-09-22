@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  flaresolverr:
+    image: {{ flaresolverr_image }}
+    container_name: flaresolverr
+    restart: {{ restart_policy }}
+    cpus: {{ flaresolverr_cpus }}
+    mem_limit: {{ flaresolverr_memory }}
+    shm_size: {{ flaresolverr_shm_size }}
+    networks:
+      - shared
+    ports:
+      - "127.0.0.1:{{ flaresolverr_port }}:8191"
+      - "{{ flaresolverr_bind_address }}:{{ flaresolverr_port }}:8191"
+    environment:
+      TZ: "{{ timezone }}"
+      LOG_LEVEL: "{{ flaresolverr_log_level }}"
+      LOG_HTML: "false"
+      HEADLESS: "true"
+      CAPTCHA_SOLVER: "none"
+    # The image declares /config as a volume. Avoid anonymous persistent state.
+    tmpfs:
+      - /config:uid=1000,gid=1000,mode=0700,size=64m
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "5", "http://127.0.0.1:8191/health"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true
+

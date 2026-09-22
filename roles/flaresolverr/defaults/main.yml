@@ -1,0 +1,15 @@
+---
+stack_name: flaresolverr
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+# Official v3.5.2 multi-platform manifest, verified against GHCR.
+flaresolverr_image: ghcr.io/flaresolverr/flaresolverr:v3.5.2@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767
+flaresolverr_port: 8191
+flaresolverr_bind_address: "{{ ansible_host }}"
+flaresolverr_allowed_sources:
+  - "{{ hostvars['max'].ansible_host }}/32"
+flaresolverr_cpus: 2
+flaresolverr_memory: 2g
+flaresolverr_shm_size: 512m
+# INFO includes request bodies (including cookies and proxy credentials).
+flaresolverr_log_level: warning
+

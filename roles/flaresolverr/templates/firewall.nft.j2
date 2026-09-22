@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# A dedicated table: never flush Docker/UFW tables or the global ruleset.
+# add + flush + replacement is a single atomic nft transaction.
+add table inet homelab_flaresolverr
+flush table inet homelab_flaresolverr
+table inet homelab_flaresolverr {
+    set allowed_v4 {
+        type ipv4_addr
+        flags interval
+        elements = { {{ ([flaresolverr_bind_address ~ '/32', '127.0.0.1/32'] + flaresolverr_allowed_sources) | join(', ') }} }
+    }
+    chain forwarded_api {
+        type filter hook forward priority -10; policy accept;
+        meta l4proto tcp ct direction original ct original ip daddr {{ flaresolverr_bind_address }} ct original proto-dst {{ flaresolverr_port }} ip saddr != @allowed_v4 drop
+    }
+    chain host_api {
+        type filter hook input priority -10; policy accept;
+        ip daddr {{ flaresolverr_bind_address }} tcp dport {{ flaresolverr_port }} ip saddr != @allowed_v4 drop
+    }
+}
+

@@ -1,0 +1,100 @@
+---
+- name: Validate FlareSolverr bindings
+  ansible.builtin.assert:
+    that:
+      - flaresolverr_bind_address is match('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+      - flaresolverr_bind_address not in ['0.0.0.0', '127.0.0.1']
+      - flaresolverr_port | int > 1024
+      - flaresolverr_port | int < 65536
+      - flaresolverr_allowed_sources | length > 0
+
+- name: Validate FlareSolverr allowed sources
+  ansible.builtin.assert:
+    that:
+      - item is match('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/32$')
+  loop: "{{ flaresolverr_allowed_sources }}"
+
+- name: Install nftables tools without enabling a global ruleset
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    policy_rc_d: 101
+
+- name: Create FlareSolverr directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - /etc/flaresolverr
+    - /etc/systemd/system/docker.service.d
+
+- name: Render and validate the dedicated firewall table
+  ansible.builtin.template:
+    src: firewall.nft.j2
+    dest: /etc/flaresolverr/firewall.nft
+    mode: '0644'
+    validate: /usr/sbin/nft --check --file %s
+  register: flaresolverr_firewall_config
+
+- name: Install FlareSolverr firewall unit
+  ansible.builtin.template:
+    src: firewall.service.j2
+    dest: /etc/systemd/system/flaresolverr-firewall.service
+    mode: '0644'
+  register: flaresolverr_firewall_unit
+
+- name: Order Docker startup after the API restriction
+  ansible.builtin.template:
+    src: docker-firewall.conf.j2
+    dest: /etc/systemd/system/docker.service.d/20-flaresolverr-firewall.conf
+    mode: '0644'
+  register: flaresolverr_docker_dropin
+
+- name: Inspect the live FlareSolverr firewall table
+  ansible.builtin.command: nft list table inet homelab_flaresolverr
+  register: flaresolverr_firewall_live
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Load FlareSolverr firewall before publishing any ports
+  ansible.builtin.systemd_service:
+    name: flaresolverr-firewall.service
+    enabled: true
+    daemon_reload: "{{ flaresolverr_firewall_unit.changed or flaresolverr_docker_dropin.changed }}"
+    state: >-
+      {{ 'restarted' if flaresolverr_firewall_config.changed or
+         flaresolverr_firewall_unit.changed or flaresolverr_firewall_live.rc != 0
+         else 'started' }}
+  when: not ansible_check_mode
+
+- name: Render FlareSolverr Compose configuration
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    mode: '0644'
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 180
+
+- name: Verify FlareSolverr local readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ flaresolverr_port }}/health"
+    status_code: 200
+  register: flaresolverr_health
+  until: flaresolverr_health.status == 200 and flaresolverr_health.json.status == 'ok'
+  retries: 15
+  delay: 2
+  changed_when: false
+  when: not ansible_check_mode
+
