@@ -12,4 +12,3 @@ flaresolverr_memory: 2g
 flaresolverr_shm_size: 512m
 # INFO includes request bodies (including cookies and proxy credentials).
 flaresolverr_log_level: warning
-

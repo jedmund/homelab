@@ -71,7 +71,6 @@
          flaresolverr_firewall_unit.changed or flaresolverr_firewall_live.rc != 0
          else 'started' }}
   when: not ansible_check_mode
-
 - name: Render FlareSolverr Compose configuration
   ansible.builtin.template:
     src: compose.yaml.j2
@@ -97,4 +96,3 @@
   delay: 2
   changed_when: false
   when: not ansible_check_mode
-
