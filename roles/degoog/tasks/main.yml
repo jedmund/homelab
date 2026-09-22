@@ -137,6 +137,27 @@
   changed_when: false
   when: not ansible_check_mode
 
+- name: Inspect the current official 4play settings
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/extensions?type=transport"
+    method: GET
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    status_code: 200
+  register: degoog_transport_extensions
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Select the current official 4play settings
+  ansible.builtin.set_fact:
+    degoog_4play_current_settings: >-
+      {{ degoog_transport_extensions.json.transports | default([])
+         | selectattr('id', 'equalto', degoog_4play_settings_id)
+         | map(attribute='settings') | list | first | default({}) }}
+  no_log: true
+  when: not ansible_check_mode
+
 - name: Configure the official 4play transport
   ansible.builtin.uri:
     url: >-
@@ -152,5 +173,16 @@
     status_code: 200
   register: degoog_4play_settings
   no_log: true
-  changed_when: false
-  when: not ansible_check_mode
+  changed_when: >-
+    degoog_4play_force_restart | bool or
+    (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
+    (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
+    (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
+  notify: Restart Degoog after extension configuration
+  when:
+    - not ansible_check_mode
+    - >-
+      degoog_4play_force_restart | bool or
+      (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
+      (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
+      (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
