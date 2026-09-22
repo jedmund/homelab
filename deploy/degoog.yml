@@ -1,0 +1,6 @@
+---
+- name: Deploy degoog stack
+  hosts: degoog
+  become: true
+  roles:
+    - degoog

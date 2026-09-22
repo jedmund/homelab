@@ -1,0 +1,18 @@
+---
+# Stack identity
+stack_name: degoog
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Degoog settings. Keep the release immutable so the experiment can be
+# reproduced and rolled back without silently changing the image.
+degoog_image: ghcr.io/degoog-org/degoog:0.26.0@sha256:69e28fe2dc8008981b0ea8b9276f0b5b482d107b8a3dfa71d8acdac37f4b77c0
+degoog_port: 4444
+degoog_base_url: "https://search.{{ traefik_domain | default('atelier.house') }}"
+degoog_distrust_proxy: "false"
+degoog_public_instance: "false"
+degoog_puid: "{{ puid }}"
+degoog_pgid: "{{ pgid }}"
+
+# Degoog refuses to treat settings as safe when this is absent. The password
+# is supplied by group_vars/degoog/vault.yml.
+degoog_settings_password: "{{ vault_degoog_settings_password | default('') }}"
