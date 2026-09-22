@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Fail closed on boot. Installing this drop-in does not restart Docker.
+[Unit]
+Requires=flaresolverr-firewall.service
+After=flaresolverr-firewall.service

@@ -54,6 +54,9 @@
   tags: [monitoring, gatus]
 
 # Media stack
+- import_playbook: flaresolverr.yml
+  tags: [flaresolverr]
+
 - import_playbook: gluetun.yml
   tags: [media, gluetun]
 

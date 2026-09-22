@@ -83,6 +83,8 @@ merged Compose file.
 
 ## Service runbooks
 
+[FlareSolverr](roles/flaresolverr/README.md) provides the private challenge-solving API.
+
 Use `make -C deploy list` for the current playbook list. The following roles
 have additional operating instructions:
 
