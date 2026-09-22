@@ -93,6 +93,10 @@ firewall_ports_infrastructure:
   - { port: 9120, proto: tcp, comment: "Komodo" }
   - { port: 1411, proto: tcp, comment: "PocketID" }
   - { port: 18080, proto: tcp, src: "172.16.0.0/12", comment: "kibble API (Docker bridges only)" }
+  - port: 4444
+    proto: tcp
+    src: "{{ hostvars['nuc-mini'].ansible_host }}/32"
+    comment: "Degoog backend (Traefik on nuc-mini only)"
 
 # Komodo Periphery (inbound from Core on nuc-mini only)
 firewall_ports_komodo_periphery:

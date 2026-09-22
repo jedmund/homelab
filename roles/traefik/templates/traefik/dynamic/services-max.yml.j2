@@ -25,15 +25,12 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # SearXNG web UI - search.{{ traefik_domain }}
-    # Port 8889 matches searxng_port in roles/ai/defaults/main.yml; same
-    # cross-role hardcoding caveat as llamaswap above. TinyAuth-gated so
-    # the instance isn't reachable from the open internet (would otherwise
-    # get rate-limited / banned by upstream engines). LAN clients on the
-    # same network as max can use http://max:8889 directly without Traefik.
-    searxng:
+    # Degoog web UI - search.{{ traefik_domain }}
+    # Degoog runs on max:4444. TinyAuth gates the public route, while the
+    # firewall permits the backend port only from Traefik on nuc-mini.
+    degoog:
       rule: "Host(`search.{{ traefik_domain }}`)"
-      service: searxng
+      service: degoog
       middlewares:
         - tinyauth@file
       entryPoints:
@@ -85,10 +82,10 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ max_server_ip }}:11434"
-    searxng:
+    degoog:
       loadBalancer:
         servers:
-          - url: "http://{{ max_server_ip }}:8889"
+          - url: "http://{{ max_server_ip }}:4444"
     pcsx2:
       loadBalancer:
         servers:

@@ -42,8 +42,11 @@ services:
       tinyauth.apps.musicbrainz.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.llamaswap.config.domain: "models.{{ tinyauth_base_domain }}"
       tinyauth.apps.llamaswap.users.allow: "{{ tinyauth_atelier_users }}"
-      tinyauth.apps.searxng.config.domain: "search.{{ tinyauth_base_domain }}"
-      tinyauth.apps.searxng.users.allow: "{{ tinyauth_atelier_users }}"
+      # Degoog is available to every account authenticated by the configured
+      # PocketID provider. Keep the regex scoped to OAuth identities rather
+      # than maintaining a second per-user email list for search.
+      tinyauth.apps.degoog.config.domain: "search.{{ tinyauth_base_domain }}"
+      tinyauth.apps.degoog.oauth.whitelist: "/.+/"
       tinyauth.apps.pcsx2.config.domain: "pcsx2.{{ tinyauth_base_domain }}"
       tinyauth.apps.pcsx2.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.dolphin.config.domain: "dolphin.{{ tinyauth_base_domain }}"
