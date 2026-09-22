@@ -71,4 +71,3 @@ if __name__ == '__main__':
         print(render('firewall.nft.j2'))
     else:
         unittest.main()
-

@@ -79,4 +79,3 @@ Remove the Compose service before removing its firewall restriction. Then remove
 the Docker drop-in, reload systemd, disable the firewall unit and remove only
 its dedicated nftables table. Do not flush the host ruleset. Removal is a separate
 authorized operation, not part of routine reconciliation.
-
