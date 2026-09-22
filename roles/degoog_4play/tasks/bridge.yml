@@ -1,0 +1,10 @@
+---
+- name: Deploy the host-local WebSocket bridge configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/degoog-4play/nginx.conf
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  notify: Reload Degoog 4play bridge

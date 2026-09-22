@@ -148,16 +148,8 @@
       group: "{{ degoog_4play_group }}"
       mode: '0700'
 
-- name: Deploy the host-local WebSocket bridge configuration
-  ansible.builtin.template:
-    src: nginx.conf.j2
-    dest: /etc/degoog-4play/nginx.conf
-    owner: root
-    group: root
-    mode: '0600'
-  no_log: true
-  notify:
-    - Reload Degoog 4play bridge
+- name: Configure the host-local WebSocket bridge
+  ansible.builtin.import_tasks: bridge.yml
 
 - name: Deploy Degoog 4play Xorg configuration
   ansible.builtin.template:
