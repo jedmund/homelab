@@ -5,7 +5,8 @@ experimental and is intentionally excluded from `deploy/all.yml`.
 
 ## Prerequisites
 
-- The Degoog stack and official 4play transport must be deployed on `max`.
+- The Degoog stack and official 4play transport must be migrated to `nuc-mini`.
+  See the [Degoog migration](../degoog/README.md#forward-only-migration).
 - `group_vars/degoog/vault.yml` must contain `vault_degoog_4play_password`.
 - `nuc-mini` must have a connected display adapter with EDID. The Comet X
   passthrough currently provides this; an HDMI EDID dummy can be used instead.
@@ -27,6 +28,9 @@ public search route are not reconfigured by this role.
 Firefox runs under the locked `degoog-firefox` account. The 4play extension is
 force-installed through Firefox enterprise policy, and its local WebSocket
 settings are seeded by the managed profile bootstrap before Firefox starts.
+
+The bridge forwards to Degoog on `127.0.0.1:4444`. The migration updates only
+this bridge configuration; it preserves the existing browser profile and desktop.
 
 ## Verify
 

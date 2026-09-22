@@ -1,0 +1,22 @@
+---
+# deploy-all-exclude: degoog_migrate -- Explicit stopped-data cutover from max to nuc-mini.
+- name: Move Degoog from max to nuc-mini
+  hosts: degoog
+  become: true
+  serial: 1
+  vars_files:
+    - ../roles/degoog/defaults/main.yml
+  tasks:
+    - name: Require explicit migration authorization
+      ansible.builtin.assert:
+        that:
+          - degoog_migration_confirm | default(false) | bool
+          - inventory_hostname == 'nuc-mini'
+          - not ansible_check_mode
+        fail_msg: >-
+          This playbook stops Degoog on max and cuts over its data and route.
+          Use -e degoog_migration_confirm=true in an authorized maintenance window.
+          Check mode is not a migration simulation; use the disposable tests.
+
+    - name: Run the forward-only migration
+      ansible.builtin.include_tasks: ../roles/degoog/tasks/migrate.yml
