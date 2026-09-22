@@ -1,7 +1,8 @@
 # vLLM
 
 DeepSeek V4 Flash on `max`, published at port `11437` with API model name
-`DeepSeek-V4-Flash`, plus an alternative GLM 5.3 Flash Spark profile on `11438`. The role renders the Compose file and creates cache
+`DeepSeek-V4-Flash`, an alternative GLM 5.3 Flash Spark profile on `11438`,
+and an optional Qwen Flash Next experiment on GPU 2 at `11439`. The role renders the Compose file and creates cache
 directories. Model startup remains an explicit Compose profile action.
 
 ## Runtime and model
@@ -140,6 +141,64 @@ the AI stack. Its default remains DeepSeek. Normal `deploy/all.yml` applies
 the AI role in split mode and does not render or switch vLLM profiles.
 The pinned model profiles are preserved by subsequent vLLM renders.
 
+## Qwen Flash Next on GPU 2
+
+`qwen3.8-flash-next` uses the pinned Karmic image with profile
+`qwen38-flash-next`, TP1/DCP1 and MTP3. The checkpoint is
+`local-inference-lab/Qwen3.8-Flash-Next-NVFP4`, pinned for target/code/draft
+at `7c4f1bc1a2d6847e0cbc01ac6b823f00251de8dd`. The API model name is
+`Qwen3.8-Flash-Next` on port `11439`.
+
+This text-only experiment uses four request slots and a .90 GPU memory
+fraction to leave space for TEI, Whisper and emulator services. Its profile
+moves PLE tables into host RAM; this allocation is separate from prompt
+caching. External RAM/disk prompt caching stays disabled. The configured
+context limit is 262,144 tokens. The first local startup reported 369,715
+shared KV tokens; four slots do not each receive a full context allocation.
+Runtime caches live in `/opt/docker/vllm/cache/qwen38-next-22f3f98b`.
+See the [upstream profile](https://github.com/local-inference-lab/rtx6kpro/blob/master/models/qwen38-flash-next.md).
+
+Local testing passed API checks and isolated 120K retrieval, but combined
+long-prompt/decode traffic caused a CUDA illegal-memory-access crash. Short
+decode was slower than the existing llama-swap model. Keep this profile
+experimental and stopped during normal use; see the
+[comparison and limitations](../../docs/inference-qwen-setup-2026-09-21.md).
+First startup took 10.5 minutes; cached startup took 4.8 minutes.
+
+Download the 106-GB checkpoint on `max` before starting:
+
+```sh
+~/.local/bin/hf download local-inference-lab/Qwen3.8-Flash-Next-NVFP4 \
+  --revision 7c4f1bc1a2d6847e0cbc01ac6b823f00251de8dd \
+  --cache-dir /home/justin/.cache/huggingface/hub
+```
+
+Render with `make deploy-vllm`, then on `max`:
+
+```sh
+# Stop the model loader so incoming requests cannot load a competing model.
+docker stop llama-swap
+cd /opt/docker/vllm
+docker compose --profile qwen3.8-flash-next up -d --pull never qwen3.8-flash-next
+curl -fsS http://127.0.0.1:11439/health
+curl -fsS http://127.0.0.1:11439/v1/models
+```
+
+Wait for readiness before testing. DeepSeek can remain running on GPUs 0 and 1.
+Monitor host RAM and the GPU 2 side services during the experiment. Restore
+normal model-switching and OCR service afterward:
+
+```sh
+cd /opt/docker/vllm
+docker compose --profile qwen3.8-flash-next stop qwen3.8-flash-next
+docker start llama-swap
+curl -fsS http://127.0.0.1:11434/health
+```
+
+A normal AI deployment stops a running Qwen experiment before starting
+llama-swap. The split-pair workflow rejects Qwen as `ai_split_vllm_profile`;
+use this manual GPU 2 workflow instead. Do not run `--profile all up`.
+
 ## Storage and networking
 
 The existing mounts remain:
@@ -149,8 +208,9 @@ The existing mounts remain:
 - `/opt/docker/vllm/cache/ds4-karmic-22f3f98b` for the new runtime/compiler cache.
 - `/opt/docker/vllm/cache/ds4-v20-r15` retained for the prior runtime.
 
-The service uses host IPC, `gpus: all`, and `CUDA_VISIBLE_DEVICES=0,1`.
-GPU 2 belongs to llama-swap and the AI side services. Preserve
+The profiles use host IPC and `gpus: all`. DeepSeek/GLM select
+`CUDA_VISIBLE_DEVICES=0,1`; Qwen selects GPU 2 and requires llama-swap stopped.
+GPU 2 normally belongs to llama-swap and the AI side services. Preserve
 `amd_iommu=pt iommu=pt` on the host. Port publication remains `11437:11437`;
 switching to host networking requires a separate firewall review.
 
@@ -194,6 +254,7 @@ The Linux agent clients use `DeepSeek-V4-Flash` at port 11437 and advertise
 131,072 context tokens. Those identifiers remain unchanged. Client-selected
 reasoning effort and interactive client workflows require separate validation.
 
+- [Qwen GPU 2 experiment](../../docs/inference-qwen-setup-2026-09-21.md)
 - [GLM setup and checkout synchronization](../../docs/inference-glm-setup-2026-09-21.md)
 - [Runtime upgrade and validation](../../docs/inference-runtime-upgrade-2026-09-21.md)
 - [Original R580/r15 baseline](../../docs/inference-baseline-2026-09-21.md)

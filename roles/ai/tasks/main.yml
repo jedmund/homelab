@@ -30,6 +30,22 @@
     - sglang
   when: ai_gpu_mode == 'shared'
 
+- name: Inspect the GPU 2 inference experiment
+  community.docker.docker_container_info:
+    name: "{{ ai_gpu2_experiment_container }}"
+  register: ai_gpu2_experiment_state
+
+- name: Stop the GPU 2 experiment before restoring AI services
+  ansible.builtin.command:
+    argv:
+      - docker
+      - stop
+      - "{{ ai_gpu2_experiment_container }}"
+  when:
+    - ai_gpu2_experiment_state.exists
+    - ai_gpu2_experiment_state.container.State.Running
+  changed_when: true
+
 - name: Deploy compose file
   template:
     src: compose.yaml.j2
