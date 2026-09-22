@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+auth={{ degoog_4play_xauthority }}
+install -d -o root -g {{ degoog_4play_group }} -m 0750 "$(dirname "$auth")"
+rm -f "$auth"
+touch "$auth"
+chown {{ degoog_4play_user }}:{{ degoog_4play_group }} "$auth"
+chmod 0640 "$auth"
+xauth -f "$auth" add {{ degoog_4play_display }} MIT-MAGIC-COOKIE-1 "$(openssl rand -hex 16)"
