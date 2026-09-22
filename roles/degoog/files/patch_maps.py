@@ -11,9 +11,16 @@ REPLACEMENTS = (
      '`/api/plugin/${__PLUGIN_ID__}/search?q=${encodeURIComponent(query)}&limit=15`'),
 )
 
+PLACES_REPLACEMENTS = (
+    ("'<img class=\"places-tile\" alt=\"\" draggable=\"false\" src=\"' +",
+     "'<img class=\"places-tile\" alt=\"\" draggable=\"false\" referrerpolicy=\"' + "
+     "(/^https:\\/\\/(?:[abcd]\\.)?basemaps\\.cartocdn\\.com\\//i.test(src) "
+     "? 'strict-origin' : 'no-referrer') + '\" src=\"' +"),
+)
 
-def patched(source):
-    for old, new in REPLACEMENTS:
+
+def patched(source, replacements=REPLACEMENTS):
+    for old, new in replacements:
         if source.count(new) == 1 and old not in source:
             continue
         if source.count(old) != 1 or new in source:
@@ -26,9 +33,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('path', type=Path)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--places', action='store_true')
     args = parser.parse_args()
     source = args.path.read_text()
-    updated = patched(source)
+    updated = patched(source, PLACES_REPLACEMENTS if args.places else REPLACEMENTS)
     if source == updated:
         print('unchanged')
     else:

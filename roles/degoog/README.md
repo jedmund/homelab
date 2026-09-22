@@ -110,11 +110,12 @@ updating the plugin through the store. No service restart is requested; refresh
 the browser without cache after applying and verify the Maps tab renders tiles
 and markers. Check mode inspects the installed file but does not modify it.
 
-The separate HERE Places widget requires default coordinates. Its CARTO tile
-requests inherit Degoog's `Referrer-Policy: no-referrer`; a CARTO key that requires
-a Referer header can therefore reject browser requests even when the key works
-in a manual request with that header. This patch does not change tile credentials
-or the application's referrer policy.
+The separate HERE Places widget requires default coordinates. The playbook also
+adds `referrerpolicy="strict-origin"` only to its HTTPS CARTO tile images
+(`basemaps.cartocdn.com` and the `a` through `d` subdomains). CARTO receives the
+site origin, not the search path or query, so website-restricted keys work.
+Other tile providers retain `no-referrer`. The global application policy and
+tile credentials are unchanged.
 
 ## Storage and native browser
 
