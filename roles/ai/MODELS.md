@@ -275,6 +275,25 @@ second costs disk only.
   (four sticky 64K slots, q8_0 KV).
 - **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
 
+### gpt-oss-20b: compact native-MXFP4 MoE
+
+- **File**: `gpt-oss-20b-mxfp4.gguf`
+- **Source**: HuggingHack's local snapshot of `openai/gpt-oss-20b` at
+  `/mnt/files/HuggingHack/openai/gpt-oss-20b`. The snapshot is already
+  natively MXFP4-quantized; convert it to GGUF without an additional weight
+  quantization step:
+  `python3 convert_hf_to_gguf.py /mnt/files/HuggingHack/openai/gpt-oss-20b --outfile /opt/docker/ai/models/gpt-oss-20b-mxfp4.gguf --outtype auto`
+- **Why**: OpenAI's open-weight 20B MoE (~3.6B active per token) gives a
+  lower-latency GPT-OSS option than the 120B entry while fitting easily on
+  the single GPU used by split mode. It is in the `chat` group and is
+  available in both GPU allocation modes.
+- **VRAM**: ~13.8 GB on disk; the native MXFP4 model needs roughly 18 GB at
+  131K context with four parallel slots, leaving substantial headroom on
+  `max`.
+- **Notes**: Uses the embedded Harmony chat template via `--jinja`. Keep
+  sampling at temperature 1.0 and top-p 1.0, and do not apply a repetition
+  penalty.
+
 ### gpt-oss: different-lineage check against Qwen/Gemma
 
 - **File**: `UD-Q6_K_XL/gpt-oss-120b-UD-Q6_K_XL-00001-of-00002.gguf`

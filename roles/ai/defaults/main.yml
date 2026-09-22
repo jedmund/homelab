@@ -273,6 +273,22 @@ ai_models:
     aliases:
       - "qwen3-coder:30b"
 
+  # OpenAI's open-weight 20B MoE (~3.6B active per token), converted from
+  # the native MXFP4 HuggingHack snapshot. It fits comfortably on the
+  # single 96 GB card used by split mode, so keep it in the chat group.
+  # GPT-OSS recommends temperature 1.0 and top-p 1.0; do not add a
+  # repetition penalty because it conflicts with the model's training.
+  - name: gpt-oss-20b
+    file: gpt-oss-20b-mxfp4.gguf
+    group: chat
+    args: >-
+      -ngl 999 -c 131072 --parallel 4 --flash-attn on
+      --cache-type-k q8_0 --cache-type-v q8_0
+      --temp 1.0 --top-p 1.0
+      --jinja
+    aliases:
+      - "gpt-oss:20b"
+
   # OpenAI's open-weight 120B MoE (~5.1B active per token). At Unsloth's
   # UD-Q6_K_XL it lands ~95GB on disk; with --parallel 4 -c 131072 (four
   # sticky 32K slots) the live footprint is ~125GB. Lives in code-heavy
