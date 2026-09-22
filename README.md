@@ -10,6 +10,7 @@ Komodo uses the generated Compose files for selected application deployments.
 | --- | --- |
 | Set up a checkout, deploy, or diagnose a failure | [Operations](docs/operations.md) |
 | Create or update vault files | [Secrets](docs/secrets.md) |
+| Contribute changes and prepare a PR | [Contributing](CONTRIBUTING.md) |
 | Add a service or change a role | [Conventions](CONVENTIONS.md) |
 | Work on the repository with a coding agent | [Agent instructions](AGENTS.md) |
 | Configure Komodo Resource Sync or review apps | [Komodo](komodo/README.md) |
@@ -39,6 +40,7 @@ Run these from the repository root after completing [setup](docs/operations.md#s
 make check
 make -C deploy list
 make -C deploy check STACK=prowlarr
+make -C deploy stage STACK=bentopdf
 make -C deploy prowlarr
 ```
 
@@ -86,11 +88,14 @@ have additional operating instructions:
 
 | Area | Runbooks |
 | --- | --- |
-| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Kizuna](roles/kizuna/README.md) |
+| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md) |
 | Media | [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
 | Infrastructure | [Backup](roles/backup/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md) |
-| GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md) |
+| GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md), [GPU host tools](roles/gpu_tools/README.md) |
+
+See the [local inference upgrade plan](docs/inference-upgrade-plan.md) for the
+ordered runtime, prompt-cache, and model experiments on `max`.
 
 Historical upgrade reports and experimental notes describe the configurations
 and dates they record. Use role defaults and inventory for the current

@@ -60,6 +60,13 @@ Shared secrets used by multiple stacks.
 | `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
 | `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
 
+### group_vars/degoog/vault.yml
+
+| Variable | Description |
+| --- | --- |
+| `vault_degoog_settings_password` | Degoog settings password; required to manage engines and extensions |
+| `vault_degoog_4play_password` | Password embedded in the private 4play transport WebSocket path |
+
 ### group_vars/album_sort/vault.yml
 
 Album Sort pulls CI-built images. Deployment, proxy trust, and encryption-key
@@ -142,6 +149,7 @@ below, then run `make deploy-beszel-agents`.
 | Variable | Description |
 | --- | --- |
 | `gitlab_runner_linux_auth_token` | GitLab Runner auth token (max-docker) |
+| `gitlab_runner_linux_large_auth_token` | GitLab Runner auth token (max-docker-large); optional, the large runner entry is omitted until set |
 
 ### group_vars/development_macos/vault.yml
 
@@ -286,6 +294,17 @@ Use the secret references in [defaults](../roles/matrix/defaults/main.yml) and
 | `miniflux_oauth2_client_secret` | Miniflux OIDC client secret |
 | `fivefilters_admin_password` | FiveFilters admin password |
 
+### group_vars/musicbrainz/vault.yml
+
+| Variable | Description |
+| --- | --- |
+| `musicbrainz_replication_token` | MetaBrainz access token for the live replication feed |
+| `musicbrainz_healthchecks_url` | Dedicated Healthchecks.io ping URL for the daily replication job |
+
+Configure the Healthchecks check for `0 3 * * *` UTC with six hours of grace.
+The role requires both values and renders them as `0600` Docker secret files.
+See the [MusicBrainz runbook](../roles/musicbrainz/README.md).
+
 ### group_vars/multi_scrobbler/vault.yml
 
 | Variable | Description |
@@ -387,6 +406,9 @@ runner, and n8n receive matching configuration.
 | `mastodon_db_password` | Mastodon PostgreSQL password |
 | `mastodon_secret_key_base` | Rails secret key base |
 | `mastodon_otp_secret` | OTP secret for 2FA |
+| `mastodon_active_record_encryption_deterministic_key` | Persistent Active Record encryption key; preserve across deployments |
+| `mastodon_active_record_encryption_key_derivation_salt` | Persistent Active Record key derivation salt; preserve across deployments |
+| `mastodon_active_record_encryption_primary_key` | Persistent Active Record primary key; preserve across deployments |
 | `mastodon_vapid_private_key` | VAPID private key for push notifications |
 | `mastodon_vapid_public_key` | VAPID public key for push notifications |
 | `mastodon_aws_access_key_id` | AWS access key for S3 |

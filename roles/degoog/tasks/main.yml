@@ -1,0 +1,188 @@
+---
+# Degoog search service on max. The public route is provided by Traefik on
+# nuc-mini; the host port is restricted to that Traefik host by the firewall.
+
+- name: Validate Degoog settings password
+  ansible.builtin.assert:
+    that:
+      - degoog_settings_password | length > 0
+    fail_msg: >-
+      vault_degoog_settings_password must be set before deploying Degoog.
+  no_log: true
+
+- name: Validate Degoog 4play password
+  ansible.builtin.assert:
+    that:
+      - degoog_4play_password | length > 0
+    fail_msg: >-
+      vault_degoog_4play_password must be set before deploying the 4play
+      transport.
+  no_log: true
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(ansible_user) }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - path: "{{ config_base }}"
+    - path: "{{ config_base }}/data"
+      owner: "{{ degoog_puid }}"
+      group: "{{ degoog_pgid }}"
+    - path: "{{ config_base }}/env"
+
+- name: Deploy Degoog environment file
+  ansible.builtin.template:
+    src: env/degoog.env.j2
+    dest: "{{ config_base }}/env/degoog.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: degoog_deploy_environment_file
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: degoog_deploy_compose_file
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (degoog_deploy_environment_file.changed | default(false)) or
+         (degoog_deploy_compose_file.changed | default(false))
+         else 'auto' }}
+  register: compose_result
+
+- name: Wait for Degoog readiness before configuring extensions
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/readyz"
+    method: GET
+    status_code: 200
+  register: degoog_readiness
+  until: degoog_readiness.status == 200
+  retries: 30
+  delay: 2
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Authenticate with Degoog settings API
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/settings/auth"
+    method: POST
+    body_format: json
+    body:
+      password: "{{ degoog_settings_password }}"
+    status_code: 200
+    return_content: true
+  register: degoog_settings_auth
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Inspect Degoog extension repositories
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/store/repos"
+    method: GET
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    status_code: 200
+  register: degoog_store_repositories
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Add the official Degoog extension repository
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/store/repos"
+    method: POST
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    body_format: json
+    body:
+      url: "{{ degoog_4play_repo_url }}"
+    status_code: 200
+  register: degoog_4play_repository
+  no_log: true
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - >-
+      (degoog_store_repositories.json.repos | default([])
+      | selectattr('url', 'equalto', degoog_4play_repo_url) | list | length) == 0
+
+- name: Install the official 4play transport
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/store/install"
+    method: POST
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    body_format: json
+    body:
+      repoUrl: "{{ degoog_4play_repo_url }}"
+      itemPath: "{{ degoog_4play_item_path }}"
+      type: transport
+    status_code: 200
+  register: degoog_4play_install
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Inspect the current official 4play settings
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ degoog_port }}/api/extensions?type=transport"
+    method: GET
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    status_code: 200
+  register: degoog_transport_extensions
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Select the current official 4play settings
+  ansible.builtin.set_fact:
+    degoog_4play_current_settings: >-
+      {{ degoog_transport_extensions.json.transports | default([])
+         | selectattr('id', 'equalto', degoog_4play_settings_id)
+         | map(attribute='settings') | list | first | default({}) }}
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Configure the official 4play transport
+  ansible.builtin.uri:
+    url: >-
+      http://127.0.0.1:{{ degoog_port }}/api/extensions/{{ degoog_4play_settings_id }}/settings
+    method: POST
+    headers:
+      x-settings-token: "{{ degoog_settings_auth.json.token }}"
+    body_format: json
+    body:
+      password: "{{ degoog_4play_password }}"
+      timeout: "{{ degoog_4play_timeout }}"
+      useContainer: "{{ degoog_4play_use_container }}"
+    status_code: 200
+  register: degoog_4play_settings
+  no_log: true
+  changed_when: >-
+    degoog_4play_force_restart | bool or
+    (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
+    (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
+    (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
+  notify: Restart Degoog after extension configuration
+  when:
+    - not ansible_check_mode
+    - >-
+      degoog_4play_force_restart | bool or
+      (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
+      (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
+      (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)

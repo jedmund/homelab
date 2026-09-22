@@ -23,6 +23,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config"
     - "{{ docker_base_path }}/{{ stack_name }}/config/borgmatic"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
+    - "{{ docker_base_path }}/{{ stack_name }}/restore-tests"
     - "{{ docker_base_path }}/{{ stack_name }}/scripts"
 
 - name: Create Borg repo parent directory
@@ -143,6 +144,20 @@
     owner: "{{ ansible_user }}"
     mode: '0755'
   register: backup_deploy_sqlite_dump_script
+
+- name: Deploy backup status verification script
+  ansible.builtin.template:
+    src: scripts/verify-backup-status.sh.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/verify-backup-status.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Deploy Prowlarr restore verification script
+  ansible.builtin.template:
+    src: scripts/verify-prowlarr-restore.sh.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/verify-prowlarr-restore.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
 
 - name: Deploy compose file
   ansible.builtin.template:

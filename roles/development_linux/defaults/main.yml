@@ -15,6 +15,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Vault secrets consumed by this role:
 #   gitlab_runner_linux_auth_token
+#   gitlab_runner_linux_large_auth_token
 
 # Runner image. Kept in step with roles/gitlab's runner and the GitLab
 # server itself; a runner on a newer major/minor than the server is
@@ -41,15 +42,50 @@ gitlab_runner_linux_tags:
   - pnpm-cache
 gitlab_runner_linux_run_untagged: true
 
-# Concurrency. 10 jobs against 32 threads, with the per-job caps below
-# bounding the worst case at 30 logical CPUs and 60 GB. The host has 125 GB
-# of RAM and normally has about 90 GB available, so memory retains useful
-# headroom. CPU is the tighter bound: ten fully CPU-bound jobs can briefly
-# consume nearly the whole host, while normal mixed CI still leaves room for
-# vLLM's CPU-side work (tokenization, sampling, and dataloading).
-gitlab_runner_linux_concurrent: 10
+# Concurrency. Two runner entries share this process: the general pool
+# (max-docker, 4 jobs capped at 3 CPUs / 6 GB each) and the large pool
+# (max-docker-large, 2 jobs capped at 12 CPUs / 24 GB each) for suites that
+# parallelize, such as album-sort's Vitest run. A single 3-CPU job cannot
+# use this host: album-sort's suite took 16-26 minutes across three 3-CPU
+# shards and under 4 minutes in one 16-CPU container.
+#
+# Worst case is 36 CPUs of quota on 32 threads and 60 GB of RAM. Docker's
+# cpus setting is a CFS quota, not pinning, so the host is only
+# oversubscribed when all six jobs peak together; normal mixed CI still
+# leaves room for vLLM's CPU-side work (tokenization, sampling, and
+# dataloading). The host has 125 GB of RAM and normally about 90 GB free.
+# concurrent must cover the sum of both limits.
+gitlab_runner_linux_limit: 4
 gitlab_runner_linux_cpus: "3"
 gitlab_runner_linux_memory: 6g
+gitlab_runner_linux_tmpfs_size: 2g
+gitlab_runner_linux_concurrent: "{{ gitlab_runner_linux_limit + gitlab_runner_linux_large_limit }}"
+
+# Large pool. A separate GitLab runner registration, because tags and the
+# untagged flag belong to the registration, not to config.toml. Tagged-only
+# so ordinary jobs never occupy a 12-CPU slot. The entry is omitted from
+# config.toml until its vault token exists, and metadata reconciliation
+# skips it while the ID is 0.
+gitlab_runner_linux_large_name: "{{ inventory_hostname }}-docker-large"
+gitlab_runner_linux_large_id: 4
+gitlab_runner_linux_large_tags:
+  - amd64
+  - atelier-max-large
+  - docker
+  - linux
+  - pnpm-cache
+gitlab_runner_linux_large_run_untagged: false
+gitlab_runner_linux_large_limit: 2
+gitlab_runner_linux_large_cpus: "12"
+gitlab_runner_linux_large_memory: 24g
+gitlab_runner_linux_large_tmpfs_size: 8g
+
+# Job containers get a RAM-backed /tmp. Test suites that open SQLite
+# databases under os.tmpdir() fsync constantly, and the NVMe drives here take
+# about 5 ms per flush (no power-loss protection), which made album-sort's
+# Vitest run 3.6x slower on the overlay filesystem than on tmpfs (237 s vs
+# 66 s). tmpfs pages count against the job's memory limit, so each size
+# stays well under its pool's cap; a job that outgrows it gets ENOSPC.
 
 gitlab_runner_linux_default_image: alpine:latest
 gitlab_runner_linux_log_level: info
@@ -64,6 +100,7 @@ gitlab_runner_linux_url: "https://{{ gitlab_domain }}"
 # comes from a separate runner registration in the GitLab admin UI, not
 # from the nuc-mini or macOS runner's token.
 gitlab_runner_linux_auth_token: ""
+gitlab_runner_linux_large_auth_token: ""
 
 # Pin the GitLab hostnames to nuc-mini directly. The host mapping covers
 # Docker image pulls, which resolve the registry before a job container and

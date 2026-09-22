@@ -7,12 +7,11 @@
 #   2. vllm.yml renders the vLLM compose at /opt/docker/vllm.
 #   3. The trailing play starts the configured vLLM model profile.
 #
-# The profile defaults to the 0731 release, now the only checkpoint.
+# The profile defaults to DeepSeek 0731; GLM Spark is an alternative.
 # The play below stops any other running model profile first, so the
 # deploy is declarative: whatever was running before, the configured
-# profile is what runs after. Every profile binds 11437, so without
-# that step a switch fails on a port conflict and silently leaves the
-# old checkpoint serving. See roles/vllm/README.md.
+# profile is what runs after. These profiles share GPUs 0,1, so stop
+# the previous model before loading another. See roles/vllm/README.md.
 #
 # The SGLang role and deploy/sglang.yml are kept in the repo for the
 # day someone gets the NVFP4 + dsv4 backend past the strict-config
@@ -27,9 +26,7 @@
   vars:
     vllm_split_profile: "{{ ai_split_vllm_profile | default('deepseek-v4-flash-0731') }}"
   tasks:
-    # Every model profile binds the same host port, so a stale one left
-    # running makes the next `up` fail to bind and quietly keeps serving
-    # the wrong checkpoint. Stop the others first so the deploy is
+    # Model profiles share a GPU pair. Stop the others first so the deploy is
     # declarative: after this play, the configured profile is the one
     # running, whatever was running before.
     - name: Find running vLLM model containers

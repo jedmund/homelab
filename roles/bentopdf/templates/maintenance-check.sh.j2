@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Fixed preflight and post-deployment gates for the Komodo maintenance Procedure.
+
+set -euo pipefail
+
+PHASE="${1:-}"
+COMPOSE_FILE="{{ config_base }}/compose.yaml"
+CONTAINER="bentopdf"
+EXPECTED_IMAGE="{{ bentopdf_image_reference }}"
+EXPECTED_REPO_DIGEST="{{ bentopdf_image }}@{{ bentopdf_image_digest }}"
+WAIT_SECONDS=120
+CONTAINER_FORMAT='{% raw %}{{.Id}}|{{.Config.Image}}|{{.Image}}|{{.State.Status}}|{{with index .State "Health"}}{{index . "Status"}}{{else}}none{{end}}|{{len .Mounts}}{% endraw %}'
+REPO_DIGESTS_FORMAT='{% raw %}{{range .RepoDigests}}{{println .}}{{end}}{% endraw %}'
+
+read_container_record() {
+    IFS='|' read -r container_id configured_image image_id state health mount_count \
+        < <(docker container inspect --format "$CONTAINER_FORMAT" "$CONTAINER")
+}
+
+container_record() {
+    read_container_record
+    printf 'container_id=%s\n' "$container_id"
+    printf 'configured_image=%s\n' "$configured_image"
+    printf 'image_id=%s\n' "$image_id"
+    printf 'state=%s\n' "$state"
+    printf 'health=%s\n' "$health"
+    printf 'mount_count=%s\n' "$mount_count"
+}
+
+preflight() {
+    mapfile -t images < <(docker compose -f "$COMPOSE_FILE" config --images)
+    image_count="$(printf '%s\n' "${images[@]}" | wc -l | tr -d ' ')"
+    if [ "$image_count" -ne 1 ] || [ "${images[0]}" != "$EXPECTED_IMAGE" ]; then
+        printf 'ERROR: rendered image does not exactly match %s\n' "$EXPECTED_IMAGE" >&2
+        printf 'Rendered images: %s\n' "${images[*]:-none}" >&2
+        return 1
+    fi
+
+    read_container_record
+    if [ "$state" != "running" ]; then
+        printf 'ERROR: %s is %s, expected running\n' "$CONTAINER" "$state" >&2
+        return 1
+    fi
+    if [ "$mount_count" -ne 0 ]; then
+        printf 'ERROR: %s has %s mounts; the backup exemption requires zero\n' "$CONTAINER" "$mount_count" >&2
+        return 1
+    fi
+
+    printf 'Preflight passed: rendered_image=%s\n' "$EXPECTED_IMAGE"
+    container_record
+    printf 'backup_exemption=no mounts or persistent data\n'
+}
+
+postdeploy() {
+    deadline=$((SECONDS + WAIT_SECONDS))
+    while true; do
+        read_container_record
+        if [ "$state" = "running" ] && [ "$health" = "healthy" ]; then
+            break
+        fi
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            printf 'ERROR: %s did not become healthy within %s seconds (state=%s health=%s)\n' \
+                "$CONTAINER" "$WAIT_SECONDS" "$state" "$health" >&2
+            return 1
+        fi
+        sleep 2
+    done
+
+    if [ "$configured_image" != "$EXPECTED_IMAGE" ]; then
+        printf 'ERROR: running image reference is %s, expected %s\n' "$configured_image" "$EXPECTED_IMAGE" >&2
+        return 1
+    fi
+    if [ "$mount_count" -ne 0 ]; then
+        printf 'ERROR: %s gained %s mounts; backup exemption is invalid\n' "$CONTAINER" "$mount_count" >&2
+        return 1
+    fi
+
+    repo_digests="$(docker image inspect --format "$REPO_DIGESTS_FORMAT" "$image_id")"
+    if ! grep -Fqx "$EXPECTED_REPO_DIGEST" <<<"$repo_digests"; then
+        printf 'ERROR: running image lacks expected repository digest %s\n' "$EXPECTED_REPO_DIGEST" >&2
+        printf '%s\n' "$repo_digests" >&2
+        return 1
+    fi
+
+    printf 'Post-deployment verification passed\n'
+    container_record
+    printf 'verified_repo_digest=%s\n' "$EXPECTED_REPO_DIGEST"
+}
+
+case "$PHASE" in
+    preflight) preflight ;;
+    postdeploy) postdeploy ;;
+    *)
+        printf 'Usage: %s {preflight|postdeploy}\n' "$0" >&2
+        exit 2
+        ;;
+esac

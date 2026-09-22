@@ -10,11 +10,12 @@ services:
     # startup so `docker compose up` with no --profile starts nothing.
     restart: "no"
     profiles: ["{{ m.name }}", "all"]
+{% if m.init | default(false) %}
+    init: true
+{% endif %}
 {% if m.entrypoint is defined %}
-    # Launcher-style images (voipmonitor gilded-gnosis) ship a serve
-    # script as ENTRYPOINT and take all their configuration from env
-    # vars rather than argv. Those entries set `entrypoint` and omit
-    # `args`; see the deepseek-v4-flash-0731 model in defaults.
+    # Optional override for older model-specific launchers. Unified
+    # Karmic Kraken profiles keep the image entrypoint.
     entrypoint: {{ m.entrypoint | to_json }}
 {% endif %}
 {% if m.network_mode is defined %}
@@ -61,9 +62,7 @@ services:
     # this image family before; keep the legacy field.
     gpus: all
 {% if m.args is defined %}
-    # The lavd vllm image's ENTRYPOINT already invokes `vllm serve`,
-    # so we pass args via `command:` (positional model id first, then
-    # flags). Matches the known-good docker run argv order.
+    # Pass native arguments to the image entrypoint as an argv array.
     command:
 {% for arg in m.args %}
       - {{ arg | to_json }}
@@ -74,7 +73,7 @@ services:
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
-      # Cold-load tax for DSV4 from cache -> VRAM is ~60-90s on this
-      # box plus a JIT compile pass; 180s gives margin.
-      start_period: 180s
+      # Allow the profile's observed cold compilation time. Readiness
+      # still requires the HTTP health endpoint to succeed.
+      start_period: {{ m.healthcheck_start_period | default('180s') }}
 {% endfor %}

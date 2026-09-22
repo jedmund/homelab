@@ -64,7 +64,8 @@
 # Runner tags are registration metadata held by GitLab, so config.toml cannot
 # declare them. Reconcile only after the runner config (including distributed
 # cache) is in place; otherwise a pnpm-cache job could land here before this
-# host has the cache that its offline install requires.
+# host has the cache that its offline install requires. The large runner is
+# skipped until its registration ID is recorded.
 - name: Reconcile max GitLab Runner scheduling metadata
   ansible.builtin.command:
     argv:
@@ -74,12 +75,12 @@
       - gitlab-rails
       - runner
       - >-
-        runner = Ci::Runner.find_by(id: {{ gitlab_runner_linux_id }});
+        runner = Ci::Runner.find_by(id: {{ item.id }});
         if runner.nil?
-          puts 'SKIPPED runner {{ gitlab_runner_linux_id }} is not registered';
+          puts 'SKIPPED runner {{ item.id }} is not registered';
         else
-          desired_tags = {{ gitlab_runner_linux_tags | to_json }}.sort;
-          desired_untagged = {{ gitlab_runner_linux_run_untagged | bool | ternary('true', 'false') }};
+          desired_tags = {{ item.tags | to_json }}.sort;
+          desired_untagged = {{ item.run_untagged | bool | ternary('true', 'false') }};
           changed = runner.tag_list.to_a.sort != desired_tags || runner.run_untagged != desired_untagged;
           if changed
             runner.tag_list = desired_tags;
@@ -88,6 +89,18 @@
           end;
           puts changed ? 'CHANGED runner scheduling metadata' : 'OK no changes';
         end
+  loop:
+    - id: "{{ gitlab_runner_linux_id }}"
+      name: "{{ gitlab_runner_linux_name }}"
+      tags: "{{ gitlab_runner_linux_tags }}"
+      run_untagged: "{{ gitlab_runner_linux_run_untagged }}"
+    - id: "{{ gitlab_runner_linux_large_id }}"
+      name: "{{ gitlab_runner_linux_large_name }}"
+      tags: "{{ gitlab_runner_linux_large_tags }}"
+      run_untagged: "{{ gitlab_runner_linux_large_run_untagged }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.id | int > 0
   delegate_to: nuc-mini
   register: gitlab_runner_linux_metadata
   changed_when: "'CHANGED' in gitlab_runner_linux_metadata.stdout"

@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  degoog:
+    container_name: degoog
+    image: {{ degoog_image }}
+    restart: {{ restart_policy }}
+    ports:
+      # Traefik runs on nuc-mini and is the only permitted source for this
+      # cross-host backend port. Do not expose Degoog directly to the LAN.
+      - "{{ degoog_port }}:4444"
+    env_file:
+      - ./env/degoog.env
+    environment:
+      DEGOOG_BASE_URL: "{{ degoog_base_url }}"
+      DEGOOG_DISTRUST_PROXY: "{{ degoog_distrust_proxy }}"
+      DEGOOG_PUBLIC_INSTANCE: "{{ degoog_public_instance }}"
+      PUID: "{{ degoog_puid }}"
+      PGID: "{{ degoog_pgid }}"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4444/readyz"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}

@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Validate recent Borg and Komodo Core backups and the NAS Borg mirror.
+
+set -euo pipefail
+
+MAX_AGE_SECONDS="${BACKUP_MAX_AGE_SECONDS:-{{ backup_verification_max_age_hours * 60 * 60 }}}"
+CORE_BACKUP_ROOT="${CORE_BACKUP_ROOT:-{{ komodo_core_backup_host_path }}}"
+BORG_DIRECT="${BORG_DIRECT:-false}"
+if [ "$BORG_DIRECT" = "true" ]; then
+    NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_container_path }}}"
+else
+    NAS_MOUNT="${NAS_MOUNT:-{{ nas_mount_host_path }}}"
+fi
+BORG_CONTAINER="${BORG_CONTAINER:-borgmatic}"
+LOCAL_REPOSITORY="${LOCAL_REPOSITORY:-{{ borg_repo_container_path }}}"
+NAS_REPOSITORY="${NAS_REPOSITORY:-{{ nas_mount_container_path }}/{{ nas_share_subpath }}}"
+LOCAL_BORG_CACHE_DIR="${LOCAL_BORG_CACHE_DIR:-/root/.cache/borg-status-local}"
+LOCAL_BORG_SECURITY_DIR="${LOCAL_BORG_SECURITY_DIR:-/root/.config/borg/security-status-local}"
+NAS_BORG_CACHE_DIR="${NAS_BORG_CACHE_DIR:-/root/.cache/borg-nas-mirror}"
+NAS_BORG_SECURITY_DIR="${NAS_BORG_SECURITY_DIR:-/root/.config/borg/security-nas-mirror}"
+DOCKER_BIN="${DOCKER_BIN:-docker}"
+FINDMNT_BIN="${FINDMNT_BIN:-findmnt}"
+LS_BIN="${LS_BIN:-ls}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
+fail() {
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+require_fresh() {
+    label="$1"
+    epoch="$2"
+    now="$(date +%s)"
+    age=$((now - epoch))
+    if [ "$age" -lt 0 ] || [ "$age" -gt "$MAX_AGE_SECONDS" ]; then
+        fail "$label is stale: age_seconds=$age threshold_seconds=$MAX_AGE_SECONDS"
+    fi
+    printf '%s_age_seconds=%s\n' "$label" "$age"
+}
+
+archive_record() {
+    repository="$1"
+    if [ "$repository" = "$NAS_REPOSITORY" ]; then
+        borg_env=(
+            BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+            "BORG_CACHE_DIR=$NAS_BORG_CACHE_DIR"
+            "BORG_SECURITY_DIR=$NAS_BORG_SECURITY_DIR"
+        )
+    else
+        borg_env=(
+            "BORG_CACHE_DIR=$LOCAL_BORG_CACHE_DIR"
+            "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
+        )
+    fi
+    if [ "$BORG_DIRECT" = "true" ]; then
+        env "${borg_env[@]}" borg list --json --last 1 "$repository"
+    else
+        docker_args=(exec)
+        for variable in "${borg_env[@]}"; do
+            docker_args+=(-e "$variable")
+        done
+        docker_args+=("$BORG_CONTAINER" borg list --json --last 1 "$repository")
+        "$DOCKER_BIN" "${docker_args[@]}"
+    fi |
+        "$PYTHON_BIN" -c '
+import datetime
+import json
+import sys
+
+document = json.load(sys.stdin)
+archives = document.get("archives", [])
+if not archives:
+    raise SystemExit("repository has no archives")
+archive = archives[-1]
+stamp = archive.get("start") or archive.get("time")
+if not stamp:
+    raise SystemExit("newest archive has no timestamp")
+parsed = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+if parsed.tzinfo is None:
+    parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+print("{}\t{}\t{}".format(
+    archive["id"],
+    int(parsed.timestamp()),
+    archive.get("archive") or archive.get("name") or "unknown",
+))
+'
+}
+
+select_nfs_filesystem() {
+    filesystem=""
+    while IFS= read -r candidate; do
+        case "$candidate" in
+            nfs|nfs4) filesystem="$candidate" ;;
+        esac
+    done <<<"$filesystems"
+}
+
+filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
+select_nfs_filesystem
+if [ -z "$filesystem" ] && grep -Fxq autofs <<<"$filesystems"; then
+    "$LS_BIN" -A "$NAS_MOUNT" >/dev/null || fail "cannot activate NAS mount at $NAS_MOUNT"
+    filesystems="$($FINDMNT_BIN -n -T "$NAS_MOUNT" -o FSTYPE)"
+    select_nfs_filesystem
+fi
+if [ -z "$filesystem" ]; then
+    display_types="$(printf '%s' "${filesystems:-none}" | tr '\n' ',')"
+    fail "$NAS_MOUNT is not an active NFS mount (types=${display_types%,})"
+fi
+printf 'nas_mount_type=%s\n' "$filesystem"
+
+core_backup_path=""
+for candidate in "$CORE_BACKUP_ROOT"/*; do
+    [ -d "$candidate" ] && core_backup_path="$candidate"
+done
+[ -n "$core_backup_path" ] || fail "no Komodo Core backup directory exists in $CORE_BACKUP_ROOT"
+core_backup_name="$(basename "$core_backup_path")"
+core_epoch="$($PYTHON_BIN -c 'import os,sys; print(int(os.stat(sys.argv[1]).st_mtime))' "$core_backup_path")"
+require_fresh core_backup "$core_epoch"
+
+required_artifacts=(
+{% for artifact in komodo_core_required_artifacts %}
+    "{{ artifact }}"
+{% endfor %}
+)
+for artifact in "${required_artifacts[@]}"; do
+    path="$core_backup_path/$artifact"
+    [ -s "$path" ] || fail "required Core artifact is missing or empty: $path"
+    gzip -t "$path" || fail "required Core artifact is not valid gzip: $path"
+done
+[ -s "$CORE_BACKUP_ROOT/Stats.gz" ] || fail "required Core artifact is missing or empty: $CORE_BACKUP_ROOT/Stats.gz"
+gzip -t "$CORE_BACKUP_ROOT/Stats.gz" || fail "Stats.gz is not valid gzip"
+printf 'core_backup=%s required_artifacts=%s\n' "$core_backup_name" "{{ komodo_core_required_artifacts | length }}+Stats.gz"
+
+local_record="$(archive_record "$LOCAL_REPOSITORY")" || fail "cannot read newest local Borg archive"
+nas_record="$(archive_record "$NAS_REPOSITORY")" || fail "cannot read newest NAS Borg archive"
+IFS=$'\t' read -r local_id local_epoch local_name <<<"$local_record"
+IFS=$'\t' read -r nas_id nas_epoch nas_name <<<"$nas_record"
+[ "$local_id" = "$nas_id" ] || fail "NAS divergence: local_archive_id=$local_id nas_archive_id=$nas_id"
+[ "$local_epoch" = "$nas_epoch" ] || fail "NAS archive timestamp differs for matching archive ID $local_id"
+require_fresh borg_archive "$local_epoch"
+printf 'borg_archive=%s archive_id=%s nas_archive=%s\n' "$local_name" "$local_id" "$nas_name"
+printf 'Backup status verification passed\n'

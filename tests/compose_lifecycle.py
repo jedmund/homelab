@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 import yaml
@@ -21,6 +22,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = 'community.docker.docker_compose_v2'
 BUILD_ROLES = ('line', 'backup', 'matrix', 'strudel', 'petlibro', 'musicbrainz')
+DEFAULT_ROLES = ('prowlarr', 'aurral', 'stash', *BUILD_ROLES)
 
 
 def run(argv, **kwargs):
@@ -113,7 +115,7 @@ def template_checks(root, env, docker):
     common.update(yaml.safe_load((ROOT / 'group_vars/compute_servers/docker.yml').read_text()))
     checks = []
     outputs = []
-    for role in ('line', 'backup', 'matrix', 'strudel', 'petlibro'):
+    for role in ('line', 'backup', 'bentopdf', 'matrix', 'strudel', 'petlibro'):
         defaults = yaml.safe_load((ROOT / 'roles' / role / 'defaults/main.yml').read_text())
         for enabled in ([False, True] if role == 'petlibro' else [False]):
             file = root / f'{role}-{enabled}.yaml'
@@ -133,12 +135,199 @@ def template_checks(root, env, docker):
         services = yaml.safe_load(file.read_text())['services']
         if role == 'petlibro':
             assert ('catbro' in services) == enabled
+        if role == 'bentopdf':
+            service = services['bentopdf']
+            assert service['image'].endswith(
+                ':2.8.8@sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74'
+            )
+            assert 'wget --quiet --spider' in service['healthcheck']['test'][-1]
+            continue
         for service in services.values():
             if 'build' in service:
                 assert service['pull_policy'] == 'build', (role, service)
             else:
                 assert service['pull_policy'] == ('missing' if role == 'petlibro' else 'always'), role
-    print('PASS: six rendered production Compose configurations and image pull policies', flush=True)
+    print('PASS: seven rendered production Compose configurations and image pull policies', flush=True)
+
+
+def musicbrainz_replication_checks(root, env, docker):
+    """Render and exercise the monitored MusicBrainz replication wrapper."""
+    common = yaml.safe_load((ROOT / 'group_vars/compute_servers/common.yml').read_text())
+    defaults = yaml.safe_load((ROOT / 'roles/musicbrainz/defaults/main.yml').read_text())
+    assert defaults['musicbrainz_upstream_version'] == 'v-2026-07-30.1'
+    assert defaults['musicbrainz_expected_schema_sequence'] == 31
+    assert 'compose/live-indexing-search.yml' in defaults['musicbrainz_source_compose_files']
+    values = common | defaults | {
+        'docker_base_path': str(root),
+        'musicbrainz_healthchecks_url': 'https://hc.example/check-id',
+        'musicbrainz_replication_token': 'placeholder',
+    }
+    wrapper = root / 'musicbrainz-replication-check.sh'
+    cron = root / 'musicbrainz-replication.cron'
+    overlay = root / 'musicbrainz-atelier.yaml'
+    play = root / 'musicbrainz-templates.yml'
+    render = [
+        {
+            'name': 'Render MusicBrainz replication wrapper',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/replication-check.sh.j2'),
+                'dest': str(wrapper),
+                'mode': '0755',
+            },
+        },
+        {
+            'name': 'Render MusicBrainz replication cron',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/replication.cron.j2'),
+                'dest': str(cron),
+                'mode': '0644',
+            },
+        },
+        {
+            'name': 'Render MusicBrainz atelier overlay',
+            'ansible.builtin.template': {
+                'src': str(ROOT / 'roles/musicbrainz/templates/local/compose/atelier.yml.j2'),
+                'dest': str(overlay),
+                'mode': '0644',
+            },
+        },
+    ]
+    play.write_text(yaml.safe_dump([{
+        'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
+        'vars': values, 'tasks': render,
+    }], sort_keys=False))
+    result = run(['ansible-playbook', '-i', 'localhost,', str(play)], env=env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    require(['bash', '-n', str(wrapper)], env=env)
+    assert '0 3 * * * /local/replication-check.sh' in cron.read_text()
+    assert 'MAX_AGE_SECONDS=129600' in wrapper.read_text()
+
+    base = root / 'musicbrainz-base.yaml'
+    base.write_text(yaml.safe_dump({'services': {
+        'indexer': {'image': 'alpine:3.20'},
+        'musicbrainz': {'image': 'alpine:3.20'},
+    }}))
+    merged = yaml.safe_load(require([
+        docker, 'compose', '-f', str(base), '-f', str(overlay),
+        'config', '--no-env-resolution',
+    ], env=env))
+    musicbrainz = merged['services']['musicbrainz']
+    assert any(item['target'] == '/local/replication-check.sh'
+               for item in musicbrainz['volumes'])
+    assert any(item['source'] == 'musicbrainz_healthchecks_url'
+               for item in musicbrainz['secrets'])
+
+    fake_bin = root / 'musicbrainz-fake-bin'
+    fake_bin.mkdir()
+    psql = fake_bin / 'psql'
+    psql.write_text("""#!/bin/sh
+if [ "${FAKE_SQL_FAIL:-0}" = 1 ]; then exit 1; fi
+last=
+for argument in "$@"; do last=$argument; done
+case "$last" in
+  *last_replication_date*) printf '%s\\n' "${FAKE_AGE:-0}" ;;
+  *)
+    count=$(cat "$FAKE_PSQL_STATE" 2>/dev/null || printf 0)
+    if [ "$count" -eq 0 ]; then printf '%s\\n' "$FAKE_BEFORE"; else printf '%s\\n' "$FAKE_AFTER"; fi
+    printf '%s\\n' "$((count + 1))" > "$FAKE_PSQL_STATE"
+    ;;
+esac
+""")
+    replication = fake_bin / 'replication'
+    replication.write_text("""#!/bin/sh
+printf '%s\\n' "${FAKE_REPLICATION_OUTPUT:-}"
+exit "${FAKE_REPLICATION_RC:-0}"
+""")
+    curl = fake_bin / 'curl'
+    curl.write_text("""#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_CURL_LOG"
+exit "${FAKE_CURL_RC:-0}"
+""")
+    for executable in (psql, replication, curl):
+        executable.chmod(0o755)
+
+    healthchecks = root / 'musicbrainz-healthchecks-url'
+    healthchecks.write_text('https://hc.example/check-id\n')
+    state = root / 'musicbrainz-psql-state'
+    output = root / 'musicbrainz-replication-output'
+    curl_log = root / 'musicbrainz-curl-log'
+
+    def check_case(*, before='100', after='101', age='60', message='applied',
+                   replication_rc='0', sql_fail='0', curl_rc='0'):
+        state.write_text('0\n')
+        output.write_text('')
+        curl_log.write_text('')
+        case_env = dict(env, PATH=f'{fake_bin}{os.pathsep}{env["PATH"]}',
+                        MUSICBRAINZ_REPLICATION_COMMAND=str(replication),
+                        MUSICBRAINZ_PSQL_COMMAND=str(psql),
+                        MUSICBRAINZ_HEALTHCHECKS_FILE=str(healthchecks),
+                        MUSICBRAINZ_OUTPUT_PATH=str(output),
+                        FAKE_PSQL_STATE=str(state), FAKE_CURL_LOG=str(curl_log),
+                        FAKE_BEFORE=before, FAKE_AFTER=after, FAKE_AGE=age,
+                        FAKE_REPLICATION_OUTPUT=message,
+                        FAKE_REPLICATION_RC=replication_rc,
+                        FAKE_SQL_FAIL=sql_fail, FAKE_CURL_RC=curl_rc)
+        completed = run(['bash', str(wrapper)], env=case_env)
+        return completed, output.read_text(), curl_log.read_text()
+
+    completed, message, pings = check_case()
+    assert completed.returncode == 0 and 'sequence 100 -> 101' in message
+    assert '/start' in pings and 'https://hc.example/check-id\n' in pings
+    completed, message, _ = check_case(after='100')
+    assert completed.returncode == 0 and 'no new packets upstream' in message
+    completed, message, pings = check_case(
+        after='100', message='LoadReplicationChanges failed (rc=3)')
+    assert completed.returncode == 1 and 'replication command returned 0' in message
+    assert '/fail' in pings
+    completed, message, _ = check_case(after='100', age='129601')
+    assert completed.returncode == 1 and 'over the 36h threshold' in message
+    completed, message, pings = check_case(sql_fail='1')
+    assert completed.returncode == 1 and 'cannot read current replication sequence' in message
+    assert '/fail' in pings
+    completed, _, _ = check_case(curl_rc='22')
+    assert completed.returncode == 0
+    print('PASS: MusicBrainz replication rendering and failure detection', flush=True)
+
+
+def musicbrainz_schema_guard_checks(root, env):
+    """Exercise the existing-volume schema guard without contacting a host."""
+    main = yaml.safe_load((ROOT / 'roles/musicbrainz/tasks/main.yml').read_text())
+    names = {
+        'Require an inspectable database when persistent data exists',
+        'Require the database schema expected by the pinned release',
+    }
+    guard = [copy.deepcopy(task) for task in main if task['name'] in names]
+    assert len(guard) == 2
+
+    cases = [
+        ('fresh', {'volume_rc': 1, 'container_rc': 1, 'container': '', 'schema': ''}, True),
+        ('schema31', {'volume_rc': 0, 'container_rc': 0,
+                      'container': '[{"State":{"Running":true}}]', 'schema': '31'}, True),
+        ('missing-container', {'volume_rc': 0, 'container_rc': 1,
+                               'container': '', 'schema': ''}, False),
+        ('schema30', {'volume_rc': 0, 'container_rc': 0,
+                      'container': '[{"State":{"Running":true}}]', 'schema': '30'}, False),
+    ]
+    for label, case, expected in cases:
+        file = root / f'musicbrainz-schema-guard-{label}.yml'
+        variables = {
+            'musicbrainz_upstream_version': 'v-2026-07-30.1',
+            'musicbrainz_expected_schema_sequence': 31,
+            'musicbrainz_database_volume': {'rc': case['volume_rc']},
+            'musicbrainz_database_container': {
+                'rc': case['container_rc'], 'stdout': case['container'],
+            },
+            'musicbrainz_database_schema': {'stdout': case['schema']},
+        }
+        file.write_text(yaml.safe_dump([{
+            'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
+            'vars': variables, 'tasks': guard,
+        }], sort_keys=False))
+        result = run(['ansible-playbook', '-i', 'localhost,', str(file)], env=env)
+        (root / f'musicbrainz-schema-guard-{label}.log').write_text(
+            result.stdout + result.stderr)
+        assert (result.returncode == 0) == expected, (label, result.stdout, result.stderr)
+    print('PASS: MusicBrainz schema deployment guard', flush=True)
 
 
 class Fixture:
@@ -358,36 +547,74 @@ def exercise(root, role, docker, env, base):
         f.cleanup()
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--roles', nargs='+', default=['prowlarr', 'aurral', 'stash', *BUILD_ROLES])
-    parser.add_argument('--base-image', default='alpine:3.20')
-    parser.add_argument('--static-only', action='store_true')
-    args = parser.parse_args()
-    static_checks()
-    if args.static_only:
-        return
-    docker = shutil.which('docker')
-    context_endpoint = require([docker, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
-    endpoint = context_endpoint if os.environ.get('DOCKER_CONTEXT') else os.environ.get('DOCKER_HOST', context_endpoint)
-    if not endpoint.startswith('unix://'):
-        raise SystemExit('Tests require a local Docker Unix socket; remote daemons are not supported.')
-    root = Path(tempfile.mkdtemp(prefix='homelab-compose-tests-'))
-    print(f'Fixture logs: {root}', flush=True)
+def fixture_environment(root):
     config = root / 'ansible.cfg'
     config.write_text('[defaults]\nretry_files_enabled = False\nhost_key_checking = False\n')
     docker_config = root / 'docker-config'
     docker_config.mkdir()
-    (docker_config / 'config.json').write_text(json.dumps({'cliPluginsExtraDirs': [str(Path.home() / '.docker/cli-plugins')]}))
-    env = dict(os.environ, DOCKER_CONFIG=str(docker_config), ANSIBLE_CONFIG=str(config), ANSIBLE_LOCAL_TEMP=str(root / 'ansible-tmp'),
-               DOCKER_HOST=endpoint, ANSIBLE_REMOTE_TEMP=str(root / 'remote-tmp'), ANSIBLE_NOCOLOR='1')
+    (docker_config / 'config.json').write_text(json.dumps({
+        'cliPluginsExtraDirs': [str(Path.home() / '.docker/cli-plugins')],
+    }))
+    values = {
+        'DOCKER_CONFIG': str(docker_config),
+        'ANSIBLE_CONFIG': str(config),
+        'ANSIBLE_LOCAL_TEMP': str(root / 'ansible-tmp'),
+        'ANSIBLE_REMOTE_TEMP': str(root / 'remote-tmp'),
+        'ANSIBLE_NOCOLOR': '1',
+    }
+    env = dict(os.environ, **values)
     env.pop('DOCKER_CONTEXT', None)
+    return env
+
+
+def record_timing(report, name, started, destination):
+    report['phases'][name] = round(time.monotonic() - started, 3)
+    if destination:
+        path = Path(destination)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--roles', nargs='+', choices=DEFAULT_ROLES, default=list(DEFAULT_ROLES))
+    parser.add_argument('--base-image', default='alpine:3.20')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--static-only', action='store_true')
+    modes.add_argument('--lifecycle-only', action='store_true')
+    parser.add_argument('--report')
+    args = parser.parse_args()
+    docker = shutil.which('docker')
+    if not docker:
+        raise SystemExit('Tests require the Docker CLI with the Compose plugin.')
+    root = Path(tempfile.mkdtemp(prefix='homelab-compose-tests-'))
+    print(f'Fixture logs: {root}', flush=True)
+    report = {'version': 1, 'phases': {}, 'roles': args.roles}
+    env = fixture_environment(root)
+
+    if not args.lifecycle_only:
+        started = time.monotonic()
+        static_checks()
+        decision_checks(root, env)
+        template_checks(root, env, docker)
+        musicbrainz_replication_checks(root, env, docker)
+        musicbrainz_schema_guard_checks(root, env)
+        record_timing(report, 'static', started, args.report)
+        if args.static_only:
+            print('PASS: all requested static scenarios', flush=True)
+            return
+
+    context_endpoint = require([docker, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
+    endpoint = context_endpoint if os.environ.get('DOCKER_CONTEXT') else os.environ.get('DOCKER_HOST', context_endpoint)
+    if not endpoint.startswith('unix://'):
+        raise SystemExit('Tests require a local Docker Unix socket; remote daemons are not supported.')
+    env['DOCKER_HOST'] = endpoint
     if run([docker, 'image', 'inspect', args.base_image], env=env).returncode:
         require([docker, 'pull', args.base_image], env=env)
-    decision_checks(root, env)
-    template_checks(root, env, docker)
     for role in args.roles:
+        started = time.monotonic()
         exercise(root, role, docker, env, args.base_image)
+        record_timing(report, role, started, args.report)
     print('PASS: all requested lifecycle scenarios; fixture containers and images removed', flush=True)
 
 

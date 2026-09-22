@@ -3,6 +3,86 @@
 # layers a local/ overlay (Traefik labels, network attachment) on top.
 # Initial DB import is a manual one-shot; see roles/musicbrainz/README.md.
 
+- name: Validate MusicBrainz secret inputs
+  ansible.builtin.assert:
+    that:
+      - musicbrainz_replication_token | default('') | length > 0
+      - musicbrainz_healthchecks_url | default('') | length > 0
+    fail_msg: >-
+      musicbrainz_replication_token and musicbrainz_healthchecks_url must be
+      defined in group_vars/musicbrainz/vault.yml
+  no_log: true
+
+# Updating the checkout before inspecting an existing database can put
+# schema-31 server and PostgreSQL definitions in front of schema-30 storage.
+# Refuse that transition in the routine role. A new installation has neither
+# the named volume nor a container and follows the documented first-run path.
+- name: Inspect existing MusicBrainz database volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - volume
+      - inspect
+      - musicbrainz_pgdata
+  register: musicbrainz_database_volume
+  changed_when: false
+  failed_when: musicbrainz_database_volume.rc not in [0, 1]
+  check_mode: false
+
+- name: Inspect existing MusicBrainz database container
+  ansible.builtin.command:
+    argv:
+      - docker
+      - container
+      - inspect
+      - musicbrainz-db-1
+  register: musicbrainz_database_container
+  changed_when: false
+  failed_when: musicbrainz_database_container.rc not in [0, 1]
+  check_mode: false
+
+- name: Require an inspectable database when persistent data exists
+  ansible.builtin.assert:
+    that:
+      - >-
+        musicbrainz_database_volume.rc != 0 or
+        (musicbrainz_database_container.rc == 0 and
+         (musicbrainz_database_container.stdout | from_json | first).State.Running)
+    fail_msg: >-
+      musicbrainz_pgdata exists but musicbrainz-db-1 is not running. Start and
+      inspect the existing database before deploying; the role will not infer
+      its schema from a persistent volume.
+
+- name: Read existing MusicBrainz database schema sequence
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - musicbrainz-db-1
+      - psql
+      - -U
+      - musicbrainz
+      - -d
+      - musicbrainz_db
+      - -tAc
+      - SELECT current_schema_sequence FROM replication_control;
+  register: musicbrainz_database_schema
+  changed_when: false
+  check_mode: false
+  when: musicbrainz_database_volume.rc == 0
+
+- name: Require the database schema expected by the pinned release
+  ansible.builtin.assert:
+    that:
+      - musicbrainz_database_schema.stdout | trim | int == musicbrainz_expected_schema_sequence
+    fail_msg: >-
+      The existing MusicBrainz database is schema
+      {{ musicbrainz_database_schema.stdout | default('unknown') | trim }}, but
+      {{ musicbrainz_upstream_version }} requires schema
+      {{ musicbrainz_expected_schema_sequence }}. Follow the schema-31 upgrade
+      procedure in roles/musicbrainz/README.md before applying this role.
+  when: musicbrainz_database_volume.rc == 0
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"
@@ -49,6 +129,31 @@
     mode: '0644'
   register: musicbrainz_deploy_atelier_compose_overlay
 
+- name: Deploy replication health-check wrapper
+  ansible.builtin.template:
+    src: local/replication-check.sh.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication-check.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  register: musicbrainz_deploy_replication_check
+
+- name: Deploy replication crontab
+  ansible.builtin.template:
+    src: local/replication.cron.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/replication.cron"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: musicbrainz_deploy_replication_cron
+
+- name: Deploy replication Healthchecks URL
+  ansible.builtin.template:
+    src: local/secrets/musicbrainz_healthchecks_url.j2
+    dest: "{{ musicbrainz_upstream_path }}/local/secrets/musicbrainz_healthchecks_url"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: musicbrainz_deploy_healthchecks_url
+
 - name: Deploy MetaBrainz replication access token
   template:
     src: local/secrets/metabrainz_access_token.j2
@@ -57,6 +162,11 @@
     mode: '0600'
   no_log: true
   register: musicbrainz_deploy_metabrainz_replication_access_token
+
+- name: Remove superseded schema-upgrade helper
+  ansible.builtin.file:
+    path: "{{ config_base }}/schema-upgrade.sh"
+    state: absent
 
 # Render the multi-file overlay chain into a single self-contained compose
 # file so Komodo only sees one definition per service. `-f` flags here
@@ -111,6 +221,9 @@
       {{ 'always' if
          (musicbrainz_deploy_upstream_env.changed | default(false)) or
          (musicbrainz_deploy_atelier_compose_overlay.changed | default(false)) or
+         (musicbrainz_deploy_replication_check.changed | default(false)) or
+         (musicbrainz_deploy_replication_cron.changed | default(false)) or
+         (musicbrainz_deploy_healthchecks_url.changed | default(false)) or
          (musicbrainz_deploy_metabrainz_replication_access_token.changed | default(false))
          else 'auto' }}
   register: compose_result

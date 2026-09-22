@@ -3,10 +3,31 @@
 # and any env/config files. Komodo reads those host files and may redeploy
 # them on demand, but it should not clone stack repos or auto-update images.
 
+[[alerter]]
+name = "homelab-operations"
+description = "Operational alerts to the Discord destination shared with Gatus; see komodo/README.md."
+tags = ["homelab", "operations"]
+[alerter.config]
+enabled = true
+alert_types = [
+  "ServerUnreachable",
+  "ServerDisk",
+  "StackStateChange",
+  "BuildFailed",
+  "RepoBuildFailed",
+  "ProcedureFailed",
+  "ActionFailed",
+  "Custom",
+]
+[alerter.config.endpoint]
+type = "Discord"
+[alerter.config.endpoint.params]
+url = "[[HOMELAB_DISCORD_WEBHOOK_URL]]"
+
 [[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -35,7 +56,7 @@ run_build = true
 [[stack]]
 name = "openspeedtest"
 description = "LAN speed test at speed.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini"]
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -47,7 +68,7 @@ auto_update = false
 [[stack]]
 name = "ddclient"
 description = "Dynamic DNS for the atelier.house and fireplace.cafe zones"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -59,7 +80,7 @@ auto_update = false
 [[stack]]
 name = "tinyauth"
 description = "Forward auth middleware at auth.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -71,7 +92,7 @@ auto_update = false
 [[stack]]
 name = "pocketid"
 description = "OIDC provider at id.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -83,7 +104,7 @@ auto_update = false
 [[stack]]
 name = "infra-core"
 description = "Komodo Core, Periphery, and MongoDB"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -95,7 +116,7 @@ auto_update = false
 [[stack]]
 name = "infra-periphery"
 description = "Komodo Periphery agent on max"
-tags = ["homelab", "ansible", "max", "infrastructure"]
+tags = ["homelab", "ansible", "max", "infrastructure", "update-monitor"]
 [stack.config]
 server = "max"
 files_on_host = true
@@ -107,7 +128,7 @@ auto_update = false
 [[stack]]
 name = "beszel"
 description = "Beszel monitoring hub"
-tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+tags = ["homelab", "ansible", "nuc-mini", "monitoring", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -119,7 +140,7 @@ auto_update = false
 [[stack]]
 name = "beszel-agent-nuc-mini"
 description = "Beszel Docker agent on nuc-mini"
-tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+tags = ["homelab", "ansible", "nuc-mini", "monitoring", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -131,7 +152,7 @@ auto_update = false
 [[stack]]
 name = "gluetun"
 description = "Gluetun VPN gateway"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -143,7 +164,7 @@ auto_update = false
 [[stack]]
 name = "prowlarr"
 description = "Prowlarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -155,7 +176,7 @@ auto_update = false
 [[stack]]
 name = "qbittorrent"
 description = "qBittorrent"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -167,7 +188,7 @@ auto_update = false
 [[stack]]
 name = "sonarr"
 description = "Sonarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -179,7 +200,7 @@ auto_update = false
 [[stack]]
 name = "radarr"
 description = "Radarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -191,7 +212,7 @@ auto_update = false
 [[stack]]
 name = "lidarr"
 description = "Lidarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -203,7 +224,7 @@ auto_update = false
 [[stack]]
 name = "aurral"
 description = "OIDC-enabled music discovery companion for Lidarr"
-tags = ["homelab", "ansible", "nuc-mini", "music"]
+tags = ["homelab", "ansible", "nuc-mini", "music", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -215,7 +236,7 @@ auto_update = false
 [[stack]]
 name = "seerr"
 description = "Seerr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -227,7 +248,7 @@ auto_update = false
 [[stack]]
 name = "unpackerr"
 description = "Unpackerr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -239,7 +260,7 @@ auto_update = false
 [[stack]]
 name = "jdownloader"
 description = "JDownloader"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -251,7 +272,7 @@ auto_update = false
 [[stack]]
 name = "pinchflat"
 description = "Pinchflat"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -263,7 +284,7 @@ auto_update = false
 [[stack]]
 name = "slskd"
 description = "slskd"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -275,7 +296,7 @@ auto_update = false
 [[stack]]
 name = "qui"
 description = "Qui"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -299,7 +320,7 @@ auto_update = false
 [[stack]]
 name = "romm"
 description = "RomM"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -311,7 +332,7 @@ auto_update = false
 [[stack]]
 name = "plex"
 description = "Plex"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -323,7 +344,7 @@ auto_update = false
 [[stack]]
 name = "multi-scrobbler"
 description = "Multi-Scrobbler"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -335,7 +356,7 @@ auto_update = false
 [[stack]]
 name = "tunarr"
 description = "Tunarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -347,7 +368,7 @@ auto_update = false
 [[stack]]
 name = "stash"
 description = "Stash"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -359,7 +380,7 @@ auto_update = false
 [[stack]]
 name = "immich"
 description = "Immich"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -371,7 +392,7 @@ auto_update = false
 [[stack]]
 name = "papra"
 description = "Papra"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -383,7 +404,7 @@ auto_update = false
 [[stack]]
 name = "homebox"
 description = "Homebox"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -407,7 +428,7 @@ auto_update = false
 [[stack]]
 name = "dawarich"
 description = "Dawarich"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -419,7 +440,7 @@ auto_update = false
 [[stack]]
 name = "miniflux"
 description = "Miniflux, Reactflux, and FiveFilters"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -431,7 +452,7 @@ auto_update = false
 [[stack]]
 name = "karakeep"
 description = "Karakeep"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -443,7 +464,7 @@ auto_update = false
 [[stack]]
 name = "kavita"
 description = "Kavita"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -467,7 +488,7 @@ auto_update = false
 [[stack]]
 name = "obsidian-livesync"
 description = "CouchDB backend for Obsidian LiveSync"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -485,13 +506,15 @@ server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/gitlab"
 file_paths = ["compose.yaml"]
+# Renovate runs only through the cron profile; absence is expected.
+ignore_services = ["renovate"]
 poll_for_updates = false
 auto_update = false
 
 [[stack]]
 name = "open-webui"
 description = "Open WebUI"
-tags = ["homelab", "ansible", "nuc-mini", "development"]
+tags = ["homelab", "ansible", "nuc-mini", "development", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -503,7 +526,7 @@ auto_update = false
 [[stack]]
 name = "paseo-relay"
 description = "Paseo Relay"
-tags = ["homelab", "ansible", "nuc-mini", "development"]
+tags = ["homelab", "ansible", "nuc-mini", "development", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -515,19 +538,21 @@ auto_update = false
 [[stack]]
 name = "n8n"
 description = "n8n"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
 run_directory = "/opt/docker/n8n"
 file_paths = ["compose.yaml"]
+# Certificate initialization exits after success; its dependents enforce completion.
+ignore_services = ["sandbox-certs"]
 poll_for_updates = false
 auto_update = false
 
 [[stack]]
 name = "changedetection"
 description = "ChangeDetection.io"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -539,7 +564,7 @@ auto_update = false
 [[stack]]
 name = "copyparty"
 description = "Copyparty"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -551,7 +576,7 @@ auto_update = false
 [[stack]]
 name = "bentopdf"
 description = "BentoPDF"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -587,7 +612,7 @@ auto_update = false
 [[stack]]
 name = "kizuna"
 description = "Kizuna"
-tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -611,7 +636,7 @@ auto_update = false
 [[stack]]
 name = "frp"
 description = "frps tunnel proxy"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -623,7 +648,7 @@ auto_update = false
 [[stack]]
 name = "social"
 description = "Mastodon"
-tags = ["homelab", "ansible", "nuc-mini", "social"]
+tags = ["homelab", "ansible", "nuc-mini", "social", "update-monitor"]
 [stack.config]
 server = "Atelier"
 files_on_host = true
@@ -659,7 +684,7 @@ auto_update = false
 [[stack]]
 name = "beszel-agent-max"
 description = "Beszel Docker agent on max"
-tags = ["homelab", "ansible", "max", "monitoring"]
+tags = ["homelab", "ansible", "max", "monitoring", "update-monitor"]
 [stack.config]
 server = "max"
 files_on_host = true
@@ -681,8 +706,20 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "degoog"
+description = "Degoog search experiment at search.atelier.house"
+tags = ["homelab", "ansible", "max", "search", "update-monitor"]
+[stack.config]
+server = "max"
+files_on_host = true
+run_directory = "/opt/docker/degoog"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "vllm"
-description = "vLLM DeepSeek serving stack"
+description = "vLLM DeepSeek and GLM serving profiles"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]
 [stack.config]
 server = "max"
@@ -703,6 +740,193 @@ run_directory = "/opt/docker/sglang"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+[[action]]
+name = "bentopdf-maintenance-check"
+description = "Run fixed BentoPDF preflight and post-deployment maintenance gates"
+tags = ["homelab", "bentopdf", "maintenance"]
+[action.config]
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const phase = String(ARGS.phase ?? '')
+if (phase !== 'preflight' && phase !== 'postdeploy') {
+  throw new Error('phase must be preflight or postdeploy')
+}
+
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: `bentopdf-maintenance-${phase}`,
+  command: `/opt/docker/bentopdf/scripts/maintenance-check.sh ${phase}`,
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`BentoPDF ${phase} check failed with exit code ${exitCode}`)
+}
+'''
+
+[[procedure]]
+name = "maintain-bentopdf"
+description = "Preflight, deploy, and verify the Git-pinned stateless BentoPDF stack"
+tags = ["homelab", "bentopdf", "maintenance"]
+[procedure.config]
+schedule_enabled = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Preflight"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "preflight", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Deploy host-rendered stack"
+executions = [
+  { execution.type = "DeployStack", execution.params.stack = "bentopdf", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Verify health and digest"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "postdeploy", enabled = true },
+]
+
+[[action]]
+name = "report-image-digest-updates"
+description = "Check update-monitor stacks and send one digest-change or error report"
+tags = ["homelab", "maintenance", "reporting"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 9 ? * MON"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const stacks = await komodo.read('ListStacks', {
+  query: { tags: ['update-monitor'] },
+})
+stacks.sort((left, right) => left.name.localeCompare(right.name))
+
+const changes: string[] = []
+const errors: string[] = []
+for (const stack of stacks) {
+  try {
+    const result = await komodo.write('CheckStackForUpdate', {
+      stack: stack.name,
+      skip_auto_update: true,
+      wait_for_auto_update: true,
+    })
+    const changed = result.services.filter((service) => service.update_available)
+    for (const service of changed) {
+      changes.push(`${stack.name}/${service.service}: ${service.image}`)
+    }
+    console.log(`${stack.name}: ${changed.length} image change(s)`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : JSON.stringify(error)
+    errors.push(`${stack.name}: ${message}`)
+    console.error(`${stack.name}: ${message}`)
+  }
+}
+
+if (changes.length === 0 && errors.length === 0) {
+  console.log(`No image digest changes across ${stacks.length} monitored stacks`)
+} else {
+  const sections: string[] = []
+  if (changes.length > 0) sections.push(`Changes:\n${changes.map((item) => `- ${item}`).join('\n')}`)
+  if (errors.length > 0) sections.push(`Lookup failures:\n${errors.map((item) => `- ${item}`).join('\n')}`)
+  const update = await komodo.execute_and_poll('SendAlert', {
+    level: errors.length > 0 ? 'CRITICAL' : 'WARNING',
+    message: 'Homelab image digest report',
+    details: sections.join('\n\n'),
+    alerters: ['homelab-operations'],
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error('Failed to deliver image digest report')
+  }
+}
+'''
+
+[[procedure]]
+name = "Backup Core Database"
+description = "Create the scheduled Komodo Core database backup"
+tags = ["homelab", "system", "backup"]
+[procedure.config]
+schedule_format = "English"
+schedule = "Every day at 01:00"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Back up Core database"
+executions = [
+  { execution.type = "BackupCoreDatabase", execution.params = {}, enabled = true },
+]
+
+[[action]]
+name = "verify-backup-status"
+description = "Require fresh matching local, NAS, and Komodo Core backup artifacts"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 4 * * ?"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: 'verify-backup-status',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-backup-status.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Backup status verification failed with exit code ${exitCode}`)
+}
+'''
+
+[[action]]
+name = "verify-prowlarr-restore"
+description = "Extract and integrity-check the latest Prowlarr SQLite backup in temporary storage"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 5 ? * SUN"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'Atelier',
+  terminal: 'verify-prowlarr-restore',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-prowlarr-restore.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Prowlarr restore verification failed with exit code ${exitCode}`)
+}
+'''
 
 [[action]]
 name = "kizuna-storybook-review"
@@ -823,4 +1047,130 @@ name = "kizuna-storybook-review-ci"
 users = ["kizuna-storybook-review-ci"]
 permissions = [
   { target.type = "Action", target.id = "kizuna-storybook-review", level = "Execute" },
+]
+
+[[action]]
+name = "album-sort-storybook"
+description = "Manage private Album Sort main and merge-request Storybook catalogs"
+tags = ["homelab", "album-sort", "ci", "review-app"]
+[action.config]
+failure_alert = true
+file_contents = '''
+type Operation = 'deploy' | 'destroy'
+
+const SERVER = 'Atelier'
+const REVIEW_DOMAIN = 'review.atelier.house'
+const PROXY_NETWORK = 'proxy-network'
+const AUTH_MIDDLEWARE = 'tinyauth@file'
+const CERTIFICATE_RESOLVER = 'letsencrypt'
+const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/album-sort/storybook'
+
+const required = (name: string): string => {
+  const value = String(ARGS[name] ?? '').trim()
+  if (!value) throw new Error(`Missing Action argument: ${name}`)
+  return value
+}
+
+const matches = (name: string, pattern: RegExp): string => {
+  const value = required(name)
+  if (!pattern.test(value)) throw new Error(`Invalid Action argument: ${name}`)
+  return value
+}
+
+const operation = required('operation') as Operation
+if (operation !== 'deploy' && operation !== 'destroy') {
+  throw new Error('operation must be deploy or destroy')
+}
+
+const target = matches('target', /^(main|[1-9][0-9]*)$/)
+if (target === 'main' && operation === 'destroy') throw new Error('Main catalog cannot be destroyed by CI')
+const stackName = target === 'main' ? 'music-storybook' : `music-storybook-mr-${target}`
+const stacks = await komodo.read('ListStacks', {})
+const existing = stacks.find((stack) => stack.name === stackName)
+
+if (operation === 'destroy') {
+  if (!existing) {
+    console.log(`${stackName} is already absent`)
+  } else {
+    const update = await komodo.execute_and_poll('DestroyStack', {
+      stack: existing.id,
+      remove_orphans: true,
+      stop_time: 10,
+    })
+    if (Array.isArray(update) || !update.success) {
+      throw new Error(`Failed to destroy ${stackName}`)
+    }
+    await komodo.write('DeleteStack', { id: existing.id })
+    console.log(`Destroyed and deleted ${stackName}`)
+  }
+} else {
+  const revision = matches('revision', /^[a-f0-9]{40}$/)
+  const image = `${IMAGE_REPOSITORY}:${revision}`
+  const host = `${stackName}.${REVIEW_DOMAIN}`
+  const router = stackName
+
+  const compose: DockerCompose = {
+    services: {
+      storybook: {
+        image,
+        restart: 'unless-stopped',
+        read_only: true,
+        tmpfs: ['/var/cache/nginx', '/var/run'],
+        security_opt: ['no-new-privileges:true'],
+        labels: {
+          'traefik.enable': 'true',
+          'traefik.docker.network': PROXY_NETWORK,
+          [`traefik.http.routers.${router}.rule`]: `Host(\`${host}\`)`,
+          [`traefik.http.routers.${router}.entrypoints`]: 'websecure',
+          [`traefik.http.routers.${router}.tls`]: 'true',
+          [`traefik.http.routers.${router}.tls.certresolver`]: CERTIFICATE_RESOLVER,
+          [`traefik.http.routers.${router}.middlewares`]: AUTH_MIDDLEWARE,
+          [`traefik.http.services.${router}.loadbalancer.server.port`]: '80',
+        },
+        networks: [PROXY_NETWORK],
+      },
+    },
+    networks: {
+      [PROXY_NETWORK]: {
+        external: true,
+      },
+    },
+  }
+
+  const config = {
+    server_id: SERVER,
+    // Never let Komodo's shared docker login replace Kizuna credentials.
+    registry_provider: '',
+    registry_account: '',
+    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]',
+    compose_cmd_wrapper_include: ['config', 'pull', 'up', 'run'],
+    project_name: stackName,
+    auto_pull: true,
+    file_contents: YAML.stringify(compose),
+    links: [`https://${host}`],
+    send_alerts: false,
+  }
+
+  const stack = existing
+    ? await komodo.write('UpdateStack', { id: existing.id, config })
+    : await komodo.write('CreateStack', { name: stackName, config })
+
+  const update = await komodo.execute_and_poll('DeployStack', {
+    stack: stack.name,
+    stop_time: 10,
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error(`Failed to deploy ${stackName}`)
+  }
+
+  console.log(`Deployed ${stackName} at https://${host} (${revision})`)
+}
+'''
+
+
+[[user_group]]
+name = "album-sort-storybook-ci"
+users = ["album-sort-storybook-ci"]
+permissions = [
+  { target.type = "Action", target.id = "album-sort-storybook", level = "Execute" },
 ]

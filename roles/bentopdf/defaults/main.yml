@@ -8,6 +8,9 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # tools. All PDF processing happens in the browser; the container is a
 # static nginx site with no state.
 bentopdf_image: ghcr.io/alam00000/bentopdf-simple
+# renovate: datasource=docker depName=ghcr.io/alam00000/bentopdf-simple depType=application-image
 bentopdf_image_tag: "2.8.8"
+bentopdf_image_digest: sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74
+bentopdf_image_reference: "{{ bentopdf_image }}:{{ bentopdf_image_tag }}@{{ bentopdf_image_digest }}"
 bentopdf_port: 8080
 bentopdf_domain: pdf.atelier.house

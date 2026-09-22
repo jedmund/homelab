@@ -75,11 +75,12 @@ hf download sahilchachra/Unlimited-OCR-GGUF Unlimited-OCR-BF16.gguf mmproj-Unlim
 
 ## Hardware notes
 
-The current target is `max` (two NVIDIA RTX Pro 6000 Blackwell cards: one
-600 W Workstation + one 300 W Max-Q, 192 GB VRAM total). The compose
-services use `deploy.resources.reservations.devices` with
-`driver: nvidia, count: all`, so any GPU set the host exposes via the
-NVIDIA container toolkit is picked up automatically.
+Host inspection on September 21, 2026 confirmed three NVIDIA RTX PRO 6000
+Blackwell cards on `max`: two 300 W Max-Q cards (GPUs 0 and 1) and one
+600 W Workstation card (GPU 2), each with 96 GB nominal VRAM. The configured
+split mode assigns llama-swap to GPU 2 and vLLM to GPUs 0 and 1. See
+[AI defaults](defaults/main.yml) for allocation modes and the
+[inference upgrade plan](../../docs/inference-upgrade-plan.md) for planned work.
 
 ## Llama.cpp version requirement
 

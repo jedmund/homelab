@@ -1,7 +1,11 @@
 # Komodo
 
-[stacks.toml](stacks.toml) declares the repository's Komodo stacks, review-app
-Action, and associated user-group permissions.
+[stacks.toml](stacks.toml) declares the repository's Komodo stacks, operational
+Alerter, maintenance Procedures, scheduled Actions, review-app Action, and
+associated user-group permissions.
+
+Planned operational work and the dated inventory audit are tracked in
+[Komodo operations improvements](../docs/komodo-improvements.md).
 
 ## Ownership
 
@@ -27,8 +31,15 @@ resource_path = ["komodo/stacks.toml"]
 
 Enable **Include Resources** and **Include User Groups**. The user-group
 setting is required to apply the review Action's permission declarations.
-Use the `homelab` match tag to scope the sync to these resources. Review the
+Set `match_tags = ["homelab"]` to scope the sync to these resources; this
+filter expects tag names, not internal tag IDs. Keep `delete = false` for
+routine reconciliation. Review the
 resource and permission diff before applying it.
+
+Before every reconciliation, refresh and inspect the preview. It must contain
+only the expected Stack tags, Action, Procedure, Alerter, and permission changes,
+with no deletions. Do not execute a sync whose preview contains an unexpected
+deployment or removal.
 
 The declarations expect these Komodo Server resource names:
 
@@ -39,6 +50,201 @@ The declarations expect these Komodo Server resource names:
 
 Deploy the Ansible stack before adding its Komodo resource so the referenced
 host files exist.
+
+Before syncing the Alerter, create the secret Komodo variable
+`HOMELAB_DISCORD_WEBHOOK_URL` from `vault_gatus_discord_webhook_url` in the ignored
+`group_vars/gatus/vault.yml`. Mark it secret before supplying the value. Keep
+**Include Variables** disabled: the repository declares the reference, not the
+credential. Rotate the vault value and Komodo variable together when replacing
+the Discord webhook.
+
+### GitLab cutover
+
+After the repository is available on GitLab and the selected Komodo Git account
+can read it, update the existing Resource Sync to:
+
+```toml
+git_provider = "git.atelier.house"
+git_https = true
+repo = "jedmund/homelab"
+branch = "main"
+resource_path = ["komodo/stacks.toml"]
+match_tags = ["homelab"]
+delete = false
+```
+
+Keep resource and user-group inclusion enabled. Refresh and review the pending
+diff before applying it; a provider change should not introduce unintended
+resource or permission changes. The sync currently uses GitHub. Configure any
+GitLab webhook separately; switching the Git provider does not create one.
+
+## Operational alerts
+
+The `homelab-operations` Alerter sends to Gatus's Discord destination. Its explicit
+alert-type list applies across this Komodo installation. Stacks must also have
+`send_alerts` enabled; temporary Storybook review stacks keep it disabled.
+
+| Signal | Owner and response |
+| --- | --- |
+| Unreachable Periphery | Komodo: check the host, network, and Periphery process |
+| Disk usage | Komodo: warning at 75%, critical at 95% on both configured servers; inspect the named filesystem and growth before deleting data |
+| Unexpected stack state change | Komodo: inspect container state and health output; a transition back to `running` reports recovery |
+| Failed Build, Repo build, Procedure, or Action | Komodo: inspect the linked operation and fix its cause before retrying |
+| Custom maintenance report | Komodo: review image changes or registry lookup failures in the single aggregated message |
+| HTTP reachability, certificate expiry, GitLab runner liveness | Gatus: follow the failing endpoint's condition in the [runbook](../roles/gatus/README.md) |
+| CPU and memory trends | Beszel dashboards; these are outside the initial Komodo notification scope |
+
+Beszel had no configured alert rules in the 2026-09-17 audit. Review ownership
+before adding rules there. The tools do not deduplicate notifications across
+systems; an outage can still trigger both a stack alert and an HTTP alert.
+
+Komodo 2.2 does not expose a general deployment-failed alert type. A deployment
+that fails while leaving the old stack healthy may produce no stack-state
+notification. Use a Procedure or Action with failure alerts for maintenance
+workflows; successful retries of those operations do not emit a dedicated
+recovery alert. Image-update and scheduled-start notifications are excluded.
+
+For Compose stacks, Komodo 2.2 calculates state from container process states
+and missing services. It does not treat Docker's `unhealthy` health-check status
+as a stack-state change while the container remains running. This was reproduced
+with the disposable probe. Gatus covers only its configured endpoints, so it
+does not close this gap for every container or internal dependency.
+
+Komodo suppresses stack-state notifications while it records that stack as
+deploying, and suppresses unknown-state transitions when the server cannot be
+reached. Direct Ansible deployments do not set Komodo's deploying flag. For
+planned maintenance that would generate noise, use a bounded Alerter maintenance
+window with an explicit timezone. Do not leave the Alerter disabled afterward.
+
+Core runs on `nuc-mini`, so it cannot report that host's complete outage or its
+own failure. An independent external monitor remains necessary for that case.
+Enabling delivery does not replay existing incidents; inspect current health and
+open alerts during setup.
+
+## Maintenance workflows
+
+Maintenance execution remains available only to Komodo administrators. No user
+group grants Execute permission on the maintenance Actions or Procedures. CI,
+service users, agents, and MCP identities must not receive those permissions.
+Create a dedicated operator group only after a named account and required
+workflow set are known.
+
+### BentoPDF pilot
+
+`maintain-bentopdf` is a manual, failure-alerting Procedure with three sequential
+stages:
+
+1. `bentopdf-maintenance-check` verifies the host-rendered image reference,
+   records the existing running container, and enforces its zero-mount backup
+   exemption.
+2. Komodo deploys the `bentopdf` Stack from the staged host file.
+3. The check Action waits for Docker health and verifies the running image's
+   pinned repository digest.
+
+Before running it, merge the approved image reference and stage the files with:
+
+```sh
+make -C deploy stage STACK=bentopdf
+```
+
+Staging does not invoke Compose. Record the container ID before and after staging
+to prove it was untouched. Recovery and the absence of persistent data are
+documented in the [BentoPDF runbook](../roles/bentopdf/README.md).
+
+### Image digest report
+
+`report-image-digest-updates` runs Mondays at 09:00
+`America/Los_Angeles`. It selects the 45 stacks tagged `update-monitor`, invokes
+`CheckStackForUpdate` separately with `skip_auto_update = true`, and collects
+both changed service images and lookup failures. It sends one Custom alert to
+`homelab-operations` only when either list is nonempty. A no-change run remains
+visible only in Komodo execution history.
+
+The excluded stacks are `line`, `musicbrainz`, `album-sort`, `strudel`, `gitlab`,
+`vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, and `sglang`.
+They use local builds, private registry paths without the shared Komodo
+credential, externally merged Compose files, or inactive profiles that make a
+whole-stack registry check unreliable. Kizuna is included because Periphery has
+its dedicated registry credential. Recheck every proposed tag during the first
+rollout preview and remove any tag whose live registry query does not succeed.
+
+Every Stack keeps `auto_update = false` and `poll_for_updates = false`. The
+Action calls the update check directly. The result monitors digest changes for
+the image references already rendered in Compose; it does not discover a newer
+semantic tag when a Compose file pins an older tag. See Komodo's
+[Compose update behavior](https://komo.do/docs/deploy/compose).
+
+### Backup verification
+
+`Backup Core Database` is declared with its existing daily 01:00 schedule,
+explicit `America/Los_Angeles` timezone, and failure alerts. Two Actions execute
+only scripts installed by the backup role:
+
+| Action | Schedule | Contract |
+| --- | --- | --- |
+| `verify-backup-status` | Daily 04:00 | Core and Borg artifacts are newer than 27 hours, required Core gzip files exist, the NFS mount is active, and local/NAS newest Borg archive IDs match |
+| `verify-prowlarr-restore` | Sunday 05:00 | Latest Prowlarr SQLite dump extracts into temporary storage, has a schema, passes integrity, and is removed |
+
+Both use `America/Los_Angeles`, suppress successful schedule notifications, and
+retain failures in Action logs while the Alerter sends the failure. Details and
+manual commands are in the [backup runbook](../roles/backup/README.md).
+
+Keep the disabled live `Global Auto Update` Procedure until the digest report,
+backup status, and restore Action have each completed successfully. Then confirm
+that no Action, Procedure, webhook, or permission refers to it before retiring
+it. Resource deletion requires a separately reviewed reconciliation.
+
+### Rollout records
+
+Roll out the BentoPDF, image-reporting, backup-verification, and Renovate work
+from separate merged changes. Deployment and Resource Sync require separate
+authorization. For the BentoPDF pilot, record the container ID and start time
+before staging, repeat them after staging, then record the final image reference,
+repository digest, Docker health, and Komodo Procedure execution URL. The first
+rehearsal uses the existing pinned digest; the first later image change proves
+container replacement.
+
+For backup rollout, record the newest Core backup timestamp, local and NAS Borg
+archive IDs, Prowlarr SQLite integrity result, temporary-directory cleanup, and
+both Action execution URLs. Before each sync, save or transcribe the preview and
+confirm it has no deletions or deployments. A repository validation result is
+not a substitute for these live records.
+
+### Expected completed or absent services
+
+Only these Compose services are excluded from aggregate stack health:
+
+| Stack | Ignored service | Reason |
+| --- | --- | --- |
+| `gitlab` | `renovate` | Optional `cron` profile; not a continuously running service |
+| `n8n` | `sandbox-certs` | Certificate initialization exits after success; sandbox services require successful completion |
+
+These exclusions affect monitoring, not Compose dependencies or deployment.
+Check Renovate job results separately. A failed certificate initializer is not
+reported directly by aggregate health; deployment failure and unhealthy or absent
+dependent services still need investigation.
+
+### Test delivery
+
+Use **Test Alerter** on `homelab-operations` and verify the message in Discord.
+The operation must succeed; merely saving the destination is insufficient.
+
+For a full monitor test, use a disposable stack with no production data or
+network access. Establish a running baseline, stop its container, then restart
+it. Wait for both state-change alerts and check delivery before removing
+the test container and resource. Editing a resource's health exclusions can
+refresh its displayed state without exercising the monitor's alert path.
+
+On 2026-09-17, Test Alerter succeeded and the disposable probe produced both
+`running → stopped` and `stopped → running` alerts. Core logged no delivery
+errors. The probe, test files, and temporary resources were removed afterward;
+GitLab and n8n retained their original container start times and restart counts.
+The operator confirmed receipt of all three Discord messages.
+
+The behavior above was checked against Komodo 2.2.0's
+[alert routing](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/alert/mod.rs),
+[stack monitoring](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/monitor/alert/stack.rs),
+and [Compose state calculation](https://github.com/moghtech/komodo/blob/v2.2.0/bin/core/src/helpers/query.rs).
 
 ## Paths and lifecycle exceptions
 
@@ -103,12 +309,85 @@ The resource name is `kizuna-storybook-mr-<iid>`. GitLab CI supplies deployment
 and stop events. The stop operation removes the review containers and Stack
 resource. Review containers have no published host port.
 
+## Album Sort Storybook catalogs
+
+The separate `album-sort-storybook` Action accepts `operation` (`deploy` or
+`destroy`), `target` (`main` or a positive MR IID), and a full lowercase 40-character
+`revision` for deployment. CI cannot destroy main. Registry, host, network, router,
+authentication and image repository are derived inside the Action, never from CI
+arguments. Deployments use the `Atelier` server and `tinyauth@file` on every path.
+The main hostname is `music-storybook.review.atelier.house`; MR hosts are
+`music-storybook-mr-<iid>.review.atelier.house`. There are no host ports or
+persistent volumes. Deletion is idempotent and preserves Kizuna resources.
+
+Activation is a separate requested operation:
+
+1. Verify existing wildcard DNS/TLS and TinyAuth/PocketID access on the gateway.
+2. Create a GitLab deploy token scoped to read the Album Sort registry. Store
+   `vault_album_sort_storybook_registry_username` and
+   `vault_album_sort_storybook_registry_password` in the encrypted Album Sort
+   vault. After authorization, run the Album Sort playbook with
+   `--tags storybook-registry -e album_sort_storybook_registry_enabled=true`.
+   This writes `/etc/komodo/album-sort-storybook/config.json`, visible through
+   Periphery's existing writable `/etc/komodo` mount. The Action wraps Compose
+   config/pull/up/run with that dedicated `DOCKER_CONFIG`. Komodo registry login
+   fields stay empty because its shared login would replace Kizuna credentials.
+3. Create dedicated user `album-sort-storybook-ci`. Preview Resource Sync with
+   resources and user groups included; apply only the new Action/group. Verify
+   execute-only permission on this Action, without generic Stack write access.
+4. Set Album Sort's dedicated masked `KOMODO_STORYBOOK_API_KEY` and
+   `KOMODO_STORYBOOK_API_SECRET`, plus `KOMODO_URL`. Review jobs require these
+   on trusted same-project MR branches. Fork pipelines must not receive them.
+5. Enable GitLab **Prevent outdated deployment jobs** and disable retries of
+   outdated deployment jobs. Main and MR environments have separate resource
+   groups; stop shares the MR group. Then set `STORYBOOK_HOSTING_ENABLED=true`
+   only after activation approval. Schedules/full suites never publish.
+6. Verify anonymous `/`, `/iframe.html`, `/index.json`, `/revision.json` and an
+   `/assets/` URL deny access or redirect to authentication. Authenticate and
+   check the full SHA from `/revision.json`, docs, fonts and a nested overlay.
+7. Test an MR update, one-week expiry/manual stop, and stop after branch deletion.
+   Repeat stop to establish idempotence. Roll back by deploying a prior immutable
+   full revision through the Action after pausing newer deployment jobs.
+
+The static image supplies `/healthz` and uncached `/revision.json`. Container
+health does not prove private access or revision correctness. Diagnose image pull
+failures in the dedicated registry account, router failures in Traefik, and action
+failures in Komodo's update logs.
+
+### Album Sort activation — 2026-09-17
+
+The `album-sort-storybook` Action and execute-only `album-sort-storybook-ci` group
+are applied. The dedicated registry credential is installed on `nuc-mini` in
+`/etc/komodo/album-sort-storybook/config.json`. The application CI identity sees
+only this Action and has no generic Stack access. Masked credentials support
+trusted same-project MR jobs; parent-project fork pipelines and outdated
+deployment retries are disabled.
+
+`music-storybook` and `music-storybook-mr-349` were deployed with immutable
+revision `9ee076cb01d7fe3e12597fb9612c50f8b0abd561`. Both containers are healthy,
+read-only and have no host ports. Revision checks passed. Anonymous catalog,
+iframe, metadata, asset, font and worker requests return 401; HTML requests
+redirect to TinyAuth. Interactive PocketID login and post-login browser behavior
+remain unverified. Preview update/cleanup verification remains outstanding.
+
+GitLab pipeline 3785 validated and published the image. Docker Hub rate-limited
+the deployment job's Node image, so initial activation used the exact CI script
+from the control machine with the dedicated identity. The CI mirror correction
+and application activation record are tracked in
+[Album Sort MR 349](https://git.atelier.house/jedmund/album-sort/-/merge_requests/349).
+
 ## Retired resources
 
 Old thematic resources such as `media-acquisition`, `media-consumption`,
 `content-management`, `reading`, `productivity`, `utilities`, and `development`
 are not the current stack layout. If any remain in Komodo, confirm that their
 replacement resources are in use before removing the resource entries.
-Removing obsolete resources does not require deleting application volumes or
-host data. Historical data migrations are recorded in
+In Komodo 2.2, deleting a Stack resource can run `compose down --remove-orphans`
+when its cached state indicates that it is up. For metadata-only removal,
+first verify that the old container project and host deployment are absent and
+that no active workflow or permission depends on the resource. Clear the
+resource's server or swarm association, verify it is detached, then delete it.
+Do not use Destroy Stack or remove volumes to clean up inventory entries.
+
+Historical data migrations are recorded in
 [retired migrations](../docs/retired-migrations.md).

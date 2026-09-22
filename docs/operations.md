@@ -41,6 +41,12 @@ These checks do not connect to hosts, render every template with production
 values, or verify application health. Installed collections are required;
 vault handling depends on which local vault files are present.
 
+GitLab CI runs these checks and selected isolated Compose lifecycle fixtures.
+GitHub provides the full suite by manual dispatch. CI uses pinned validation
+tools and does not require deployment vaults. See
+[CI requirements and execution](../tests/README.md#isolated-validation) for
+runner requirements, local execution, and failure logs.
+
 For a targeted check-mode run:
 
 ```sh
@@ -152,6 +158,16 @@ Edit repository templates or variables, then redeploy. Ansible overwrites
 manual edits to generated Compose, environment, and configuration files.
 [Komodo](../komodo/README.md) uses those same files; application CI may trigger
 redeployment without rerunning Ansible.
+
+BentoPDF implements a render-only staging mode for reviewed Komodo maintenance:
+
+```sh
+make -C deploy stage STACK=bentopdf
+```
+
+The deployment Makefile rejects this target for roles that have not implemented
+the staging guard. Staging writes the approved host files but does not invoke
+Compose or establish application health.
 
 ### Local image builds
 

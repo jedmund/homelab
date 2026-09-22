@@ -106,10 +106,8 @@
 # 10240) as the host-level kalay-mock systemd unit shipped by
 # roles/petlibro/.  When kibble owns Kalay that unit must be down,
 # or the container fails to bind on start.  Stop it BEFORE the compose
-# up below.  roles/petlibro also gates kalay-mock behind
-# `petlibro_kalay_mock_enabled: false` so a petlibro redeploy won't
-# resurrect it — this task is the belt to that role's suspenders and
-# makes `make deploy-kibble` self-sufficient.
+# up below so standalone Kibble deployments work on older hosts.
+# The Petlibro role removes the retired unit and installation directory.
 - name: Check whether the legacy kalay-mock unit is installed
   ansible.builtin.stat:
     path: /etc/systemd/system/kalay-mock.service
