@@ -13,7 +13,7 @@ shutdown_timeout = 0
 
 {# Both runner entries share everything except identity and resource caps, so
    they render from one definition and cannot drift apart. #}
-{% macro docker_runner(name, token, limit, cpus, memory) %}
+{% macro docker_runner(name, token, limit, cpus, memory, tmpfs_size) %}
 [[runners]]
   name = "{{ name }}"
   url = "{{ gitlab_runner_linux_url }}/"
@@ -70,10 +70,12 @@ shutdown_timeout = 0
     # bounded by the CI budget in roles/development_linux/defaults.
     cpus = "{{ cpus }}"
     memory = "{{ memory }}"
+    # RAM-backed /tmp; see gitlab_runner_linux_tmpfs_size in defaults.
+    tmpfs = {"/tmp" = "rw,exec,mode=1777,size={{ tmpfs_size }}"}
     extra_hosts = [{% for h in gitlab_runner_linux_extra_hosts %}"{{ h }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 {% endmacro %}
-{{ docker_runner(gitlab_runner_linux_name, gitlab_runner_linux_auth_token, gitlab_runner_linux_limit, gitlab_runner_linux_cpus, gitlab_runner_linux_memory) }}
+{{ docker_runner(gitlab_runner_linux_name, gitlab_runner_linux_auth_token, gitlab_runner_linux_limit, gitlab_runner_linux_cpus, gitlab_runner_linux_memory, gitlab_runner_linux_tmpfs_size) }}
 {% if gitlab_runner_linux_large_auth_token | length > 0 %}
 
-{{ docker_runner(gitlab_runner_linux_large_name, gitlab_runner_linux_large_auth_token, gitlab_runner_linux_large_limit, gitlab_runner_linux_large_cpus, gitlab_runner_linux_large_memory) }}
+{{ docker_runner(gitlab_runner_linux_large_name, gitlab_runner_linux_large_auth_token, gitlab_runner_linux_large_limit, gitlab_runner_linux_large_cpus, gitlab_runner_linux_large_memory, gitlab_runner_linux_large_tmpfs_size) }}
 {% endif %}
