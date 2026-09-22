@@ -1,6 +1,17 @@
 ---
-# Degoog search service on max. The public route is provided by Traefik on
-# nuc-mini; the host port is restricted to that Traefik host by the firewall.
+# Degoog on nuc-mini. A migration checkpoint prevents an accidental empty deployment.
+
+- name: Require the forward migration checkpoint before normal deployment
+  ansible.builtin.slurp:
+    src: "{{ config_base }}/.degoog-migration.json"
+  register: degoog_migration_checkpoint
+
+- name: Reject unverified destination data
+  ansible.builtin.assert:
+    that:
+      - (degoog_migration_checkpoint.content | b64decode | from_json).migration == 'degoog-max-to-nuc-mini-v1'
+      - (degoog_migration_checkpoint.content | b64decode | from_json).state in ['restored', 'complete']
+    fail_msg: Run the explicitly authorized degoog_migrate playbook before routine deployment.
 
 - name: Validate Degoog settings password
   ansible.builtin.assert:

@@ -3,10 +3,7 @@
 stack_name: degoog
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Degoog settings. Keep the release immutable so the experiment can be
-# reproduced and rolled back without silently changing the image. max is
-# amd64; pin its platform manifest because GHCR currently does not resolve
-# the 0.26.0 multi-platform index by digest from this host.
+# Preserve the deployed 0.26.0 amd64 image during the host migration.
 degoog_image: ghcr.io/degoog-org/degoog@sha256:20874795da56014a8cdbea9cfae02286b33ab38dd83d772d348dd6fb2fd5f421
 degoog_port: 4444
 degoog_base_url: "https://search.{{ traefik_domain | default('atelier.house') }}"
@@ -14,13 +11,14 @@ degoog_distrust_proxy: "false"
 degoog_public_instance: "false"
 degoog_puid: "{{ puid }}"
 degoog_pgid: "{{ pgid }}"
+# Explicitly disabled during migration so installed engines/settings are preserved.
+degoog_manage_extensions: true
 
 # Degoog refuses to treat settings as safe when this is absent. The password
 # is supplied by group_vars/degoog/vault.yml.
 degoog_settings_password: "{{ vault_degoog_settings_password | default('') }}"
 
-# Official 4play transport. The transport runs on max while its browser client
-# runs in the separate native Firefox role on nuc-mini.
+# Official 4play transport and native browser now both run on nuc-mini.
 degoog_4play_repo_url: "https://github.com/degoog-org/official-extensions.git"
 degoog_4play_item_path: transports/lolcat-4play
 degoog_4play_transport_id: degoog-org-official-extensions-lolcat-4play
