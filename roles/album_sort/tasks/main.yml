@@ -10,6 +10,15 @@
 #   4. Set KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET, and
 #      KOMODO_ALBUM_SORT_STACK=album-sort in the GitLab project.
 
+- name: Validate Album Sort tag preparation limits
+  ansible.builtin.assert:
+    that:
+      - album_sort_tag_preflight_concurrency | string in ['1', '2', '4']
+      - album_sort_tag_staging_concurrency | string in ['1', '2', '4']
+      - album_sort_tag_copy_concurrency | string in ['1', '2', '4']
+      - album_sort_tag_copy_concurrency | int <= album_sort_tag_staging_concurrency | int
+    fail_msg: Tag preparation limits must be 1, 2, or 4 and copies cannot exceed staging workers.
+
 - name: Validate Album Sort native OIDC configuration
   ansible.builtin.assert:
     that:
