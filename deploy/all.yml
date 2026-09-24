@@ -240,6 +240,9 @@
 - import_playbook: ddclient.yml
   tags: [ddclient]
 
+- import_playbook: minecraft.yml
+  tags: [minecraft]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]

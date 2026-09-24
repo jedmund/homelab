@@ -25,6 +25,7 @@
     owner: "{{ puid }}"
     group: "{{ pgid }}"
     mode: '0600'
+  no_log: true
   register: ddclient_deploy_ddclient_config
 
 # ddclient with protocol=cloudflare can update existing A records but
@@ -58,10 +59,81 @@
     proxied: false
     solo: true
     state: present
+  no_log: true
   loop: "{{ ddclient_atelier_subdomains }}"
   delegate_to: localhost
   become: false
   run_once: true
+
+- name: Look up the Cloudflare zone for Minecraft SRV records
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones?name={{ ddclient_atelier_zone | urlencode }}"
+    headers:
+      X-Auth-Email: "{{ ddclient_cloudflare_email }}"
+      X-Auth-Key: "{{ ddclient_cloudflare_api_token }}"
+    return_content: true
+  no_log: true
+  register: ddclient_minecraft_srv_zone
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Read existing Cloudflare Minecraft SRV records
+  ansible.builtin.uri:
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ ddclient_minecraft_srv_zone.json.result[0].id
+      }}/dns_records?type=SRV&name={{ ('_minecraft._tcp.' ~ item) | urlencode }}
+    headers:
+      X-Auth-Email: "{{ ddclient_cloudflare_email }}"
+      X-Auth-Key: "{{ ddclient_cloudflare_api_token }}"
+    return_content: true
+  no_log: true
+  register: ddclient_minecraft_srv_records
+  changed_when: false
+  loop: "{{ ddclient_minecraft_srv_hosts }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Create or update Cloudflare Minecraft SRV records only when needed
+  ansible.builtin.uri:
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ ddclient_minecraft_srv_zone.json.result[0].id
+      }}/dns_records{{ ('/' ~ srv_records[0].id) if srv_records | length > 0 else '' }}
+    method: "{{ 'PUT' if srv_records | length > 0 else 'POST' }}"
+    headers:
+      X-Auth-Email: "{{ ddclient_cloudflare_email }}"
+      X-Auth-Key: "{{ ddclient_cloudflare_api_token }}"
+    body_format: json
+    body:
+      type: SRV
+      name: "_minecraft._tcp.{{ ddclient_minecraft_srv_hosts[item] }}"
+      data:
+        target: "{{ ddclient_minecraft_srv_hosts[item] }}"
+        port: "{{ ddclient_minecraft_srv_port }}"
+        priority: "{{ ddclient_minecraft_srv_priority }}"
+        weight: "{{ ddclient_minecraft_srv_weight }}"
+      ttl: 1
+    status_code: [200]
+    return_content: true
+  vars:
+    srv_records: "{{ ddclient_minecraft_srv_records.results[item].json.result }}"
+  when: >-
+    srv_records | length == 0 or
+    (srv_records[0].data.target != ddclient_minecraft_srv_hosts[item]) or
+    (srv_records[0].data.port | int != ddclient_minecraft_srv_port | int) or
+    (srv_records[0].data.priority | int != ddclient_minecraft_srv_priority | int) or
+    (srv_records[0].data.weight | int != ddclient_minecraft_srv_weight | int) or
+    (srv_records[0].ttl | int != 1)
+  no_log: true
+  loop: "{{ range(0, ddclient_minecraft_srv_hosts | length) | list }}"
+  loop_control:
+    label: "{{ ddclient_minecraft_srv_hosts[item] }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: ddclient_minecraft_srv_updates
+  changed_when: not ansible_check_mode
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:

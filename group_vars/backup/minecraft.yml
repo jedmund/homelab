@@ -1,0 +1,4 @@
+---
+backup_minecraft_enabled: true
+# Verified through the existing max SSH connection; this is a public host key.
+backup_minecraft_host_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIChKS6jyAX0QgyiRX9CM9s53IpM/laAf/8Kl/knRwV/R
