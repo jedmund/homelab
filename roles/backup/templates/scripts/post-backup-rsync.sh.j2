@@ -30,7 +30,9 @@ fi
 # UniFi Drive's NFS export doesn't allow chown to whatever uid the
 # borgmatic container runs as, so skip owner/group/perms preservation
 # entirely. Times are kept so rsync can detect actual content changes.
-exec rsync \
+# Hold the Borg repository lock for the whole mirror, including metadata.
+exec borg with-lock "{{ borg_repo_container_path }}" rsync \
+    --bwlimit={{ backup_nas_rsync_kib_per_second }} \
     --recursive \
     --times \
     --delete \

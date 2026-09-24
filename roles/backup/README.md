@@ -122,6 +122,14 @@ subdirectory. It refuses to run unless `/nas` is an NFS mount. The Compose
 bind uses `rslave` propagation so a host automount becomes visible inside the
 container.
 
+The mount uses a 60-second NFS TCP response timeout (`timeo=600`) with bounded
+soft-mount failure semantics. The previous three-second timeout returned write
+I/O errors during sustained replication. This is a replica of the authoritative
+local repository; rsync errors fail the job and must never be treated as a
+verified mirror. Apply mount-option changes while backup jobs are idle. The role
+checks for active backup processes, stops Borgmatic to release its old NFS bind,
+recycles the mount, and restores the container before normal deployment.
+
 The mirror is a replica, not a separate retention policy. Deletions in the
 local repository are propagated on a later mirror run. The script runs after
 `create`; it is not a general post-action sync hook.
@@ -205,3 +213,17 @@ Register a PocketID client using the callback URL shown by the deployed UI,
 configure the issuer as `https://id.atelier.house`, and test login. Add the
 local repository at `/repo` with its passphrase. These UI settings are not
 rendered by Ansible. Repository write operations remain with Borgmatic.
+
+## Minecraft snapshots
+
+Optional restricted SSH pulls from max archive a complete stopped-server tar.
+Enable only after the initial baseline and SSH path are verified. See the
+[Minecraft runbook](../minecraft/README.md#recurring-backup) for setup, exclusions,
+freshness checks and restore. The pre-create hook fails on stale snapshots or
+transfer failure, using the existing Healthchecks alert. The NAS mirror limits
+rsync bandwidth to 50000 KiB/s to bound NAS write pressure.
+
+With Minecraft enabled, Borgmatic's [local executable setting](https://torsion.org/borgmatic/reference/configuration/#local_path-option)
+selects `borg-locked.sh`, which holds a shared transfer lock for each Borg
+operation. The pull hook takes the same lock exclusively through publication.
+Use this wrapper for manual archive creation to avoid racing a snapshot pull.

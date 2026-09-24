@@ -82,3 +82,23 @@ with `CI_SUITE=full` select every phase. The Docker jobs use the existing
 `docker` and `atelier-max` runner tags and their mounted Docker sockets to launch
 isolated containers. A replacement runner must provide the same capability or
 the job tags must be updated. Neither pipeline deploys homelab services.
+
+## Minecraft
+
+`python3 tests/test_minecraft.py` and `python3 tests/test_minecraft_transfer.py`
+exercise stopped snapshots, deferral, concurrent wake, copy timeout, router
+recovery, missing data, stale/corrupt transfers and unavailable NAS storage.
+Use Python with Jinja2 and PyYAML installed.
+
+`tests/test_minecraft_lifecycle.py` uses disposable Compose projects against
+`DOCKER_HOST`; it tests sleeping/mixed state and container identity.
+`tests/test_minecraft_routing.py <ssh-host>` uses the pinned router and proxy
+with disposable backends and a loopback-only ephemeral port on that host.
+Set `DOCKER_HOST=ssh://<ssh-host>` for the same host. It verifies status-only
+polling, selected wake, loading messages and unknown-host rejection. Both
+fixtures clean up their containers and networks and never mount production data.
+
+`DOCKER_HOST=ssh://nuc python3 tests/test_minecraft_lock.py borgmatic`
+checks the production Borg wrapper against the container's actual `flock`,
+using only a temporary directory and a fake Borg command. It verifies that
+publication and readers exclude each other and release locks.

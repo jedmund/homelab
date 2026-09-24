@@ -17,3 +17,15 @@
       driver: bridge
     - name: vpn-network
       driver: bridge
+
+- name: Create Minecraft networks on assigned hosts
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    internal: "{{ item.internal }}"
+    state: present
+  loop:
+    - name: "{{ minecraft_network | default('minecraft-network') }}"
+      internal: false
+    - name: "{{ minecraft_control_network | default('minecraft-control') }}"
+      internal: true
+  when: inventory_hostname in groups.get('minecraft', [])

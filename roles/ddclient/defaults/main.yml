@@ -43,6 +43,9 @@ ddclient_atelier_subdomains:
   - matrix-auth.atelier.house
   - matrix-rtc.atelier.house
   - mc.atelier.house
+  - sky.mc.atelier.house
+  - atm10.mc.atelier.house
+  - vanilla.mc.atelier.house
   - models.atelier.house
   - n8n.atelier.house
   - netdata.atelier.house
@@ -79,6 +82,13 @@ ddclient_atelier_subdomains:
 ddclient_fireplace_zone: "fireplace.cafe"
 ddclient_fireplace_subdomains:
   - fireplace.cafe
+ddclient_minecraft_srv_port: 21212
+ddclient_minecraft_srv_priority: 0
+ddclient_minecraft_srv_weight: 0
+ddclient_minecraft_srv_hosts:
+  - sky.mc.atelier.house
+  - atm10.mc.atelier.house
+  - vanilla.mc.atelier.house
 
 # Secrets defined in vault:
 # ddclient_cloudflare_email, ddclient_cloudflare_api_token

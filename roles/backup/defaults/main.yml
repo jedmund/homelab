@@ -181,7 +181,10 @@ nas_nfs_server: 192.168.1.3        # UniFi NAS
 # UniFi Drive exports each Shared Drive at /volume/<storage-uuid>/.srv/.unifi-drive/<name>/.data.
 # UUID is per-NAS-instance; rediscover with `showmount -e 192.168.1.3` if the NAS is ever rebuilt.
 nas_nfs_export: /volume/3184c922-dd97-43b0-b873-8bcb99ac2668/.srv/.unifi-drive/Homelab/.data
-nas_nfs_options: "rw,soft,timeo=30,retrans=2,noatime,_netdev,nofail"
+# Use the TCP default of 60 seconds; 3-second retries caused write EIO errors.
+# Keep soft failure semantics for this replica so a NAS outage cannot hold the
+# local Borg repository lock indefinitely. Rsync failures remain fatal.
+nas_nfs_options: "rw,soft,timeo=600,retrans=2,noatime,_netdev,nofail"
 
 # Scheduled verification thresholds and fixed restore-proof input.
 backup_verification_max_age_hours: 27
@@ -203,3 +206,12 @@ prowlarr_restore_archive_path: dumps/sqlite/prowlarr_config_prowlarr.db
 
 # Request one cached build even when recorded inputs and local images match.
 backup_force_rebuild: false
+
+# Enable after the max baseline and restricted SSH path have been verified.
+backup_minecraft_enabled: false
+backup_minecraft_path: /var/backup/minecraft
+backup_minecraft_ssh_path: "{{ config_base }}/minecraft-ssh"
+# Trusted public host key, obtained through an existing authenticated connection.
+backup_minecraft_host_key: ""
+# Bound NFS write pressure; the NAS can time out with unbounded rsync writes.
+backup_nas_rsync_kib_per_second: 50000

@@ -141,4 +141,15 @@ IFS=$'\t' read -r nas_id nas_epoch nas_name <<<"$nas_record"
 [ "$local_epoch" = "$nas_epoch" ] || fail "NAS archive timestamp differs for matching archive ID $local_id"
 require_fresh borg_archive "$local_epoch"
 printf 'borg_archive=%s archive_id=%s nas_archive=%s\n' "$local_name" "$local_id" "$nas_name"
+
+{% if backup_minecraft_enabled %}
+# Snapshot freshness is independent of archive creation time.
+if [ "$BORG_DIRECT" = "true" ]; then
+    minecraft_stamp=$(tar -xOf /minecraft/snapshot.tar ./snapshot-time)
+else
+    minecraft_stamp=$("$DOCKER_BIN" exec "$BORG_CONTAINER" tar -xOf /minecraft/snapshot.tar ./snapshot-time)
+fi
+[[ "$minecraft_stamp" =~ ^[0-9]+$ ]] || fail "Invalid Minecraft snapshot timestamp"
+require_fresh minecraft_snapshot "$minecraft_stamp"
+{% endif %}
 printf 'Backup status verification passed\n'

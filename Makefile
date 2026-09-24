@@ -61,6 +61,9 @@ deploy-prerequisites: ## Deploy prerequisites (Docker, networks, volumes)
 	@echo "$(BLUE)Deploying prerequisites...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/prerequisites.yml $(VAULT_FLAG)
 
+deploy-minecraft: ## Deploy Minecraft while preserving sleeping backends
+	@$(ANSIBLE) -i $(INVENTORY) deploy/minecraft.yml $(VAULT_FLAG)
+
 ##@ Deployment - Infrastructure
 
 deploy-infra: ## Deploy all infrastructure (core + gateway)

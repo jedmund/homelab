@@ -194,6 +194,7 @@ class BackupStatusTests(unittest.TestCase):
         rendered = render_template(
             ROOT / "roles/backup/templates/scripts/verify-backup-status.sh.j2",
             backup_verification_max_age_hours=27,
+            backup_minecraft_enabled=False,
             komodo_core_backup_host_path="/unused/core",
             nas_mount_host_path="/unused/nas",
             borg_repo_container_path="/repo",

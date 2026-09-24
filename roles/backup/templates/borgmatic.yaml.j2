@@ -14,6 +14,14 @@ source_directories:
     - {{ vol.path }}
 {% endfor %}
     - {{ borg_dumps_container_path }}
+{% if backup_minecraft_enabled %}
+    - /minecraft/snapshot.tar
+{% endif %}
+
+{% if backup_minecraft_enabled %}
+# Hold a shared transfer lock throughout every Borg operation.
+local_path: /scripts/borg-locked.sh
+{% endif %}
 
 repositories:
     - path: {{ borg_repo_container_path }}
@@ -118,6 +126,9 @@ commands:
       when:
           - create
       run:
+{% if backup_minecraft_enabled %}
+          - /scripts/pull-minecraft.sh
+{% endif %}
           - /scripts/dump-couchdb.sh
           - /scripts/dump-sqlite.sh
     - after: action
