@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+set -euo pipefail
+# The pull hook holds this lock exclusively until atomic publication finishes.
+# Keep every Borg reader on a stable tar inode for its entire operation.
+exec flock -s /minecraft/transfer.lock borg "$@"

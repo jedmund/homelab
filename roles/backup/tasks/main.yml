@@ -58,8 +58,10 @@
     group: root
     mode: '0644'
   become: true
+  register: backup_nas_mount
   notify:
     - Reload systemd
+    - Restart NAS automount
 
 - name: Deploy systemd automount unit
   ansible.builtin.template:
@@ -94,6 +96,13 @@
     enabled: true
     state: started
   become: true
+
+- name: Apply NAS mount unit changes before container deployment
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure Minecraft snapshot transfer
+  ansible.builtin.include_tasks: minecraft.yml
+  when: backup_minecraft_enabled
 
 - name: Deploy build Dockerfile
   ansible.builtin.template:
@@ -183,7 +192,8 @@
          (backup_deploy_environment_file.changed | default(false)) or
          (backup_deploy_post_backup_rsync_script.changed | default(false)) or
          (backup_deploy_couchdb_dump_script.changed | default(false)) or
-         (backup_deploy_sqlite_dump_script.changed | default(false))
+         (backup_deploy_sqlite_dump_script.changed | default(false)) or
+         (backup_minecraft_script.changed | default(false))
          else 'auto' }}
   register: compose_result
 

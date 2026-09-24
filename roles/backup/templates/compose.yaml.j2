@@ -23,6 +23,10 @@ services:
     volumes:
       - ./config/borgmatic:/etc/borgmatic.d:ro
       - ./scripts:/scripts:ro
+{% if backup_minecraft_enabled %}
+      - {{ backup_minecraft_path }}:/minecraft
+      - {{ backup_minecraft_ssh_path }}:/minecraft-ssh:ro
+{% endif %}
       - ./restore-tests:/restore-tests
       - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
       - {{ borg_dumps_host_path }}:{{ borg_dumps_container_path }}
