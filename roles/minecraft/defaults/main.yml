@@ -1,0 +1,32 @@
+---
+stack_name: minecraft
+config_base: /opt/stacks/minecraft
+minecraft_router_image: itzg/mc-router:1.47.1@sha256:177433dd91507339924d60205a19ae9a289afd0e69dbad54e1a55d497f7523f8
+minecraft_server_image: itzg/minecraft-server:java21@sha256:21e149dffd4c9fd9640baab2ed491f91a46ad51347dc7f169ea1be843b9fda0e
+minecraft_socket_image: lscr.io/linuxserver/socket-proxy@sha256:a8c700baae19c2fff5b2940b21a748e78cf3b91cc311ad65f990efabdd1361eb
+minecraft_network: minecraft-network
+minecraft_control_network: minecraft-control
+minecraft_port: 21212
+# Bootstrap only the snapshot tooling before capturing the first baseline.
+minecraft_prepare_only: false
+minecraft_idle_seconds: 900
+minecraft_snapshot_root: /var/backup/minecraft
+# First deployment requires an independently verified Borg + NAS baseline receipt.
+minecraft_baseline_receipt: /var/backup/minecraft-baseline-verified
+minecraft_backup_public_key: ""
+minecraft_servers:
+  - name: sky
+    hostname: sky.mc.atelier.house
+    neoforge: 21.1.215
+    heap: 16G
+    limit: 20G
+  - name: atm10
+    hostname: atm10.mc.atelier.house
+    neoforge: 21.1.215
+    heap: 32G
+    limit: 40G
+  - name: vanilla
+    hostname: vanilla.mc.atelier.house
+    neoforge: 21.1.217
+    heap: 16G
+    limit: 20G
