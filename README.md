@@ -102,3 +102,5 @@ ordered runtime, prompt-cache, and model experiments on `max`.
 Historical upgrade reports and experimental notes describe the configurations
 and dates they record. Use role defaults and inventory for the current
 configuration.
+
+Minecraft deployment and recovery: [Minecraft runbook](roles/minecraft/README.md).

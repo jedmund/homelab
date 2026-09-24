@@ -391,3 +391,7 @@ Do not use Destroy Stack or remove volumes to clean up inventory entries.
 
 Historical data migrations are recorded in
 [retired migrations](../docs/retired-migrations.md).
+
+Minecraft on max is owned exclusively by [Ansible](../roles/minecraft/README.md).
+Do not register `/opt/stacks/minecraft` for generic redeployment or image updates;
+its sleeping backend state must be preserved by the Minecraft role.

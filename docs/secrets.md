@@ -437,3 +437,11 @@ runner, and n8n receive matching configuration.
 | `unpackerr_sonarr_api_key` | Sonarr API key |
 | `unpackerr_radarr_api_key` | Radarr API key |
 | `unpackerr_lidarr_api_key` | Lidarr API key |
+
+### Minecraft
+
+The [Minecraft role](../roles/minecraft/README.md) preserves RCON passwords from
+existing server properties under `no_log`; no replacement password is generated.
+The backup role creates a dedicated restricted SSH transfer key on nuc-mini.
+Only its public key and max’s verified public host key are Ansible inputs.
+Keep the encrypted Borg repository and passphrase unchanged.
