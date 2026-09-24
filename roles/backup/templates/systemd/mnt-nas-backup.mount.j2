@@ -8,6 +8,7 @@ After=network-online.target
 What={{ nas_nfs_server }}:{{ nas_nfs_export }}
 Where={{ nas_mount_host_path }}
 Type=nfs
+# Allow normal TCP commit latency while retaining bounded replica failures.
 Options={{ nas_nfs_options }}
 
 [Install]
