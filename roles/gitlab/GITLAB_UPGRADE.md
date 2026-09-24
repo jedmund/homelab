@@ -7,20 +7,20 @@ runner with `roles/gitlab`, and the `max-docker` runner with
 
 The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24, then
 patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
-(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). It moves to 19.3.2 on
-2026-09-16 for the critical patch release described below. Recheck GitLab's
-current upgrade path and version notes before using this runbook for a later
-release.
+(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). It moved to 19.3.2 on
+2026-09-16 and moves to 19.4.1 on 2026-09-23 for the critical patch releases
+described below. Recheck GitLab's current upgrade path and version notes before
+using this runbook for a later release.
 
 ## Current versions
 
 | Component | Version |
 | --- | --- |
-| GitLab CE | `19.3.2-ce.0` |
-| `nuc-mini-docker` runner, ID 1 | `19.3.3` |
-| `max-docker` runner, ID 3 | `19.3.3` |
-| Embedded PostgreSQL | `17.10` |
-| `mac-mini-xcode` runner, ID 2 | `19.3.3` |
+| GitLab CE | `19.4.1-ce.0` |
+| `nuc-mini-docker` runner, ID 1 | `19.4.0` |
+| `max-docker` runner, ID 3 | `19.4.0` |
+| Embedded PostgreSQL | `17.11` |
+| `mac-mini-xcode` runner, ID 2 | `19.4.0` |
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -51,7 +51,8 @@ finished. GitLab's advisory directs administrators to continue to the required
 
 ## 19.2 to 19.3 (2026-09-16)
 
-19.3.2 is the newest 19.3 patch. It is a critical patch release, so this hop is
+19.3.2 was the newest 19.3 patch when this hop ran. It is a critical patch
+release, so this hop is
 not optional maintenance: it fixes CVE-2026-85706 (CVSS 10.0), an
 unauthenticated path traversal in the repository commits API that reads
 arbitrary files off the server, and CVE-2026-87719 (CVSS 9.9), insecure
@@ -126,6 +127,44 @@ hand on the host to see the real error.
 
 Expect the macOS Local Network gate. The Homebrew upgrade to 19.3.3 installed a
 fresh binary and stranded runner 2 exactly as described below.
+
+## 19.3 to 19.4 (2026-09-23)
+
+19.4.1 is a critical patch release, so this hop is not optional maintenance. It
+fixes CVE-2026-93577 (CVSS 9.9), an integer overflow in the regular expression
+compiler that lets an authenticated user run arbitrary commands on the server
+through a crafted CI/CD regular expression, and CVE-2026-89078, a double free in
+the regular expression parser, plus a High-severity XSS in the merge request
+diff viewer (CVE-2026-84739). It also carries CVE-2026-92874 (incorrect
+authorization in MCP API scope enforcement), CVE-2026-92530 (Direct Transfer
+import user mapping), CVE-2026-8937 (Epic Issues REST API), and CVE-2026-4523
+(GraphQL CI job trace API). The EE-only fixes for Duo AI job troubleshooting,
+Duo Workflow Service, and memberRoles dependentSecurityPolicies do not apply to
+a CE instance. 19.3.2 is vulnerable to both regex issues.
+
+| Stop | GitLab CE | Runner |
+| ---: | --- | --- |
+| 1 | `19.4.1-ce.0` | `19.4.0` |
+
+Only one stop. The required stops in 19.x are 19.2, 19.5, 19.8, and 19.11. 19.4
+is not itself a required stop, but the instance is clear to travel from the
+19.2 stop, and the target is 19.4.1, the newest 19.4 patch. This is a minor hop
+and still carries schema and background migrations, so run the full per-hop
+procedure below, not the shortened patch procedure.
+
+The runner moves to `19.4.0`, the newest 19.4 runner image. There is no
+`v19.4.1` runner image, so the runner now sits one patch behind the server
+instead of one ahead. That is fine: only major/minor have to match.
+
+PostgreSQL does not move. Both the 19.3.1+ line and every 19.4 release bundle
+PostgreSQL 17.11, so the source and target here both run embedded PostgreSQL
+17.11. 17 remains the 19.x minimum, and 18.4 is still opt-in for fresh Linux
+package installations only; GitLab does not support upgrading an existing
+cluster to it. Do not attempt `pg-upgrade`.
+
+The macOS runner gains a fresh binary with the Homebrew upgrade to 19.4.0, so
+expect the Local Network gate and confirm runner 2 reconnects as described
+below.
 
 ## Patch releases inside one minor series
 
