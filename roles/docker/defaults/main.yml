@@ -16,8 +16,10 @@ docker_builder_gc_keep_storage: "20GB"
 docker_builder_gc_prune_storage: "10GB"
 docker_builder_gc_unused_for: "336h"
 
-# Weekly docker system + volume prune to clear stopped containers,
-# dangling images, and orphaned volumes (e.g. CI runner caches).
+# Weekly Docker cleanup (templates/docker-prune.sh.j2): exited containers,
+# unused images and build cache older than docker_prune_unused_for, anonymous
+# volumes, and unused CI runner cache volumes.
+docker_prune_unused_for: "336h"
 docker_prune_cron_weekday: "0"
 docker_prune_cron_hour: "3"
 docker_prune_cron_minute: "0"
