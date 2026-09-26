@@ -44,7 +44,33 @@
     - "{{ config_base }}"
     - "{{ config_base }}/env"
     - "{{ config_base }}/config"
-    - "{{ config_base }}/config/bios"
+
+# PCSX2 writes .mec and .nvm files next to the BIOS dump on first boot,
+# so this directory has to be writable by the container's user rather
+# than by ansible_user like the rest of the tree. The image's own init
+# chowns /config but does not recurse into subdirectories, so a bios
+# folder created here would otherwise stay root-owned and PCSX2 fails
+# with "Failed to write MEC file. Check your BIOS/permission settings."
+#
+# recurse covers BIOS dumps copied in by hand, which land owned by
+# whoever scp'd them.
+- name: Create the BIOS directory writable by the container
+  ansible.builtin.file:
+    path: "{{ config_base }}/config/bios"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+
+# Separate from the task above because `recurse` applies `mode` to files
+# as well as directories, which would leave the BIOS dump executable.
+- name: Hand BIOS dumps to the container's user
+  ansible.builtin.file:
+    path: "{{ config_base }}/config/bios"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    recurse: true
 
 - name: Deploy compose file
   ansible.builtin.template:

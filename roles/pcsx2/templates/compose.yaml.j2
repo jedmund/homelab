@@ -9,11 +9,11 @@ services:
     env_file:
       - ./env/pcsx2.env
     ports:
-      # Selkies serves the same UI on both; Traefik proxies the plain
-      # HTTP one and terminates TLS itself, so the self-signed cert on
-      # 3001 is only in the path for direct LAN access.
+      # Traefik proxies this and terminates TLS itself. The container's
+      # self-signed HTTPS listener on 3001 is deliberately not published:
+      # it existed only for direct LAN access, which was safe while basic
+      # auth was on and is not now that the route relies on TinyAuth.
       - {{ pcsx2_selkies_http_port }}:3000
-      - {{ pcsx2_selkies_https_port }}:3001
       # Broker API. RomM on nuc-mini calls this cross-host, so unlike a
       # same-host setup it cannot stay on an internal Docker network.
       # The shared secret is the only thing guarding it.

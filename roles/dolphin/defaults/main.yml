@@ -20,7 +20,6 @@ dolphin_broker_mod: ghcr.io/loneangelfayt/dolphin-romm-integration-mod:v1
 # Host ports. Offset from the pcsx2 role's block so the two stacks can run
 # side by side on max. Container-side ports are fixed by the image.
 dolphin_selkies_http_port: 3020
-dolphin_selkies_https_port: 3021
 dolphin_broker_port: 8020
 
 # GPU pinning. Same card as pcsx2: both emulators sit idle on their
@@ -41,8 +40,12 @@ dolphin_shm_size: 1gb
 
 dolphin_broker_log_level: INFO
 
-# Basic auth on the container's own Selkies listener. Second gate behind
-# TinyAuth on the Traefik route; covers direct LAN access to max:3021.
+# Basic auth on the container's own Selkies listener, off by default for
+# the same reason as roles/pcsx2: TinyAuth already gates the only route
+# in, and a basic-auth challenge inside RomM's iframe double-prompts.
+# See roles/pcsx2/defaults/main.yml for why the env template omits the
+# lines rather than blanking them.
+dolphin_selkies_auth_enabled: false
 dolphin_selkies_user: justin
 dolphin_selkies_password: "{{ vault_dolphin_selkies_password }}"
 
