@@ -102,6 +102,25 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
 
+# Cron runs these jobs as {{ ansible_user }}, who cannot create files in
+# /var/log. The shell then fails the redirect and never runs the job, which is
+# how the nightly GitLab backup silently stopped. Pre-create the logs owned by
+# that user; preserving the timestamps keeps repeat runs unchanged.
+- name: Create logs for scheduled GitLab jobs
+  ansible.builtin.file:
+    path: "/var/log/{{ item }}"
+    state: touch
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0640'
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - gitlab-backup.log
+    - gitlab-registry-gc.log
+    - renovate.log
+  become: true
+
 - name: Schedule GitLab application-consistent backup
   ansible.builtin.cron:
     name: gitlab-backup
@@ -112,6 +131,18 @@
     day: "{{ gitlab_backup_cron.split(' ')[2] }}"
     month: "{{ gitlab_backup_cron.split(' ')[3] }}"
     weekday: "{{ gitlab_backup_cron.split(' ')[4] }}"
+
+- name: Schedule weekly container registry garbage collection
+  ansible.builtin.cron:
+    name: gitlab-registry-gc
+    user: "{{ ansible_user }}"
+    job: "docker exec gitlab gitlab-ctl registry-garbage-collect -m >> /var/log/gitlab-registry-gc.log 2>&1"
+    minute: "{{ gitlab_registry_gc_cron.split(' ')[0] }}"
+    hour: "{{ gitlab_registry_gc_cron.split(' ')[1] }}"
+    day: "{{ gitlab_registry_gc_cron.split(' ')[2] }}"
+    month: "{{ gitlab_registry_gc_cron.split(' ')[3] }}"
+    weekday: "{{ gitlab_registry_gc_cron.split(' ')[4] }}"
+    state: "{{ 'present' if gitlab_registry_gc_enabled | bool else 'absent' }}"
 
 - name: Schedule Renovate weekly run
   ansible.builtin.cron:
@@ -189,6 +220,7 @@
     cmd: >-
       docker exec gitlab gitlab-rails runner
       "excluded = {{ gitlab_registry_cleanup_exclude_projects | to_json }};
+       overrides = { {% for project, regex in gitlab_registry_cleanup_project_name_regex.items() %}'{{ project }}' => '{{ regex }}'{{ ', ' if not loop.last else '' }}{% endfor %} };
        changed = [];
        ContainerRepository.all.map(&:project).uniq.each do |project|
          next if excluded.include?(project.full_path);
@@ -198,7 +230,7 @@
            cadence: '{{ gitlab_registry_cleanup_cadence }}',
            keep_n: {{ gitlab_registry_cleanup_keep_n }},
            older_than: '{{ gitlab_registry_cleanup_older_than }}',
-           name_regex: '{{ gitlab_registry_cleanup_name_regex }}'
+           name_regex: overrides.fetch(project.full_path, '{{ gitlab_registry_cleanup_name_regex }}')
          };
          next if desired.all? { |k, v| policy.public_send(k) == v };
          policy.assign_attributes(desired);
