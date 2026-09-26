@@ -32,6 +32,8 @@
     src: "{{ backup_repo_mount_src }}"
     fstype: "{{ backup_repo_mount_fstype }}"
     opts: defaults,nofail
+    dump: '0'
+    passno: '2'
     state: mounted
   become: true
 
