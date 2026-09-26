@@ -165,14 +165,19 @@
     state: started
     enabled: true
 
+- name: Install Docker prune script
+  ansible.builtin.template:
+    src: docker-prune.sh.j2
+    dest: /usr/local/sbin/docker-prune
+    owner: root
+    group: root
+    mode: '0755'
+
 - name: Schedule weekly Docker prune
   ansible.builtin.cron:
     name: docker-prune
     user: root
-    job: >-
-      docker ps -aq --filter exited=0 | xargs -r docker rm >> /var/log/docker-prune.log 2>&1 &&
-      docker image prune -f >> /var/log/docker-prune.log 2>&1 &&
-      docker volume prune -f >> /var/log/docker-prune.log 2>&1
+    job: /usr/local/sbin/docker-prune >> /var/log/docker-prune.log 2>&1
     weekday: "{{ docker_prune_cron_weekday }}"
     hour: "{{ docker_prune_cron_hour }}"
     minute: "{{ docker_prune_cron_minute }}"
