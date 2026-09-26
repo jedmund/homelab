@@ -106,3 +106,33 @@ After activation is authorized, the `storybook-registry` tag with
 `album_sort_storybook_registry_enabled=true` provisions only the dedicated Docker
 config. Do not reuse or replace `/etc/komodo/docker/config.json`: Kizuna owns that
 shared login. No Storybook service is deployed by this tag.
+
+## Tag preparation concurrency
+
+`album_sort_tag_preflight_concurrency`, `album_sort_tag_staging_concurrency`, and
+`album_sort_tag_copy_concurrency` render the corresponding `TAG_*_CONCURRENCY`
+environment settings. All default to `1`; valid values are `1`, `2`, and `4`, with
+copies no greater than staging workers. Invalid settings fail before host changes.
+These require an application image with bounded tag preparation support.
+
+Use one pinned application build for baseline `1/1/1` and candidate `2/2/1`.
+Change settings only after active work drains. Deploy through the existing Compose
+lifecycle, then verify health, the `Tag concurrency configuration` log and completed
+startup scanning. Keep the existing music volume, NFSv3 and NAS Sync mode. Staging
+files remain beside their originals.
+
+Measurements use user-approved normal album matches, never automated tag edits or
+undo on the library. Collect three FLAC, one AAC, one ALAC and one MP3 match per
+profile with application timing logs and read-only NUC CPU/network and NFS
+latency/retransmission samples. Match format/edit type and track count/size within
+25%; flag storage contention and unmatched samples. The application repository's
+`docs/tag-write-timings.md` owns the comparison command and decision procedure.
+
+Retain two workers provisionally only with at least 15% lower median apply
+seconds/MiB for comparable FLAC and M4A samples, at most 10% preview seconds/file
+regression and clean correctness checks. Otherwise keep sequential defaults and
+collect three additional comparable pairs; remain sequential if inconclusive.
+On verification/recovery failure or persistent degradation, stop the trial, drain
+active work, restore all three settings to `1`, and redeploy the same image.
+Preserve journals for normal recovery. Merging configuration does not authorize
+deployment or the trial.
