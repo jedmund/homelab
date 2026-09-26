@@ -93,11 +93,14 @@ have additional operating instructions:
 | Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md) |
 | Media | [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
-| Infrastructure | [Backup](roles/backup/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md) |
+| Infrastructure | [Backup](roles/backup/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md), [GitLab Runner on max](roles/development_linux/README.md) |
 | GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md), [GPU host tools](roles/gpu_tools/README.md) |
 
 See the [local inference upgrade plan](docs/inference-upgrade-plan.md) for the
-ordered runtime, prompt-cache, and model experiments on `max`.
+ordered runtime, prompt-cache, and model experiments on `max`, and the
+[CI performance report](docs/ci-performance-2026-09-22.md) for why CI on that
+host was slow, what changed, and what it implies for the next hardware
+purchase.
 
 Historical upgrade reports and experimental notes describe the configurations
 and dates they record. Use role defaults and inventory for the current
