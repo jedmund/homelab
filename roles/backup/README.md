@@ -18,7 +18,7 @@ source paths, named volumes, exclusions, and NAS destination.
 
 | Setting | Default |
 | --- | --- |
-| Local repository | `/var/backup/borg`, mounted at `/repo` |
+| Local repository | `/mnt/data/borg` on the data NVMe (mounted `nofail`), mounted at `/repo` |
 | Database dump directory | `/var/backup/dumps`, mounted at `/dumps` |
 | NAS mount | `/mnt/nas/backup`, mounted at `/nas` |
 | NAS destination | `borg-nuc-mini` under the configured Homelab share |

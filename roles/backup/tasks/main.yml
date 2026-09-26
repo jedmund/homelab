@@ -1,6 +1,6 @@
 ---
 # Backup Stack - Borgmatic running locally on nuc-mini.
-# Repo at {{ borg_repo_host_path }}; NFS-mounted UniFi Drive share at
+# Repo at {{ borg_repo_host_path }} on {{ backup_repo_mount_path }}; NFS-mounted UniFi Drive share at
 # {{ nas_mount_host_path }} receives rsync of new segment files after each run.
 
 - name: Install NFS client packages
@@ -25,6 +25,19 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/restore-tests"
     - "{{ docker_base_path }}/{{ stack_name }}/scripts"
+
+- name: Mount the Borg repo filesystem
+  ansible.posix.mount:
+    path: "{{ backup_repo_mount_path }}"
+    src: "{{ backup_repo_mount_src }}"
+    fstype: "{{ backup_repo_mount_fstype }}"
+    opts: defaults,nofail
+    state: mounted
+  become: true
+
+- name: Refuse to place the Borg repo on an unmounted filesystem
+  ansible.builtin.command: mountpoint -q {{ backup_repo_mount_path }}
+  changed_when: false
 
 - name: Create Borg repo parent directory
   ansible.builtin.file:
