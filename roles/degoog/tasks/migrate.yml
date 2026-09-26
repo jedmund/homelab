@@ -212,6 +212,8 @@
     - name: Verify public route remains behind authentication
       ansible.builtin.uri:
         url: "{{ degoog_base_url }}"
+        headers:
+          Accept: text/html
         follow_redirects: none
         status_code: [302, 303, 307]
       register: degoog_migration_public

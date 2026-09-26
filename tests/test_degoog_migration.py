@@ -132,6 +132,11 @@ class MigrationTests(unittest.TestCase):
         cutover = next(t['block'] for t in tasks if t['name'] == 'Apply the destination and switch the route')
         app = next(t for t in cutover if t.get('ansible.builtin.include_role', {}).get('name') == 'degoog')
         self.assertFalse(app['vars']['degoog_manage_extensions'])
+        public = next(t['ansible.builtin.uri'] for t in cutover
+                      if t.get('ansible.builtin.uri', {}).get('url') == '{{ degoog_base_url }}')
+        self.assertEqual(public['headers']['Accept'], 'text/html')
+        self.assertEqual(public['follow_redirects'], 'none')
+        self.assertEqual(public['status_code'], [302, 303, 307])
 
 
 if __name__ == '__main__':
