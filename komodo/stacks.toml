@@ -1104,6 +1104,10 @@ if (operation === 'destroy') {
   if (!existing) {
     console.log(`${stackName} is already absent`)
   } else {
+    const { config: current } = await komodo.read('GetStack', { stack: existing.id })
+    const images = [
+      ...new Set(String(current.file_contents ?? '').match(/registry\.atelier\.house\/jedmund\/album-sort\/storybook:[a-f0-9]{40}/g) ?? []),
+    ]
     const update = await komodo.execute_and_poll('DestroyStack', {
       stack: existing.id,
       remove_orphans: true,
@@ -1113,6 +1117,15 @@ if (operation === 'destroy') {
       throw new Error(`Failed to destroy ${stackName}`)
     }
     await komodo.write('DeleteStack', { id: existing.id })
+    // Each review revision is its own tag and the weekly prune only removes
+    // dangling images, so remove the catalog image with its stack. Not fatal:
+    // another stack may still use the same revision.
+    for (const image of images) {
+      const removed = await komodo
+        .execute_and_poll('DeleteImage', { server: SERVER, name: image })
+        .catch(() => undefined)
+      console.log(!removed || Array.isArray(removed) || !removed.success ? `Kept ${image}: in use or absent` : `Removed ${image}`)
+    }
     console.log(`Destroyed and deleted ${stackName}`)
   }
 } else {
