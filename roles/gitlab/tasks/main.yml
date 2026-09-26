@@ -102,6 +102,25 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
 
+# Cron runs these jobs as {{ ansible_user }}, who cannot create files in
+# /var/log. The shell then fails the redirect and never runs the job, which is
+# how the nightly GitLab backup silently stopped. Pre-create the logs owned by
+# that user; preserving the timestamps keeps repeat runs unchanged.
+- name: Create logs for scheduled GitLab jobs
+  ansible.builtin.file:
+    path: "/var/log/{{ item }}"
+    state: touch
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0640'
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - gitlab-backup.log
+    - gitlab-registry-gc.log
+    - renovate.log
+  become: true
+
 - name: Schedule GitLab application-consistent backup
   ansible.builtin.cron:
     name: gitlab-backup
