@@ -7,3 +7,12 @@ docker_base_path: /opt/docker
 # tags actually update; individual roles can still override per-deploy with
 # -e docker_pull_policy=missing if a one-off freeze is needed.
 docker_pull_policy: always
+
+# Resolvers for containers that must reach LAN-only names such as
+# registry.atelier.house. The daemon default (docker_dns_servers) is public
+# DNS, which has no records for them. Services opt in with a Compose `dns:`
+# list. The router answers internal and public names; the public resolver is
+# only used when the router is unreachable.
+docker_internal_dns_servers:
+  - 192.168.1.1
+  - 1.1.1.1

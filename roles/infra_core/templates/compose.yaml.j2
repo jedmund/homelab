@@ -68,6 +68,10 @@ services:
       # backend is internal: true, so on that network alone every check fails
       # with "lookup <registry>: server misbehaving". It needs egress.
       - shared
+    # Those registry queries also need the LAN resolver: public DNS has no
+    # record for registry.atelier.house, so every check failed with
+    # "lookup registry.atelier.house: no such host".
+    dns: {{ docker_internal_dns_servers | to_json }}
     env_file: ./env/komodo.env
     environment:
       # The Docker CLI keeps writable state next to config.json: it creates
