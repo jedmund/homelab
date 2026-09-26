@@ -128,7 +128,8 @@ commands:
       run:
           # An unmounted data drive leaves an empty bind mount; stop before any
           # dump or Borg write rather than fail obscurely or fill the root volume.
-          - test -f {{ borg_repo_container_path }}/config || { echo "ERROR: no Borg repo at {{ borg_repo_container_path }}; is {{ backup_repo_mount_path }} mounted?" >&2; exit 1; }
+          # Quoted: the message's ": " would otherwise make YAML read a mapping.
+          - 'test -f {{ borg_repo_container_path }}/config || { echo "ERROR: no Borg repo at {{ borg_repo_container_path }}; is {{ backup_repo_mount_path }} mounted?" >&2; exit 1; }'
 {% if backup_minecraft_enabled %}
           - /scripts/pull-minecraft.sh
 {% endif %}
