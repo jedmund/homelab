@@ -25,7 +25,8 @@ BUCKET="${CI_CACHE_S3_BUCKET:-ci-cache}"
 KEY_NAME="${CI_CACHE_S3_KEY_NAME:-ci-cache-key}"
 EXPIRY_DAYS="${CI_CACHE_S3_EXPIRY_DAYS:-14}"
 CIBUILD_NETWORK="${CI_CACHE_CIBUILD_NETWORK:-cibuild-network}"
-MC_IMAGE="${CI_CACHE_MC_IMAGE:-minio/mc}"
+S3_CLIENT_IMAGE="${CI_CACHE_S3_CLIENT_IMAGE:-amazon/aws-cli:2.37.4}"
+S3_REGION="${CI_CACHE_S3_REGION:-garage}"
 
 g() { docker exec "${CONTAINER}" /garage "$@"; }
 
@@ -100,15 +101,19 @@ echo "Granting ${ACCESS_KEY_ID} read+write+owner on ${BUCKET}..."
 g bucket allow --read --write --owner "${BUCKET}" --key "${ACCESS_KEY_ID}"
 
 # Step 5 - object-expiry lifecycle. GitLab never prunes its own cache objects,
-# so a native Garage S3 lifecycle rule expires them after EXPIRY_DAYS. `ilm
-# import` replaces the whole lifecycle config, so re-running is idempotent.
-# Garage's CLI has no lifecycle command, hence the one-shot mc client. The
-# Ansible deploy applies the same rule on every run.
+# so a native Garage S3 lifecycle rule expires them after EXPIRY_DAYS.
+# PutBucketLifecycleConfiguration replaces the whole config, so re-running is
+# idempotent. Garage's CLI has no lifecycle command, hence the one-shot AWS CLI
+# client. The Ansible deploy applies the same rule on every run.
 SECRET_KEY="${CI_CACHE_S3_SECRET_ACCESS_KEY:-$(g key info --show-secret "${ACCESS_KEY_ID}" | awk '/Secret key:/ {print $3}')}"
 echo "Setting ${EXPIRY_DAYS}d object-expiry lifecycle on ${BUCKET}..."
-printf '%s' "{\"Rules\":[{\"ID\":\"expire-ci-cache\",\"Status\":\"Enabled\",\"Filter\":{\"Prefix\":\"\"},\"Expiration\":{\"Days\":${EXPIRY_DAYS}},\"AbortIncompleteMultipartUpload\":{\"DaysAfterInitiation\":1}}]}" \
-  | docker run --rm -i --network "${CIBUILD_NETWORK}" \
-      -e MC_HOST_cache="http://${ACCESS_KEY_ID}:${SECRET_KEY}@${CONTAINER}:3900" \
-      "${MC_IMAGE}" ilm import "cache/${BUCKET}"
+docker run --rm --network "${CIBUILD_NETWORK}" \
+  -e AWS_ACCESS_KEY_ID="${ACCESS_KEY_ID}" \
+  -e AWS_SECRET_ACCESS_KEY="${SECRET_KEY}" \
+  -e AWS_DEFAULT_REGION="${S3_REGION}" \
+  "${S3_CLIENT_IMAGE}" s3api put-bucket-lifecycle-configuration \
+  --endpoint-url "http://${CONTAINER}:3900" \
+  --bucket "${BUCKET}" \
+  --lifecycle-configuration "{\"Rules\":[{\"ID\":\"expire-ci-cache\",\"Status\":\"Enabled\",\"Filter\":{\"Prefix\":\"\"},\"Expiration\":{\"Days\":${EXPIRY_DAYS}},\"AbortIncompleteMultipartUpload\":{\"DaysAfterInitiation\":1}}]}"
 
 echo "CI cache Garage bootstrap done."

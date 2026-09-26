@@ -75,16 +75,14 @@ gitlab_cache_s3_expiry_days: 14
 # One-shot S3 client used only to apply the lifecycle rule (Garage's own CLI
 # has no lifecycle command).
 #
-# quay.io, not Docker Hub: MinIO withdrew `minio/mc` and `minio/minio` from
-# Docker Hub, and both now 404 there. The pull only broke once the locally
-# cached `minio/mc:latest` went away, because `docker run` pulls only when the
-# image is absent, so the deploy kept working long after the source was gone.
+# The AWS CLI, maintained by AWS. MinIO withdrew `minio/mc` from Docker Hub and
+# then from quay.io, so both earlier pins stopped resolving; `docker run` only
+# pulls when the image is absent, so each break surfaced long after the source
+# was gone, as a failed deploy.
 #
-# Pinned for the same reason. This was deliberately unpinned as "a throwaway
-# client invocation, not a running service", but a throwaway invocation is
-# exactly what a moving `latest` breaks: the task has no image of its own to
-# fall back on.
-gitlab_cache_mc_image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+# Pinned: a throwaway invocation has no image of its own to fall back on, so a
+# moving tag is exactly what breaks it.
+gitlab_cache_s3_client_image: amazon/aws-cli:2.37.4
 
 # Container registry cleanup.
 #
