@@ -92,6 +92,35 @@ FlareSolverr remains a separate standalone service. Its URL is not configured by
 this migration. Existing Open WebUI, n8n, Vane, and Kizuna integrations continue
 using SearXNG on `max:8889`.
 
+## Maps frontend compatibility
+
+The user-installed `lazerleif/degoog-maps` frontend hard-codes the old `maps`
+tab and route names. Apply the guarded compatibility patch with:
+
+```sh
+python3 tests/test_degoog_maps.py
+ansible-playbook deploy/degoog_maps.yml --check
+ansible-playbook deploy/degoog_maps.yml
+```
+
+The patch uses Degoog's injected plugin ID for the canonical tab and API path.
+The Maps tile layer uses OSM's canonical `https://tile.openstreetmap.org` host
+and `referrerPolicy: "strict-origin"`, preserving attribution and browser cache
+defaults. This supplies the site origin required by OSM's tile usage policy
+without sending the search query or changing the global referrer policy.
+It changes only the installed frontend, preserves other code and settings, and
+fails on unfamiliar upstream content. Repeat runs make no changes. Reapply after
+updating the plugin through the store. No service restart is requested; refresh
+the browser without cache after applying and verify the Maps tab renders tiles
+and markers. Check mode inspects the installed file but does not modify it.
+
+The separate HERE Places widget requires default coordinates. The playbook also
+adds `referrerpolicy="strict-origin"` only to its HTTPS CARTO tile images
+(`basemaps.cartocdn.com` and the `a` through `d` subdomains). CARTO receives the
+site origin, not the search path or query, so website-restricted keys work.
+Other tile providers retain `no-referrer`. The global application policy and
+tile credentials are unchanged.
+
 ## Storage and native browser
 
 The NUC backup role includes `/opt/docker`, subject to its exclusions. This
