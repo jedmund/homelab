@@ -13,6 +13,9 @@ services:
       # Core (on nuc-mini) connects inbound; the firewall scopes this to
       # the core host's IP.
       - {{ periphery_port }}:8120
+    # Registry update checks run inside this container and need the LAN
+    # resolver for registry.atelier.house.
+    dns: {{ docker_internal_dns_servers | to_json }}
     env_file: ./env/periphery.env
     volumes:
       - komodo-periphery-keys:/config/keys
