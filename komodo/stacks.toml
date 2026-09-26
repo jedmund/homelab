@@ -1108,15 +1108,31 @@ if (operation === 'destroy') {
     const images = [
       ...new Set(String(current.file_contents ?? '').match(/registry\.atelier\.house\/jedmund\/album-sort\/storybook:[a-f0-9]{40}/g) ?? []),
     ]
-    const update = await komodo.execute_and_poll('DestroyStack', {
-      stack: existing.id,
-      remove_orphans: true,
-      stop_time: 10,
-    })
-    if (Array.isArray(update) || !update.success) {
-      throw new Error(`Failed to destroy ${stackName}`)
+    // A merged MR's preview can be destroyed by storybook:stop and storybook:merged at
+    // the same time. The losing run fails with "Resource is busy" while the other is
+    // still destroying, so wait up to a minute for the stack to disappear.
+    const removedElsewhere = async () => {
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const stacks = await komodo.read('ListStacks', {})
+        if (!stacks.some((stack) => stack.id === existing.id)) return true
+        await new Promise((resolve) => setTimeout(resolve, 5000))
+      }
+      return false
     }
-    await komodo.write('DeleteStack', { id: existing.id })
+    try {
+      const update = await komodo.execute_and_poll('DestroyStack', {
+        stack: existing.id,
+        remove_orphans: true,
+        stop_time: 10,
+      })
+      if (Array.isArray(update) || !update.success) {
+        throw new Error(`Failed to destroy ${stackName}`)
+      }
+      await komodo.write('DeleteStack', { id: existing.id })
+    } catch (error) {
+      if (!(await removedElsewhere())) throw error
+      console.log(`${stackName} was removed by a concurrent destroy`)
+    }
     // Each review revision is its own tag and the weekly prune only removes
     // dangling images, so remove the catalog image with its stack. Not fatal:
     // another stack may still use the same revision.
