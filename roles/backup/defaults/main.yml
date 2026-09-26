@@ -6,8 +6,17 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # Borgmatic image (extended via Dockerfile to add rsync + nfs-common)
 borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:latest
 
-# Borg repo (host-local on nuc-mini, mounted into container at /repo)
-borg_repo_host_path: /var/backup/borg
+# Borg repo (host-local on nuc-mini, mounted into container at /repo). It lives
+# on the dedicated data NVMe rather than the root volume, so backups neither
+# fill nor share a disk with the data they protect.
+borg_repo_host_path: /mnt/data/borg
+# Filesystem holding the repo. The role mounts it with nofail, so a missing
+# drive cannot stop the host from booting, and refuses to deploy unless it is
+# mounted. borgmatic checks for the repo config before each backup, so a
+# backup never writes into an unmounted mount point on the root volume.
+backup_repo_mount_path: /mnt/data
+backup_repo_mount_src: UUID=19ce6af3-1576-4d01-92c6-674077e7059f
+backup_repo_mount_fstype: ext4
 borg_repo_container_path: /repo
 borg_repo_label: nuc-mini
 
