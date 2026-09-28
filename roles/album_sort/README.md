@@ -72,9 +72,16 @@ the entire Docker subnet.
 | Application state | `/opt/docker/album-sort/data` |
 | Beets state | `/opt/docker/album-sort/beets-data` |
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
+| slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`album_sort_slskd_download_path`) and never modified |
+| Quarantine | `/downloads/album-sort/quarantine` (`album_sort_quarantine_path`), created by the role; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
 | MusicBrainz | `http://musicbrainz:5000/ws/2` on the shared Docker network |
 | Cover Art Archive | Public service, configured by `album_sort_cover_art_archive_base_url` |
 | Multi-Scrobbler | `album_sort_multi_scrobbler_url`; users enter their own credentials in the application's Music settings |
+
+slskd must keep its default download layout
+(`transfers.download.destination.subdirectory: ${SOURCE_DIRECTORY}`), and Album
+Sort's slskd connector (Admin Settings → Connectors) uses `http://slskd:5030`
+with the `slskd_api_key` from `group_vars/slskd/vault.yml`.
 
 The environment template supplies `MULTI_SCROBBLER_URL` and
 `USER_SECRET_ENCRYPTION_KEY`. It does not inject a shared

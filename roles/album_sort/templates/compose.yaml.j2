@@ -21,6 +21,8 @@ services:
       UNSORTED_PATH: "{{ album_sort_unsorted_path }}"
       SORTED_PATH: "{{ album_sort_sorted_path }}"
       DATA_PATH: "{{ album_sort_data_path }}"
+      SLSKD_DOWNLOAD_DIR: "{{ album_sort_slskd_download_path }}"
+      QUARANTINE_PATH: "{{ album_sort_quarantine_path }}"
       WATCH_INTERVAL: "{{ album_sort_watch_interval }}"
       SCAN_CONCURRENCY: "{{ album_sort_scan_concurrency }}"
       TAG_PREFLIGHT_CONCURRENCY: "{{ album_sort_tag_preflight_concurrency }}"
@@ -33,6 +35,8 @@ services:
       TRUSTED_PROXY_CIDRS: "{{ album_sort_trusted_proxy_cidrs }}"
     volumes:
       - music:/music
+      # Read-write for the quarantine; slskd's download folder is only read.
+      - downloads:/downloads
       - ./data:/data
     depends_on:
       beets:
@@ -110,6 +114,8 @@ services:
 
 volumes:
   music:
+    external: true
+  downloads:
     external: true
 
 networks:
