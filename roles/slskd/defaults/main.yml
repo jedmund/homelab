@@ -8,3 +8,9 @@ slskd_image: slskd/slskd:latest
 slskd_domain: sl.atelier.house
 slskd_web_port: 5030
 slskd_listen_port: 50300
+
+# API key for service integrations such as Album Sort. Empty disables it.
+# slskd reads it from SLSKD_API_KEY as role;cidr;key.
+slskd_api_key: "{{ vault_slskd_api_key | default('') }}"
+slskd_api_key_role: ReadWrite
+slskd_api_key_cidr: "0.0.0.0/0,::/0"
