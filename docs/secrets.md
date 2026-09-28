@@ -398,7 +398,7 @@ runner, and n8n receive matching configuration.
 | `slskd_slsk_password` | Soulseek password |
 | `slskd_web_username` | slskd web UI username |
 | `slskd_web_password` | slskd web UI password |
-| `vault_slskd_api_key` | Optional API key for integrations such as Album Sort; 16 to 255 characters without semicolons. Generate with `openssl rand -hex 32`. Leave unset to disable |
+| `slskd_api_key` | Optional API key for integrations such as Album Sort; 16 to 255 characters without semicolons. Generate with `openssl rand -hex 32`. Leave unset to disable |
 
 The API key uses role `slskd_api_key_role` (default `ReadWrite`) and is accepted
 from `slskd_api_key_cidr` (default any address). Album Sort shares the Docker
