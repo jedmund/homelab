@@ -1,6 +1,21 @@
 ---
 # slskd product stack
 
+- name: Validate slskd API key configuration
+  ansible.builtin.assert:
+    that:
+      - slskd_api_key | length == 0 or (slskd_api_key | length >= 16 and slskd_api_key | length <= 255)
+      - "';' not in slskd_api_key"
+      - slskd_api_key_role in ['ReadOnly', 'ReadWrite', 'Administrator']
+      - slskd_api_key_cidr | length > 0
+      - "';' not in slskd_api_key_cidr"
+    fail_msg: >-
+      vault_slskd_api_key in group_vars/slskd/vault.yml must be empty or
+      16 to 255 characters without semicolons. slskd_api_key_role must be
+      ReadOnly, ReadWrite or Administrator.
+  tags:
+    - preflight
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"
