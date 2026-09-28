@@ -19,6 +19,10 @@ album_sort_origin: "https://{{ album_sort_domain }}"
 album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
 album_sort_data_path: /data
+# Acquisition handoff on the shared Ingest volume: slskd's finished downloads
+# (read only by Album Sort) and Album Sort's quarantine for intake review.
+album_sort_slskd_download_path: /downloads/music
+album_sort_quarantine_path: /downloads/album-sort/quarantine
 album_sort_watch_interval: "30000"
 album_sort_scan_concurrency: "4"
 # Bounded per-file preparation; copies may not exceed staging workers.

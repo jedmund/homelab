@@ -78,6 +78,20 @@
     - "{{ config_base }}/data"
     - "{{ config_base }}/beets-data"
 
+- name: Create the Album Sort quarantine on the downloads volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - downloads:/downloads
+      - alpine:3.20
+      - mkdir
+      - -p
+      - "{{ album_sort_quarantine_path }}"
+  changed_when: false
+
 - name: Deploy compose file
   ansible.builtin.template:
     src: compose.yaml.j2
