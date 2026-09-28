@@ -74,6 +74,7 @@ Use these values in Aurral:
 - Downloads Folder: `/downloads/aurral`
 - Lidarr URL: `http://lidarr:8686`
 - slskd URL: `http://slskd:5030`
+- slskd API key: the `slskd_api_key` value from `group_vars/slskd/vault.yml`
 
 Lidarr and slskd already use `/music` and `/downloads`, so remote path mappings
 are unnecessary. Aurral can play canonical Lidarr files through its built-in
