@@ -10,7 +10,7 @@
       - slskd_api_key_cidr | length > 0
       - "';' not in slskd_api_key_cidr"
     fail_msg: >-
-      vault_slskd_api_key in group_vars/slskd/vault.yml must be empty or
+      slskd_api_key in group_vars/slskd/vault.yml must be empty or
       16 to 255 characters without semicolons. slskd_api_key_role must be
       ReadOnly, ReadWrite or Administrator.
   tags:
