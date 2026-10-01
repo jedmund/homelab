@@ -53,3 +53,30 @@ gitlab_runner_macos_log_keep: 5
 gitlab_runner_macos_logrotate_dir: /opt/homebrew/etc/logrotate.d
 # Label Homebrew gives the logrotate agent. Runs daily at 06:00.
 gitlab_runner_macos_logrotate_label: homebrew.mxcl.logrotate
+
+# CI Ruby toolchain. mise owns the pinned runtime; application Gemfiles own
+# Fastlane and other project dependencies. Do not change the user's global Ruby.
+development_macos_mise_binary: /opt/homebrew/bin/mise
+development_macos_mise_data_dir: "{{ gitlab_runner_macos_home }}/.local/share/mise"
+development_macos_ruby_version: "3.4.11"
+development_macos_ruby_prefix: "{{ development_macos_mise_data_dir }}/installs/ruby/{{ development_macos_ruby_version }}"
+development_macos_bundler_version: "2.6.7"
+development_macos_gem_home: "{{ gitlab_runner_macos_home }}/.local/share/gitlab-runner/gems/ruby-3.4"
+development_macos_job_path:
+  - "{{ development_macos_gem_home }}/bin"
+  - "{{ development_macos_ruby_prefix }}/bin"
+  - /opt/homebrew/bin
+  - /opt/homebrew/sbin
+  - /usr/local/bin
+  - /usr/bin
+  - /bin
+  - /usr/sbin
+  - /sbin
+# The runner exports these after starting its login shell. Interactive shell
+# profiles and launchd's minimal PATH cannot select the system Ruby instead.
+development_macos_job_environment:
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+  PATH: "{{ development_macos_job_path | join(':') }}"
+  GEM_HOME: "{{ development_macos_gem_home }}"
+  GEM_PATH: "{{ development_macos_gem_home }}"
