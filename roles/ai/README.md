@@ -84,22 +84,20 @@ split mode assigns llama-swap to GPU 2 and vLLM to GPUs 0 and 1. See
 
 ## Llama.cpp version requirement
 
-The `qwen3.6` (Qwen3.6-27B-MTP) entry uses the `--spec-type draft-mtp` flag,
+The `qwen3.8` / `qwen3.8-q8` entries use the `--spec-type draft-mtp` flag,
 which requires llama.cpp from 2026-05-16 or later. Before first deploy, run
 `docker pull ghcr.io/mostlygeek/llama-swap:cuda` on `max` to ensure the
 bundled llama-server is recent enough; if MTP-enabled models fail to start
 with a flag error in `docker logs llama-swap`, the image is stale and a
 pull will fix it.
 
-The `qwen3.8` / `qwen3.8-q8` entries use `--spec-type draft-mtp` too
-(MTP is built into the base GGUF there, so there is no separate MTP
-repo to pull), and they are the Qwen3.5-lineage hybrid architecture
+The Qwen3.8 entries are also the Qwen3.5-lineage hybrid architecture
 (`qwen35` in the GGUF metadata), which needs a llama.cpp build that
 knows it. Same symptom and same fix: an unknown-architecture or
 unknown-flag error at load means the image is stale.
 
 Without `--jinja` the chat template and tool-calling break for Gemma 4
-and Qwen3.6.
+and Qwen3.8.
 
 ## First-time deploy
 
