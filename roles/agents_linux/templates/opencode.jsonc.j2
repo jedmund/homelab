@@ -9,9 +9,6 @@
     // shape on the chat-group models. With threshold 0.8 compaction
     // kicks in around ~52K tokens, comfortably below llama-swap's
     // per-slot ceiling so requests never 400 from context exhaustion.
-    // minimax-m27 entries get 80K per slot (-c 327680) so they could
-    // safely use a higher limit, but a single global value is simpler
-    // until per-model limits become necessary.
     "maxContext": 131072
   },
   
@@ -57,28 +54,6 @@
         "apiKey": "{{ atelier_vllm_api_key }}"
       },
       "models": {
-        // MiniMax M2.7 quant A/B test. minimax-m27 is the IQ3_S baseline
-        // (default chat model); iq4 and q4 are the higher-quality
-        // candidates being evaluated. Once a winner is picked, prune
-        // the losers here and in roles/ai/defaults/main.yml.
-        // All three run -c 327680 --parallel 4 = 80K per slot, so they
-        // get a per-model limit overriding the 64K global default.
-        "minimax-m27": {
-          "name": "MiniMax M2.7 (IQ3_S)",
-          "limit": { "context": 81920, "output": 16384 }
-        },
-        "minimax-m27-iq4": {
-          "name": "MiniMax M2.7 (IQ4_XS)",
-          "limit": { "context": 81920, "output": 16384 }
-        },
-        // Q4_K_XL runs at 64K per slot (not 80K like iq3/iq4) because
-        // 80K + 118GB weights crashed in MoE routing on the Max-Q.
-        // See roles/ai/defaults/main.yml for full reasoning.
-        "minimax-m27-q4": {
-          "name": "MiniMax M2.7 (Q4_K_XL)",
-          "limit": { "context": 65536, "output": 16384 }
-        },
-
         // 120B cross-lineage reference (text-only, no vision). Runs
         // -c 131072 --parallel 4 = 32K per slot, so it needs a smaller
         // per-model limit than the 64K global default.
@@ -111,11 +86,6 @@
         "gemma-e4b-uncensored": {
           "name": "Gemma 4 E4B Uncensored (4B dense)",
           "limit": { "context": 32768, "output": 8192 }
-        },
-
-        // Coding specialist; likely subsumed by Qwen3.6 eventually.
-        "qwen3-coder": {
-          "name": "Qwen3 Coder (30B MoE)"
         },
 
         // CPU-resident, used as small_model for compaction. Not for

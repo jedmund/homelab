@@ -98,9 +98,8 @@ repo to pull), and they are the Qwen3.5-lineage hybrid architecture
 knows it. Same symptom and same fix: an unknown-architecture or
 unknown-flag error at load means the image is stale.
 
-The MiniMax M2.7 entry pins flash-attn, q8_0 KV quantisation, and MiniMax's
-recommended sampling params. Without `--jinja` the chat template and
-tool-calling break for it, Gemma 4, and Qwen3.6.
+Without `--jinja` the chat template and tool-calling break for Gemma 4
+and Qwen3.6.
 
 ## First-time deploy
 

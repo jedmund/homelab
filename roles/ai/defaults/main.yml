@@ -12,7 +12,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 #            mode (see requires_mode flag on individual ai_models entries).
 #   shared - llama-swap pinned to all 3 cards (288 GB). SGLang is brought
 #            down at deploy time to avoid GPU contention. Use when you need
-#            minimax-m27-q4 / gpt-oss / minimax-m27-iq4 and don't need
+#            gpt-oss and don't need
 #            DeepSeek running at the same time.
 #
 # Override per environment via -e ai_gpu_mode=shared on ansible-playbook
@@ -33,7 +33,7 @@ llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
 llama_swap_port: 11434
 llama_swap_log_level: debug
 # Seconds llama-swap waits for a newly spawned llama-server to pass its
-# health check before killing it. Cold-loading minimax-m27 (~80GB) from
+# health check before killing it. Cold-loading an ~80GB model from
 # NVMe to VRAM with -ngl 999 takes ~125s on this box; 300 gives ~2.4x
 # headroom for that and any larger future model.
 llama_swap_health_check_timeout: 300
@@ -53,9 +53,9 @@ ai_models:
   # MoE decode speed scales with active params (3B), not total weights,
   # so the bigger quant is essentially free in tok/s.
   #
-  # Sized for coexistence with minimax-m27-iq4: -c 131072 --parallel 4
-  # gives four sticky 32K slots at ~54GB live, fitting alongside iq4
-  # (~135GB) inside the 192GB budget. The other (uncensored) chat-tier
+  # Sized for coexistence with a ~135GB code-group model: -c 131072
+  # --parallel 4 gives four sticky 32K slots at ~54GB live, fitting
+  # alongside it inside the 192GB budget. The other (uncensored) chat-tier
   # entries keep larger contexts because they're picked manually and
   # the user can unload the code slot first if needed.
   - name: qwen3.6-flash
@@ -111,9 +111,9 @@ ai_models:
   # "quality" daily driver slot. Q8 would be ~half the throughput; too
   # steep for this dense tier.
   #
-  # Sized for coexistence with minimax-m27-iq4 in the code group:
+  # Sized for coexistence with a ~135GB code-group model:
   # -c 131072 --parallel 2 gives two sticky 64K slots and ~36GB live,
-  # fitting comfortably alongside iq4 (~135GB) under the 192GB budget.
+  # fitting comfortably alongside it under the 192GB budget.
   # When the code slot is empty (mode 3 / idle / vacation) there's
   # plenty of unused VRAM, but qwen3.6 stays at 128K total context;
   # add a second entry with a larger -c later if that pinches.
@@ -258,21 +258,6 @@ ai_models:
     aliases:
       - "gemma-4:e4b-uncensored"
 
-  # Coding-tuned MoE (30B total / 3B active). Bumped to Q8_K_XL alongside
-  # qwen3.6-flash for the same reason: MoE decode reads only active
-  # params, so Q8 is essentially free. Context bumped from 16K (which
-  # was painful for any real coding session) to 4x64K sticky slots.
-  # Likely subsumed by Qwen3.6 eventually; keep until then.
-  - name: qwen3-coder
-    file: Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf
-    group: chat
-    args: >-
-      -ngl 999 -c 262144 --parallel 4 --flash-attn on
-      --cache-type-k q8_0 --cache-type-v q8_0
-      --jinja
-    aliases:
-      - "qwen3-coder:30b"
-
   # OpenAI's open-weight 20B MoE (~3.6B active per token), converted from
   # the native MXFP4 HuggingHack snapshot. It fits comfortably on the
   # single 96 GB card used by split mode, so keep it in the chat group.
@@ -293,8 +278,8 @@ ai_models:
   # UD-Q6_K_XL it lands ~95GB on disk; with --parallel 4 -c 131072 (four
   # sticky 32K slots) the live footprint is ~125GB. Lives in code-heavy
   # so loading it kicks the chat group out of VRAM. Use as the heavy
-  # reasoning alternative to minimax-m27-q4 when you want a different
-  # lineage's take on the same hard problem.
+  # reasoning option when you want a different lineage's take on a
+  # hard problem.
   # Split GGUF; verify the shard count after download. Unsloth typically
   # ships 120B at this quant as 2 or 3 shards; adjust the file path below
   # if needed.
@@ -309,60 +294,6 @@ ai_models:
       --jinja
     aliases:
       - "gpt-oss:120b"
-
-  # 229B / 10B-active MoE, primary heavy-reasoning / coding model.
-  # Two entries serve two different modes (see ai_model_groups below):
-  #
-  # - minimax-m27-iq4 (code group): sized for coexistence with a chat
-  #   model so coding and chat sessions can run
-  #   simultaneously. -c 196608 --parallel 3 gives three sticky 64K
-  #   slots; live ~135GB, leaving ~54GB chat-tier headroom under the
-  #   192GB total budget (enough for qwen3.6 dense Q6 ~36GB live or
-  #   gemma-e4b ~12GB).
-  # - minimax-m27-q4 (code-heavy group, exclusive: true): top-quality
-  #   minimax-tier for solo coding. Loading this kicks the chat group
-  #   out of VRAM. -c 262144 --parallel 4 gives four sticky 64K slots
-  #   at ~185GB live, ~7GB margin.
-  #
-  # llama.cpp auto-splits layers across both GPUs; the Max-Q is slightly
-  # slower per layer but close on memory bandwidth, so default auto-split
-  # is fine until profiling says otherwise (then tune via --tensor-split).
-  # Sampling pinned to MiniMax's recommended values; --jinja is required
-  # for the chat template + tool-call handling to work correctly.
-  #
-  # The earlier IQ3_S entry was dropped after the three-mode design
-  # landed; iq4 covers the coexistence slot at higher quality, q4 covers
-  # solo at top quality, and IQ3 had no remaining role.
-  - name: minimax-m27-iq4
-    # Files live under the UD-IQ4_XS/ subdirectory inside /models;
-    # Unsloth ships this quant as a 4-shard split GGUF.
-    file: UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf
-    group: code
-    # ~135 GB live; needs all 3 cards.
-    requires_mode: shared
-    args: >-
-      -ngl 999 -c 196608 --parallel 3 --flash-attn on
-      --cache-type-k q8_0 --cache-type-v q8_0
-      --temp 1.0 --top-p 0.95 --top-k 40
-      --jinja --log-verbosity 1
-    aliases:
-      - "minimax:m27"
-      - "minimax-m27"
-
-  - name: minimax-m27-q4
-    # Files live under the UD-Q4_K_XL/ subdirectory inside /models;
-    # Unsloth ships this quant as a 4-shard split GGUF.
-    file: UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf
-    group: code-heavy
-    # ~185 GB live; needs all 3 cards.
-    requires_mode: shared
-    args: >-
-      -ngl 999 -c 262144 --parallel 4 --flash-attn on
-      --cache-type-k q8_0 --cache-type-v q8_0
-      --temp 1.0 --top-p 0.95 --top-k 40
-      --jinja --log-verbosity 1
-    aliases:
-      - "minimax:m27-q4"
 
   # nomic-embed lived here under llama-swap; the OpenWebUI RAG embedding
   # stays on the dedicated TEI container at :11435 (see tei_* below).
@@ -474,7 +405,7 @@ ai_models:
 # policy, only one chat model is resident at a time anyway, so the
 # only cost of a longer TTL is GPU idle power (~30-50 W per card
 # while a model is loaded but not generating). Models that swap in
-# under heavy use (e.g. ~80GB minimax-m27 cold-loading from NVMe to
+# under heavy use (e.g. an ~80GB model cold-loading from NVMe to
 # VRAM) take ~2 min, well worth avoiding for a few extra watts.
 ai_model_default_ttl: 7200
 
@@ -482,9 +413,9 @@ ai_model_default_ttl: 7200
 #
 # - mode 1 (heavy coding, solo): a model in `code-heavy` loads and the
 #   group's exclusive: true policy evicts everything in `chat`/`code`.
-#   minimax-m27-q4 and gpt-oss live here. ~185GB live each, no room
-#   for a coresident chat model.
-# - mode 2 (code + chat coexistence): minimax-m27-iq4 in `code` + a
+#   gpt-oss lives here. ~125GB live, no room for a coresident chat
+#   model.
+# - mode 2 (code + chat coexistence): a model in `code` + a
 #   coexistence-sized chat model (qwen3.6 dense, qwen3.6-flash) in
 #   `chat`. Both groups are swap: true + exclusive: false, so each
 #   group holds one model and the two coexist. ~135GB code + ~36GB
@@ -505,15 +436,15 @@ ai_model_groups:
     swap: true
     exclusive: false
   # Primary heavy reasoning / coding (coexistence-sized). Designed to
-  # share VRAM with the chat group. minimax-m27-iq4 is the typical
-  # occupant.
+  # share VRAM with the chat group. Currently empty (MiniMax M2.7 was
+  # removed 2026-10-04).
   code:
     swap: true
     exclusive: false
   # Top-tier code / reasoning that needs most of VRAM. exclusive: true
   # evicts the chat group on load. Use these when you want maximum
   # quality and accept that any chat model coresident gets unloaded.
-  # minimax-m27-q4 and gpt-oss live here.
+  # gpt-oss lives here.
   code-heavy:
     swap: true
     exclusive: true
