@@ -43,19 +43,19 @@ gitlab_runner_linux_tags:
 gitlab_runner_linux_run_untagged: true
 
 # Concurrency. Two runner entries share this process: the general pool
-# (max-docker, 4 jobs capped at 3 CPUs / 6 GB each) and the large pool
+# (max-docker, 6 jobs capped at 3 CPUs / 6 GB each) and the large pool
 # (max-docker-large, 2 jobs capped at 12 CPUs / 24 GB each) for suites that
 # parallelize, such as album-sort's Vitest run. A single 3-CPU job cannot
 # use this host: album-sort's suite took 16-26 minutes across three 3-CPU
 # shards and under 4 minutes in one 16-CPU container.
 #
-# Worst case is 36 CPUs of quota on 32 threads and 60 GB of RAM. Docker's
+# Worst case is 42 CPUs of quota on 32 threads and 84 GB of RAM. Docker's
 # cpus setting is a CFS quota, not pinning, so the host is only
-# oversubscribed when all six jobs peak together; normal mixed CI still
+# oversubscribed when all eight jobs peak together; normal mixed CI still
 # leaves room for vLLM's CPU-side work (tokenization, sampling, and
 # dataloading). The host has 125 GB of RAM and normally about 90 GB free.
 # concurrent must cover the sum of both limits.
-gitlab_runner_linux_limit: 4
+gitlab_runner_linux_limit: 6
 gitlab_runner_linux_cpus: "3"
 gitlab_runner_linux_memory: 6g
 gitlab_runner_linux_tmpfs_size: 2g

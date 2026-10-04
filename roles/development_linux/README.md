@@ -16,13 +16,13 @@ whose CPU is nearly idle, since the inference work happens on its GPUs.
 | --- | --- | --- |
 | Tags | `atelier-max`, plus `amd64`/`docker`/`linux`/`pnpm-cache` | `atelier-max-large`, plus the same four |
 | Takes untagged jobs | yes | no |
-| Concurrent jobs (`limit`) | 4 | 2 |
+| Concurrent jobs (`limit`) | 6 | 2 |
 | Per job | 3 CPUs, 6 GB | 12 CPUs, 24 GB |
 | `/tmp` (tmpfs) | 2 GB | 8 GB |
 
-`concurrent` is the sum of both limits. Worst case is 36 CPUs of quota against
+`concurrent` is the sum of both limits. Worst case is 42 CPUs of quota against
 32 threads; Docker's `cpus` is a CFS quota rather than pinning, so the host is
-only oversubscribed when all six jobs peak at once, and normal mixed CI leaves
+only oversubscribed when all eight jobs peak at once, and normal mixed CI leaves
 room for the CPU side of inference.
 
 Reach the large pool by tagging a job `atelier-max-large`. Use it only for work
