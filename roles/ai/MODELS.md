@@ -22,7 +22,7 @@ split:
 
 | Mode | llama-swap GPUs | SGLang GPUs | When to pick |
 |---|---|---|---|
-| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent DeepSeek + llama-swap. Smaller llama-swap catalogue (no minimax-q4 / gpt-oss / minimax-iq4). |
+| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent DeepSeek + llama-swap. Smaller llama-swap catalogue (no gpt-oss). |
 | `shared` | indices 0,1,2 (288 GB) | none (SGLang torn down) | Heavy llama-swap workloads needing the big models; DeepSeek is off. |
 
 Switch via `make deploy-ai-split` or `make deploy-ai-shared`. Switching
@@ -42,111 +42,29 @@ modes are available; in `split` mode only the chat group is loadable
 
 | Usage mode | Active | Group occupancy | VRAM live | Available in |
 |---|---|---|---|---|
-| 1: solo coding | `minimax-m27-q4` or `gpt-oss` | `code-heavy` (exclusive: true) | ~185 GB / ~125 GB | shared |
-| 2: coexistence | `minimax-m27-iq4` + a chat model | `code` + `chat` | ~135 GB + ~36-54 GB | shared |
+| 1: solo coding | `gpt-oss` | `code-heavy` (exclusive: true) | ~125 GB | shared |
+| 2: coexistence | a `code` model (none installed) + a chat model | `code` + `chat` | ~135 GB + ~36-54 GB | shared |
 | 3: chat alone | any chat model | `chat` only | ~36-75 GB | split + shared |
 
-In split mode, only mode 3 is reachable (single 96 GB card). The three
-chat models sized for coexistence with the code group still apply in
-shared mode:
+In split mode, only mode 3 is reachable (single 96 GB card). The
+Qwen3.8 entries are sized for coexistence with the code group in shared
+mode:
 
-- `qwen3.6` (dense Q6 MTP) at `-c 131072 --parallel 2` -> ~36 GB live.
 - `qwen3.8` (dense Q6 MTP) at `-c 131072 --parallel 2` -> under ~36 GB
   live (hybrid attention, so cheaper KV; not yet measured). The
-  `qwen3.8-q8` variant adds ~6 GB of weights on top.
-- `qwen3.6-flash` (Q8_K_XL MoE) at `-c 131072 --parallel 4` -> ~54 GB live.
+  `qwen3.8-q8` and `qwen3.8-humanlike` variants add ~6 GB of weights
+  on top.
 
-The other chat-tier entries (`qwen3.6-flash-uncensored`, `gemma4`,
-`gemma4-uncensored`, `gemma-e4b-uncensored`, `qwen3-coder`) keep their
+The other chat-tier entries (`gemma4`, `gemma4-uncensored`,
+`gemma-e4b-uncensored`) keep their
 larger contexts because they're picked manually; in shared mode loading
-one while minimax-iq4 is resident may OOM (unload the code slot first).
+one while a code-group model is resident may OOM (unload the code slot first).
 In split mode the chat group has the WS card to itself, so all of them
 fit individually.
 
 ## Installed models
 
-### qwen3.6-flash: daily driver, fastest
-
-- **Files**:
-  - Weights: `Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf` (top-level)
-  - mmproj: `Qwen3.6-35B-A3B/mmproj-F16.gguf` (per-model subdir; Unsloth
-    publishes mmproj under a generic name so each one lives in its own
-    subdirectory to avoid collisions)
-- **Source**: `unsloth/Qwen3.6-35B-A3B-GGUF`
-- **Pull**:
-  - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
-  - `hf download unsloth/Qwen3.6-35B-A3B-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-35B-A3B/`
-- **Why**: Qwen3.6 MoE (35B total, 3B active per token). ~240 tok/s on
-  Blackwell, multimodal. Bumped to Q8_K_XL once the second Blackwell
-  arrived: MoE token decode reads only active params, so Q8 costs
-  effectively nothing in throughput while giving a real weights-quality
-  bump.
-- **VRAM**: ~37 GB on disk; ~54 GB live with `--parallel 4 -c 131072`
-  (four sticky 32K slots, q8_0 KV). Sized to fit alongside
-  `minimax-m27-iq4` (~135 GB) in coexistence mode 2.
-- **Notes**: Non-MTP build on purpose. MTP barely helps MoE models
-  (~1.15x) and costs ~1 GB VRAM, so the dense 27B below gets the MTP
-  variant instead. `--mmproj` wires up vision; without it text-only
-  inference still works but image inputs are dropped.
-
-### qwen3.6-flash-uncensored: abliterated variant of the MoE flash model
-
-- **Files**:
-  - Weights: `Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf`
-  - mmproj: `mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf` (~900 MB)
-- **Source**: `HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive`
-- **Pull**:
-  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf --local-dir .`
-  - `hf download HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive mmproj-Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-f16.gguf --local-dir .`
-- **Why**: Abliterated (refusal-vector-removed) build of the same base
-  model as `qwen3.6-flash`, kept at the same fidelity tier (~10 bpw) so
-  quality comparisons against the non-abliterated sibling stay clean.
-  Keep both flash entries in the catalogue so requests can pick per use case;
-  `swap: true` means only one is in VRAM at a time, so the cost is disk-only
-  (~44 GB).
-- **VRAM**: ~44 GB on disk; ~75 GB live with `--parallel 4 -c 262144`
-  (four sticky 64K slots, q8_0 KV). Same shape as `qwen3.6-flash`.
-- **Notes**: "Q8_K_P" is HauhauCS's analog of Unsloth's UD-Q8_K_XL:
-  selective higher-precision tensors on the layers that matter most.
-  The "Aggressive" suffix means more thorough refusal removal than the
-  standard abliterated variant; downside is that over-suppressed refusal
-  vectors can leak into benign reasoning, so if coherence on normal
-  tasks degrades, switch to a less aggressive HauhauCS build. mmproj is
-  shipped as a separate file and now wired up via `--mmproj`; both
-  weights and mmproj must be present before llama-server boots, or it
-  fails to start.
-
-### qwen3.6: daily driver, quality
-
-- **Files**:
-  - Weights: `Qwen3.6-27B-UD-Q6_K_XL.gguf` (top-level; unsloth puts the
-    "MTP" marker on the repo, not the filename; this file is still the
-    MTP build)
-  - mmproj: `Qwen3.6-27B/mmproj-F16.gguf` (per-model subdir)
-- **Source**: `unsloth/Qwen3.6-27B-MTP-GGUF`
-- **Pull**:
-  - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
-  - `hf download unsloth/Qwen3.6-27B-MTP-GGUF --include "mmproj*.gguf" --local-dir ./Qwen3.6-27B/`
-- **Why**: Dense Qwen3.6 with multi-token prediction. ~160 tok/s at Q4 on
-  Blackwell, multimodal. Bumped to Q6_K_XL once the second Blackwell
-  arrived: for dense models token decode reads all weights, so the
-  bigger quant costs ~20% throughput (~130 tok/s expected) but gives a
-  meaningful quality bump. Q8 would halve throughput, too steep for
-  this tier.
-- **VRAM**: ~22 GB on disk; ~36 GB live with `--parallel 2 -c 131072`
-  (two sticky 64K slots, q8_0 KV). Sized for coexistence with
-  `minimax-m27-iq4` (~135 GB) in mode 2; total ~171 GB, ~18 GB headroom.
-  Mode 3 leaves a lot of VRAM unused, but qwen3.6 stays at 128K total
-  context; add a wider-context variant later if 64K-per-chat-session
-  pinches.
-- **Notes**: Needs `--spec-type draft-mtp`, which requires llama.cpp from
-  2026-05-16 or newer. Pre-pull `ghcr.io/mostlygeek/llama-swap:cuda`
-  before first deploy; if model fails to load with a flag error in
-  `docker logs llama-swap`, the image is stale. `--mmproj` wires up
-  vision; image inputs require the mmproj file to be present alongside
-  the weights.
-
-### qwen3.8: Qwen3.6 successor, on trial
+### qwen3.8: daily driver
 
 Two entries off the same repo, one per quant tier. Both live in the
 `chat` group (`swap: true`), so only one is resident at a time and the
@@ -165,31 +83,41 @@ second costs disk only.
   - `hf download unsloth/Qwen3.8-27B-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.8-27B-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
   - `hf download unsloth/Qwen3.8-27B-GGUF --include "mmproj-F16.gguf" --local-dir ./Qwen3.8-27B/`
-- **Why**: Dense 27B successor to `qwen3.6`, multimodal, 256K native
-  context (1M with YaRN, not configured here). Added alongside the 3.6
-  entry rather than replacing it so both can be compared on real work
-  before any consumer default (opencode, pi-agents) moves
-  over. Q6 is the everyday tier for the same reason as on `qwen3.6`
-  (dense decode reads all weights, so bigger quants cost real
-  throughput); Q8 is there to be picked by name when quality matters
+- **Why**: Dense 27B, multimodal, 256K native context (1M with YaRN,
+  not configured here). Replaced the Qwen3.6 entries on 2026-10-04 and
+  is the default for opencode and pi-agents. Q6 is the everyday tier
+  because dense decode reads all weights, so bigger quants cost real
+  throughput; Q8 is there to be picked by name when quality matters
   more than tok/s, and should run near half the Q6 decode speed, with
   MTP clawing some of that back on accepted drafts.
 - **VRAM**: live footprint not yet measured. The `-c 131072 --parallel 2`
-  sizing (two sticky 64K slots, q8_0 KV) mirrors `qwen3.6` and the Q6
-  entry should land under its ~36 GB live, because the Qwen3.5-lineage
+  sizing (two sticky 64K slots, q8_0 KV) should land under ~36 GB
+  live for the Q6 entry, because the Qwen3.5-lineage
   hybrid layout (three Gated DeltaNet blocks per full-attention block)
   means only a quarter of the layers carry a growing KV cache. Q8 adds
   ~6 GB of weights on top. Widen `-c` once the real numbers are known.
-- **Notes**: MTP is built into the base GGUF (unlike Qwen3.6, which
-  needs the separate `-MTP-GGUF` repo), so both entries run
-  `--spec-type draft-mtp --spec-draft-n-max 6` and carry the same
-  llama.cpp floor as `qwen3.6`: 2026-05-16 or newer. GGUF architecture
+- **Notes**: MTP is built into the base GGUF, so both entries run
+  `--spec-type draft-mtp --spec-draft-n-max 6`, which needs llama.cpp
+  from 2026-05-16 or newer. GGUF architecture
   is `qwen35`; an unknown-architecture or unknown-flag error in
   `docker logs llama-swap` means the bundled llama.cpp is stale, and
   `docker pull ghcr.io/mostlygeek/llama-swap:cuda` on `max` fixes it.
   Sampling uses Qwen's thinking-mode values; for instruct-style use
   Qwen recommends `--temp 0.7 --top-p 0.80` with a presence penalty
   instead. `--mmproj` wires up vision.
+
+### qwen3.8-humanlike: conversational Qwen3.8 merge
+
+- **File**: `Qwen3.8-27B-Humanlike-Chat-Q8_0.gguf` (~27 GB, top-level)
+- **Source**: not recorded. The GGUF metadata only says `Merged`;
+  fill this in (and add a pull line) once the upstream repo is
+  confirmed.
+- **Why**: Chat-tuned merge on the Qwen3.8 27B base; judging by the
+  name, aimed at more conversational replies. Picked by name; not a consumer default.
+- **VRAM**: same `-c 131072 --parallel 2` shape as `qwen3.8`; weights
+  are ~6 GB heavier than the Q6 entry.
+- **Notes**: No mmproj and no MTP head, so it runs text-only and
+  without `--spec-type draft-mtp`. Same sampling as `qwen3.8`.
 
 ### gemma4: different lineage from Qwen
 
@@ -203,7 +131,7 @@ second costs disk only.
 - **Why**: Google's top-of-Arena open dense model. Multimodal (text +
   image), 256K context. Kept around to have a non-Qwen-family option
   when comparing answers or hitting Qwen-specific quirks. Bumped to
-  Q6_K_XL alongside qwen3.6 once the second Blackwell arrived; same
+  Q6_K_XL once the second Blackwell arrived; same
   reasoning (dense throughput cost is real, Q6 is the sweet spot).
 - **VRAM**: ~25 GB on disk; ~55 GB live with `--parallel 4 -c 262144`
   (four sticky 64K slots, q8_0 KV).
@@ -258,23 +186,6 @@ second costs disk only.
   up vision; image inputs require the mmproj file alongside the
   weights before llama-server boots.
 
-### qwen3-coder: coding specialist
-
-- **File**: `Qwen3-Coder-30B-A3B-Instruct-UD-Q8_K_XL.gguf`
-- **Source**: `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` (switched from
-  bartowski to unsloth for consistency with the rest of the catalogue;
-  if Unsloth doesn't publish a `UD-Q8_K_XL` for this model, fall back to
-  bartowski's `Q8_0` and adjust the file/pull lines accordingly).
-- **Pull**: `hf download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF --include "*UD-Q8_K_XL*.gguf" --local-dir .`
-- **Why**: Coding-tuned MoE (30B total, 3B active per token). Strong on
-  diff / patch / tool-use tasks. Bumped from Q6 to Q8_K_XL alongside
-  qwen3.6-flash: MoE decode reads only active params, so the bigger
-  quant is essentially free in tok/s. Context bumped from 16K to four
-  64K sticky slots: 16K was painful for any non-trivial coding session.
-- **VRAM**: ~32 GB on disk; ~60 GB live with `--parallel 4 -c 262144`
-  (four sticky 64K slots, q8_0 KV).
-- **Notes**: Likely subsumed by Qwen3.6 eventually; keep until then.
-
 ### gpt-oss-20b: compact native-MXFP4 MoE
 
 - **File**: `gpt-oss-20b-mxfp4.gguf`
@@ -302,54 +213,16 @@ second costs disk only.
 - **Source**: `unsloth/gpt-oss-120b-GGUF`
 - **Pull**: `hf download unsloth/gpt-oss-120b-GGUF --include "*UD-Q6_K_XL*.gguf" --local-dir ./UD-Q6_K_XL/`
 - **Why**: OpenAI's open-weight 120B MoE (~5.1B active per token). The
-  heavy reasoning alternative to `minimax-m27-q4` for cross-family
-  comparison on hard problems. Lives in the `code-heavy` group
+  heavy reasoning option, and a cross-family comparison against
+  Qwen/Gemma on hard problems. Lives in the `code-heavy` group
   (`exclusive: true`), so loading it evicts the chat group; pick it
   when you want max quality and accept that chat models will need to
   reload on the next request.
 - **VRAM**: ~95 GB on disk; ~125 GB live with `--parallel 4 -c 131072`
-  (four sticky 32K slots, q8_0 KV). Smaller live footprint than
-  minimax-m27-q4 (~185 GB) so there's plenty of room to grow the
+  (four sticky 32K slots, q8_0 KV). That leaves room to grow the
   context if a heavier session warrants it.
-- **Notes**: Split GGUF. `--jinja` for the chat template. Same
-  parallel-slot treatment as minimax-m27 so cross-lineage comparison
-  benefits from prefix-cache stickiness across project conversations.
-
-### minimax-m27: big-brain for hard problems
-
-Two entries, one per usage mode (see "Modes" section below for the full
-picture). The earlier IQ3_S entry was dropped after the three-mode design
-landed; iq4 covers the coexistence slot at higher quality and q4 covers
-solo at top quality, so IQ3 had no remaining role.
-
-| llama-swap entry | Quant | Group | File (shard 1) | Args | ~Disk | ~VRAM live |
-|---|---|---|---|---|---|---|
-| `minimax-m27-iq4` (alias `minimax-m27`, `minimax:m27`) | UD-IQ4_XS | `code` (coexists with chat) | `UD-IQ4_XS/MiniMax-M2.7-UD-IQ4_XS-00001-of-00004.gguf` | `-c 196608 --parallel 3` | ~95-100 GB | ~135 GB |
-| `minimax-m27-q4` (alias `minimax:m27-q4`) | UD-Q4_K_XL | `code-heavy` (exclusive, evicts chat) | `UD-Q4_K_XL/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf` | `-c 262144 --parallel 4` | ~115-120 GB | ~185 GB |
-
-- **Source**: `unsloth/MiniMax-M2.7-GGUF`
-- **Pull** (split GGUFs per quant directory):
-  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-IQ4_XS*.gguf" --local-dir ./UD-IQ4_XS/`
-  - `hf download unsloth/MiniMax-M2.7-GGUF --include "*UD-Q4_K_XL*.gguf" --local-dir ./UD-Q4_K_XL/`
-- **Why**: 229B / 10B-active MoE. Reserved for problems where the smaller
-  models stall (long reasoning chains, hard refactors, tool-call planning).
-- **Inference**:
-  - iq4 runs at `-c 196608 --parallel 3` (three sticky 64K slots, q8_0
-    KV). Live ~135 GB. Sized for coexistence with a chat-tier model
-    (qwen3.6 ~36 GB, qwen3.6-flash ~54 GB) inside the 192 GB budget.
-  - q4 runs at `-c 262144 --parallel 4` (four sticky 64K slots). Live
-    ~185 GB. The `code-heavy` group is `exclusive: true`, so loading
-    q4 evicts the chat group; you get max minimax quality at the cost
-    of any coresident chat model. (At -c 327680 it OOM'd during MoE
-    routing warmup in `ggml_cuda_op_topk_moe`; 64K per slot is the
-    stable ceiling.)
-- **Notes**: Split GGUFs (too large for HuggingFace's per-file limit).
-  Both iq4 and q4 ship as 4 shards each in their per-quant
-  subdirectories. llama.cpp handles split GGUFs natively: point
-  `--model` at shard 1 and it auto-loads the rest from the same
-  directory. `--jinja` is required for the chat template and
-  tool-call handling. Sampling values pinned per MiniMax's
-  recommendations.
+- **Notes**: Split GGUF. `--jinja` for the chat template. Four
+  parallel slots so cross-lineage comparison benefits from prefix-cache stickiness across project conversations.
 
 ### bge-reranker: RAG reranker
 
@@ -529,7 +402,7 @@ normal `model_type` and the task adapter merged into the base weights.
 2. Edit `roles/ai/defaults/main.yml`:
    - Add or remove an entry in the `ai_models` list. Mirror the shape of the
      existing entries (`name`, `file`, `args`, optional `ttl`, `aliases`).
-   - Use `aliases` to expose friendly names (`qwen3.6:35b-a3b`,
+   - Use `aliases` to expose friendly names (`qwen3.8:27b`,
      `gpt-oss:20b`, etc.) that OpenWebUI and Ollama clients reach for.
 3. Update this file to keep the catalogue + rationale honest.
 4. Re-run `ansible-playbook deploy/ai.yml`. The llama-swap config template
