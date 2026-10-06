@@ -224,6 +224,10 @@
 - import_playbook: ai.yml
   tags: [ai]
 
+# Crash capture on max, netconsole receiver on nuc-mini
+- import_playbook: crash_capture.yml
+  tags: [crash_capture]
+
 # frp tunnel proxy
 - import_playbook: frp.yml
   tags: [frp]
