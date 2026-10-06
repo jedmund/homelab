@@ -23,6 +23,22 @@ database with no full REST API and would sit outside Ansible entirely.
   401s are auth middleware answering correctly.
 - **Wildcard certificate runway**, alerting 14 days before `*.atelier.house`
   expires, to catch a Cloudflare DNS challenge renewal that quietly stopped.
+- **Pushed host reports** from hosts in the `crash_capture` group (max). A BMC
+  watchdog resets a frozen max within minutes, so a polled check never sees
+  the outage. The host pushes these external endpoints itself instead:
+
+  | Endpoint | Fails when | Alert |
+  | --- | --- | --- |
+  | `max heartbeat` | No push for 10 minutes: frozen and not reset, powered off, or unreachable | First failure; resolution announced |
+  | `max unexpected reboot` | The previous boot ended without a clean shutdown | First failure; resolves silently on the next push |
+  | `max cooling` | A temperature or fan speed is outside the limits in `roles/crash_capture`, or a GPU reports thermal slowdown or power brake | Two consecutive failures; resolution announced |
+  | `max hardware events` | A new BMC event log entry or rasdaemon record, or the BMC event log is 80% full | First failure; resolves silently on the next push |
+
+  Alert text from Gatus carries only the endpoint description. The cause, such
+  as which sensor or how the boot ended, is the error on the failed result in
+  the status page, and in `journalctl -t host-health` on the host. The
+  [crash capture runbook](../crash_capture/README.md#gatus-reports) covers
+  reading them.
 
 ## Known gaps
 
@@ -34,9 +50,9 @@ give Gatus its own Healthchecks.io check.
 
 Runner detection latency is roughly two hours. GitLab only rewrites
 `contacted_at` every 40 to 55 minutes and treats a runner as online for two
-hours after its last contact, so polling faster cannot tighten it. A
-runner-side dead-man's switch would be the instrument for minute-level
-detection. Two hours against the 24 days it previously took is the win here.
+hours after its last contact, so polling faster cannot tighten it. For max,
+the `max heartbeat` push endpoint is the minute-level dead-man's switch: it
+covers the host, though not the runner process on it.
 
 ## DNS
 
@@ -133,6 +149,7 @@ vault_gatus_oidc_client_secret: "<PocketID client secret>"
 vault_gatus_gitlab_token: "<GitLab admin token, read_api scope>"
 vault_gatus_alert_to: "<address alerts are sent to>"
 vault_gatus_discord_webhook_url: "<Discord channel webhook, optional>"
+vault_gatus_push_token: "<random token for pushed host reports>"
 ```
 
 | Vault key | Purpose |
@@ -142,9 +159,10 @@ vault_gatus_discord_webhook_url: "<Discord channel webhook, optional>"
 | `vault_gatus_gitlab_token` | GitLab admin token, `read_api`, reads runner state |
 | `vault_gatus_alert_to` | Email alert recipient; kept out of this public repo |
 | `vault_gatus_discord_webhook_url` | Discord channel webhook; omit to disable Discord |
+| `vault_gatus_push_token` | Bearer token for pushed host reports; `roles/crash_capture` installs the same value on each reporting host |
 
-The OIDC block and each alerting provider are omitted from the rendered config
-while their keys are empty, so a first deploy comes up unauthenticated and
+The OIDC block, each alerting provider, and the pushed host reports are
+omitted from the rendered config while their keys are empty, so a first deploy comes up unauthenticated and
 silent rather than failing to start. Fill the vault before relying on it.
 
 ## Alerting to Discord
