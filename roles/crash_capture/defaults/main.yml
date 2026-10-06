@@ -1,0 +1,67 @@
+---
+# Crash capture for hosts that freeze without leaving a record. See the
+# runbook (README.md) for what each layer catches and how to read it after
+# an incident.
+
+# BMC watchdog. systemd pets /dev/watchdog; if the kernel or PID 1 stops for
+# longer than the runtime timeout, the BMC hard-resets the host and writes a
+# watchdog entry to its event log. ipmi_watchdog registers the legacy misc
+# device only, so the device path is set explicitly rather than relying on
+# systemd's /dev/watchdog0 default.
+crash_capture_watchdog_module: ipmi_watchdog
+crash_capture_watchdog_device: /dev/watchdog
+crash_capture_watchdog_runtime: 2min
+# Covers the reboot itself, including memory training during POST, until
+# systemd reopens the device on the next boot.
+crash_capture_watchdog_reboot: 10min
+
+# Turn detected lockups and oopses into panics so kdump captures them.
+# hung_task_panic stays off: this host mounts NFS, and a stalled share would
+# panic the box rather than log a warning.
+crash_capture_sysctl:
+  kernel.softlockup_panic: 1
+  kernel.hardlockup_panic: 1
+  kernel.softlockup_all_cpu_backtrace: 1
+  kernel.hardlockup_all_cpu_backtrace: 1
+  kernel.panic_on_oops: 1
+  # Reboot 10 seconds after a panic when kdump is not loaded.
+  kernel.panic: 10
+  # Console log level 5 sends emerg through warning to the consoles below,
+  # which covers lockups, MCE, AER, Xid, and OOM reports. Notice-level
+  # audit records stay off the wire.
+  kernel.printk: "5 4 1 7"
+
+# Kernel arguments appended through a GRUB drop-in. /etc/default/grub stays
+# hand managed (see roles/gpu_tools/README.md). The BMC exposes serial over
+# LAN, but the firmware publishes no SPCR table naming its port, so both
+# 16550 ports carry the console. tty0 is last so /dev/console stays on the
+# local display.
+crash_capture_kernel_args:
+  - console=ttyS0,115200n8
+  - console=ttyS1,115200n8
+  - console=tty0
+
+# kdump writes filtered vmcores here. -d 31 drops page cache, user, free,
+# and zero pages, which keeps a dump of this 128 GB host to kernel memory.
+crash_capture_kdump_dir: /var/crash
+crash_capture_kdump_makedumpfile_args: "-c -d 31"
+
+# Netconsole streams kernel messages over UDP to a receiver host. It needs
+# the NIC alive at the moment of the crash, unlike the serial console, but
+# it is recorded continuously without a BMC session.
+crash_capture_netconsole_receiver: "{{ groups['netconsole_receiver'] | first }}"
+crash_capture_netconsole_port: 6666
+crash_capture_netconsole_target: crash_capture
+
+# Receiver side. One file per sender address.
+crash_capture_netconsole_log_dir: /var/log/netconsole
+crash_capture_netconsole_senders: "{{ groups['crash_capture'] | map('extract', hostvars, 'ansible_host') | list }}"
+
+# BMC sensors whose events are switched off. Each flap is two event log
+# entries; CHA_FAN1/WP reads 0 RPM at idle and filled the 3,639-entry log
+# within minutes of the June rebuild, after which the BMC stopped recording
+# anything. The sensor keeps reporting readings.
+crash_capture_bmc_quiet_sensors:
+  - "CHA_FAN1/WP"
+# Warn when the BMC event log is at least this full.
+crash_capture_bmc_sel_warn_percent: 80

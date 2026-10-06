@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+{{ crash_capture_netconsole_log_dir }}/*.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}
