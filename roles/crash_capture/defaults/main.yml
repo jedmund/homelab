@@ -100,6 +100,10 @@ crash_capture_gpu_max_temp: 88
 crash_capture_nvme_max_temp: 75
 # Percent full at which the BMC event log is reported as a hardware event.
 crash_capture_sel_full_percent: 80
+# rasdaemon tables that are not hardware errors. signal_event records
+# processes being signalled; installing rasdaemon alone wrote eight rows.
+crash_capture_rasdaemon_ignore_tables:
+  - signal_event
 # BMC event log entries that are not hardware events. Watchdog resets are
 # reported by the unexpected-reboot check instead, and non-critical fan dips
 # by the cooling check.
