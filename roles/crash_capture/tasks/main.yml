@@ -1,0 +1,277 @@
+---
+# Crash capture on the monitored host. Order matters: packages first, so
+# kdump-tools has written its crashkernel drop-in before GRUB is checked.
+
+- name: Gather network facts from the netconsole receiver
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - network
+  delegate_to: "{{ crash_capture_netconsole_receiver }}"
+  delegate_facts: true
+
+- name: Assert the netconsole addresses resolve
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.default_ipv4.interface is defined
+      - hostvars[crash_capture_netconsole_receiver].ansible_facts.default_ipv4.address
+        == hostvars[crash_capture_netconsole_receiver].ansible_host
+      - hostvars[crash_capture_netconsole_receiver].ansible_facts.default_ipv4.macaddress is defined
+    fail_msg: >-
+      Netconsole needs this host's default interface and the receiver's MAC
+      on the same subnet as its inventory address.
+
+- name: Preseed kdump-tools to load the crash kernel
+  ansible.builtin.debconf:
+    name: kdump-tools
+    question: kdump-tools/use_kdump
+    vtype: boolean
+    value: "true"
+
+- name: Install crash capture packages
+  ansible.builtin.apt:
+    name:
+      - ipmitool
+      - kdump-tools
+      - rasdaemon
+    state: present
+  register: crash_capture_packages
+
+# Zero until a boot with crashkernel= has reserved memory. kdump cannot load
+# before that, so the reload handler waits for it.
+- name: Read the crash kernel reservation
+  ansible.builtin.slurp:
+    src: /sys/kernel/kexec_crash_size
+  register: crash_capture_kexec_crash_size_raw
+
+- name: Record the crash kernel reservation
+  ansible.builtin.set_fact:
+    crash_capture_kexec_crash_size: "{{ crash_capture_kexec_crash_size_raw.content | b64decode | trim | int }}"
+
+- name: Configure kdump
+  ansible.builtin.lineinfile:
+    path: /etc/default/kdump-tools
+    regexp: "^#?\\s*{{ item.key }}="
+    line: '{{ item.key }}="{{ item.value }}"'
+  loop:
+    - { key: USE_KDUMP, value: "1" }
+    - { key: KDUMP_COREDIR, value: "{{ crash_capture_kdump_dir }}" }
+    - { key: MAKEDUMP_ARGS, value: "{{ crash_capture_kdump_makedumpfile_args }}" }
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Reload kdump
+  # Check mode reports the install without performing it, so the files and
+  # units below do not exist yet on a first run.
+  when: not (ansible_check_mode and crash_capture_packages is changed)
+
+- name: Enable crash capture services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+  loop:
+    - kdump-tools
+    - rasdaemon
+  when: not (ansible_check_mode and crash_capture_packages is changed)
+
+- name: Start rasdaemon
+  ansible.builtin.systemd_service:
+    name: rasdaemon
+    state: started
+  when: not (ansible_check_mode and crash_capture_packages is changed)
+
+# Kernel console and panic behaviour
+
+- name: Apply lockup and console sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-crash-capture.conf
+    reload: true
+  loop: "{{ crash_capture_sysctl | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Append crash capture kernel arguments
+  ansible.builtin.template:
+    src: grub-crash-capture.cfg.j2
+    dest: /etc/default/grub.d/90-crash-capture.cfg
+    owner: root
+    group: root
+    mode: "0644"
+
+# A state check rather than a handler, for the same reason as the initramfs
+# check in roles/gpu_tools: a later failure would skip the handler and the
+# re-run would not notify again, leaving the drop-in on disk but absent from
+# grub.cfg.
+- name: Check whether grub.cfg carries the crash capture arguments
+  ansible.builtin.shell:
+    cmd: |
+      grep -q -- 'crashkernel=' /boot/grub/grub.cfg || exit 1
+      {% for arg in crash_capture_kernel_args %}
+      grep -qF -- '{{ arg }}' /boot/grub/grub.cfg || exit 1
+      {% endfor %}
+    executable: /bin/bash
+  register: crash_capture_grub_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Regenerate grub.cfg
+  ansible.builtin.command: update-grub
+  changed_when: true
+  when: crash_capture_grub_state.rc | default(1) != 0
+
+# BMC watchdog
+
+- name: Load the BMC watchdog driver at boot
+  ansible.builtin.template:
+    src: modules-load-watchdog.conf.j2
+    dest: /etc/modules-load.d/crash-capture-watchdog.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Load the BMC watchdog driver now
+  community.general.modprobe:
+    name: "{{ crash_capture_watchdog_module }}"
+    state: present
+
+- name: Check the watchdog device exists
+  ansible.builtin.stat:
+    path: "{{ crash_capture_watchdog_device }}"
+  register: crash_capture_watchdog_dev
+
+- name: Assert the watchdog device exists
+  ansible.builtin.assert:
+    that:
+      - crash_capture_watchdog_dev.stat.exists
+    fail_msg: >-
+      {{ crash_capture_watchdog_device }} is missing after loading
+      {{ crash_capture_watchdog_module }}. Not configuring systemd to use it.
+  when: not ansible_check_mode
+
+- name: Create the systemd manager drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Have systemd pet the BMC watchdog
+  ansible.builtin.template:
+    src: systemd-watchdog.conf.j2
+    dest: /etc/systemd/system.conf.d/90-crash-capture-watchdog.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Re-execute systemd
+
+# Netconsole
+
+- name: Install the netconsole target script
+  ansible.builtin.template:
+    src: netconsole-target.j2
+    dest: /usr/local/sbin/netconsole-target
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart netconsole
+
+- name: Install the netconsole unit
+  ansible.builtin.template:
+    src: netconsole.service.j2
+    dest: /etc/systemd/system/netconsole.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: crash_capture_netconsole_unit
+  notify: Restart netconsole
+
+- name: Enable and start netconsole
+  ansible.builtin.systemd_service:
+    name: netconsole
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not (ansible_check_mode and crash_capture_netconsole_unit is changed)
+
+# BMC event log
+
+# Threshold changes do not help here: this BMC treats a reading equal to
+# the threshold as crossing it. Event generation is turned off per sensor
+# instead (IPMI Set Sensor Event Enable, 0x40 = scanning on, all event
+# messages off), so readings remain available through `ipmitool sensor`.
+- name: Read BMC sensor records
+  ansible.builtin.command:
+    argv: [ipmitool, sdr, get, "{{ item }}"]
+  loop: "{{ crash_capture_bmc_quiet_sensors }}"
+  register: crash_capture_sensor_records
+  changed_when: false
+  check_mode: false
+
+- name: Read BMC sensor event enables
+  ansible.builtin.command:
+    argv: [ipmitool, raw, "0x04", "0x29", "{{ crash_capture_sensor_number }}"]
+  vars:
+    crash_capture_sensor_number: >-
+      {{ item.stdout | regex_search('Sensor ID\s*:.*\((0x[0-9a-fA-F]+)\)', '\1') | first }}
+  loop: "{{ crash_capture_sensor_records.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: crash_capture_sensor_events
+  changed_when: false
+  check_mode: false
+
+- name: Disable event messages from noisy BMC sensors
+  ansible.builtin.command:
+    argv: [ipmitool, raw, "0x04", "0x28", "{{ crash_capture_sensor_number }}", "0x40"]
+  vars:
+    crash_capture_sensor_number: "{{ item.cmd[4] }}"
+  loop: "{{ crash_capture_sensor_events.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  changed_when: true
+  # The first response byte carries the all-event-messages bit (0x80).
+  when: (item.stdout.split() | first | int(base=16)) >= 128
+
+- name: Read BMC event log usage
+  ansible.builtin.command:
+    argv: [ipmitool, sel, info]
+  register: crash_capture_sel_info
+  changed_when: false
+  check_mode: false
+
+- name: Warn when the BMC event log is nearly full
+  ansible.builtin.debug:
+    msg: >-
+      The BMC event log on {{ inventory_hostname }} is
+      {{ crash_capture_sel_percent }}% full. A full log stops recording, so a
+      watchdog reset would leave no entry. Save and clear it as described in
+      roles/crash_capture/README.md.
+  vars:
+    crash_capture_sel_percent: >-
+      {{ crash_capture_sel_info.stdout | regex_search('Percent Used\s*:\s*(\d+)', '\1') | default(['0'], true) | first | int }}
+  when: crash_capture_sel_percent | int >= crash_capture_bmc_sel_warn_percent
+
+# Reboot state. The role never reboots; kernel arguments and the crash kernel
+# reservation apply on the next boot, which a watchdog reset also provides.
+
+- name: Read the running kernel command line
+  ansible.builtin.slurp:
+    src: /proc/cmdline
+  register: crash_capture_proc_cmdline
+
+- name: Warn when a reboot is needed
+  ansible.builtin.debug:
+    msg: >-
+      Kernel arguments or the crash kernel reservation are not active on
+      {{ inventory_hostname }} yet. Serial console and kdump take effect on
+      the next boot. The watchdog, sysctls, rasdaemon, and netconsole are
+      active now.
+  vars:
+    crash_capture_running_args: "{{ crash_capture_proc_cmdline.content | b64decode | split }}"
+  when: >-
+    crash_capture_kexec_crash_size | int == 0
+    or (crash_capture_kernel_args | difference(crash_capture_running_args) | length) > 0

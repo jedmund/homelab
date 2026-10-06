@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# PID 1 pets the BMC watchdog. A host that stops for longer than
+# RuntimeWatchdogSec is hard-reset by the BMC, which logs the reset.
+[Manager]
+WatchdogDevice={{ crash_capture_watchdog_device }}
+RuntimeWatchdogSec={{ crash_capture_watchdog_runtime }}
+RebootWatchdogSec={{ crash_capture_watchdog_reboot }}
