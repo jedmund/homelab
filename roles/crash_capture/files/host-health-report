@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+"""Push host health to Gatus external endpoints.
+
+  host-health-report boot [--dry-run]     classify how the previous boot ended
+  host-health-report report [--dry-run]   heartbeat, cooling, and hardware events
+
+--dry-run logs what would be pushed and leaves the state file alone.
+
+Output goes to the journal under the host-health identifier, so
+`journalctl -t host-health` is the history, including the readings line
+logged on every report run. A source that cannot be read is logged and left
+unreported rather than pushed as a failure: a flaky BMC read is not a
+hardware fault.
+"""
+
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime
+
+CONFIG_PATH = os.environ.get("HOST_HEALTH_CONFIG", "/etc/host-health/config.json")
+TOKEN_PATH = "/etc/host-health/token"
+STATE_PATH = "/var/lib/host-health/state.json"
+# tmpfs, so it is cleared by every reboot.
+BOOT_REPORTED_PATH = "/run/host-health/boot-reported"
+DRY_RUN = False
+
+
+def log(message):
+    print(message, flush=True)
+
+
+def run(argv, timeout=60):
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def ipmitool(*args):
+    # The KCS interface occasionally answers with a mismatched sequence id.
+    for _ in range(3):
+        out = run(["ipmitool", *args])
+        if out is not None:
+            return out
+        time.sleep(2)
+    return None
+
+
+def load_json(path, default):
+    try:
+        with open(path) as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return default
+
+
+def save_state(state):
+    tmp = STATE_PATH + ".tmp"
+    with open(tmp, "w") as handle:
+        json.dump(state, handle)
+    os.replace(tmp, STATE_PATH)
+
+
+def endpoint_key(group, name):
+    # Gatus replaces these characters with '-' in both parts of the key.
+    clean = lambda value: re.sub(r"[ /_,.#+&]", "-", value)
+    return f"{clean(group)}_{clean(name)}"
+
+
+def push(cfg, token, check, success, error="", attempts=1):
+    key = endpoint_key(cfg["group"], f"{cfg['host']} {check.replace('-', ' ')}")
+    query = {"success": "true" if success else "false"}
+    if not success:
+        query["error"] = error[: cfg["error_max_length"]]
+    if DRY_RUN:
+        log(f"dry run: would push {key} {query}")
+        return True
+    url = f"{cfg['url']}/api/v1/endpoints/{key}/external?{urllib.parse.urlencode(query)}"
+    request = urllib.request.Request(
+        url, method="POST", headers={"Authorization": f"Bearer {token}"}
+    )
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=15):
+                return True
+        except urllib.error.HTTPError as exc:
+            # 401 and 404 mean a token or endpoint mismatch; retrying won't help.
+            log(f"push {key} rejected: HTTP {exc.code}")
+            if exc.code in (401, 404):
+                return False
+        except OSError as exc:
+            log(f"push {key} failed (attempt {attempt}/{attempts}): {exc}")
+        if attempt < attempts:
+            time.sleep(30)
+    return False
+
+
+# Readings
+
+
+def bmc_sensors():
+    out = ipmitool("sensor")
+    if out is None:
+        return None
+    rows = []
+    for line in out.splitlines():
+        fields = [field.strip() for field in line.split("|")]
+        if len(fields) >= 4:
+            rows.append(fields)
+    return rows
+
+
+def sel_entries():
+    out = ipmitool("sel", "elist")
+    if out is None:
+        return None
+    entries = []
+    for line in out.splitlines():
+        fields = [field.strip() for field in line.split("|")]
+        if len(fields) < 5:
+            continue
+        try:
+            record_id = int(fields[0], 16)
+        except ValueError:
+            continue
+        try:
+            when = datetime.strptime(
+                f"{fields[1]} {' '.join(fields[2].split()[:2])}", "%m/%d/%Y %I:%M:%S %p"
+            ).timestamp()
+        except ValueError:
+            when = None
+        entries.append({"id": record_id, "time": when, "text": " | ".join(fields[1:])})
+    return entries
+
+
+def ras_record_count(path):
+    if not os.path.exists(path):
+        return 0
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        tables = [
+            row[0]
+            for row in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+            if not row[0].startswith("sqlite_")
+        ]
+        total = sum(con.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0] for t in tables)
+        con.close()
+        return total
+    except sqlite3.Error:
+        return None
+
+
+# Checks
+
+
+def check_cooling(cfg):
+    """Temperatures and fan speeds.
+
+    Returns (findings, readings); findings is None when nothing was readable.
+    """
+    findings, readings, readable = [], {}, False
+
+    rows = bmc_sensors()
+    if rows is None:
+        log("cooling: BMC sensors unreadable")
+    else:
+        readable = True
+        for name, value, unit, status, *_ in rows:
+            if status in ("cr", "nr"):
+                findings.append(f"{name} {value} {unit} at BMC critical threshold")
+            if unit not in ("degrees C", "RPM"):
+                continue
+            try:
+                reading = float(value)
+            except ValueError:
+                continue
+            readings[name] = reading
+            for limit in cfg["sensor_limits"]:
+                if not re.fullmatch(limit["sensor"], name):
+                    continue
+                if "max" in limit and reading >= limit["max"]:
+                    findings.append(f"{name} {reading:.0f} >= {limit['max']} {unit}")
+                if "min" in limit and reading < limit["min"]:
+                    findings.append(f"{name} {reading:.0f} < {limit['min']} {unit}")
+
+    gpu = run([
+        "nvidia-smi",
+        "--query-gpu=index,temperature.gpu,clocks_event_reasons.hw_thermal_slowdown,"
+        "clocks_event_reasons.sw_thermal_slowdown,clocks_event_reasons.hw_power_brake_slowdown",
+        "--format=csv,noheader,nounits",
+    ])
+    if gpu is None:
+        log("cooling: nvidia-smi unreadable")
+    else:
+        readable = True
+        labels = ("HW thermal slowdown", "SW thermal slowdown", "HW power brake")
+        for line in gpu.strip().splitlines():
+            index, temp, *flags = [field.strip() for field in line.split(",")]
+            try:
+                reading = float(temp)
+            except ValueError:
+                continue
+            readings[f"GPU{index}"] = reading
+            if reading >= cfg["gpu_max"]:
+                findings.append(f"GPU{index} {reading:.0f}C >= {cfg['gpu_max']}C")
+            for label, flag in zip(labels, flags):
+                if flag == "Active":
+                    findings.append(f"GPU{index} {label} active")
+
+    for hwmon in sorted(os.listdir("/sys/class/hwmon")):
+        base = f"/sys/class/hwmon/{hwmon}"
+        try:
+            with open(f"{base}/name") as handle:
+                if handle.read().strip() != "nvme":
+                    continue
+            with open(f"{base}/temp1_input") as handle:
+                reading = int(handle.read()) / 1000
+        except (OSError, ValueError):
+            continue
+        readable = True
+        device = os.path.basename(os.path.realpath(f"{base}/device"))
+        readings[device] = reading
+        if reading >= cfg["nvme_max"]:
+            findings.append(f"{device} {reading:.0f}C >= {cfg['nvme_max']}C")
+
+    return (findings if readable else None), readings
+
+
+def check_hardware_events(cfg, state):
+    """Return findings since the previous run, or None when nothing was readable."""
+    findings, readable = [], False
+    ignore = [re.compile(pattern) for pattern in cfg["sel_ignore"]]
+
+    entries = sel_entries()
+    if entries is None:
+        log("hardware events: BMC event log unreadable")
+    else:
+        readable = True
+        last = state.get("sel_last_id")
+        newest = max((entry["id"] for entry in entries), default=0)
+        if last is not None:
+            # Record ids restart after the log is cleared.
+            fresh = [e for e in entries if e["id"] > last] if newest >= last else entries
+            for entry in fresh:
+                if not any(pattern.search(entry["text"]) for pattern in ignore):
+                    findings.append(f"BMC: {entry['text']}")
+        state["sel_last_id"] = newest
+
+    # A full log stops recording, which would blind this check and the
+    # reboot classification alike.
+    info = ipmitool("sel", "info")
+    used = re.search(r"Percent Used\s*:\s*(\d+)", info or "")
+    if used and int(used.group(1)) >= cfg["sel_full_percent"]:
+        findings.append(f"BMC event log {used.group(1)}% full; save and clear it")
+
+    count = ras_record_count(cfg["rasdaemon_db"])
+    if count is None:
+        log("hardware events: rasdaemon database unreadable")
+    else:
+        readable = True
+        last = state.get("ras_records")
+        if last is not None and count > last:
+            findings.append(f"rasdaemon: {count - last} new record(s); see ras-mc-ctl --errors")
+        state["ras_records"] = count
+
+    return findings if readable else None
+
+
+def previous_boot():
+    out = run(["journalctl", "--list-boots", "-o", "json", "-q"])
+    if not out:
+        return None
+    boots = {boot["index"]: boot for boot in json.loads(out)}
+    return boots.get(-1)
+
+
+def classify_previous_boot(cfg):
+    """Return (clean, description). clean is None when it cannot be told."""
+    boot = previous_boot()
+    tail = run(["journalctl", "-b", "-1", "-n", "5", "-o", "cat", "-q", "--no-pager"])
+    if boot is None or not tail:
+        return None, "previous boot not in the journal"
+    if "Journal stopped" in tail:
+        return True, "previous boot shut down cleanly"
+
+    start = boot["first_entry"] / 1e6
+    end = boot["last_entry"] / 1e6
+    parts = [f"Previous boot ended without a shutdown at {datetime.fromtimestamp(end):%Y-%m-%d %H:%M:%S}"]
+
+    dumps = []
+    if os.path.isdir(cfg["crash_dir"]):
+        for name in sorted(os.listdir(cfg["crash_dir"])):
+            path = os.path.join(cfg["crash_dir"], name)
+            if os.path.isdir(path) and os.path.getmtime(path) > start:
+                dumps.append(path)
+
+    entries = sel_entries() or []
+    since = [e for e in entries if e["time"] is None or e["time"] >= start - 60]
+    watchdog = [e for e in since if "Watchdog" in e["text"]]
+    hardware = [
+        e for e in since
+        if e not in watchdog
+        and not any(re.search(pattern, e["text"]) for pattern in cfg["sel_ignore"])
+    ]
+
+    if dumps:
+        parts.append(f"kernel panic captured by kdump in {', '.join(dumps)}")
+    elif watchdog:
+        parts.append(f"BMC watchdog reset (kernel stopped): {watchdog[-1]['text']}")
+    else:
+        parts.append(
+            "no watchdog reset or crash dump recorded: power loss, a manual reset, "
+            "or a freeze the watchdog did not catch"
+        )
+    if hardware:
+        parts.append("BMC events: " + "; ".join(e["text"] for e in hardware[-5:]))
+
+    temps = run([
+        "journalctl", "-b", "-1", "-t", "host-health", "-g", "^readings ", "-n", "1",
+        "-o", "short-iso", "-q", "--no-pager",
+    ])
+    if temps:
+        parts.append("last reading " + temps.strip().split(": ", 1)[-1])
+    return False, ". ".join(parts)
+
+
+# Modes
+
+
+def mode_boot(cfg, token):
+    clean, description = classify_previous_boot(cfg)
+    log(f"boot: {description}")
+    if clean is not None:
+        push(cfg, token, "unexpected-reboot", clean, description, attempts=cfg["boot_push_attempts"])
+    if not DRY_RUN:
+        os.makedirs(os.path.dirname(BOOT_REPORTED_PATH), exist_ok=True)
+        open(BOOT_REPORTED_PATH, "w").close()
+
+
+def mode_report(cfg, token):
+    state = load_json(STATE_PATH, {})
+    push(cfg, token, "heartbeat", True)
+
+    temp_findings, readings = check_cooling(cfg)
+    log("readings " + " ".join(f"{k}={v:.0f}" for k, v in sorted(readings.items())))
+    if temp_findings is not None:
+        if temp_findings:
+            log("cooling alert: " + "; ".join(temp_findings))
+        push(cfg, token, "cooling", not temp_findings, "; ".join(temp_findings))
+
+    event_findings = check_hardware_events(cfg, state)
+    if event_findings is not None:
+        if event_findings:
+            log("hardware events: " + "; ".join(event_findings))
+        push(cfg, token, "hardware-events", not event_findings, "; ".join(event_findings))
+    if not DRY_RUN:
+        save_state(state)
+
+    # Re-arm the reboot alert once this boot has been reported, so the next
+    # unexpected reboot notifies again.
+    if os.path.exists(BOOT_REPORTED_PATH):
+        push(cfg, token, "unexpected-reboot", True)
+
+
+def main():
+    global DRY_RUN
+    args = sys.argv[1:]
+    DRY_RUN = "--dry-run" in args
+    args = [arg for arg in args if arg != "--dry-run"]
+    if len(args) != 1 or args[0] not in ("boot", "report"):
+        print(__doc__, file=sys.stderr)
+        return 2
+    cfg = load_json(CONFIG_PATH, None)
+    if cfg is None:
+        log(f"cannot read {CONFIG_PATH}")
+        return 1
+    token = ""
+    if not DRY_RUN:
+        with open(TOKEN_PATH) as handle:
+            token = handle.read().strip()
+        os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    (mode_boot if args[0] == "boot" else mode_report)(cfg, token)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

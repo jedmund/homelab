@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Report heartbeat, cooling, and hardware events to Gatus
+Wants=network-online.target
+After=network-online.target host-health-boot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/host-health-report report
+SyslogIdentifier=host-health
+TimeoutStartSec=5min

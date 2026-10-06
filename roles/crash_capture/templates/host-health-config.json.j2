@@ -1,0 +1,14 @@
+{{ {
+  "url": crash_capture_gatus_url,
+  "group": crash_capture_gatus_group,
+  "host": inventory_hostname,
+  "error_max_length": crash_capture_report_error_max_length,
+  "boot_push_attempts": crash_capture_boot_push_attempts,
+  "crash_dir": crash_capture_kdump_dir,
+  "rasdaemon_db": "/var/lib/rasdaemon/ras-mc_event.db",
+  "sensor_limits": crash_capture_sensor_limits,
+  "gpu_max": crash_capture_gpu_max_temp,
+  "nvme_max": crash_capture_nvme_max_temp,
+  "sel_full_percent": crash_capture_sel_full_percent,
+  "sel_ignore": crash_capture_sel_ignore,
+} | to_nice_json }}

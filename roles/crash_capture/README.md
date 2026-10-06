@@ -37,10 +37,48 @@ During kdump, `ipmi_watchdog` extends the BMC timer to 255 seconds. A dump
 that takes longer is reset before it finishes. With `-d 31` filtering, only
 kernel memory is written.
 
+## Gatus reports
+
+`host-health-report`, run by systemd, pushes four Gatus external endpoints.
+The Gatus side, with alert thresholds, is in the
+[Gatus runbook](../gatus/README.md#what-it-checks).
+
+| Check | Run | Pushes failure when |
+| --- | --- | --- |
+| `heartbeat` | Every 2 minutes | Never; Gatus fails it when pushes stop for 10 minutes |
+| `unexpected-reboot` | Once per boot (`host-health-boot.service`) | The previous boot's journal does not end with a clean shutdown |
+| `cooling` | Every 2 minutes | A sensor in `crash_capture_sensor_limits` is out of range, a BMC threshold sensor is critical, a GPU is at `crash_capture_gpu_max_temp` or reports thermal slowdown or power brake, or an NVMe drive is at `crash_capture_nvme_max_temp` |
+| `hardware-events` | Every 2 minutes | A new BMC event log entry not in `crash_capture_sel_ignore`, a new rasdaemon record, or the BMC event log at `crash_capture_sel_full_percent` |
+
+An unclean reboot is classified in the pushed error:
+
+- **Kernel panic captured by kdump**: a new directory under `/var/crash`.
+- **BMC watchdog reset (kernel stopped)**: a watchdog entry in the BMC event
+  log and no crash dump.
+- **No watchdog reset or crash dump recorded**: power loss, a manual reset, or
+  a freeze the watchdog did not catch.
+
+The error also carries BMC events since the previous boot started and the
+last sensor readings logged before it ended. Every report run logs a
+`readings` line, so `journalctl -b -1 -t host-health` shows temperatures and
+fan speeds up to the freeze.
+
+A source that cannot be read, such as a failed BMC query, is logged and not
+pushed, so it never alerts as a hardware fault. The reboot endpoint is
+re-armed by the next report run, so a second unexpected reboot alerts again.
+
+Test without pushing:
+
+```sh
+sudo host-health-report boot --dry-run
+sudo host-health-report report --dry-run
+```
+
 ## After the next freeze
 
-The host should reset itself within about two minutes. Then collect, in this
-order:
+The host should reset itself within about two minutes, and Gatus alerts on
+`max unexpected reboot`. Open that endpoint on the status page for the
+classification, then collect, in this order:
 
 1. BMC event log: `sudo ipmitool sel elist | tail -30` on max. A
    `Watchdog 2` entry with `Hard reset` means the kernel stopped. Also check
