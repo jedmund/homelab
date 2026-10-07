@@ -60,7 +60,8 @@ crash_capture_netconsole_senders: "{{ groups['crash_capture'] | map('extract', h
 # BMC sensors whose events are switched off. Each flap is two event log
 # entries; CHA_FAN1/WP reads 0 RPM at idle and filled the 3,639-entry log
 # within minutes of the June rebuild, after which the BMC stopped recording
-# anything. The sensor keeps reporting readings.
+# anything. The sensor keeps reporting readings. The BMC forgets the setting
+# when AC power is removed, so the boot report re-applies it on every boot.
 crash_capture_bmc_quiet_sensors:
   - "CHA_FAN1/WP"
 # Warn when the BMC event log is at least this full.

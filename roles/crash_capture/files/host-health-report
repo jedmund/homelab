@@ -413,7 +413,26 @@ def classify_previous_boot(cfg):
 # Modes
 
 
+def quiet_bmc_sensors(cfg):
+    """Turn off event messages for sensors that flood the BMC event log.
+
+    The BMC forgets this setting when AC power is removed, so it is applied on
+    every boot rather than only at deploy time.
+    """
+    for sensor in cfg["bmc_quiet_sensors"]:
+        record = ipmitool("sdr", "get", sensor)
+        found = re.search(r"Sensor ID\s*:.*\((0x[0-9a-fA-F]+)\)", record or "")
+        if not found:
+            log(f"boot: cannot find BMC sensor {sensor}")
+            continue
+        if DRY_RUN:
+            log(f"dry run: would disable events for {sensor} ({found.group(1)})")
+        elif ipmitool("raw", "0x04", "0x28", found.group(1), "0x40") is None:
+            log(f"boot: could not disable events for {sensor}")
+
+
 def mode_boot(cfg, token):
+    quiet_bmc_sensors(cfg)
     clean, description = classify_previous_boot(cfg)
     log(f"boot: {description}")
     if clean is not None:
