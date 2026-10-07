@@ -1,0 +1,7 @@
+---
+- name: Apply GPU power limits
+  ansible.builtin.systemd_service:
+    name: gpu-power-limits.service
+    state: restarted
+    daemon_reload: true
+  when: not (ansible_check_mode and gpu_tools_power_limit_unit is changed)
