@@ -1,0 +1,54 @@
+---
+# Netconsole receiver. Included with tasks_from on the host in the
+# netconsole_receiver group.
+
+- name: Create the netconsole log directory
+  ansible.builtin.file:
+    path: "{{ crash_capture_netconsole_log_dir }}"
+    state: directory
+    owner: syslog
+    group: adm
+    mode: "0750"
+
+- name: Configure rsyslog to receive netconsole
+  ansible.builtin.template:
+    src: rsyslog-netconsole.conf.j2
+    dest: /etc/rsyslog.d/30-netconsole.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+# Validated in place rather than with the template's validate option:
+# AppArmor confines rsyslogd to its own configuration paths, so it cannot
+# read Ansible's temporary copy. The restart handler runs only after this
+# passes.
+- name: Validate the rsyslog configuration
+  ansible.builtin.command: rsyslogd -N1
+  changed_when: false
+  check_mode: false
+
+- name: Rotate netconsole logs
+  ansible.builtin.template:
+    src: logrotate-netconsole.j2
+    dest: /etc/logrotate.d/netconsole
+    owner: root
+    group: root
+    mode: "0644"
+
+# Scoped to the monitored hosts; the receiver's default UFW policy denies
+# everything else.
+- name: Allow netconsole from monitored hosts
+  community.general.ufw:
+    rule: allow
+    src: "{{ item }}"
+    port: "{{ crash_capture_netconsole_port | string }}"
+    proto: udp
+    comment: "netconsole from {{ item }}"
+  loop: "{{ crash_capture_netconsole_senders }}"
+
+- name: Start rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    state: started
+    enabled: true
