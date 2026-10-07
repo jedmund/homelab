@@ -77,6 +77,9 @@ these readings, named `<model>_<reading>` (for example `HX1500i_vrm`).
 | HX1000i | 24-pin motherboard power and the 600 W RTX Pro 6000 Workstation |
 | HX1500i | CPU EPS and both 300 W Max-Q cards |
 
+The journal is capped at `crash_capture_journal_max_use` (8 GB) rather than
+the default, so several weeks of boots stay available for comparison.
+
 A source that cannot be read, such as a failed BMC query, is logged and not
 pushed, so it never alerts as a hardware fault. The reboot endpoint is
 re-armed by the next report run, so a second unexpected reboot alerts again.
