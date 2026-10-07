@@ -169,6 +169,7 @@ kizuna_ar_encryption_key_derivation_salt: "{{ vault_kizuna_ar_encryption_key_der
 kizuna_oidc_issuer: https://id.atelier.house
 kizuna_oidc_client_id: "{{ vault_kizuna_oidc_client_id | default('') }}"
 kizuna_oidc_client_secret: "{{ vault_kizuna_oidc_client_secret | default('') }}"
+kizuna_ios_oidc_client_id: "{{ vault_kizuna_oidc_public_client_id | default('') }}"
 kizuna_oidc_redirect_uri: "{{ kizuna_api_origin }}/auth/pocketid/callback"
 
 # The API callback is a top-level browser navigation, so it must return to

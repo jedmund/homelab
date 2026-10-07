@@ -6,6 +6,15 @@ works, API credentialed CORS is correct, and the private Garage endpoint accepts
 the expected upload preflight. The checks below cover the authenticated and
 stateful behavior that should not be automated with production credentials.
 
+## iOS OIDC client
+
+Set `vault_kizuna_oidc_public_client_id` in `group_vars/kizuna/vault.yml`
+to the iOS public OIDC client ID. The role maps it through
+`kizuna_ios_oidc_client_id` to `KIZUNA_IOS_OIDC_CLIENT_ID` in the shared
+API and worker environment file. It defaults to an empty string when unset.
+The web client continues to use `vault_kizuna_oidc_client_id` and
+`vault_kizuna_oidc_client_secret`.
+
 ## YouTube enrichment and archival
 
 Add the server-side YouTube Data API v3 key to the Kizuna vault before
