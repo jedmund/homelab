@@ -1,5 +1,8 @@
 # Crash capture
 
+See the [incident record](../../docs/max-power-events-2026-10.md) for the
+events, evidence, and open items.
+
 `max` froze three times between September 28 and October 6, 2026 with no
 kernel message, journal entry, ECC error, firmware error record, or pstore
 record. The journal ends mid-stream each time. This role adds the layers
@@ -76,6 +79,12 @@ these readings, named `<model>_<reading>` (for example `HX1500i_vrm`).
 | --- | --- |
 | HX1000i | 24-pin motherboard power and the 600 W RTX Pro 6000 Workstation |
 | HX1500i | CPU EPS and both 300 W Max-Q cards |
+
+Beszel also graphs the PSU temperatures, because its agent reads every hwmon
+sensor. Both units report the same sensor names, so Beszel suffixes the
+second (`corsairpsu_vrm_temp`, `corsairpsu_vrm_temp_<n>`) in USB enumeration
+order, which can change between boots. Use the model-labelled `psu` lines to
+tell the units apart.
 
 The journal is capped at `crash_capture_journal_max_use` (8 GB) rather than
 the default, so several weeks of boots stay available for comparison.
