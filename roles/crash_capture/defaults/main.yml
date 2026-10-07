@@ -41,6 +41,11 @@ crash_capture_kernel_args:
   - console=ttyS1,115200n8
   - console=tty0
 
+# Persistent journal cap. The default (10 percent of the filesystem, capped
+# at 4 GB) kept about three weeks on max, and freezes can be a week apart;
+# comparing the boots before each one needs more history than that.
+crash_capture_journal_max_use: 8G
+
 # kdump writes filtered vmcores here. -d 31 drops page cache, user, free,
 # and zero pages, which keeps a dump of this 128 GB host to kernel memory.
 crash_capture_kdump_dir: /var/crash

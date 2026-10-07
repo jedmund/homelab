@@ -100,7 +100,8 @@ See the [local inference upgrade plan](docs/inference-upgrade-plan.md) for the
 ordered runtime, prompt-cache, and model experiments on `max`, and the
 [CI performance report](docs/ci-performance-2026-09-22.md) for why CI on that
 host was slow, what changed, and what it implies for the next hardware
-purchase.
+purchase. The [power event record](docs/max-power-events-2026-10.md) covers the
+unexplained outages on `max` from September 2026 and how they are monitored.
 
 Historical upgrade reports and experimental notes describe the configurations
 and dates they record. Use role defaults and inventory for the current

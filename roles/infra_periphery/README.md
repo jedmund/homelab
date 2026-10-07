@@ -27,6 +27,14 @@ The passkey in `group_vars/infra_periphery/vault.yml` must equal
 `komodo_passkey` in `group_vars/infra_core/vault.yml`, or Core's
 connection is rejected.
 
+## AppArmor
+
+The container runs with `apparmor:unconfined`. Periphery mounts the host's
+`/proc` and reads each process's entries for system stats. Docker's default
+profile treats those reads as ptrace and denied them about once a second,
+which buried useful kernel messages on max. The container already has the
+Docker socket, so the profile added no meaningful confinement.
+
 ## Version policy
 
 Keep `komodo_periphery_image_tag` matched to `komodo_image_tag` in
