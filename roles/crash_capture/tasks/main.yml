@@ -315,6 +315,8 @@
     - host-health-boot.service
     - host-health.service
     - host-health.timer
+    - host-health-psu.service
+    - host-health-psu.timer
   register: crash_capture_host_health_units
 
 # The boot report runs at the next boot rather than now: run during a deploy
@@ -337,11 +339,14 @@
     daemon_reload: true
   when: not (ansible_check_mode and crash_capture_host_health_units is changed)
 
-- name: Enable and start the host health timer
+- name: Enable and start the host health timers
   ansible.builtin.systemd_service:
-    name: host-health.timer
+    name: "{{ item }}"
     enabled: true
     state: started
+  loop:
+    - host-health.timer
+    - host-health-psu.timer
   when: not (ansible_check_mode and crash_capture_host_health_units is changed)
 
 # Reboot state. The role never reboots; kernel arguments and the crash kernel

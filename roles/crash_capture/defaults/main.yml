@@ -79,6 +79,9 @@ crash_capture_gatus_group: hosts
 crash_capture_gatus_push_token: >-
   {{ hostvars[groups['gatus'] | first].vault_gatus_push_token | default('') }}
 crash_capture_report_interval: 2min
+# PSU readings are logged (not pushed) more often, so the last line before a
+# power event is at most this old.
+crash_capture_psu_log_interval: 15s
 # The boot report waits for Gatus and Traefik when both hosts come up together.
 crash_capture_boot_push_attempts: 20
 crash_capture_report_error_max_length: 900
@@ -96,6 +99,11 @@ crash_capture_sensor_limits:
   - { sensor: TEMP_LAN, max: 95 }
   - { sensor: CPU_FAN1, min: 200 }
   - { sensor: "CPU_FAN2/WP", min: 200 }
+  # Corsair PSUs over USB (corsair-psu): <model>_<reading>. The driver
+  # reports 70C as the critical temperature for both sensors, and ATX allows
+  # the 12V rail to drift 5 percent either way.
+  - { sensor: "HX.*_(vrm|case)", max: 65 }
+  - { sensor: "HX.*_12v", min: 11.4, max: 12.6 }
 crash_capture_gpu_max_temp: 88
 crash_capture_nvme_max_temp: 75
 # Percent full at which the BMC event log is reported as a hardware event.

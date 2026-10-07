@@ -3,6 +3,7 @@
 
   host-health-report boot [--dry-run]     classify how the previous boot ended
   host-health-report report [--dry-run]   heartbeat, cooling, and hardware events
+  host-health-report psu [--dry-run]      log Corsair PSU readings only
 
 --dry-run logs what would be pushed and leaves the state file alone.
 
@@ -142,6 +143,68 @@ def sel_entries():
     return entries
 
 
+def read_text(path):
+    with open(path) as handle:
+        return handle.read().strip()
+
+
+def psu_readings():
+    """Corsair HXi/RMi PSUs over USB through the corsair-psu driver.
+
+    Returns {model: {reading: value}} plus the PSU's own uptime string, which
+    restarts whenever that unit switches on. Empty when none are connected.
+    """
+    labels = {
+        "power total": "out_w",
+        "v_out +12v": "12v",
+        "curr +12v": "12v_a",
+        "vrm temp": "vrm",
+        "case temp": "case",
+        "psu fan": "fan",
+    }
+    scale = {"out_w": 1e6, "12v": 1e3, "12v_a": 1e3, "vrm": 1e3, "case": 1e3, "fan": 1}
+    psus = {}
+    for hwmon in sorted(os.listdir("/sys/class/hwmon")):
+        base = f"/sys/class/hwmon/{hwmon}"
+        try:
+            if read_text(f"{base}/name") != "corsairpsu":
+                continue
+        except OSError:
+            continue
+        device = os.path.basename(os.path.realpath(f"{base}/device"))
+        debug = f"/sys/kernel/debug/corsair-psu-{device}"
+        try:
+            found = re.search(r"\b([A-Z]{2}\d+i)\b", read_text(f"{debug}/product"))
+            model = found.group(1) if found else device
+            uptime = read_text(f"{debug}/uptime")
+        except OSError:
+            model, uptime = device, "?"
+        values = {}
+        for name in os.listdir(base):
+            if not name.endswith("_label"):
+                continue
+            try:
+                key = labels.get(read_text(f"{base}/{name}"))
+                if key:
+                    values[key] = int(read_text(f"{base}/{name[:-6]}_input")) / scale[key]
+            except (OSError, ValueError):
+                continue
+        psus[model] = {"values": values, "uptime": uptime}
+    return psus
+
+
+def format_psus(psus):
+    units = {"out_w": "W", "12v": "V", "12v_a": "A", "vrm": "C", "case": "C", "fan": "rpm"}
+    parts = []
+    for model, data in sorted(psus.items()):
+        fields = " ".join(
+            f"{key}={value:.2f}{units[key]}" if key == "12v" else f"{key}={value:.0f}{units[key]}"
+            for key, value in data["values"].items()
+        )
+        parts.append(f"{model} {fields} up={data['uptime']}")
+    return "; ".join(parts)
+
+
 def ras_record_count(path, ignore_tables):
     if not os.path.exists(path):
         return 0
@@ -169,6 +232,16 @@ def check_cooling(cfg):
     """
     findings, readings, readable = [], {}, False
 
+    def apply_limits(name, reading, unit):
+        readings[name] = reading
+        for limit in cfg["sensor_limits"]:
+            if not re.fullmatch(limit["sensor"], name):
+                continue
+            if "max" in limit and reading >= limit["max"]:
+                findings.append(f"{name} {reading:g} >= {limit['max']} {unit}")
+            if "min" in limit and reading < limit["min"]:
+                findings.append(f"{name} {reading:g} < {limit['min']} {unit}")
+
     rows = bmc_sensors()
     if rows is None:
         log("cooling: BMC sensors unreadable")
@@ -180,17 +253,15 @@ def check_cooling(cfg):
             if unit not in ("degrees C", "RPM"):
                 continue
             try:
-                reading = float(value)
+                apply_limits(name, float(value), unit)
             except ValueError:
                 continue
-            readings[name] = reading
-            for limit in cfg["sensor_limits"]:
-                if not re.fullmatch(limit["sensor"], name):
-                    continue
-                if "max" in limit and reading >= limit["max"]:
-                    findings.append(f"{name} {reading:.0f} >= {limit['max']} {unit}")
-                if "min" in limit and reading < limit["min"]:
-                    findings.append(f"{name} {reading:.0f} < {limit['min']} {unit}")
+
+    psu_units = {"out_w": "W", "12v": "V", "12v_a": "A", "vrm": "C", "case": "C", "fan": "RPM"}
+    for model, data in psu_readings().items():
+        readable = True
+        for key, value in data["values"].items():
+            apply_limits(f"{model}_{key}", round(value, 2), psu_units[key])
 
     gpu = run([
         "nvidia-smi",
@@ -330,6 +401,12 @@ def classify_previous_boot(cfg):
     ])
     if temps:
         parts.append("last reading " + temps.strip().split(": ", 1)[-1])
+    psu = run([
+        "journalctl", "-b", "-1", "-t", "host-health", "-g", "^psu ", "-n", "1",
+        "-o", "short-iso", "-q", "--no-pager",
+    ])
+    if psu:
+        parts.append("last PSU reading " + psu.strip().split(": ", 1)[-1])
     return False, ". ".join(parts)
 
 
@@ -371,12 +448,18 @@ def mode_report(cfg, token):
         push(cfg, token, "unexpected-reboot", True)
 
 
+def mode_psu(cfg, token):
+    psus = psu_readings()
+    if psus:
+        log("psu " + format_psus(psus))
+
+
 def main():
     global DRY_RUN
     args = sys.argv[1:]
     DRY_RUN = "--dry-run" in args
     args = [arg for arg in args if arg != "--dry-run"]
-    if len(args) != 1 or args[0] not in ("boot", "report"):
+    if len(args) != 1 or args[0] not in ("boot", "report", "psu"):
         print(__doc__, file=sys.stderr)
         return 2
     cfg = load_json(CONFIG_PATH, None)
@@ -388,7 +471,7 @@ def main():
         with open(TOKEN_PATH) as handle:
             token = handle.read().strip()
         os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
-    (mode_boot if args[0] == "boot" else mode_report)(cfg, token)
+    {"boot": mode_boot, "report": mode_report, "psu": mode_psu}[args[0]](cfg, token)
     return 0
 
 

@@ -63,6 +63,20 @@ last sensor readings logged before it ended. Every report run logs a
 `readings` line, so `journalctl -b -1 -t host-health` shows temperatures and
 fan speeds up to the freeze.
 
+Both Corsair PSUs are connected over USB through an internal hub and read with
+the kernel's `corsair-psu` driver. Every 15 seconds `host-health-psu.timer`
+logs a `psu` line per unit with output power, 12V voltage and current, both
+temperatures, fan speed, and the PSU's own uptime. A unit's uptime restarts
+whenever that PSU switches on, so after a power event the last `psu` line
+before it, which the boot report includes, shows whether one PSU dropped out
+on its own. The cooling check also applies `crash_capture_sensor_limits` to
+these readings, named `<model>_<reading>` (for example `HX1500i_vrm`).
+
+| PSU | Feeds |
+| --- | --- |
+| HX1000i | 24-pin motherboard power and the 600 W RTX Pro 6000 Workstation |
+| HX1500i | CPU EPS and both 300 W Max-Q cards |
+
 A source that cannot be read, such as a failed BMC query, is logged and not
 pushed, so it never alerts as a hardware fault. The reboot endpoint is
 re-armed by the next report run, so a second unexpected reboot alerts again.
