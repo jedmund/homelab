@@ -255,6 +255,100 @@
       {{ crash_capture_sel_info.stdout | regex_search('Percent Used\s*:\s*(\d+)', '\1') | default(['0'], true) | first | int }}
   when: crash_capture_sel_percent | int >= crash_capture_bmc_sel_warn_percent
 
+# Host health reporting to Gatus
+
+- name: Assert the Gatus push token is set
+  ansible.builtin.assert:
+    that:
+      - crash_capture_gatus_push_token | length > 0
+    fail_msg: >-
+      vault_gatus_push_token is missing from the gatus vault. See
+      roles/gatus/README.md.
+    quiet: true
+  no_log: true
+
+- name: Create host health directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/host-health, mode: "0755" }
+    - { path: /var/lib/host-health, mode: "0700" }
+    - { path: /run/host-health, mode: "0755" }
+
+- name: Install the host health reporter
+  ansible.builtin.copy:
+    src: host-health-report
+    dest: /usr/local/sbin/host-health-report
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure the host health reporter
+  ansible.builtin.template:
+    src: host-health-config.json.j2
+    dest: /etc/host-health/config.json
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the Gatus push token
+  ansible.builtin.copy:
+    content: "{{ crash_capture_gatus_push_token }}\n"
+    dest: /etc/host-health/token
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install host health units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - host-health-boot.service
+    - host-health.service
+    - host-health.timer
+    - host-health-psu.service
+    - host-health-psu.timer
+  register: crash_capture_host_health_units
+
+# The boot report runs at the next boot rather than now: run during a deploy
+# it would report how the boot before this one ended, which is old news. The
+# marker lets the timer start re-arming the reboot endpoint immediately.
+- name: Mark the current boot as reported
+  ansible.builtin.file:
+    path: /run/host-health/boot-reported
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+
+- name: Enable the boot report
+  ansible.builtin.systemd_service:
+    name: host-health-boot.service
+    enabled: true
+    daemon_reload: true
+  when: not (ansible_check_mode and crash_capture_host_health_units is changed)
+
+- name: Enable and start the host health timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - host-health.timer
+    - host-health-psu.timer
+  when: not (ansible_check_mode and crash_capture_host_health_units is changed)
+
 # Reboot state. The role never reboots; kernel arguments and the crash kernel
 # reservation apply on the next boot, which a watchdog reset also provides.
 

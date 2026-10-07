@@ -60,8 +60,67 @@ crash_capture_netconsole_senders: "{{ groups['crash_capture'] | map('extract', h
 # BMC sensors whose events are switched off. Each flap is two event log
 # entries; CHA_FAN1/WP reads 0 RPM at idle and filled the 3,639-entry log
 # within minutes of the June rebuild, after which the BMC stopped recording
-# anything. The sensor keeps reporting readings.
+# anything. The sensor keeps reporting readings. The BMC forgets the setting
+# when AC power is removed, so the boot report re-applies it on every boot.
 crash_capture_bmc_quiet_sensors:
   - "CHA_FAN1/WP"
 # Warn when the BMC event log is at least this full.
 crash_capture_bmc_sel_warn_percent: 80
+
+# Host health reporting to Gatus external endpoints. The watchdog turns a
+# freeze into a reboot within minutes, which no polling check would notice,
+# so the host reports how each boot ended along with a heartbeat, cooling
+# readings, and new BMC or rasdaemon events. The Gatus side is
+# gatus_host_report_checks in roles/gatus; endpoint names there are
+# "<host> <check>" in group "hosts", which this reporter mirrors.
+crash_capture_gatus_url: https://status.atelier.house
+crash_capture_gatus_group: hosts
+# vault_gatus_push_token - defined in the gatus vault, read through the Gatus
+# host because the same token is configured on both sides.
+crash_capture_gatus_push_token: >-
+  {{ hostvars[groups['gatus'] | first].vault_gatus_push_token | default('') }}
+crash_capture_report_interval: 2min
+# PSU readings are logged (not pushed) more often, so the last line before a
+# power event is at most this old.
+crash_capture_psu_log_interval: 15s
+# The boot report waits for Gatus and Traefik when both hosts come up together.
+crash_capture_boot_push_attempts: 20
+crash_capture_report_error_max_length: 900
+
+# Cooling limits, below the BMC's own critical thresholds so a warning comes
+# while there is still headroom: CPU critical is 98C and DDR5 84C. VRM, board,
+# and NIC sensors have no BMC thresholds at all. Fans are the CPU and pump
+# headers; their tach reads 0 for a second at low speed, which the Gatus
+# failure threshold of two runs absorbs.
+crash_capture_sensor_limits:
+  - { sensor: TEMP_CPU, max: 90 }
+  - { sensor: "TEMP_DDR5_.*", max: 75 }
+  - { sensor: "TEMP_VRM.*", max: 100 }
+  - { sensor: "TEMP_MB_.*", max: 70 }
+  - { sensor: TEMP_LAN, max: 95 }
+  - { sensor: CPU_FAN1, min: 200 }
+  - { sensor: "CPU_FAN2/WP", min: 200 }
+  # Corsair PSUs over USB (corsair-psu): <model>_<reading>. The driver
+  # reports 70C as the critical temperature for both sensors, and ATX allows
+  # the 12V rail to drift 5 percent either way.
+  - { sensor: "HX.*_(vrm|case)", max: 65 }
+  - { sensor: "HX.*_12v", min: 11.4, max: 12.6 }
+crash_capture_gpu_max_temp: 88
+crash_capture_nvme_max_temp: 75
+# Percent full at which the BMC event log is reported as a hardware event.
+crash_capture_sel_full_percent: 80
+# rasdaemon tables that are not hardware errors. signal_event records
+# processes being signalled; installing rasdaemon alone wrote eight rows.
+crash_capture_rasdaemon_ignore_tables:
+  - signal_event
+# BMC event log entries that are not hardware events. Watchdog resets are
+# reported by the unexpected-reboot check instead, and non-critical fan dips
+# by the cooling check.
+crash_capture_sel_ignore:
+  - Timestamp Clock Sync
+  - Log area reset/cleared
+  - OS Boot
+  - OS graceful shutdown
+  - OEM record
+  - Watchdog
+  - "Fan .*Lower Non-critical"

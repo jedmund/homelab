@@ -86,6 +86,49 @@ gatus_gitlab_runners:
   - id: 4
     name: max-docker-large
 
+# Pushed host reports. Hosts in the crash_capture group run a reporter
+# (roles/crash_capture) that pushes these as Gatus external endpoints, named
+# "<host> <check>" in the hosts group. A BMC watchdog resets a frozen host
+# within minutes, so no polled check would ever see the outage; the host has
+# to say so itself.
+#
+# Thresholds are set per alert because the provider defaults (3 failures)
+# would never fire for a check that is pushed once per boot. The reboot and
+# hardware-event alerts re-arm on the next successful push, so resolving
+# them is not announced; the heartbeat and cooling alerts are.
+#
+# Rendered only while the push token is set: Gatus refuses an external
+# endpoint without one.
+# vault_gatus_push_token - defined in vault
+gatus_push_token: "{{ vault_gatus_push_token | default('') }}"
+gatus_host_report_group: hosts
+gatus_host_report_hosts: "{{ groups['crash_capture'] | default([]) }}"
+gatus_host_report_checks:
+  # The reporter pushes every 2 minutes. Missing 10 minutes of pushes means
+  # the host is down and the watchdog has not brought it back.
+  - id: heartbeat
+    heartbeat: 10m
+    description: "{host} stopped reporting: frozen, powered off, or unreachable"
+    failure_threshold: 1
+    success_threshold: 1
+    send_on_resolved: true
+  - id: unexpected-reboot
+    description: "{host} rebooted without a clean shutdown; the status page has the cause"
+    failure_threshold: 1
+    success_threshold: 1
+    send_on_resolved: false
+  # Two consecutive runs, so a one-second fan tach dropout stays quiet.
+  - id: cooling
+    description: "{host} temperature or fan speed out of range; the status page has the reading"
+    failure_threshold: 2
+    success_threshold: 2
+    send_on_resolved: true
+  - id: hardware-events
+    description: "{host} logged a BMC or machine-check event; the status page has the entry"
+    failure_threshold: 1
+    success_threshold: 1
+    send_on_resolved: false
+
 # Names pinned to Traefik instead of being resolved normally. Two unrelated
 # reasons land here, both discovered by probing rather than by reading config:
 #

@@ -68,3 +68,29 @@ endpoints:
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endfor %}
 {% endif %}
+{% if gatus_push_token | length > 0 and gatus_host_report_hosts | length > 0 %}
+
+# Pushed by each host's reporter; see gatus_host_report_checks in defaults.
+external-endpoints:
+{% for host in gatus_host_report_hosts %}
+{% for check in gatus_host_report_checks %}
+  - name: "{{ host }} {{ check.id | replace('-', ' ') }}"
+    group: {{ gatus_host_report_group }}
+    token: "${GATUS_PUSH_TOKEN}"
+{% if check.heartbeat is defined %}
+    heartbeat:
+      interval: {{ check.heartbeat }}
+{% endif %}
+{% if alert_types %}
+    alerts:
+{% for alert_type in alert_types %}
+      - type: {{ alert_type }}
+        description: "{{ check.description | replace('{host}', host) }}"
+        failure-threshold: {{ check.failure_threshold }}
+        success-threshold: {{ check.success_threshold }}
+        send-on-resolved: {{ check.send_on_resolved | string | lower }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
