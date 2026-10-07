@@ -64,6 +64,84 @@
     - gpu_type | default('') == 'nvidia'
     - gpu_tools_initramfs_state.rc | default(1) != 0
 
+# Power limits
+
+# A hand-made unit from before the June 2026 rebuild applied one 450 W limit
+# to every GPU. The Max-Q cards accept 250-325 W, so it failed on every
+# boot and left the Workstation Edition at its 600 W default.
+- name: Stop the retired nvidia-undervolt unit
+  ansible.builtin.systemd_service:
+    name: nvidia-undervolt.service
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Remove the retired nvidia-undervolt unit
+  ansible.builtin.file:
+    path: /etc/systemd/system/nvidia-undervolt.service
+    state: absent
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Install the GPU power limit script
+  ansible.builtin.template:
+    src: gpu-power-limits.j2
+    dest: /usr/local/sbin/gpu-power-limits
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Apply GPU power limits
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Install the GPU power limit unit
+  ansible.builtin.template:
+    src: gpu-power-limits.service.j2
+    dest: /etc/systemd/system/gpu-power-limits.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: gpu_tools_power_limit_unit
+  notify: Apply GPU power limits
+  when: gpu_type | default('') == 'nvidia'
+
+- name: Enable and start the GPU power limit unit
+  ansible.builtin.systemd_service:
+    name: gpu-power-limits.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - gpu_type | default('') == 'nvidia'
+    - not (ansible_check_mode and gpu_tools_power_limit_unit is changed)
+
+- name: Apply changed GPU power limits before verifying them
+  ansible.builtin.meta: flush_handlers
+
+- name: Read GPU power limits
+  ansible.builtin.command:
+    argv:
+      - nvidia-smi
+      - --query-gpu=name,power.limit
+      - --format=csv,noheader,nounits
+  register: gpu_tools_power_limit_state
+  changed_when: false
+  check_mode: false
+  when: gpu_type | default('') == 'nvidia'
+
+# The retired unit failed quietly for months, so check the result rather
+# than trusting the unit's exit status.
+- name: Assert GPU power limits are applied
+  ansible.builtin.assert:
+    that:
+      - (item.split(',')[1] | trim | float | int) == gpu_tools_power_limits[item.split(',')[0] | trim]
+    fail_msg: "{{ item }} does not match its configured power limit"
+    quiet: true
+  loop: "{{ gpu_tools_power_limit_state.stdout_lines | default([]) }}"
+  when:
+    - gpu_type | default('') == 'nvidia'
+    - not ansible_check_mode
+    - (item.split(',')[0] | trim) in gpu_tools_power_limits
+
 - name: Report NVIDIA DRM modeset state
   ansible.builtin.slurp:
     src: /sys/module/nvidia_drm/parameters/modeset

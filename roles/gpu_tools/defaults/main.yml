@@ -1,0 +1,13 @@
+---
+# Power limits applied at every boot, keyed by the exact name nvidia-smi
+# reports. Exact names matter: the Max-Q cards report "RTX PRO 6000
+# Blackwell Max-Q Workstation Edition", which also contains "Workstation
+# Edition". Cards not listed keep their default limit; the Max-Q cards
+# default to 300 W.
+#
+# The Workstation Edition defaults to 600 W. At 300 W it matches the Max-Q
+# cards and takes about 300 W of peak load off the HX1000i, which also feeds
+# the 24-pin (see roles/crash_capture/README.md). A limit caps average
+# power; millisecond transients can still exceed it.
+gpu_tools_power_limits:
+  "NVIDIA RTX PRO 6000 Blackwell Workstation Edition": 300

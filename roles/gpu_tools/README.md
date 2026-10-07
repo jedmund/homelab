@@ -1,7 +1,8 @@
 # GPU host tools
 
 This role installs `hwsummary` and `gpu-burn`, configures NVIDIA DRM modeset,
-and refreshes initramfs images when the modeset configuration is missing.
+refreshes initramfs images when the modeset configuration is missing, and
+applies per-model GPU power limits at boot.
 It does not install or upgrade the NVIDIA driver. It is included by the AI
 deployment and has a separate [playbook](../../deploy/gpu_tools.yml).
 
@@ -9,6 +10,28 @@ Preserve the host's `amd_iommu=pt iommu=pt` kernel arguments. The inference
 pair depends on the existing PCIe configuration. Emulator containers also
 need NVIDIA graphics support and DRM modeset; a compute-only driver package
 selection is insufficient for this host.
+
+## Power limits
+
+`gpu-power-limits.service` sets the limits in `gpu_tools_power_limits`, keyed
+by the exact model name `nvidia-smi` reports, after `nvidia-persistenced` on
+every boot. Deployment asserts that each listed card reports its configured
+limit. The RTX Pro 6000 Workstation Edition is held at 300 W, matching the
+Max-Q cards, which default to 300 W and are not listed.
+
+A limit caps average power. Millisecond transients can still exceed it, and
+it does not apply before the driver loads. Budget PSU headroom for the
+Workstation Edition's spikes regardless of the limit.
+
+This replaced a hand-made `nvidia-undervolt.service` that set 450 W on every
+GPU. The Max-Q cards accept 250-325 W, so that unit failed on every boot and
+left the Workstation Edition at 600 W.
+
+Check the applied limits:
+
+```sh
+nvidia-smi --query-gpu=index,name,power.limit,power.default_limit --format=csv
+```
 
 ## R615 maintenance on max
 
