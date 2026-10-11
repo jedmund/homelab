@@ -1,13 +1,13 @@
 # Album Sort
 
-Deploys Album Sort and its Beets service on `nuc-mini` at
-`https://music.sort.atelier.house`. GitLab CI publishes the two images;
+Deploys Album Sort with its Beets and embedder services on `nuc-mini` at
+`https://music.sort.atelier.house`. GitLab CI publishes the three images;
 Ansible renders the stack under `/opt/docker/album-sort`.
 
 ## Configuration
 
 [defaults/main.yml](defaults/main.yml) defines the image references, tag,
-OIDC provider, paths, and API settings. Both images use
+OIDC provider, paths, and API settings. All images use
 `album_sort_image_tag`, which defaults to `latest`. CI publishes `latest`
 from the default branch and can request a Komodo redeployment. Use a published
 commit tag for a deployment freeze or compatible rollback.
@@ -71,6 +71,7 @@ the entire Docker subnet.
 | --- | --- |
 | Application state | `/opt/docker/album-sort/data` |
 | Beets state | `/opt/docker/album-sort/beets-data` |
+| Embedder | `album_sort_embedder` on the internal `backend` network at `http://embedder:8340` (`EMBEDDER_URL`); reads `/music` read-only and computes audio embeddings for similarity. Set `album_sort_embedder_enabled: false` to leave it out; the app then stops embedding new tracks |
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
 | slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`album_sort_slskd_download_path`) and never modified |
 | qBittorrent downloads | Torrents Album Sort fetches land in qBittorrent's `album-sort` category at `/downloads/album-sort` (`album_sort_qbittorrent_download_path`, passed as `DOWNLOADS_PATH`); Album Sort only reads them, and refuses a finished torrent outside every download root |
