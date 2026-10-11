@@ -33,6 +33,9 @@ services:
       COVER_ART_ARCHIVE_BASE_URL: "{{ album_sort_cover_art_archive_base_url }}"
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
+{% if album_sort_embedder_enabled %}
+      EMBEDDER_URL: http://embedder:8340
+{% endif %}
       TRUSTED_PROXY_CIDRS: "{{ album_sort_trusted_proxy_cidrs }}"
     volumes:
       - music:/music
@@ -112,6 +115,35 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+{% if album_sort_embedder_enabled %}
+
+  # Audio embeddings for similarity. No depends_on: the app backs off while it is down.
+  embedder:
+    container_name: album_sort_embedder
+    image: "{{ album_sort_embedder_image }}:{{ album_sort_image_tag }}"
+    pull_policy: always
+    restart: {{ restart_policy }}
+    environment:
+      TZ: "{{ timezone }}"
+      EMBEDDER_ROOTS: /music
+      EMBEDDER_THREADS: "{{ album_sort_embedder_threads }}"
+    volumes:
+      - music:/music:ro
+    networks:
+      - backend
+    cpus: {{ album_sort_embedder_cpus }}
+    mem_limit: {{ album_sort_embedder_mem_limit }}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endif %}
 
 volumes:
   music:

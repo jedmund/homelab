@@ -9,6 +9,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # or rollback.
 album_sort_image: registry.atelier.house/jedmund/album-sort
 album_sort_beets_image: registry.atelier.house/jedmund/album-sort/beets
+album_sort_embedder_image: registry.atelier.house/jedmund/album-sort/embedder
 album_sort_image_tag: latest
 album_sort_registry_url: https://registry.atelier.house
 album_sort_registry_username: "{{ vault_album_sort_registry_username | default('') }}"
@@ -41,6 +42,13 @@ album_sort_oidc_issuer_url: "https://id.atelier.house"
 album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
 album_sort_session_ttl_hours: "12"
+
+# Audio-embedding sidecar for similarity (Sonic Adventure). It reads the music
+# volume only and needs no internet, so it sits on the internal backend network.
+album_sort_embedder_enabled: true
+album_sort_embedder_threads: "2"
+album_sort_embedder_cpus: 2
+album_sort_embedder_mem_limit: 2g
 
 # Keep the outer middleware during native-OIDC rollout. Set false only after
 # login, callback, logout, and unauthenticated rejection are verified.
