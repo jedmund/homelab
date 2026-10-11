@@ -9,6 +9,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 # or rollback.
 album_sort_image: registry.atelier.house/jedmund/album-sort
 album_sort_beets_image: registry.atelier.house/jedmund/album-sort/beets
+album_sort_embedder_image: registry.atelier.house/jedmund/album-sort/embedder
 album_sort_image_tag: latest
 album_sort_registry_url: https://registry.atelier.house
 album_sort_registry_username: "{{ vault_album_sort_registry_username | default('') }}"
@@ -33,6 +34,10 @@ album_sort_scan_concurrency: "4"
 album_sort_tag_preflight_concurrency: "1"
 album_sort_tag_staging_concurrency: "1"
 album_sort_tag_copy_concurrency: "1"
+# Embedder sidecar: CPU-only Discogs-EffNet inference for new and changed tracks.
+album_sort_embedder_threads: "2"
+album_sort_embedder_cpus: 2
+album_sort_embedder_memory: 2g
 album_sort_musicbrainz_base_url: "http://musicbrainz:5000/ws/2"
 album_sort_cover_art_archive_base_url: "https://coverartarchive.org"
 album_sort_auth_required: "true"

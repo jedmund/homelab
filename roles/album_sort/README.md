@@ -1,13 +1,13 @@
 # Album Sort
 
-Deploys Album Sort and its Beets service on `nuc-mini` at
-`https://music.sort.atelier.house`. GitLab CI publishes the two images;
+Deploys Album Sort, its Beets service, and its embedder sidecar on `nuc-mini` at
+`https://music.sort.atelier.house`. GitLab CI publishes the three images;
 Ansible renders the stack under `/opt/docker/album-sort`.
 
 ## Configuration
 
 [defaults/main.yml](defaults/main.yml) defines the image references, tag,
-OIDC provider, paths, and API settings. Both images use
+OIDC provider, paths, and API settings. All three images use
 `album_sort_image_tag`, which defaults to `latest`. CI publishes `latest`
 from the default branch and can request a Komodo redeployment. Use a published
 commit tag for a deployment freeze or compatible rollback.
@@ -35,7 +35,7 @@ make -C deploy syntax STACK=album_sort
 make -C deploy album_sort
 ```
 
-The role renders configuration, logs into the registry, pulls both images,
+The role renders configuration, logs into the registry, pulls the images,
 and waits for the application container to report healthy. Environment changes
 request recreation in that same deployment, before the health check; there is
 no later Compose restart handler.

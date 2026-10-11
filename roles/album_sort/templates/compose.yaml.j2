@@ -33,6 +33,7 @@ services:
       COVER_ART_ARCHIVE_BASE_URL: "{{ album_sort_cover_art_archive_base_url }}"
       BEETS_WEB_URL: http://beets:8337
       BEETS_API_URL: http://beets:8338
+      EMBEDDER_URL: http://embedder:8340
       TRUSTED_PROXY_CIDRS: "{{ album_sort_trusted_proxy_cidrs }}"
     volumes:
       - music:/music
@@ -102,6 +103,34 @@ services:
       - ./beets-data:/data/beets
     networks:
       - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # Similarity sidecar: embeds new and changed tracks on CPU. It reads the same
+  # music volume, read-only, so the app sends it a file's path.
+  embedder:
+    container_name: album_sort_embedder
+    image: "{{ album_sort_embedder_image }}:{{ album_sort_image_tag }}"
+    pull_policy: always
+    restart: {{ restart_policy }}
+    environment:
+      TZ: "{{ timezone }}"
+      EMBEDDER_ROOTS: /music
+      EMBEDDER_THREADS: "{{ album_sort_embedder_threads }}"
+    volumes:
+      - music:/music:ro
+    networks:
+      - backend
+    cpus: {{ album_sort_embedder_cpus }}
+    mem_limit: {{ album_sort_embedder_memory }}
     read_only: true
     tmpfs:
       - /tmp
