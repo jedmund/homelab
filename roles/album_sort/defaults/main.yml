@@ -19,10 +19,14 @@ album_sort_origin: "https://{{ album_sort_domain }}"
 album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
 album_sort_data_path: /data
-# Acquisition handoff on the shared Ingest volume: slskd's finished downloads
-# (read only by Album Sort) and Album Sort's quarantine for intake review.
+# Acquisition handoff on the shared Ingest volume: slskd's and qBittorrent's
+# finished downloads (read only by Album Sort) and Album Sort's quarantine for
+# intake review. qBittorrent saves Album Sort's torrents under its `album-sort`
+# category folder. The quarantine sits beside the download roots, never inside
+# them, on the same volume so handoff can hardlink.
 album_sort_slskd_download_path: /downloads/music
-album_sort_quarantine_path: /downloads/album-sort/quarantine
+album_sort_qbittorrent_download_path: /downloads/album-sort
+album_sort_quarantine_path: /downloads/album-sort-quarantine
 album_sort_watch_interval: "30000"
 album_sort_scan_concurrency: "4"
 # Bounded per-file preparation; copies may not exceed staging workers.
@@ -70,7 +74,7 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # Secrets defined in vault:
 # album_sort_apple_music_team_id, album_sort_apple_music_key_id,
 # album_sort_apple_music_private_key, album_sort_discogs_token,
-# album_sort_kagi_api_key, album_sort_lastfm_api_key (optional),
+# album_sort_lastfm_api_key (optional),
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret,
