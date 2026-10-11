@@ -19,15 +19,16 @@ class AcquisitionHandoffTests(unittest.TestCase):
         self.rendered = yaml.safe_load(env.from_string((ROLE / 'templates/compose.yaml.j2').read_text()).render(values))
         self.service = self.rendered['services']['album-sort']
 
-    def test_mounts_the_downloads_volume_and_points_at_slskd_and_quarantine(self):
+    def test_mounts_the_downloads_volume_and_points_at_the_clients_and_quarantine(self):
         self.assertIn('downloads:/downloads', self.service['volumes'])
         self.assertEqual(self.rendered['volumes']['downloads'], {'external': True})
         self.assertEqual(self.service['environment']['SLSKD_DOWNLOAD_DIR'], '/downloads/music')
-        self.assertEqual(self.service['environment']['QUARANTINE_PATH'], '/downloads/album-sort/quarantine')
+        self.assertEqual(self.service['environment']['DOWNLOADS_PATH'], '/downloads/album-sort')
+        self.assertEqual(self.service['environment']['QUARANTINE_PATH'], '/downloads/album-sort-quarantine')
 
     def test_quarantine_does_not_overlap_download_or_library_roots(self):
         quarantine = PurePosixPath(self.values['album_sort_quarantine_path'])
-        for key in ['album_sort_slskd_download_path', 'album_sort_unsorted_path', 'album_sort_sorted_path', 'album_sort_data_path']:
+        for key in ['album_sort_slskd_download_path', 'album_sort_qbittorrent_download_path', 'album_sort_unsorted_path', 'album_sort_sorted_path', 'album_sort_data_path']:
             other = PurePosixPath(self.values[key])
             self.assertFalse(quarantine == other or other in quarantine.parents or quarantine in other.parents, key)
 

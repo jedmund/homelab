@@ -73,7 +73,8 @@ the entire Docker subnet.
 | Beets state | `/opt/docker/album-sort/beets-data` |
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
 | slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`album_sort_slskd_download_path`) and never modified |
-| Quarantine | `/downloads/album-sort/quarantine` (`album_sort_quarantine_path`), created by the role; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
+| qBittorrent downloads | Torrents Album Sort fetches land in qBittorrent's `album-sort` category at `/downloads/album-sort` (`album_sort_qbittorrent_download_path`, passed as `DOWNLOADS_PATH`); Album Sort only reads them, and refuses a finished torrent outside every download root |
+| Quarantine | `/downloads/album-sort-quarantine` (`album_sort_quarantine_path`), created by the role beside the download roots, never inside them; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
 | MusicBrainz | `http://musicbrainz:5000/ws/2` on the shared Docker network |
 | Cover Art Archive | Public service, configured by `album_sort_cover_art_archive_base_url` |
 | Multi-Scrobbler | `album_sort_multi_scrobbler_url`; users enter their own credentials in the application's Music settings |
