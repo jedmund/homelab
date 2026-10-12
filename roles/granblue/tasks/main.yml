@@ -1,0 +1,85 @@
+---
+# Granblue product stack
+
+- name: Check {{ stack_name }} credentials
+  ansible.builtin.assert:
+    that:
+      - granblue_wireguard_private_key | length > 0
+      - granblue_gacha_rates_api_token | length > 0
+      - granblue_gacha_rates_game_uid | string is match('^[0-9]+$')
+    fail_msg: >-
+      Set vault_granblue_wireguard_private_key, vault_granblue_gacha_rates_api_token
+      and vault_granblue_gacha_rates_game_uid in group_vars/granblue/vault.yml
+    quiet: true
+  no_log: true
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/gluetun"
+    - "{{ config_base }}/gacha-rates"
+
+# Holds the game account's session cookies
+- name: Create gacha rates data directory
+  ansible.builtin.file:
+    path: "{{ config_base }}/gacha-rates/data"
+    state: directory
+    owner: "{{ granblue_gacha_rates_uid }}"
+    group: "{{ granblue_gacha_rates_gid }}"
+    mode: '0700'
+
+- name: Download gacha rates script
+  ansible.builtin.get_url:
+    url: "{{ granblue_gacha_rates_script_url }}"
+    dest: "{{ config_base }}/gacha-rates/fetch_gacha_rates.rb"
+    checksum: "{{ granblue_gacha_rates_script_checksum }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: granblue_gacha_rates_script
+
+- name: Deploy gacha rates schedule
+  ansible.builtin.template:
+    src: gacha-rates.sh.j2
+    dest: "{{ config_base }}/gacha-rates/run.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  register: granblue_gacha_rates_schedule
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.j2"
+    dest: "{{ config_base }}/env/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - gluetun.env
+    - gacha-rates.env
+  no_log: true
+  register: granblue_environment_files
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (granblue_environment_files.changed | default(false)) or
+         (granblue_gacha_rates_script.changed | default(false)) or
+         (granblue_gacha_rates_schedule.changed | default(false))
+         else 'auto' }}
+  register: compose_result

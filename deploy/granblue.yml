@@ -1,0 +1,6 @@
+---
+- name: Deploy granblue stack
+  hosts: granblue
+  become: true
+  roles:
+    - granblue
