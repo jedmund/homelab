@@ -162,6 +162,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "granblue"
+description = "Granblue Fantasy jobs for granblue.team, behind ProtonVPN"
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/granblue"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "prowlarr"
 description = "Prowlarr"
 tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]

@@ -1,0 +1,11 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Fetches the game's banner rates at start and then {{ granblue_gacha_rates_minute }} minutes past
+# each hour. A run that finds the same banner as the last upload does nothing.
+while true; do
+  ruby /app/fetch_gacha_rates.rb
+  now=$(date +%s)
+  next=$((now - now % 3600 + {{ granblue_gacha_rates_minute * 60 }}))
+  [ "$next" -le "$now" ] && next=$((next + 3600))
+  sleep $((next - now))
+done

@@ -132,6 +132,9 @@
 - import_playbook: homebox.yml
   tags: [homebox]
 
+- import_playbook: granblue.yml
+  tags: [granblue]
+
 - import_playbook: album_sort.yml
   tags: [album_sort]
 
