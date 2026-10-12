@@ -191,6 +191,17 @@ an object-expiry lifecycle using `gitlab_cache_s3_expiry_days` (default 14).
 | `gluetun_wireguard_addresses` | WireGuard address list |
 | `gluetun_server_countries` | Optional server country filter |
 
+### group_vars/granblue/vault.yml
+
+Setup and the cookie seeding are in the [role runbook](../roles/granblue/README.md).
+
+| Variable | Description |
+| --- | --- |
+| `vault_granblue_wireguard_private_key` | `PrivateKey` from the stack's ProtonVPN WireGuard configuration |
+| `vault_granblue_gacha_rates_api_token` | `GACHA_RATES_TOKEN` of the granblue.team API |
+| `vault_granblue_gacha_rates_game_uid` | User id of the game account the rates are read with |
+| `vault_granblue_gacha_rates_alert_webhook` | Optional Discord webhook for failed fetches |
+
 ### group_vars/homebox/vault.yml
 
 | Variable | Description |
