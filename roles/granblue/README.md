@@ -41,7 +41,7 @@ banner. Neither is backed up: if they're lost, seed the cookies again.
    `PrivateKey` goes in the vault, and `Address` must be `10.2.0.2/32`.
    gluetun chooses its own servers, so the `[Peer]` section is ignored.
 2. Create `group_vars/granblue/vault.yml` with the inputs in
-   [Secrets](../../docs/secrets.md#group_varsgranbluevaultyml).
+   [Secrets](../../docs/secrets.md#groupvarsgranbluevaultyml).
 3. On a free Proton plan, set `granblue_vpn_free_only: true`; free servers
    are limited to a few countries, so `granblue_vpn_server_countries` may
    also need changing.
