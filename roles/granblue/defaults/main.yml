@@ -16,13 +16,13 @@ granblue_vpn_server_countries: Japan
 # Proton's free plan only connects to its free servers
 granblue_vpn_free_only: false
 
-# Gacha rates: fetches the game's current banner rates every hour and sends
-# them to the granblue.team API
+# Gacha rates: fetches the game's current banner rates after each banner ends
+# and sends them to the granblue.team API
 granblue_gacha_rates_image: ruby:3.4.4-slim
-granblue_gacha_rates_script_commit: aeab44b04282c8ede24f245f8a359d955f0e5207
+granblue_gacha_rates_script_commit: 96baec368397e7b10ddbe3601a714c8a543a2c1c
 granblue_gacha_rates_script_url: >-
   https://raw.githubusercontent.com/jedmund/hensei-api/{{ granblue_gacha_rates_script_commit }}/script/fetch_gacha_rates.rb
-granblue_gacha_rates_script_checksum: sha256:56d2c53b895e4044d400687359c02d447afb29ccfdbd638e77d2400ed625f7a6
+granblue_gacha_rates_script_checksum: sha256:803e383de9c08cb2321fd752c98bb32e41de9438e00185136aebf982a7f9a3ce
 granblue_gacha_rates_api_url: https://api.granblue.team/v1/gacha/banners
 granblue_gacha_rates_api_token: "{{ vault_granblue_gacha_rates_api_token | default('') }}"
 granblue_gacha_rates_game_uid: "{{ vault_granblue_gacha_rates_game_uid | default('') }}"
