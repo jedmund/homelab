@@ -5,9 +5,9 @@
 #
 # Exists because nuc-mini, which hosts GitLab itself plus ~50 other
 # stacks, sits near its load ceiling and cannot absorb more concurrent CI
-# without starving those services. max is a 32-thread Threadripper Pro
-# whose CPU is almost entirely idle (the LLM work happens on the GPUs),
-# so CI capacity is close to free there.
+# without starving those services. max is a 128-thread Threadripper Pro
+# 9985WX whose CPU is almost entirely idle (the LLM work happens on the
+# GPUs), so CI capacity is close to free there.
 
 # Stack identity
 stack_name: development_linux
@@ -43,19 +43,19 @@ gitlab_runner_linux_tags:
 gitlab_runner_linux_run_untagged: true
 
 # Concurrency. Two runner entries share this process: the general pool
-# (max-docker, 6 jobs capped at 3 CPUs / 6 GB each) and the large pool
+# (max-docker, 10 jobs capped at 3 CPUs / 6 GB each) and the large pool
 # (max-docker-large, 2 jobs capped at 12 CPUs / 24 GB each) for suites that
 # parallelize, such as album-sort's Vitest run. A single 3-CPU job cannot
 # use this host: album-sort's suite took 16-26 minutes across three 3-CPU
 # shards and under 4 minutes in one 16-CPU container.
 #
-# Worst case is 42 CPUs of quota on 32 threads and 84 GB of RAM. Docker's
-# cpus setting is a CFS quota, not pinning, so the host is only
-# oversubscribed when all eight jobs peak together; normal mixed CI still
-# leaves room for vLLM's CPU-side work (tokenization, sampling, and
-# dataloading). The host has 125 GB of RAM and normally about 90 GB free.
-# concurrent must cover the sum of both limits.
-gitlab_runner_linux_limit: 6
+# Worst case is 54 CPUs of quota on 128 threads and 108 GB of RAM. Since
+# the move from a 16-core 9955WX to the 64-core 9985WX, memory rather than
+# CPU sets the ceiling: the host has 125 GB of RAM and normally about
+# 90-100 GB free, so twelve jobs only fit if they don't all reach their
+# memory caps at once. Raise job counts further only with more RAM or
+# smaller per-job memory caps. concurrent must cover the sum of both limits.
+gitlab_runner_linux_limit: 10
 gitlab_runner_linux_cpus: "3"
 gitlab_runner_linux_memory: 6g
 gitlab_runner_linux_tmpfs_size: 2g

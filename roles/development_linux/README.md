@@ -7,8 +7,8 @@ settings `config.toml` can declare. One pool takes ordinary jobs, the other
 takes jobs that parallelize and need real CPU and memory.
 
 `nuc-mini` runs GitLab itself plus about fifty other stacks and sits near its
-load ceiling, so heavy CI belongs here: `max` is a 32-thread Threadripper Pro
-whose CPU is nearly idle, since the inference work happens on its GPUs.
+load ceiling, so heavy CI belongs here: `max` is a 128-thread Threadripper Pro
+9985WX whose CPU is nearly idle, since the inference work happens on its GPUs.
 
 ## The two pools
 
@@ -16,14 +16,15 @@ whose CPU is nearly idle, since the inference work happens on its GPUs.
 | --- | --- | --- |
 | Tags | `atelier-max`, plus `amd64`/`docker`/`linux`/`pnpm-cache` | `atelier-max-large`, plus the same four |
 | Takes untagged jobs | yes | no |
-| Concurrent jobs (`limit`) | 6 | 2 |
+| Concurrent jobs (`limit`) | 10 | 2 |
 | Per job | 3 CPUs, 6 GB | 12 CPUs, 24 GB |
 | `/tmp` (tmpfs) | 2 GB | 8 GB |
 
-`concurrent` is the sum of both limits. Worst case is 42 CPUs of quota against
-32 threads; Docker's `cpus` is a CFS quota rather than pinning, so the host is
-only oversubscribed when all eight jobs peak at once, and normal mixed CI leaves
-room for the CPU side of inference.
+`concurrent` is the sum of both limits. Worst case is 54 CPUs of quota against
+128 threads, so CPU is no longer the constraint; memory is. All twelve jobs at
+their caps would take 108 GB of the host's 125 GB, more than the 90-100 GB it
+normally has free, so that only fits because jobs rarely reach their caps
+together. Raise job counts further only with more RAM or smaller memory caps.
 
 Reach the large pool by tagging a job `atelier-max-large`. Use it only for work
 that actually uses the slot: it has two slots total, shared by every project on
