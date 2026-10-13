@@ -52,8 +52,9 @@ mode:
 
 - `qwen3.8` (dense Q6 MTP) at `-c 131072 --parallel 2` -> under ~36 GB
   live (hybrid attention, so cheaper KV; not yet measured). The
-  `qwen3.8-q8` and `qwen3.8-humanlike` variants add ~6 GB of weights
-  on top.
+  `qwen3.8-q8` variant adds ~6 GB of weights on top.
+- `qwen3.8-humanlike` (dense Q8_0, no MTP) at `-c 131072 --parallel 2`
+  -> ~32 GB live on a single card (measured 2026-10-02).
 
 The other chat-tier entries (`gemma4`, `gemma4-uncensored`,
 `gemma-e4b-uncensored`) keep their
@@ -106,18 +107,23 @@ second costs disk only.
   Qwen recommends `--temp 0.7 --top-p 0.80` with a presence penalty
   instead. `--mmproj` wires up vision.
 
-### qwen3.8-humanlike: conversational Qwen3.8 merge
+### qwen3.8-humanlike: casual-voice finetune
 
-- **File**: `Qwen3.8-27B-Humanlike-Chat-Q8_0.gguf` (~27 GB, top-level)
-- **Source**: not recorded. The GGUF metadata only says `Merged`;
-  fill this in (and add a pull line) once the upstream repo is
-  confirmed.
-- **Why**: Chat-tuned merge on the Qwen3.8 27B base; judging by the
-  name, aimed at more conversational replies. Picked by name; not a consumer default.
-- **VRAM**: same `-c 131072 --parallel 2` shape as `qwen3.8`; weights
-  are ~6 GB heavier than the Q6 entry.
-- **Notes**: No mmproj and no MTP head, so it runs text-only and
-  without `--spec-type draft-mtp`. Same sampling as `qwen3.8`.
+- **Files**: `Qwen3.8-27B-Humanlike-Chat-Q8_0.gguf` (top-level, ~29 GB)
+- **Source**: `LessThanThreeAI/Qwen3.8-27B-Humanlike-Chat-GGUF`
+- **Pull**: `hf download LessThanThreeAI/Qwen3.8-27B-Humanlike-Chat-GGUF Qwen3.8-27B-Humanlike-Chat-Q8_0.gguf --local-dir .`
+- **Why**: Finetune of `huihui-ai/Huihui-Qwen3.8-27B-abliterated` that
+  replies in a short, casual texting voice without a system prompt, and
+  switches to full answers or tool calls when asked. The base is
+  abliterated, so it refuses little.
+- **VRAM**: ~32 GB live on GPU 2 at `-c 131072 --parallel 2` (measured
+  2026-10-02 with no requests in flight); Q8_0 weights are ~29 GB.
+- **Notes**: The GGUF is text only and has no MTP head, so the entry has
+  no `--mmproj` and no `--spec-type draft-mtp`. Sampling follows the
+  model card (`--temp 1.0 --top-p 0.95 --top-k 20`). Thinking is on by
+  default with `--jinja`; send
+  `chat_template_kwargs: {"enable_thinking": false}` for direct replies.
+  Upstream checksums are in the repo's `SHA256SUMS`.
 
 ### gemma4: different lineage from Qwen
 

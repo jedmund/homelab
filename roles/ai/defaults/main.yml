@@ -104,11 +104,14 @@ ai_models:
     aliases:
       - "qwen3.8:27b-q8"
 
-  # Chat-tuned merge on the Qwen3.8 27B base (judging by the name,
-  # aimed at more conversational replies). Single Q8_0 GGUF with no mmproj or
-  # MTP head, so it runs text-only without --spec-type. The GGUF
-  # metadata only says "Merged"; record the upstream repo here once
-  # it's confirmed.
+  # Community finetune of an abliterated Qwen3.8 27B, trained to reply in
+  # a casual texting voice with no system prompt while keeping tool
+  # calling. Q8_0 is the upstream pick for 48 GB+ cards (lowest KL of the
+  # quantized files). The GGUFs are text only and carry no MTP head, so
+  # unlike the qwen3.8 entries above there is no --mmproj and no
+  # --spec-type draft-mtp. Sampling is the model card's (Qwen's base
+  # defaults); thinking is on by default via --jinja and can be turned off
+  # per request with chat_template_kwargs.enable_thinking=false.
   - name: qwen3.8-humanlike
     file: Qwen3.8-27B-Humanlike-Chat-Q8_0.gguf
     group: chat
