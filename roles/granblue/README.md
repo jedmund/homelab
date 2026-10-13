@@ -15,8 +15,9 @@ It is separate from the media [gluetun](../gluetun/) stack.
 `gacha-rates` runs `script/fetch_gacha_rates.rb` from
 [hensei-api](https://github.com/jedmund/hensei-api) on `ruby:3.4.4-slim`. It
 runs once when the container starts, then at five minutes past each hour.
-Banners change on the hour at 19:00 JST. A run that finds the banner it last
-uploaded does nothing.
+Banners change on the hour at 19:00 JST. The script stores when the uploaded
+banner ends and makes no requests to the game until then; after that, each run
+checks the game until the next banner is listed and uploads it.
 
 The script is downloaded at the commit in
 `granblue_gacha_rates_script_commit` and checked against
@@ -86,7 +87,8 @@ ssh nuc 'docker logs --tail 20 granblue-gacha-rates'
 curl -s 'https://api.granblue.team/v1/gacha/catalogue?mode=current' | jq .banner
 ```
 
-A working run logs `Uploaded banner <id>` or `Banner <id> is unchanged`, and
+A working run logs `Banner <id> runs until <time>`, `Uploaded banner <id>` or
+`Banner <id> is unchanged`, and
 the API's banner has a recent `fetched_at`.
 
 ## Failures
