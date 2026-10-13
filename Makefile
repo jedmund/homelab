@@ -354,6 +354,10 @@ deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/traefik.yml $(VAULT_FLAG)
 
+deploy-pocketid: ## Deploy only PocketID
+	@echo "$(BLUE)Deploying PocketID...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/pocketid.yml $(VAULT_FLAG)
+
 ##@ Testing & Validation
 
 check: check-deploy-all syntax lint ## Run all static checks

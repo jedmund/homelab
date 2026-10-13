@@ -12,5 +12,16 @@ pocketid_app_url: "https://{{ pocketid_domain }}"
 pocketid_trust_proxy: "true"
 pocketid_email_login_notification_enabled: "true"
 
+# Apple app-site-association, served by a small nginx sidecar at
+# https://{{ pocketid_domain }}/.well-known/apple-app-site-association so
+# native apps can use PocketID passkeys through Associated Domains.
+# Pocket ID itself does not serve this file.
+pocketid_aasa_image: nginx:1.27.5-alpine
+pocketid_aasa_path: /.well-known/apple-app-site-association
+pocketid_aasa:
+  webcredentials:
+    apps:
+      - CYR4HNM5W3.house.atelier.album-sort # Album Sort desktop app
+
 # Secrets defined in vault:
 # pocketid_encryption_key - rotating it invalidates stored OIDC client secrets
