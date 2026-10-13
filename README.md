@@ -102,6 +102,9 @@ ordered runtime, prompt-cache, and model experiments on `max`, and the
 host was slow, what changed, and what it implies for the next hardware
 purchase. The [power event record](docs/max-power-events-2026-10.md) covers the
 unexplained outages on `max` from September 2026 and how they are monitored.
+The [hardware and inference report](docs/max-hardware-and-inference-report-2026-10-11.md)
+consolidates the October investigation, CPU and memory options, and Local
+Inference Lab model requirements and benchmarks.
 
 Historical upgrade reports and experimental notes describe the configurations
 and dates they record. Use role defaults and inventory for the current

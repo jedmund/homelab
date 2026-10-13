@@ -82,6 +82,34 @@ split mode assigns llama-swap to GPU 2 and vLLM to GPUs 0 and 1. See
 [AI defaults](defaults/main.yml) for allocation modes and the
 [inference upgrade plan](../../docs/inference-upgrade-plan.md) for planned work.
 
+## Temporary two-card test, October 7, 2026
+
+The Workstation card was removed for the power-event investigation. On max,
+only llama-swap's device reservation in `/opt/docker/ai/compose.yaml` was
+temporarily changed from `["2"]` to `["0", "1"]`. The existing image and
+split-mode model catalogue were retained; larger shared-mode models remain
+excluded. Whisper, TEI, and PCSX2 still require the absent GPU 2.
+
+The original Compose file is saved beside it as
+`compose.yaml.before-maxq-test-20261007`. An AI deployment overwrites this
+temporary assignment. When the Workstation card returns, verify GPU identities
+before restoring the assignment and recreating llama-swap. Compare the backup
+first so later configuration changes are preserved.
+
+The card-removal boot began around 19:01 PDT on kernel `7.0.0-34-generic`;
+llama-swap resumed around 19:08. CI remained active. Three-hour transient
+systemd services record availability on nuc-mini and GPU readings on max:
+
+```sh
+ssh nuc 'sudo journalctl -u max-card-removal-watch-20261007.service'
+ssh max 'sudo journalctl -u max-card-removal-gpu-sample-20261007.service'
+ssh max 'sudo journalctl -t host-health --since "2026-10-07 19:01:00"'
+```
+
+These recorders do not restart the host or run stress workloads. Gatus supplies
+the existing outage alerts. Stability with the card removed changes both hardware
+and load distribution; it does not by itself identify a faulty component.
+
 ## Llama.cpp version requirement
 
 The `qwen3.8` / `qwen3.8-q8` entries use the `--spec-type draft-mtp` flag,
