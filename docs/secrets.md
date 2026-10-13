@@ -320,7 +320,7 @@ See the [MusicBrainz runbook](../roles/musicbrainz/README.md).
 
 | Variable | Description |
 | --- | --- |
-| `multi_scrobbler_lze_token` | ListenBrainz token for Album Sort |
+| `multi_scrobbler_lze_token` | Local ListenBrainz-compatible ingress token for Album Sort |
 | `multi_scrobbler_plex_token` | Plex token |
 | `multi_scrobbler_lastfm_api_key` | Last.fm API key |
 | `multi_scrobbler_lastfm_api_secret` | Last.fm API secret |
