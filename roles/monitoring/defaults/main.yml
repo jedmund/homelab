@@ -22,7 +22,7 @@ netdata_config_dir_darwin: /opt/homebrew/etc/netdata
 netdata_stream_api_key: "{{ vault_netdata_stream_api_key }}"
 
 # launchd label Homebrew gives the Netdata agent on macOS hosts.
-netdata_launchd_label: homebrew.mxcl.netdata
+netdata_launchd_label: sh.brew.netdata
 
 # Netdata writes its own logs here on macOS, with no rotation of its own.
 netdata_config_dir_darwin_logs: /opt/homebrew/var/log/netdata
