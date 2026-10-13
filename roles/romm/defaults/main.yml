@@ -4,8 +4,16 @@ stack_name: romm
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # RomM settings
-# Floating major tag: track any 5.x release (docker_pull_policy is `always`)
-romm_image: rommapp/romm:5
+# Pin reviewed releases: 5.x updates can migrate configuration and database schemas.
+romm_image: rommapp/romm:5.4.0
+romm_deploy_wait_timeout: 1800
+romm_healthcheck_start_period: 30m
+
+# Used for new configurations and the legacy roms/bios folder layout.
+# Existing explicit structures remain owned by the Library Management UI.
+romm_filesystem_structure:
+  default: "roms/{platform}/{game}"
+  firmware: "bios/{platform}"
 romm_db_image: mariadb:12.3.2
 romm_port: 8888
 romm_base_url: "https://rom.atelier.house"
@@ -71,22 +79,19 @@ romm_streaming_save_timeout: "90"
 # are not in scope from here, the same cross-role caveat the Traefik
 # dynamic configs carry.
 romm_streaming_containers:
-  - platform: ps2
-    host: "https://pcsx2.atelier.house"
+  - host: "https://pcsx2.atelier.house"
     broker_host: "http://{{ hostvars['max'].ansible_host }}:8010"
     label: PCSX2
-  # One Dolphin container serves both platforms. memory_card_sync belongs
-  # on the ngc entry only: Wii saves live in NAND, not on a card, so the
-  # wii entry syncs through the broker's /save-file path instead.
-  - platform: ngc
-    host: "https://dolphin.atelier.house"
+    platforms:
+      ps2: pcsx2
+  - host: "https://dolphin.atelier.house"
     broker_host: "http://{{ hostvars['max'].ansible_host }}:8020"
     label: Dolphin
-    memory_card_sync: true
-  - platform: wii
-    host: "https://dolphin.atelier.house"
-    broker_host: "http://{{ hostvars['max'].ansible_host }}:8020"
-    label: Dolphin
+    platforms:
+      ngc:
+        emulator: dolphin
+        memory_card_sync: true
+      wii: dolphin
 
 # Authenticates RomM's calls to the brokers. One secret shared by three
 # roles across two hosts, so it lives in the compute_servers vault rather

@@ -5,6 +5,9 @@ services:
   romm:
     image: {{ romm_image }}
     container_name: romm
+    labels:
+      homelab.config-sha256: "{{ lookup('ansible.builtin.template', 'config.yml.j2') | hash('sha256') }}"
+      homelab.environment-sha256: "{{ lookup('ansible.builtin.template', 'env/romm.env.j2') | hash('sha256') }}"
     restart: {{ restart_policy }}
     networks:
       - shared
@@ -28,7 +31,7 @@ services:
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
-      start_period: {{ healthcheck_start_period }}
+      start_period: {{ romm_healthcheck_start_period }}
     logging:
       driver: {{ logging_driver }}
       options:
