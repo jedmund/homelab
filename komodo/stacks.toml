@@ -834,6 +834,7 @@ failure_alert = true
 webhook_enabled = false
 file_contents = '''
 const stacks = await komodo.read('ListStacks', {
+  limit: 0,
   query: { tags: ['update-monitor'] },
 })
 stacks.sort((left, right) => left.name.localeCompare(right.name))
@@ -988,7 +989,7 @@ if (operation !== 'deploy' && operation !== 'destroy') {
 
 const reviewId = matches('review_id', /^[1-9][0-9]*$/)
 const stackName = `kizuna-storybook-mr-${reviewId}`
-const stacks = await komodo.read('ListStacks', {})
+const stacks = await komodo.read('ListStacks', { limit: 0 })
 const existing = stacks.find((stack) => stack.name === stackName)
 
 if (operation === 'destroy') {
@@ -1109,7 +1110,7 @@ if (operation !== 'deploy' && operation !== 'destroy') {
 const target = matches('target', /^(main|[1-9][0-9]*)$/)
 if (target === 'main' && operation === 'destroy') throw new Error('Main catalog cannot be destroyed by CI')
 const stackName = target === 'main' ? 'music-storybook' : `music-storybook-mr-${target}`
-const stacks = await komodo.read('ListStacks', {})
+const stacks = await komodo.read('ListStacks', { limit: 0 })
 const existing = stacks.find((stack) => stack.name === stackName)
 
 if (operation === 'destroy') {
@@ -1125,7 +1126,7 @@ if (operation === 'destroy') {
     // still destroying, so wait up to a minute for the stack to disappear.
     const removedElsewhere = async () => {
       for (let attempt = 0; attempt < 12; attempt++) {
-        const stacks = await komodo.read('ListStacks', {})
+        const stacks = await komodo.read('ListStacks', { limit: 0 })
         if (!stacks.some((stack) => stack.id === existing.id)) return true
         await new Promise((resolve) => setTimeout(resolve, 5000))
       }

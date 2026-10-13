@@ -15,7 +15,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Komodo settings
 # Pinned; bump deliberately (releases: https://github.com/moghtech/komodo/releases)
-komodo_image_tag: "2.2.0"
+komodo_image_tag: "2.3.3"
 # MongoDB major pin; Komodo upstream tracks mongo 8
 komodo_mongo_image: mongo:8
 periphery_root_directory: /etc/komodo
