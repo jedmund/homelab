@@ -12,13 +12,6 @@
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/config"
 
-- name: Deploy compose file
-  ansible.builtin.template:
-    src: compose.yaml.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
-
 - name: Deploy environment file
   ansible.builtin.template:
     src: env/romm.env.j2
@@ -26,32 +19,51 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
+  register: romm_deploy_environment_file
 
-# config.yml is co-owned: RomM's Library Management UI is a two-way
-# editor of the same file, so templating it wholesale would silently
-# discard the exclude rules and emulatorjs settings saved through the UI.
-# Read it, merge only the `streaming` key, write it back.
+# Preserve UI-owned configuration while migrating the retired folder keys.
+- name: Check existing RomM config.yml
+  ansible.builtin.stat:
+    path: "{{ config_base }}/config/config.yml"
+  register: romm_config_stat
+
 - name: Read existing RomM config.yml
   ansible.builtin.slurp:
     src: "{{ config_base }}/config/config.yml"
   register: romm_config_raw
-  failed_when: false
-  changed_when: false
+  when: romm_config_stat.stat.exists
+  no_log: true
 
-- name: Merge streaming settings into config.yml
-  ansible.builtin.copy:
-    content: |
-      # Partly managed by Ansible. The `streaming` block is templated from
-      # roles/romm/defaults/main.yml and is overwritten on every deploy.
-      # Every other key belongs to RomM's Library Management UI and is
-      # preserved as-is, so edit those in the UI, not here.
-      {{ ((romm_config_raw.content | default('') | b64decode | from_yaml) or {})
-         | combine({'streaming': {'enabled': romm_streaming_enabled, 'containers': romm_streaming_containers}})
-         | to_nice_yaml(indent=2) }}
+- name: Validate legacy RomM filesystem layout
+  ansible.builtin.assert:
+    that:
+      - romm_existing_filesystem.get('roms_folder', 'roms') == 'roms'
+      - romm_existing_filesystem.get('firmware_folder', 'bios') == 'bios'
+    fail_msg: "Custom legacy folders require an explicit filesystem migration before upgrading RomM."
+  vars:
+    romm_existing_config: "{{ (romm_config_raw.content | default('') | b64decode | from_yaml) or {} }}"
+    romm_existing_filesystem: "{{ romm_existing_config.get('filesystem', {}) }}"
+
+- name: Merge streaming and filesystem settings into config.yml
+  ansible.builtin.template:
+    src: config.yml.j2
     dest: "{{ config_base }}/config/config.yml"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  vars:
+    romm_existing_config: "{{ (romm_config_raw.content | default('') | b64decode | from_yaml) or {} }}"
   register: romm_merge_streaming_settings_into_config_yml
+  no_log: true
+
+# Hash app configuration into its Compose definition so only RomM is recreated.
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  vars:
+    romm_existing_config: "{{ (romm_config_raw.content | default('') | b64decode | from_yaml) or {} }}"
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
@@ -60,9 +72,6 @@
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
     wait: true
-    wait_timeout: 600
-    recreate: >-
-      {{ 'always' if
-         (romm_merge_streaming_settings_into_config_yml.changed | default(false))
-         else 'auto' }}
+    wait_timeout: "{{ romm_deploy_wait_timeout }}"
+    recreate: auto
   register: compose_result
