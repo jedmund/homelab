@@ -148,7 +148,7 @@
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
+    pull: "{{ kaneo_pull_policy | default(docker_pull_policy | default('missing')) }}"
     recreate: >-
       {{ 'always' if
          (kaneo_deploy_kaneo_garage_config.changed | default(false)) or

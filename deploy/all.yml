@@ -269,3 +269,4 @@
 # deploy-all-exclude: vllm -- Rendered and started by ai_split.yml when split-mode inference is requested.
 
 # deploy-all-exclude: kaneo-inspection -- Coordinated rollout requires idle jobs and a Kaneo backup.
+# deploy-all-exclude: kaneo-upgrade -- Explicit maintenance workflow requires a reviewed image archive and upgrade inputs.
