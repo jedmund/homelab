@@ -8,7 +8,7 @@ takes jobs that parallelize and need real CPU and memory.
 
 `nuc-mini` runs GitLab itself plus about fifty other stacks and sits near its
 load ceiling, so heavy CI belongs here: `max` is a 32-thread Threadripper Pro
-whose CPU is nearly idle, since the inference work happens on its GPUs.
+that shares CPU and memory between CI and GPU inference services.
 
 ## The two pools
 
@@ -16,14 +16,20 @@ whose CPU is nearly idle, since the inference work happens on its GPUs.
 | --- | --- | --- |
 | Tags | `atelier-max`, plus `amd64`/`docker`/`linux`/`pnpm-cache` | `atelier-max-large`, plus the same four |
 | Takes untagged jobs | yes | no |
-| Concurrent jobs (`limit`) | 6 | 2 |
+| Concurrent jobs (`limit`) | 8 | 2 |
 | Per job | 3 CPUs, 6 GB | 12 CPUs, 24 GB |
 | `/tmp` (tmpfs) | 2 GB | 8 GB |
 
-`concurrent` is the sum of both limits. Worst case is 42 CPUs of quota against
-32 threads; Docker's `cpus` is a CFS quota rather than pinning, so the host is
-only oversubscribed when all eight jobs peak at once, and normal mixed CI leaves
-room for the CPU side of inference.
+The process-wide `concurrent` cap is **8**, independent of the pool limits.
+General jobs can use all eight slots while the large pool is idle. With one
+large job, at most seven general jobs can run; with two large jobs, at most six.
+Slots are not reserved for the large pool, so a large job may wait for a general
+job to finish.
+
+Worst case remains 42 CPUs of quota against 32 threads and 84 GB of RAM.
+Eight general jobs alone have a combined cap of 24 CPUs and 48 GB. Docker's
+`cpus` is a CFS quota rather than pinning or a reservation; simultaneous peaks
+can contend with the CPU side of inference.
 
 Reach the large pool by tagging a job `atelier-max-large`. Use it only for work
 that actually uses the slot: it has two slots total, shared by every project on
