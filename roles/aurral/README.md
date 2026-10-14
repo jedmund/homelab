@@ -6,7 +6,7 @@ flows, playlists, and downloads. The container uses Aurral's native OIDC
 support with PocketID; TinyAuth is only an initial-setup guard around the
 otherwise unauthenticated onboarding API.
 
-The role pins `ghcr.io/lklynet/aurral:2.8.0`. Bump
+The role pins `ghcr.io/lklynet/aurral:2.10.0`. Bump
 `aurral_image_tag` deliberately when upgrading.
 
 ## PocketID and Vault

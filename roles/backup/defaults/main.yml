@@ -4,7 +4,7 @@ stack_name: backup
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Borgmatic image (extended via Dockerfile to add rsync + nfs-common)
-borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:latest
+borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:2.1.9
 
 # Borg repo (host-local on nuc-mini, mounted into container at /repo). It lives
 # on the dedicated data NVMe rather than the root volume, so backups neither
@@ -107,7 +107,7 @@ borg_dumps_host_path: /var/backup/dumps
 borg_dumps_container_path: /dumps
 
 # borg-ui (web frontend)
-borg_ui_image: ainullcode/borg-ui:latest
+borg_ui_image: ainullcode/borg-ui:2.3.10
 borg_ui_domain: backup.atelier.house
 borg_ui_container_port: 8081
 # OIDC against PocketID is configured manually via the borg-ui Settings

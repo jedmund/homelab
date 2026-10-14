@@ -8,7 +8,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Traefik settings
 traefik_enabled: true  # Set to false for local/IP-based testing without reverse proxy
-traefik_image: traefik:v3.6
+traefik_image: traefik:v3.7.14
 traefik_dashboard_enabled: "true"
 traefik_log_level: INFO
 traefik_domain: atelier.house

@@ -3,7 +3,7 @@
 stack_name: pocketid
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-pocketid_image: ghcr.io/pocket-id/pocket-id:latest # floating, tracks upstream
+pocketid_image: ghcr.io/pocket-id/pocket-id:v2.18.0
 
 # PocketID settings
 pocketid_port: 1411
