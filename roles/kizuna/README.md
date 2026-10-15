@@ -172,12 +172,51 @@ To stop new semantic enrichment, restore the mode to `off`. To disable page
 inspection independently, restore retrieval to `false`. Existing OCR text and
 semantic descriptions remain available for retrieval after either rollback.
 
+## Chat widgets
+
+`kizuna-widget-compiler` compiles model-written OpenUI Lang into the stored
+widget tree for `AiWidgetJob`. It joins only the internal `backend` network,
+so it has no egress and no Traefik route. The image is built by kizuna-app CI
+as `registry.atelier.house/kizuna/kizuna-app/widget-compiler`; `latest` is
+published only from the kizuna-app default branch. It must exist before this
+role deploys, because the Compose deployment pulls it and waits for its
+health check.
+
+Add the shared secret to the Kizuna vault before deploying. Generate it once
+with `openssl rand -hex 32`:
+
+```yaml
+vault_kizuna_widget_compiler_secret: generated-hex-value
+```
+
+The role renders it as `WIDGET_COMPILER_SECRET` in both
+`env/widget-compiler.env` and the shared API and worker environment file,
+together with `WIDGET_COMPILER_URL=http://kizuna-widget-compiler:4100`. A
+blank URL in the API disables widgets; a blank secret disables the sidecar's
+header check.
+
+After deployment, verify the container is healthy, the API received both
+settings, and the API can reach the sidecar, without printing the secret:
+
+```sh
+docker inspect --format '{{.State.Health.Status}}' kizuna-widget-compiler
+docker exec kizuna-api sh -c \
+  'test -n "$WIDGET_COMPILER_URL" && test -n "$WIDGET_COMPILER_SECRET"'
+docker exec kizuna-worker sh -c \
+  'test -n "$WIDGET_COMPILER_URL" && test -n "$WIDGET_COMPILER_SECRET"'
+docker exec kizuna-api curl --fail --silent http://kizuna-widget-compiler:4100/health
+```
+
+To disable widgets without removing the sidecar, blank
+`WIDGET_COMPILER_URL` in `templates/env/api.env.j2` and redeploy.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
    default-branch pipeline exercises the Komodo completion and revision gates.
 2. Confirm `docker compose ps` reports the API, Postgres, Redis, and
-   screenshotter as healthy. Confirm both workers are running.
+   screenshotter, and widget compiler as healthy. Confirm both workers are
+   running.
 3. Sign in through PocketID. Sign out and back in with the password path as a
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved
