@@ -200,6 +200,12 @@ gatus_endpoints:
     group: apps
     url: "https://cat.atelier.house/"
     status: 200
+  - name: Protomaps
+    group: apps
+    # Never probe the basemap archive: a plain GET downloads the whole file
+    # on every interval.
+    url: "https://maps.atelier.house/healthz"
+    status: 200
   - name: Copyparty
     group: apps
     url: "https://files.atelier.house/"
