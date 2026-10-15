@@ -92,6 +92,12 @@ omit live GitLab PostgreSQL, Redis, Prometheus, logs, and registry storage.
 Other exclusions include `/opt/docker/musicbrainz` and `/opt/docker/backup`.
 Read `borg_exclude_patterns` for the exact list before relying on coverage.
 
+The Protomaps basemap archive, fonts, and sprites under `/srv/protomaps` are
+outside the backup sources by design. They are downloaded from pinned upstream
+sources; the [Protomaps runbook](../protomaps/README.md) describes how to
+fetch them again. Its rendered configuration under `/opt/docker/protomaps` is
+backed up with the other stacks.
+
 ## Consistency and coverage limits
 
 The [SQLite dump script](templates/scripts/dump-sqlite.sh.j2) reads files from

@@ -19,6 +19,7 @@ Avoid defining different values for the same variable in overlapping groups.
 The gateway has separate groups and vaults for `traefik`, `pocketid`,
 `tinyauth`, `line`, and `ddclient`. There is no current `infra_gateway` group.
 OpenSpeedTest has no secret inputs in its current role.
+Protomaps has no secret inputs and no vault file.
 
 ## Create and edit
 
