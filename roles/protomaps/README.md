@@ -44,9 +44,11 @@ be downloaded again from the pinned sources.
 
 ## First deployment
 
-1. Create a DNS-only `A` record for `maps.atelier.house` in the Cloudflare
-   `atelier.house` zone, pointing at the current home address. ddclient
-   updates the record after that; it does not create missing records.
+1. Deploy the ddclient role (`make -C deploy ddclient`). Its bootstrap task
+   creates missing DNS-only `A` records for every name in
+   `ddclient_atelier_subdomains`, including `maps.atelier.house`, and the
+   ddclient daemon keeps them current. The ddclient daemon alone only
+   updates existing records.
 2. Deploy the role. This writes the nginx configuration, downloads and
    checksums the fonts and sprites, and stages the archive fetch script:
 
