@@ -87,9 +87,9 @@ and `200` with the same CORS header for the font and sprite.
 ## Add a CORS origin
 
 Exact origins go in `protomaps_cors_origins`; regular expressions go in
-`protomaps_cors_origin_patterns`. For a temporary development origin,
-override the list in inventory variables rather than editing defaults, for
-example in `group_vars/protomaps/main.yml`:
+`protomaps_cors_origin_patterns`. The deployed list is overridden in
+[group_vars/protomaps/main.yml](../../group_vars/protomaps/main.yml), which
+adds the Kizuna local development servers to production:
 
 ```yaml
 protomaps_cors_origins:
