@@ -17,7 +17,9 @@ For the intended combination of more simultaneous CI jobs and local inference,
 acceptable. A 256 GB eight-DIMM configuration remains a reasonable intermediate
 choice. The current CI incidents do not, by themselves, demonstrate a need for
 512 GB. The model choices and actual working-set measurements should determine
-that purchase.
+that purchase. The [October 15 update](#october-15-update-memory-sizing-for-eight-gpus-and-photon)
+revises this: with eight GPUs waiting for the electrical upgrade, buy 512 GB
+once.
 
 ## Hardware and running services
 
@@ -459,6 +461,55 @@ earlier was for a different board and is not an upgrade for these cards.
 Establish any firmware candidate through the exact card vendor and board
 identity before considering it.
 
+## October 15 update: memory sizing for eight GPUs and Photon
+
+The user reported eight GPUs on hand, waiting for the electrical upgrade. That
+changes the memory decision above. The earlier text weighed a fourth card;
+eight cards make the multi-card layouts the default rather than the exception.
+
+A 15:20 PDT snapshot showed the same four 32 GB `F5-6400R3239G32GQ` RDIMMs in
+four of eight slots, 122 GiB visible to the OS, and about 89 GiB available.
+The 8 GiB swap area was almost entirely used (96 MiB free), so peaks have
+already pushed memory out at some point. llama-swap was the largest
+container at 33 GiB. The root volume had 470 GB free (74% used). dmidecode
+reports eight slots and a 4 TB maximum.
+
+**Recommendation: buy 512 GB as 8 × 64 GB once, rather than 256 GB first.**
+
+- **Host memory demand scales with the GPUs being served.** vLLM stages
+  weights through host memory on load and keeps runtime buffers there.
+  Model-specific tables add to that: Qwen3.8 Flash Next's PLE table is about
+  26.82 GiB, and DeepSeek V4.1's RAM-resident Engram tables are 188.83 GiB
+  for a TP4 deployment. Eight cards make it likely that more than one large
+  model, or one model across all eight cards, runs at once. If the eight
+  cards are 96 GB each, they hold 768 GB of VRAM; 256 GB of host memory
+  would be a constant constraint.
+- **The 256 GB case was already marginal for one large model.** The Engram
+  tables plus the CI pools' 84 GiB of memory limits exceed 256 GiB before
+  loader, server, and OS memory.
+- **Upgrading twice costs more.** 512 GB replaces every module, so buying
+  256 GB now means buying a second full set of memory later. Filling all
+  eight channels is the bandwidth change either way; 512 GB adds capacity at
+  the same bandwidth.
+- **512 GB is not the ceiling, but the next step is costly.** With eight
+  slots, one module per channel, 8 × 64 GB fills the board. The only larger
+  configuration is 8 × 128 GB for 1 TB, which replaces the set again. If the
+  eight-GPU build is likely to need 1 TB, price that before ordering 512 GB.
+
+The qualification requirement above still applies: confirm the exact 64 GB
+kit against this board and BIOS. A generic WRX90 compatibility statement
+does not cover every 512 GB speed variant.
+
+**Photon is not a reason to buy more memory.** Kizuna's chat maps need a
+self-hosted geocoder. The worldwide Photon index is a 63.2 GB download and
+about 95 GB on disk, and Photon recommends at least 64 GB of RAM for it. That
+fits max's disk today, but not comfortably beside CI peaks and llama-swap
+on 128 GB. The user chose a US and Japan database instead, imported from
+the worldwide JSON dump with `-country-codes us,jp`. The US-only database
+alone is a 10.5 GB download, so the combined database is small enough for
+nuc-mini, with max as the fallback host if lookups there are slow. After a
+512 GB upgrade, a worldwide Photon index on max would fit easily.
+
 ## Recommended sequence and decision points
 
 1. **Continue the replacement-PSU observation with the current configuration.**
@@ -481,9 +532,9 @@ identity before considering it.
    execution time, cgroup memory peaks, CPU throttling, and I/O pressure under
    the additional parallel work the user actually wants. Hardware sizing
    should include that demand, not only the current deliberately limited load.
-5. **Stage CPU and RAM upgrades separately.** Prefer eight channels. Choose
-   256 GB for measured near-term demand or 512 GB for the intended larger CI
-   and host-cache workload. Select the 9985WX when CPU throughput is the next
+5. **Stage CPU and RAM upgrades separately.** Prefer eight channels. Buy
+   512 GB as 8 × 64 GB; the October 15 update explains why eight GPUs rule
+   out stopping at 256 GB. Select the 9985WX when CPU throughput is the next
    constraint; validate memory stability and rerun representative pipelines
    before increasing concurrency aggressively.
 6. **Choose an inference layout before a fourth GPU purchase.** Two-GPU
