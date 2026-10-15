@@ -210,6 +210,10 @@
 - import_playbook: kizuna.yml
   tags: [kizuna]
 
+# Protomaps basemap archive, fonts, and sprites (maps.atelier.house)
+- import_playbook: protomaps.yml
+  tags: [protomaps]
+
 # Kaneo project management stack
 - import_playbook: kaneo.yml
   tags: [kaneo]

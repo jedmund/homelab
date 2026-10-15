@@ -1,0 +1,78 @@
+# {{ ansible_managed }}
+# Basemap archive, fonts, and sprites for cross-origin MapLibre clients.
+
+map $http_origin $protomaps_cors_origin {
+    default "";
+{% for origin in protomaps_cors_origins %}
+    "{{ origin }}" $http_origin;
+{% endfor %}
+{% for pattern in protomaps_cors_origin_patterns %}
+    "~{{ pattern }}" $http_origin;
+{% endfor %}
+}
+
+# nginx sends Accept-Ranges on full responses but not on 206 responses.
+# PMTiles clients and the deployment checks expect it on both. The range
+# filter sets 206 after add_header runs, so key on the request instead.
+map $http_range $protomaps_accept_ranges {
+    "" "";
+    default bytes;
+}
+
+server {
+    listen {{ protomaps_nginx_port }};
+    server_name _;
+    root /srv/protomaps;
+    server_tokens off;
+
+    # PMTiles reads byte ranges. Compression would change the representation
+    # and weaken the ETag, so serve every file as stored.
+    gzip off;
+    etag on;
+    # A map pan issues many range requests; Traefik already logs errors.
+    access_log off;
+
+    location = /healthz {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Paths below are versioned by build date and assets commit.
+    location /basemaps/ {
+        types {
+            application/vnd.pmtiles pmtiles;
+        }
+        default_type application/octet-stream;
+        if ($request_method !~ ^(GET|HEAD|OPTIONS)$) {
+            return 405;
+        }
+        # add_header directives are not inherited into a block that sets its
+        # own, so the preflight branch includes the full header set as well.
+        if ($request_method = OPTIONS) {
+            include /etc/nginx/conf.d/protomaps-headers.inc;
+            return 204;
+        }
+        include /etc/nginx/conf.d/protomaps-headers.inc;
+    }
+
+    location /assets/ {
+        types {
+            application/json json;
+            application/x-protobuf pbf;
+            image/png png;
+        }
+        default_type application/octet-stream;
+        if ($request_method !~ ^(GET|HEAD|OPTIONS)$) {
+            return 405;
+        }
+        if ($request_method = OPTIONS) {
+            include /etc/nginx/conf.d/protomaps-headers.inc;
+            return 204;
+        }
+        include /etc/nginx/conf.d/protomaps-headers.inc;
+    }
+
+    location / {
+        return 404;
+    }
+}
