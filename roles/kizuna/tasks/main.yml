@@ -188,6 +188,10 @@
          (kizuna_deploy_environment_files.changed | default(false)) or
          (kizuna_deploy_optional_youtube_cookies.changed | default(false))
          else 'auto' }}
+  # Pull with the credentials the login task above wrote for Komodo; root's
+  # default Docker config has no registry login.
+  environment:
+    DOCKER_CONFIG: "{{ kizuna_registry_config_path | dirname }}"
   register: compose_result
 
 # Apply storage access before optional external-tool provisioning so a
