@@ -49,6 +49,28 @@ kizuna_widget_compiler_image_tag: latest
 # the sidecar unauthenticated (dev only) and still lets the API call it.
 kizuna_widget_compiler_secret: "{{ vault_kizuna_widget_compiler_secret | default('') }}"
 
+# ---- Geocoder sidecar (Photon) ----
+# Resolves PlaceMap addresses to coordinates for chat widgets. Photon 1.x with
+# embedded OpenSearch, serving a US + Japan database imported from the Photon
+# JSON dump (see README.md for the import and refresh procedure). The image is
+# the community-maintained rtuszik/photon-docker build, pinned by digest: tag
+# 2.4.0 bundles the upstream photon-1.3.0.jar on Temurin 21 JRE. The compose
+# service runs the jar directly, bypassing the image's download/update manager,
+# so the container never fetches data. Backend-only with no egress and no
+# Traefik route; kizuna-api and the workers reach it at
+# http://kizuna-geocoder:2322.
+kizuna_geocoder_image: "ghcr.io/rtuszik/photon-docker:2.4.0@sha256:21549c60f9e6488fff3217e40429a652c4b445f374800333fe32859e47cec293"
+# The image's photon user. Photon runs as this UID/GID and owns the database.
+kizuna_geocoder_uid: 9011
+kizuna_geocoder_gid: 9011
+# The database is rebuildable from the upstream dump, so it lives outside
+# /opt/docker and Borg does not copy it (same reasoning as protomaps). Photon
+# reads <path>/photon_data; an empty directory fails the health check.
+kizuna_geocoder_data_path: /srv/kizuna-geocoder
+# JVM heap for Photon and its embedded OpenSearch. The index is served mostly
+# from the page cache, which is outside the heap.
+kizuna_geocoder_java_heap: 2g
+
 # Registry auth. Use a single GitLab deploy token scoped to
 # `read_registry` at the kizuna group level so one credential covers
 # both project registries.

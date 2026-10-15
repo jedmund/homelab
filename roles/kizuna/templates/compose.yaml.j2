@@ -217,6 +217,55 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-geocoder:
+    container_name: kizuna-geocoder
+    # Photon geocoder. kizuna-api resolves PlaceMap addresses with
+    # GET /api?q=<address>&limit=1. The database is imported offline from the
+    # Photon JSON dump into {{ kizuna_geocoder_data_path }} (see the role
+    # README); this container only serves it.
+    image: "{{ kizuna_geocoder_image }}"
+    # Run the jar directly instead of the image's process manager, which
+    # downloads and updates databases on its own schedule. The image's
+    # entrypoint would also chown the whole database on every start.
+    user: "{{ kizuna_geocoder_uid }}:{{ kizuna_geocoder_gid }}"
+    entrypoint:
+      - java
+      - -Xms{{ kizuna_geocoder_java_heap }}
+      - -Xmx{{ kizuna_geocoder_java_heap }}
+      - -jar
+      - /photon/photon.jar
+    command:
+      - serve
+      - -data-dir
+      - /photon/data
+      # Photon listens on 127.0.0.1 by default, unreachable from other
+      # containers.
+      - -listen-ip
+      - 0.0.0.0
+      - -listen-port
+      - "2322"
+    restart: {{ restart_policy }}
+    networks:
+      # backend only: Photon serves a local database and makes no outbound
+      # calls; `backend` is internal: true with no gateway, so it has no
+      # egress. NOT fronted by Traefik — no public route.
+      - backend
+    volumes:
+      - {{ kizuna_geocoder_data_path }}:/photon/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:2322/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The deploy waits at most 180 s for health; probe often while starting.
+      start_period: 120s
+      start_interval: 5s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-web:
     container_name: kizuna-web
     image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"

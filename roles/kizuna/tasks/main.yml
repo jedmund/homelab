@@ -29,6 +29,32 @@
     - "{{ config_base }}/secrets"
     - "{{ config_base }}/config/garage"
 
+- name: Create geocoder data directory
+  file:
+    path: "{{ kizuna_geocoder_data_path }}"
+    state: directory
+    owner: "{{ kizuna_geocoder_uid }}"
+    group: "{{ kizuna_geocoder_gid }}"
+    mode: '0755'
+
+# Photon cannot build its database at startup; without one it never becomes
+# healthy and the Compose wait below fails after its timeout. Stop first with
+# the procedure instead.
+- name: Check for the geocoder database
+  stat:
+    path: "{{ kizuna_geocoder_data_path }}/photon_data"
+  register: kizuna_geocoder_database
+
+- name: Require the geocoder database
+  assert:
+    that:
+      - kizuna_geocoder_database.stat.isdir | default(false)
+    fail_msg: >-
+      {{ kizuna_geocoder_data_path }}/photon_data is missing. Import the
+      Photon database and copy it to this host before deploying; see
+      "Geocoder" in roles/kizuna/README.md.
+    quiet: true
+
 - name: Deploy Garage config
   template:
     src: garage.toml.j2
