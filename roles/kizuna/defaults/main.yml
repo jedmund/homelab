@@ -34,6 +34,21 @@ kizuna_screenshotter_image_tag: latest
 # sidecar unauthenticated (dev only) and still lets the API call it.
 kizuna_screenshotter_secret: "{{ vault_kizuna_screenshotter_secret | default('') }}"
 
+# ---- Widget compiler sidecar (Node) ----
+# Compiles and validates model-written OpenUI Lang into the stored chat-widget
+# tree for AiWidgetJob, and serves the widget system prompt at /catalog. Built
+# by kizuna-app CI from apps/widget-compiler/Dockerfile and pushed to a nested
+# path under the kizuna-app project registry (same read_registry deploy token).
+# Backend-only with no egress: no proxy network and no Traefik route;
+# kizuna-api and the workers reach it at http://kizuna-widget-compiler:4100.
+kizuna_widget_compiler_image: registry.atelier.house/kizuna/kizuna-app/widget-compiler
+kizuna_widget_compiler_image_tag: latest
+# Shared secret: the API sends it as the X-Widget-Compiler-Secret header and
+# the sidecar checks it. Generate once (`openssl rand -hex 32`) and store in
+# the vault; api.env and widget-compiler.env read the same value. Blank leaves
+# the sidecar unauthenticated (dev only) and still lets the API call it.
+kizuna_widget_compiler_secret: "{{ vault_kizuna_widget_compiler_secret | default('') }}"
+
 # Registry auth. Use a single GitLab deploy token scoped to
 # `read_registry` at the kizuna group level so one credential covers
 # both project registries.

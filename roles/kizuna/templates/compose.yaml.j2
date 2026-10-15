@@ -189,6 +189,34 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-widget-compiler:
+    container_name: kizuna-widget-compiler
+    # Node sidecar. kizuna-api's AiWidgetJob fetches /catalog and POSTs
+    # /compile here to turn model-written OpenUI Lang into a validated widget
+    # tree; the parser and catalog live in this image, not the Rails one.
+    image: "{{ kizuna_widget_compiler_image }}:{{ kizuna_widget_compiler_image_tag }}"
+    restart: {{ restart_policy }}
+    networks:
+      # backend only: the compiler makes no outbound calls, and `backend` is
+      # internal: true with no gateway, so it has no egress. kizuna-api and
+      # the workers reach it on the internal hostname. NOT fronted by
+      # Traefik — no public route; the shared secret + backend-only ingress
+      # are the guard.
+      - backend
+    env_file:
+      - ./env/widget-compiler.env
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4100/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-web:
     container_name: kizuna-web
     image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"
