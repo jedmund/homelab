@@ -55,6 +55,30 @@
       "Geocoder" in roles/kizuna/README.md.
     quiet: true
 
+- name: Create walking router data directory
+  file:
+    path: "{{ kizuna_router_data_path }}"
+    state: directory
+    owner: "{{ kizuna_router_uid }}"
+    group: "{{ kizuna_router_gid }}"
+    mode: '0755'
+
+# Valhalla cannot build tiles at startup either; stop before the Compose wait.
+- name: Check for the walking router tiles
+  stat:
+    path: "{{ kizuna_router_data_path }}/valhalla_tiles.tar"
+  register: kizuna_router_tiles
+
+- name: Require the walking router tiles
+  assert:
+    that:
+      - kizuna_router_tiles.stat.exists | default(false)
+    fail_msg: >-
+      {{ kizuna_router_data_path }}/valhalla_tiles.tar is missing. Build the
+      Valhalla tiles and copy them to this host before deploying; see
+      "Walking router" in roles/kizuna/README.md.
+    quiet: true
+
 - name: Deploy Garage config
   template:
     src: garage.toml.j2
