@@ -7,8 +7,9 @@ settings `config.toml` can declare. One pool takes ordinary jobs, the other
 takes jobs that parallelize and need real CPU and memory.
 
 `nuc-mini` runs GitLab itself plus about fifty other stacks and sits near its
-load ceiling, so heavy CI belongs here: `max` is a 32-thread Threadripper Pro
-that shares CPU and memory between CI and GPU inference services.
+load ceiling, so heavy CI belongs here: `max` is a Threadripper PRO 9985WX
+workstation (64 cores / 128 threads, 122 GiB visible RAM) that shares CPU and
+memory between CI and GPU inference services.
 
 ## The two pools
 
@@ -16,20 +17,29 @@ that shares CPU and memory between CI and GPU inference services.
 | --- | --- | --- |
 | Tags | `atelier-max`, plus `amd64`/`docker`/`linux`/`pnpm-cache` | `atelier-max-large`, plus the same four |
 | Takes untagged jobs | yes | no |
-| Concurrent jobs (`limit`) | 8 | 2 |
-| Per job | 3 CPUs, 6 GB | 12 CPUs, 24 GB |
+| Concurrent jobs (`limit`) | 10 | 2 |
+| Per job | 6 CPUs, 8 GB | 12 CPUs, 24 GB |
 | `/tmp` (tmpfs) | 2 GB | 8 GB |
 
-The process-wide `concurrent` cap is **8**, independent of the pool limits.
-General jobs can use all eight slots while the large pool is idle. With one
-large job, at most seven general jobs can run; with two large jobs, at most six.
-Slots are not reserved for the large pool, so a large job may wait for a general
-job to finish.
+The process-wide `concurrent` cap is **12**, independent of the pool limits.
+With both large jobs running, all ten general slots remain available. Slots are
+not reserved for the large pool, so a large job may wait for a general job to
+finish.
 
-Worst case remains 42 CPUs of quota against 32 threads and 84 GB of RAM.
-Eight general jobs alone have a combined cap of 24 CPUs and 48 GB. Docker's
-`cpus` is a CFS quota rather than pinning or a reservation; simultaneous peaks
-can contend with the CPU side of inference.
+The worst case is 84 CPUs of quota against 128 threads, and 128 GB of memory
+limits against 122 GiB of RAM. Limits are ceilings, not reservations: on
+2026-10-16 one full Kizuna app pipeline used about 36 GiB across its jobs, with
+browser jobs at 1-4.6 GB and `lint` on the large pool at 9.6 GB. Docker's `cpus`
+is a CFS quota rather than pinning or a reservation; simultaneous peaks can
+contend with the CPU side of inference. After the 512 GB upgrade, raise the
+pool limits and `concurrent` rather than the per-job caps.
+
+Node tools read the quota: inside a 6-CPU job `os.availableParallelism()`
+returns 6, so Vitest and pnpm size their workers to it, although coreutils
+`nproc` reports all 128 host threads. The runners do not set `cpuset_cpus`. It
+applies to a whole runner entry, so every job in a pool would share the same
+pinned cores, and a 2026-10-16 test on this host showed Chromium and Firefox
+memory unchanged with `--cpuset-cpus=0-2`.
 
 Reach the large pool by tagging a job `atelier-max-large`. Use it only for work
 that actually uses the slot: it has two slots total, shared by every project on
