@@ -119,6 +119,9 @@ kizuna_video_archive_sub_langs: "en.*,en"
 # Keep CPU-, network-, and disk-heavy yt-dlp/ffmpeg work serialized while the
 # default worker remains responsive to enrichment and application jobs.
 kizuna_media_worker_concurrency: 1
+# Chat replies hold a thread for their whole run (up to the run deadline), so
+# this bounds how many replies, follow-ups, and visuals stream at once.
+kizuna_chat_worker_concurrency: 5
 # PDF extraction has its own queue because rendering/OCR is CPU-, disk-, and
 # GPU-service-heavy. Two jobs can make progress concurrently while each job
 # claims pages in small resumable batches.

@@ -74,6 +74,35 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-chat-worker:
+    container_name: kizuna-chat-worker
+    # Chat replies, their follow-up suggestions, and chat visuals run on their
+    # own queue so a burst of background jobs on the default queue (embedding
+    # and connection suggestions after a large write) cannot hold a reply
+    # waiting for a thread.
+    image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
+    command: ["bundle", "exec", "sidekiq", "-q", "chat", "-c", "{{ kizuna_chat_worker_concurrency }}"]
+    restart: {{ restart_policy }}
+    networks:
+      # Chat tools search the web and call the LLM host, so this worker needs
+      # the same egress as kizuna-worker.
+      - proxy
+      - backend
+    env_file:
+      - ./env/api.env
+    depends_on:
+      kizuna-postgres:
+        condition: service_healthy
+      kizuna-redis:
+        condition: service_healthy
+      kizuna-api:
+        condition: service_healthy
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-media-worker:
     container_name: kizuna-media-worker
     # Isolate yt-dlp/ffmpeg work from latency-sensitive default jobs and run
