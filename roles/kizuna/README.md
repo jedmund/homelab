@@ -25,9 +25,10 @@ vault_kizuna_youtube_api_key: your-restricted-server-key
 ```
 
 The role enables video archival by default and shares the resulting settings
-with Rails and both Sidekiq containers. `kizuna-worker` consumes only the
-default queue; `kizuna-media-worker` consumes only the media queue at
-concurrency 1. The media worker uses Deno, yt-dlp with its EJS support package,
+with Rails and the Sidekiq containers. `kizuna-worker` consumes only the
+default queue; `kizuna-chat-worker` consumes only the chat queue (chat replies,
+follow-up suggestions, and chat visuals) at `kizuna_chat_worker_concurrency`;
+`kizuna-media-worker` consumes only the media queue at concurrency 1. The media worker uses Deno, yt-dlp with its EJS support package,
 and ffmpeg from the Kizuna API image to store an MP4, poster, and selected
 captions in the existing Garage bucket. Subtitle selection defaults to
 `en.*,en`; override `kizuna_video_archive_sub_langs` in inventory if needed.
@@ -330,6 +331,7 @@ country, so a partial database silently lacks `us`.
 docker inspect --format '{{.State.Health.Status}}' kizuna-geocoder
 docker exec kizuna-api sh -c 'test -n "$WIDGET_GEOCODER_URL"'
 docker exec kizuna-worker sh -c 'test -n "$WIDGET_GEOCODER_URL"'
+docker exec kizuna-chat-worker sh -c 'test -n "$WIDGET_GEOCODER_URL"'
 docker exec kizuna-api curl --fail --silent http://kizuna-geocoder:2322/status
 docker exec kizuna-api curl --fail --silent \
   'http://kizuna-geocoder:2322/api?q=San+Francisco+City+Hall&limit=1'
