@@ -71,6 +71,25 @@ kizuna_geocoder_data_path: /srv/kizuna-geocoder
 # from the page cache, which is outside the heap.
 kizuna_geocoder_java_heap: 2g
 
+# ---- Walking router sidecar (Valhalla) ----
+# Computes pedestrian routes (per-leg distance, time, and shape) for route
+# PlaceMaps. Valhalla with US + Japan tiles built from Geofabrik extracts on
+# max (see README.md for the build and refresh procedure). Official image,
+# pinned by digest. It serves the tile archive through mmap with a bounded
+# cache, so its memory stays small next to the archive size. Backend-only
+# with no egress and no Traefik route; kizuna-api and the workers reach it at
+# http://kizuna-router:8002.
+kizuna_router_image: "ghcr.io/valhalla/valhalla:3.9.1@sha256:4fd114eb1d26b8fc2f43bcb3df234c1b63a0bf13c277405e5943d5361dc575de"
+# Rebuildable from the upstream extracts, so outside /opt/docker and Borg.
+# Holds valhalla_tiles.tar, admins.sqlite, and timezones.sqlite.
+kizuna_router_data_path: /srv/kizuna-router
+# Valhalla has no image user; run it as the shared runtime user.
+kizuna_router_uid: "{{ puid }}"
+kizuna_router_gid: "{{ pgid }}"
+# Request worker threads, and the in-memory tile cache shared by them.
+kizuna_router_threads: 4
+kizuna_router_cache_bytes: 1000000000
+
 # Registry auth. Use a single GitLab deploy token scoped to
 # `read_registry` at the kizuna group level so one credential covers
 # both project registries.

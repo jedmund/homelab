@@ -295,6 +295,51 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  kizuna-router:
+    container_name: kizuna-router
+    # Valhalla walking router. kizuna-api POSTs /route with pedestrian
+    # costing for route PlaceMaps. Tiles are built offline into
+    # {{ kizuna_router_data_path }} (see the role README); this container only
+    # serves them.
+    image: "{{ kizuna_router_image }}"
+    user: "{{ kizuna_router_uid }}:{{ kizuna_router_gid }}"
+    # Generate the full configuration from the image's own builder on every
+    # start, so it always matches the Valhalla version, then serve the tile
+    # archive. Valhalla listens on 0.0.0.0 only when told to.
+    command:
+      - bash
+      - -ec
+      - >-
+        valhalla_build_config
+        --mjolnir-tile-dir /data/tiles
+        --mjolnir-tile-extract /data/valhalla_tiles.tar
+        --mjolnir-admin /data/admins.sqlite
+        --mjolnir-timezone /data/timezones.sqlite
+        --mjolnir-max-cache-size {{ kizuna_router_cache_bytes }}
+        --httpd-service-listen tcp://0.0.0.0:8002
+        > /tmp/valhalla.json;
+        exec valhalla_service /tmp/valhalla.json {{ kizuna_router_threads }}
+    restart: {{ restart_policy }}
+    networks:
+      # backend only: Valhalla serves local tiles and makes no outbound
+      # calls. NOT fronted by Traefik — no public route.
+      - backend
+    volumes:
+      - {{ kizuna_router_data_path }}:/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8002/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The deploy waits at most 180 s for health; probe often while starting.
+      start_period: 60s
+      start_interval: 5s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
   kizuna-web:
     container_name: kizuna-web
     image: "{{ kizuna_app_image }}:{{ kizuna_app_image_tag }}"
