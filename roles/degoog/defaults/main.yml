@@ -3,8 +3,9 @@
 stack_name: degoog
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Preserve the deployed 0.26.0 amd64 image during the host migration.
-degoog_image: ghcr.io/degoog-org/degoog@sha256:20874795da56014a8cdbea9cfae02286b33ab38dd83d772d348dd6fb2fd5f421
+# Pin the release by its multi-arch index digest. Store extensions must be
+# updated after a release change; see the role README.
+degoog_image: ghcr.io/degoog-org/degoog:1.1.0@sha256:4b5d1eda19da3591782142bd30c367a3973aaf2511a7d050b852a53f1045a5d1
 degoog_port: 4444
 degoog_base_url: "https://search.{{ traefik_domain | default('atelier.house') }}"
 degoog_distrust_proxy: "false"
@@ -21,9 +22,10 @@ degoog_settings_password: "{{ vault_degoog_settings_password | default('') }}"
 # Official 4play transport and native browser now both run on nuc-mini.
 degoog_4play_repo_url: "https://github.com/degoog-org/official-extensions.git"
 degoog_4play_item_path: transports/lolcat-4play
-degoog_4play_transport_id: degoog-org-official-extensions-lolcat-4play
 degoog_4play_settings_id: degoog-org-official-extensions-lolcat-4play-transport
 degoog_4play_password: "{{ vault_degoog_4play_password | default('') }}"
 degoog_4play_timeout: "30000"
-degoog_4play_use_container: "false"
+# Upstream recommends container isolation; with it off, captured browser headers
+# are keyed by Firefox's default container and warmup never finds a session.
+degoog_4play_use_container: "true"
 degoog_4play_force_restart: false
