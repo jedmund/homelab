@@ -36,9 +36,19 @@ ui:
 engines:
   - name: duckduckgo
     disabled: false
+  # Google blocks the scraper engine from this host ("access denied") and
+  # Brave throttles it ("too many requests"). The Google CSE engine keeps
+  # answering, so Google results still arrive through it.
   - name: google
-    disabled: false
+    disabled: true
+  - name: brave
+    disabled: true
   - name: bing
+    disabled: false
+  # Engines that tolerate self-hosted instances, for breadth.
+  - name: mojeek
+    disabled: false
+  - name: qwant
     disabled: false
   - name: wikipedia
     disabled: false
