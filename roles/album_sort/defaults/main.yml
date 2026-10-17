@@ -41,7 +41,6 @@ album_sort_mutations_enabled: "true"
 album_sort_oidc_issuer_url: "https://id.atelier.house"
 album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
-album_sort_session_ttl_hours: "12"
 
 # Audio-embedding sidecar for similarity (Sonic Adventure). It reads the music
 # volume only and needs no internet, so it sits on the internal backend network.
