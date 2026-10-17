@@ -25,5 +25,7 @@ degoog_4play_item_path: transports/lolcat-4play
 degoog_4play_settings_id: degoog-org-official-extensions-lolcat-4play-transport
 degoog_4play_password: "{{ vault_degoog_4play_password | default('') }}"
 degoog_4play_timeout: "30000"
-degoog_4play_use_container: "false"
+# Upstream recommends container isolation; with it off, captured browser headers
+# are keyed by Firefox's default container and warmup never finds a session.
+degoog_4play_use_container: "true"
 degoog_4play_force_restart: false

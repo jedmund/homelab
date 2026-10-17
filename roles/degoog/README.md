@@ -119,6 +119,12 @@ path in `/etc/degoog-4play/nginx.conf` and redeploy the native client with
 `make deploy-degoog-4play`. A bridge-only change reloads Nginx and does not
 restart Xorg or Firefox.
 
+The role enables the transport's container isolation. With it disabled, the
+log repeats `origin warmup for https://www.google.com did not reach a usable
+search session (reached=true, session=false)` and Google returns no results,
+because captured headers are stored under Firefox's default container while
+warmup looks them up under the transport's default key.
+
 In Settings, Engines, Google, set the outgoing HTTP client to `4play (lolcat)`.
 Verify with a `!g` search, and with `!4play` if the `4play status` plugin is
 installed. A CAPTCHA tab is left open in Firefox on display `:1` and must be
