@@ -47,8 +47,8 @@ does not freeze this stack.
 
 ## Authentication and proxy behavior
 
-The browser interface uses native PocketID OIDC. The current default also
-applies TinyAuth to the main browser route.
+The browser interface uses native PocketID OIDC. TinyAuth is off by default;
+`album_sort_use_tinyauth: true` puts it back in front of the main browser route.
 
 When `album_sort_expose_rest_api` is enabled, `/rest` has separate routes for
 OpenSubsonic clients. These routes bypass browser-oriented TinyAuth. The
