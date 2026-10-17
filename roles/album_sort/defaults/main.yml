@@ -41,7 +41,6 @@ album_sort_mutations_enabled: "true"
 album_sort_oidc_issuer_url: "https://id.atelier.house"
 album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
-album_sort_session_ttl_hours: "12"
 
 # Audio-embedding sidecar for similarity (Sonic Adventure). It reads the music
 # volume only and needs no internet, so it sits on the internal backend network.
@@ -50,9 +49,9 @@ album_sort_embedder_threads: "2"
 album_sort_embedder_cpus: 2
 album_sort_embedder_mem_limit: 2g
 
-# Keep the outer middleware during native-OIDC rollout. Set false only after
-# login, callback, logout, and unauthenticated rejection are verified.
-album_sort_use_tinyauth: true
+# The app signs in with PocketID itself and rejects unauthenticated requests,
+# so the outer TinyAuth middleware only added a second, shorter session.
+album_sort_use_tinyauth: false
 
 # OpenSubsonic REST API (`/rest`). Music clients authenticate per-request with
 # the Subsonic protocol's own credentials, so this path must bypass the outer
