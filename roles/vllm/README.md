@@ -4,6 +4,13 @@ DeepSeek V4 Flash on `max`, published at port `11437` with API model name
 `DeepSeek-V4-Flash`, plus an alternative GLM 5.3 Flash Spark profile on `11438`. The role renders the Compose file and creates cache
 directories. Model startup remains an explicit Compose profile action.
 
+Model services use `restart: unless-stopped`, so the model that was running
+when `max` went down starts again at boot. A model stopped with
+`docker compose stop` or removed with `docker compose down` stays down. Set
+`restart: "no"` on a `vllm_models` entry to keep that model manual. The policy
+also restarts a model after a crash, and each failed load can take several
+minutes, so check `RestartCount` when a model keeps reloading.
+
 ## Runtime and model
 
 The `deepseek-v4-flash-0731` profile uses Karmic Kraken beta assembly

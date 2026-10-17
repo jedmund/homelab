@@ -6,9 +6,10 @@ services:
   {{ m.name }}:
     image: {{ m.image | default(vllm_image) }}
     container_name: {{ m.name }}
-    # Manual lifecycle: don't auto-restart heavy models. Profiles gate
-    # startup so `docker compose up` with no --profile starts nothing.
-    restart: "no"
+    # Profiles gate startup so `docker compose up` with no --profile starts
+    # nothing. unless-stopped brings the last started model back at boot;
+    # a model that was stopped or removed stays down.
+    restart: {{ m.restart | default('unless-stopped') | to_json }}
     profiles: ["{{ m.name }}", "all"]
 {% if m.init | default(false) %}
     init: true
