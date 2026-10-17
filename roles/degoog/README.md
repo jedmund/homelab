@@ -88,6 +88,42 @@ Extension provisioning can be skipped with `-e degoog_manage_extensions=false`.
 The migration always skips it. Changing the transport through normal provisioning
 retains its existing settings-password authentication and restart behavior.
 
+## Release upgrades
+
+`degoog_image` pins a release by its multi-arch index digest. Routine
+deployment pulls and recreates the container, but extension provisioning only
+installs missing items; it does not update installed Store extensions. Degoog
+1.1.0 requires matching versions of the 4play transport and Store engines.
+
+After deploying a new release:
+
+1. Open Settings, then Store, refresh the repositories, and update the
+   official `4play (lolcat)` transport and the installed engines, including
+   Google.
+2. Restart Degoog (`docker compose restart degoog` in `/opt/docker/degoog`) so
+   the transport WebSocket route is registered from the updated transport.
+3. Reapply the [Maps compatibility patch](#maps-frontend-compatibility) if the Maps
+   plugin was updated.
+4. Verify 4play and Google as described below.
+
+## 4play and Google
+
+Google requires the 4play transport; plain fetch and curl clients are blocked.
+The native Firefox client on `nuc-mini` connects to `ws://127.0.0.1:3031/cnc`,
+and the bridge forwards to
+`/ws/degoog-org-official-extensions-lolcat-4play-transport/<password>`.
+Degoog returns 404 for any other transport path, which appears in the Degoog
+log as `4play: no browser extension connected`. Routine `make deploy-degoog`
+does not render the bridge. If that message appears, check the `proxy_pass`
+path in `/etc/degoog-4play/nginx.conf` and redeploy the native client with
+`make deploy-degoog-4play`. A bridge-only change reloads Nginx and does not
+restart Xorg or Firefox.
+
+In Settings, Engines, Google, set the outgoing HTTP client to `4play (lolcat)`.
+Verify with a `!g` search, and with `!4play` if the `4play status` plugin is
+installed. A CAPTCHA tab is left open in Firefox on display `:1` and must be
+solved on the NUC display.
+
 FlareSolverr remains a separate standalone service. Its URL is not configured by
 this migration. Existing Open WebUI, n8n, Vane, and Kizuna integrations continue
 using SearXNG on `max:8889`.

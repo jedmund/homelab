@@ -3,8 +3,9 @@
 stack_name: degoog
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Preserve the deployed 0.26.0 amd64 image during the host migration.
-degoog_image: ghcr.io/degoog-org/degoog@sha256:20874795da56014a8cdbea9cfae02286b33ab38dd83d772d348dd6fb2fd5f421
+# Pin the release by its multi-arch index digest. Store extensions must be
+# updated after a release change; see the role README.
+degoog_image: ghcr.io/degoog-org/degoog:1.1.0@sha256:4b5d1eda19da3591782142bd30c367a3973aaf2511a7d050b852a53f1045a5d1
 degoog_port: 4444
 degoog_base_url: "https://search.{{ traefik_domain | default('atelier.house') }}"
 degoog_distrust_proxy: "false"
