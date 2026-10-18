@@ -137,3 +137,16 @@ validation:
       find ci-results -type f \( -name '*timing.json' -o -name '*duration.json' \) \
         -print -exec cat {} \;
       exit "$result"
+
+mirror-to-github:
+  stage: .post
+  image: alpine/git:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"
+  script:
+    - git remote add github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/jedmund/homelab.git"
+    - git push github "${CI_COMMIT_SHA}:refs/heads/main" --follow-tags
+    - git push github --tags
