@@ -18,6 +18,9 @@
 !requirements.yml
 !.ansible-lint
 !.yamllint
+!komodo/
+!komodo/**
+!.renovaterc.json
 **/vault.yml
 **/__pycache__
 **/*.log
