@@ -41,8 +41,10 @@ These checks do not connect to hosts, render every template with production
 values, or verify application health. Installed collections are required;
 vault handling depends on which local vault files are present.
 
-GitLab CI runs these checks and selected isolated Compose lifecycle fixtures.
-GitHub provides the full suite by manual dispatch. CI uses pinned validation
+GitLab CI runs these checks, selected isolated Compose lifecycle fixtures, and
+the full matrix on scheduled pipelines or `CI_SUITE=full`. It is the review
+destination for merge requests; the GitHub repository is a CI-maintained mirror
+of the default branch. CI uses pinned validation
 tools and does not require deployment vaults. See
 [CI requirements and execution](../tests/README.md#isolated-validation) for
 runner requirements, local execution, and failure logs.

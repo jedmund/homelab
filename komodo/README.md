@@ -16,7 +16,9 @@ files. Update configuration through Ansible before redeploying in Komodo.
 Static stacks disable `poll_for_updates` and `auto_update`. Application CI can
 still request a redeployment after publishing an image. Keep the resource
 name expected by that application's CI variables; it may differ from the
-Ansible role name.
+Ansible role name. The `update-plex` Action is a documented exception: it
+redeploys the Ansible-rendered Plex stack on registry digest changes, while
+the stack resource itself keeps both settings disabled.
 
 Core and both Periphery agents are pinned to 2.3.3. Komodo 2.3 paginates resource
 list APIs. Actions that need the complete stack list must pass `limit: 0`;
@@ -179,6 +181,33 @@ Action calls the update check directly. The result monitors digest changes for
 the image references already rendered in Compose; it does not discover a newer
 semantic tag when a Compose file pins an older tag. See Komodo's
 [Compose update behavior](https://komo.do/docs/deploy/compose).
+
+### Plex updater
+
+`update-plex` runs daily at 04:30 `America/Los_Angeles`. It checks the `plex`
+stack against the registry and, when the rendered `latest` image digest
+changed, pulls and recreates the container from the host files Ansible
+rendered:
+
+```sh
+docker compose -f /opt/docker/plex/compose.yaml pull plex
+docker compose -f /opt/docker/plex/compose.yaml up -d plex
+```
+
+A successful update sends one Custom alert to `homelab-operations`; a failed
+check, pull, or redeploy fails the Action with `failure_alert` enabled. A
+no-change run stays in execution history. The redeploy also produces the
+usual stopped-then-running stack-state alert.
+
+Roll back by pinning `plex_image` to the previous PMS build in
+[roles/plex defaults](../roles/plex/defaults/main.yml) and redeploying with
+`make deploy-tags TAGS=plex`; the updater redeploys a pinned tag unchanged.
+The updater does not verify application health after redeploy, and the
+container relies on Docker's restart policy, so investigate any failure alert
+before assuming Plex is serving.
+
+Applying this Action requires a Resource Sync: refresh the preview, confirm
+it contains only the expected Action addition, then apply.
 
 ### Backup verification
 

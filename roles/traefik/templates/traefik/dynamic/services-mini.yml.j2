@@ -134,15 +134,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Plex - watch.{{ traefik_domain }}
-    plex:
-      rule: "Host(`watch.{{ traefik_domain }}`)"
-      service: plex
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: letsencrypt
-
     # Multi-scrobbler - scrobble.{{ traefik_domain }}
     multi-scrobbler:
       rule: "Host(`scrobble.{{ traefik_domain }}`)"
@@ -421,11 +412,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:9999"
-
-    plex:
-      loadBalancer:
-        servers:
-          - url: "http://{{ mini_server_ip }}:32400"
 
     multi-scrobbler:
       loadBalancer:

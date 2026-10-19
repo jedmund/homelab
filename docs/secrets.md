@@ -44,6 +44,14 @@ Use the exact variable names expected by the role. A `vault_` input often maps
 to a differently named runtime variable in defaults. Do not rotate persistent
 application encryption keys as part of routine deployment or image updates.
 
+## Local variable files
+
+`local_*.yml` files under `group_vars/<inventory-group>/` are gitignored local
+overrides for machine-specific values that are not vault credentials. Git
+ignores them, but lint still parses them as YAML: start the file with the
+`---` document marker so `make lint` passes. Credentials belong in the group's
+encrypted `vault.yml`, never in a plaintext local file.
+
 ## Service inputs
 
 The tables below cover common deployment inputs. The role's defaults,
