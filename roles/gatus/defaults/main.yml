@@ -43,27 +43,28 @@ gatus_alert_from: "noreply@atelier.house"
 # vault_gatus_alert_to - defined in vault (public repo, no addresses here)
 gatus_alert_to: "{{ vault_gatus_alert_to | default('') }}"
 
-# Discord delivery runs through Gatus's custom provider: the webhook receives
-# a hand-built embed (state header, description, key:value fields) instead of
-# Gatus's default layout. A webhook is per-channel, so the channel is chosen
-# when the webhook is created rather than here. Left empty the provider is
-# omitted entirely.
+# Discord delivery runs through Gatus's custom provider and the stack's alert
+# relay: Gatus POSTs the resolved payload to the relay container, which
+# renders the human embed and forwards to the webhook. A webhook is
+# per-channel, so the channel is chosen when the webhook is created rather
+# than here. Left empty the provider (and relay deployment) is omitted
+# entirely.
 # vault_gatus_discord_webhook_url - defined in vault
 gatus_discord_webhook_url: "{{ vault_gatus_discord_webhook_url | default('') }}"
 
-# State label resolved into the embed title. Normal capitalization on purpose;
-# the emoji carries urgency, the words carry state.
-gatus_discord_state_labels:
-  TRIGGERED: "🔴 Down"
-  RESOLVED: "🟢 Recovered"
-
-# Role or user mention (for example <@&000000000000000000>) attached to pushed
-# host reports only; an embed alone does not ping anyone. Empty stays silent.
+# Role or user mention (for example <@&000000000000000000>) the relay prepends
+# to pushed host reports only; an embed alone does not ping anyone. Empty
+# stays silent.
 gatus_discord_hosts_ping: ""
 
-# Links rendered into the embed fields. Dashboard reuses gatus_app_url.
+# Links the relay renders into the embed fields. Dashboard reuses
+# gatus_app_url.
 gatus_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/gatus/README.md"
 gatus_host_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/crash_capture/README.md#gatus-reports"
+
+# The relay runs the repository-versioned script on a pinned official Python
+# image; no image is built. Bump the tag deliberately and redeploy.
+gatus_relay_image: "python:3.12-alpine"
 
 # Alert only after three consecutive failures so a single blip stays quiet,
 # and say so when it recovers.

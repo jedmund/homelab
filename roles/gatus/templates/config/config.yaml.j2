@@ -2,10 +2,10 @@
 # Core Gatus configuration. Endpoint definitions live in endpoints.yaml;
 # Gatus deep-merges every *.yaml in this directory.
 
-{% set discord_title = '[ALERT_TRIGGERED_OR_RESOLVED]: [ENDPOINT_GROUP]/[ENDPOINT_NAME]' %}
-{% set discord_polled_body = {'embeds': [{'title': discord_title, 'description': '[ALERT_DESCRIPTION]', 'fields': [{'name': 'Actual vs expected', 'value': '[RESULT_CONDITIONS]'}, {'name': 'Dashboard', 'value': gatus_app_url, 'inline': True}, {'name': 'Runbook', 'value': gatus_runbook_url, 'inline': True}]}]} %}
-{% set discord_hosts_body = {'embeds': [{'title': discord_title, 'description': '[ALERT_DESCRIPTION]\n[RESULT_ERRORS]', 'fields': [{'name': 'Runbook', 'value': gatus_host_runbook_url, 'inline': True}]}]} %}
-{% if gatus_discord_hosts_ping | length > 0 %}{% set _ = discord_hosts_body.update({'content': gatus_discord_hosts_ping}) %}{% endif %}
+# The alert relay renders the human embed; this payload only carries the
+# resolved placeholders. [RESULT_CONDITIONS] stays unresolved for pushed host
+# reports, which have no conditions, and the relay treats that as "none".
+{% set relay_payload = {'state': '[ALERT_TRIGGERED_OR_RESOLVED]', 'group': '[ENDPOINT_GROUP]', 'name': '[ENDPOINT_NAME]', 'description': '[ALERT_DESCRIPTION]', 'conditions': '[RESULT_CONDITIONS]', 'errors': '[RESULT_ERRORS]'} %}
 
 storage:
   type: sqlite
@@ -49,14 +49,12 @@ alerting:
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endif %}
 {% if gatus_discord_webhook_url | length > 0 %}
-  # Discord through the custom provider so the embed carries a state header
-  # and key:value fields. [RESULT_CONDITIONS] only resolves for polled checks,
-  # so pushed host reports get their own body carrying the pushed cause
-  # ([RESULT_ERRORS]) instead: a placeholder that resolves to nothing inside
-  # an embed field would make Discord reject the whole message. The override
-  # inherits the default placeholders; Gatus merges only what it overrides.
+  # Discord through the custom provider: alerts POST to the relay container
+  # on this network, which renders the human embed (state header, translated
+  # conditions, links, host pings) and forwards to the operations webhook.
+  # The relay URL is not a credential; the webhook never appears in config.
   custom:
-    url: "${GATUS_DISCORD_WEBHOOK_URL}"
+    url: "http://relay:8080/alert"
     method: POST
     headers:
       Content-Type: application/json
@@ -64,14 +62,6 @@ alerting:
       failure-threshold: {{ gatus_alert_failure_threshold }}
       success-threshold: {{ gatus_alert_success_threshold }}
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
-    placeholders:
-      ALERT_TRIGGERED_OR_RESOLVED: {{ gatus_discord_state_labels | to_json }}
-    body: {{ discord_polled_body | to_json | to_json }}
-{% if gatus_host_report_hosts | length > 0 %}
-    overrides:
-      - group: {{ gatus_host_report_group }}
-        url: "${GATUS_DISCORD_WEBHOOK_URL}"
-        body: {{ discord_hosts_body | to_json | to_json }}
-{% endif %}
+    body: {{ relay_payload | to_json | to_json }}
 {% endif %}
 {% endif %}

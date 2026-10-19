@@ -177,20 +177,30 @@ role. Treat the URL as a credential: anyone holding it can post to that
 channel, which is why it lives in the vault and reaches the config as an
 environment variable rather than being written into a readable file.
 
-Discord delivery runs through Gatus's custom provider so the embed carries a
-state header and key:value fields. Each message has:
+Discord delivery runs through Gatus's custom provider and the stack's alert
+relay (`relay` in the same compose project, joined to the proxy network, no
+published port). Gatus POSTs the resolved alert payload to the relay, which
+renders the human embed and forwards it to the operations webhook. Each
+message has:
 
 - a title of the form `🔴 Down: core/PocketID` or `🟢 Recovered: core/PocketID`,
 - the check's description from the endpoint definition,
-- an `Actual vs expected` field with the resolved condition results, where the
-  parenthesized value is what happened and the right side is what was expected
-  (polled checks only: pushed host reports have no conditions, so their body
-  carries the pushed cause instead),
-- `Dashboard` and `Runbook` link fields.
+- a `What happened` field: on failures, the failing conditions translated
+  into plain language (`HTTP 502 (expected 200)`); for pushed host reports,
+  the pushed cause; on recovery, `all conditions passing`,
+- a red or green embed color per state,
+- `Dashboard` and `Runbook` link fields (host checks link to the
+  crash-capture runbook section).
+
+The relay is the repository-versioned script in `files/relay.py`, mounted
+read-only into a pinned official Python image (`gatus_relay_image`); nothing
+is built. A script change recreates the relay container on the next deploy.
+If the relay is down, Gatus logs the failed alert send and keeps its own
+state; alerts are not delivered until it recovers.
 
 An embed on its own does not notify anyone. To make pushed host reports
-actually ping, set `gatus_discord_hosts_ping` to a role or user mention, which
-is sent as plain content ahead of the embed:
+actually ping, set `gatus_discord_hosts_ping` to a role or user mention,
+which the relay sends as plain content ahead of the embed:
 
 ```yaml
 gatus_discord_hosts_ping: "<@&000000000000000000>"

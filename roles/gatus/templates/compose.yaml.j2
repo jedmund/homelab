@@ -44,6 +44,38 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  # Renders Gatus's custom-provider payloads into human Discord embeds and
+  # forwards them to the operations webhook. Joins the proxy network only so
+  # Gatus can reach it; nothing is published. The script is versioned in the
+  # repository and mounted read-only, so a script change must recreate the
+  # container, which the deployment task handles through its register.
+  relay:
+    image: {{ gatus_relay_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    command: ["python", "/app/relay.py"]
+    env_file:
+      - ./env/gatus.env
+    environment:
+      GATUS_HOST_REPORT_GROUP: {{ gatus_host_report_group }}
+      GATUS_DASHBOARD_URL: {{ gatus_app_url }}
+      GATUS_RUNBOOK_URL: {{ gatus_runbook_url }}
+      GATUS_HOST_RUNBOOK_URL: {{ gatus_host_runbook_url }}
+    volumes:
+      - ./relay/relay.py:/app/relay.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
 networks:
   proxy:
     name: {{ proxy_network }}
