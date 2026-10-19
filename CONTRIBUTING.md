@@ -106,9 +106,11 @@ Tests should establish observable behavior: applied configuration, container
 identity, rebuild decisions, failure recovery, or application readiness. Do not
 add tests that merely repeat implementation details. Run focused checks during
 development; repeat full suites only after relevant changes or to investigate a
-failure. GitHub runs fast validation on pull requests and reserves the full suite
-for manual dispatch. GitLab classifies changes, runs selected static and lifecycle
-jobs, and runs the full matrix for scheduled pipelines or `CI_SUITE=full`. Neither
+failure. GitLab is the review destination: it classifies changes, runs selected
+static and lifecycle jobs, and runs the full matrix for scheduled pipelines or
+`CI_SUITE=full`. GitHub is a mirror maintained by the CI `mirror-to-github` job
+after merges to the default branch; its validation workflow exists only for that
+mirror and is not a review destination. Neither
 pipeline deploys.
 
 ## Deployment
@@ -129,9 +131,11 @@ results, and any authenticated workflows or external integrations not tested.
 
 ## Commits and pull requests
 
-When asked to publish, inspect remotes and use the requested destination. Use `gh`
-for GitHub PRs and `glab` for GitLab MRs. Do not assume that `origin` and another
-remote use the same host or that opening a PR authorizes merging it.
+When asked to publish, inspect remotes and use the requested destination. Push
+branches to the `atelier` remote (git.atelier.house) and open merge requests
+there with `glab`. The `origin` remote (GitHub) is a CI-maintained mirror: do
+not push to it manually or open pull requests against it. Opening an MR does
+not authorize merging it.
 
 1. Survey `git status`, `git diff`, `git diff --staged`, and the last five commits.
    Record the starting branch and intended review base.
