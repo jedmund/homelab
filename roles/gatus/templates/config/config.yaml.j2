@@ -2,6 +2,11 @@
 # Core Gatus configuration. Endpoint definitions live in endpoints.yaml;
 # Gatus deep-merges every *.yaml in this directory.
 
+{% set discord_title = '[ALERT_TRIGGERED_OR_RESOLVED]: [ENDPOINT_GROUP]/[ENDPOINT_NAME]' %}
+{% set discord_polled_body = {'embeds': [{'title': discord_title, 'description': '[ALERT_DESCRIPTION]', 'fields': [{'name': 'Actual vs expected', 'value': '[RESULT_CONDITIONS]'}, {'name': 'Dashboard', 'value': gatus_app_url, 'inline': True}, {'name': 'Runbook', 'value': gatus_runbook_url, 'inline': True}]}]} %}
+{% set discord_hosts_body = {'embeds': [{'title': discord_title, 'description': '[ALERT_DESCRIPTION]\n[RESULT_ERRORS]', 'fields': [{'name': 'Runbook', 'value': gatus_host_runbook_url, 'inline': True}]}]} %}
+{% if gatus_discord_hosts_ping | length > 0 %}{% set _ = discord_hosts_body.update({'content': gatus_discord_hosts_ping}) %}{% endif %}
+
 storage:
   type: sqlite
   path: {{ gatus_storage_path }}
@@ -44,17 +49,29 @@ alerting:
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endif %}
 {% if gatus_discord_webhook_url | length > 0 %}
-  discord:
-    webhook-url: "${GATUS_DISCORD_WEBHOOK_URL}"
-    title: "{{ gatus_discord_title }}"
-{% if gatus_discord_message_content | length > 0 %}
-    # Sent as plain content before the embed, so a role or user mention here
-    # actually notifies rather than sitting silently in the embed body.
-    message-content: "{{ gatus_discord_message_content }}"
-{% endif %}
+  # Discord through the custom provider so the embed carries a state header
+  # and key:value fields. [RESULT_CONDITIONS] only resolves for polled checks,
+  # so pushed host reports get their own body carrying the pushed cause
+  # ([RESULT_ERRORS]) instead: a placeholder that resolves to nothing inside
+  # an embed field would make Discord reject the whole message. The override
+  # inherits the default placeholders; Gatus merges only what it overrides.
+  custom:
+    url: "${GATUS_DISCORD_WEBHOOK_URL}"
+    method: POST
+    headers:
+      Content-Type: application/json
     default-alert:
       failure-threshold: {{ gatus_alert_failure_threshold }}
       success-threshold: {{ gatus_alert_success_threshold }}
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+    placeholders:
+      ALERT_TRIGGERED_OR_RESOLVED: {{ gatus_discord_state_labels | to_json }}
+    body: {{ discord_polled_body | to_json | to_json }}
+{% if gatus_host_report_hosts | length > 0 %}
+    overrides:
+      - group: {{ gatus_host_report_group }}
+        url: "${GATUS_DISCORD_WEBHOOK_URL}"
+        body: {{ discord_hosts_body | to_json | to_json }}
+{% endif %}
 {% endif %}
 {% endif %}

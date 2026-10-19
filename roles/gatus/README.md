@@ -169,7 +169,7 @@ silent rather than failing to start. Fill the vault before relying on it.
 
 Email and Discord are independent: configure either, both, or neither. Every
 endpoint alerts through whichever providers are present, so adding the webhook
-fans all 16 existing checks out to Discord without touching them.
+fans all existing checks out to Discord without touching them.
 
 Create the webhook in Discord under Server Settings, Integrations, Webhooks.
 It is scoped to one channel, so the channel is chosen there rather than in this
@@ -177,12 +177,23 @@ role. Treat the URL as a credential: anyone holding it can post to that
 channel, which is why it lives in the vault and reaches the config as an
 environment variable rather than being written into a readable file.
 
-An embed on its own does not notify anyone. To make alerts actually ping, set
-`gatus_discord_message_content` to a role or user mention, which is sent as
-plain content ahead of the embed:
+Discord delivery runs through Gatus's custom provider so the embed carries a
+state header and key:value fields. Each message has:
+
+- a title of the form `🔴 Down: core/PocketID` or `🟢 Recovered: core/PocketID`,
+- the check's description from the endpoint definition,
+- an `Actual vs expected` field with the resolved condition results, where the
+  parenthesized value is what happened and the right side is what was expected
+  (polled checks only: pushed host reports have no conditions, so their body
+  carries the pushed cause instead),
+- `Dashboard` and `Runbook` link fields.
+
+An embed on its own does not notify anyone. To make pushed host reports
+actually ping, set `gatus_discord_hosts_ping` to a role or user mention, which
+is sent as plain content ahead of the embed:
 
 ```yaml
-gatus_discord_message_content: "<@&000000000000000000>"
+gatus_discord_hosts_ping: "<@&000000000000000000>"
 ```
 
 ## Deploy

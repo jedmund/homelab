@@ -43,15 +43,27 @@ gatus_alert_from: "noreply@atelier.house"
 # vault_gatus_alert_to - defined in vault (public repo, no addresses here)
 gatus_alert_to: "{{ vault_gatus_alert_to | default('') }}"
 
-# Discord. A webhook is per-channel, so the channel is chosen when the webhook
-# is created rather than here. Left empty the provider is omitted entirely.
+# Discord delivery runs through Gatus's custom provider: the webhook receives
+# a hand-built embed (state header, description, key:value fields) instead of
+# Gatus's default layout. A webhook is per-channel, so the channel is chosen
+# when the webhook is created rather than here. Left empty the provider is
+# omitted entirely.
 # vault_gatus_discord_webhook_url - defined in vault
 gatus_discord_webhook_url: "{{ vault_gatus_discord_webhook_url | default('') }}"
-gatus_discord_title: ":rotating_light: Atelier status"
-# Plain content sent before the embed. Put a role or user mention here (for
-# example <@&000000000000000000>) to make an alert actually notify; an embed
-# alone does not ping anyone.
-gatus_discord_message_content: ""
+
+# State label resolved into the embed title. Normal capitalization on purpose;
+# the emoji carries urgency, the words carry state.
+gatus_discord_state_labels:
+  TRIGGERED: "🔴 Down"
+  RESOLVED: "🟢 Recovered"
+
+# Role or user mention (for example <@&000000000000000000>) attached to pushed
+# host reports only; an embed alone does not ping anyone. Empty stays silent.
+gatus_discord_hosts_ping: ""
+
+# Links rendered into the embed fields. Dashboard reuses gatus_app_url.
+gatus_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/gatus/README.md"
+gatus_host_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/crash_capture/README.md#gatus-reports"
 
 # Alert only after three consecutive failures so a single blip stays quiet,
 # and say so when it recovers.
@@ -79,12 +91,16 @@ gatus_gitlab_runner_interval: 10m
 gatus_gitlab_runners:
   - id: 1
     name: nuc-mini-docker
+    host: nuc-mini
   - id: 2
     name: mac-mini-xcode
+    host: mac-mini
   - id: 3
     name: max-docker
+    host: max
   - id: 4
     name: max-docker-large
+    host: max
 
 # Pushed host reports. Hosts in the crash_capture group run a reporter
 # (roles/crash_capture) that pushes these as Gatus external endpoints, named
@@ -108,23 +124,23 @@ gatus_host_report_checks:
   # the host is down and the watchdog has not brought it back.
   - id: heartbeat
     heartbeat: 10m
-    description: "{host} stopped reporting: frozen, powered off, or unreachable"
+    description: "{host} stopped pushing its heartbeat — frozen without a watchdog reset, powered off, or unreachable. The BMC watchdog should reboot a frozen host within minutes; check the crash-capture runbook and Beszel."
     failure_threshold: 1
     success_threshold: 1
     send_on_resolved: true
   - id: unexpected-reboot
-    description: "{host} rebooted without a clean shutdown; the status page has the cause"
+    description: "{host} rebooted without a clean shutdown — the cause is on the status page's failed result (also in journalctl -t host-health). Resolves silently on the next clean push."
     failure_threshold: 1
     success_threshold: 1
     send_on_resolved: false
   # Two consecutive runs, so a one-second fan tach dropout stays quiet.
   - id: cooling
-    description: "{host} temperature or fan speed out of range; the status page has the reading"
+    description: "{host} temperature or fan speed is out of range (or a GPU reported thermal slowdown/power brake) — the reading is on the status page. Check airflow and load; two consecutive failures required."
     failure_threshold: 2
     success_threshold: 2
     send_on_resolved: true
   - id: hardware-events
-    description: "{host} logged a BMC or machine-check event; the status page has the entry"
+    description: "{host} logged a new BMC event or machine-check record (or its event log is 80% full) — read the entry on the status page; clears only after acknowledgment."
     failure_threshold: 1
     success_threshold: 1
     send_on_resolved: false
@@ -161,65 +177,79 @@ gatus_endpoints:
     group: core
     url: "https://id.atelier.house/"
     status: 200
+    description: "PocketID is not answering — OIDC login is down for every protected route, including the Gatus dashboard itself."
   - name: GitLab
     group: core
     url: "https://git.atelier.house/"
     # Redirects to /users/sign_in.
     status: 200
+    description: "GitLab is not answering (it redirects to /users/sign_in when healthy) — CI, registries, and MRs are unreachable."
   - name: Container registry
     group: core
     url: "https://registry.atelier.house/v2/"
     status: 401
+    description: "Container registry is not answering with its auth challenge (expected 401) — image pulls for in-house stacks will fail."
   - name: Beszel
     group: core
     url: "https://beszel.atelier.house/"
     status: 200
+    description: "Beszel is not answering — host and container monitoring dashboards are down. Agents keep reporting; history is preserved."
   - name: Vane
     group: apps
     url: "https://vane.atelier.house/"
     # Redirects to /login.
     status: 200
+    description: "Vane is not answering (redirects to /login when healthy)."
   - name: Open WebUI
     group: apps
     url: "https://chat.atelier.house/"
     status: 200
+    description: "Open WebUI is not answering."
   - name: Matrix
     group: apps
     url: "https://matrix.atelier.house/"
     # Redirects to /_matrix/static/.
     status: 200
+    description: "Matrix front door is not answering (redirects to /_matrix/static/ when healthy) — federation and clients are unreachable."
   - name: Kaneo
     group: apps
     url: "https://kaneo.atelier.house/"
     status: 200
+    description: "Kaneo is not answering — project boards are unreachable."
   - name: HuggingHack
     group: apps
     url: "https://hf.atelier.house/"
     status: 200
+    description: "HuggingHack is not answering."
   - name: Karakeep
     group: apps
     url: "https://cat.atelier.house/"
     status: 200
+    description: "Karakeep is not answering — bookmarks and archives are unreachable."
   - name: Protomaps
     group: apps
     # Never probe the basemap archive: a plain GET downloads the whole file
     # on every interval.
     url: "https://maps.atelier.house/healthz"
     status: 200
+    description: "Protomaps healthz is failing — the basemap server is unhealthy (its archive endpoint is deliberately not probed)."
   - name: Copyparty
     group: apps
     url: "https://files.atelier.house/"
     status: 401
+    description: "Copyparty is not answering with TinyAuth's 401 — Traefik, TinyAuth, or the files route is down."
   - name: Dawarich
     group: apps
     url: "https://track.atelier.house/"
     status: 401
+    description: "Dawarich is not answering with TinyAuth's 401 — Traefik, TinyAuth, or the tracking route is down."
   - name: Degoog search
     group: apps
     url: "https://search.atelier.house/"
     # TinyAuth answers non-browser requests with 401 (only text/html requests
     # get redirected to PocketID), like the other TinyAuth-protected apps.
     status: 401
+    description: "Degoog search is not answering with TinyAuth's 401 — Traefik, TinyAuth, or the search route is down."
 
 # Certificate expiry on the wildcard. Traefik renews via the Cloudflare DNS
 # challenge; this catches a renewal that quietly stopped working, with
