@@ -77,7 +77,6 @@ ddclient_atelier_subdomains:
   - frp.tun.atelier.house
   - tv.atelier.house
   - ups.atelier.house
-  - watch.atelier.house
   - www.atelier.house
   - z.atelier.house
 ddclient_fireplace_zone: "fireplace.cafe"
