@@ -1136,20 +1136,19 @@ if (operation === 'destroy') {
 name = "agent-readonly"
 description = "Read-only visibility for the OpenCode Komodo MCP identity (agent-ro). Read on all resource types with the Logs feature gate; no Execute, Write, Inspect, or Terminal anywhere."
 users = ["agent-ro"]
-permissions = [
-  { target.type = "Server", target.id = "all", level = "Read", specific = ["Logs"] },
-  { target.type = "Stack", target.id = "all", level = "Read", specific = ["Logs"] },
-  { target.type = "Deployment", target.id = "all", level = "Read", specific = ["Logs"] },
-  { target.type = "Build", target.id = "all", level = "Read" },
-  { target.type = "Repo", target.id = "all", level = "Read" },
-  { target.type = "Alerter", target.id = "all", level = "Read" },
-  { target.type = "ResourceSync", target.id = "all", level = "Read" },
-  { target.type = "Variable", target.id = "all", level = "Read" },
-  { target.type = "Builder", target.id = "all", level = "Read" },
-  { target.type = "Tag", target.id = "all", level = "Read" },
-  { target.type = "Procedure", target.id = "all", level = "Read" },
-  { target.type = "Action", target.id = "all", level = "Read" },
-]
+permissions = []
+all.Server = { level = "Read", specific = ["Logs"] }
+all.Stack = { level = "Read", specific = ["Logs"] }
+all.Deployment = { level = "Read", specific = ["Logs"] }
+all.Build = "Read"
+all.Repo = "Read"
+all.Alerter = "Read"
+all.ResourceSync = "Read"
+all.Variable = "Read"
+all.Builder = "Read"
+all.Tag = "Read"
+all.Procedure = "Read"
+all.Action = "Read"
 
 [[user_group]]
 name = "kizuna-storybook-review-ci"
