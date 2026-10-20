@@ -42,6 +42,25 @@
       "type": "local",
       "command": ["node", "{{ ansible_user_dir }}/Developer/Personal/edra-mcp-server/dist/index.js"],
       "enabled": true
+    },
+    // Komodo: read-only agent identity via the agent-readonly group (see
+    // komodo/stacks.toml). Pinned upstream image over stdio; the key pair
+    // reaches it through 0600 files, never through this config. The server's
+    // destructive-action confirmations are belt-and-braces: the identity
+    // itself cannot Execute or Write.
+    "komodo": {
+      "type": "local",
+      "command": [
+        "docker", "run", "-i", "--rm",
+        "-e", "KOMODO_URL={{ komodo_mcp_url }}",
+        "-e", "KOMODO_API_KEY_FILE=/run/secrets/komodo-api-key",
+        "-e", "KOMODO_API_SECRET_FILE=/run/secrets/komodo-api-secret",
+        "-e", "MCP_TOOLS_EXCLUDED_CATEGORIES={{ komodo_mcp_excluded_categories }}",
+        "-v", "{{ opencode_config_dir }}/mcp/komodo-api-key:/run/secrets/komodo-api-key:ro",
+        "-v", "{{ opencode_config_dir }}/mcp/komodo-api-secret:/run/secrets/komodo-api-secret:ro",
+        "{{ komodo_mcp_image }}:{{ komodo_mcp_image_tag }}"
+      ],
+      "enabled": true
     }
   },
   

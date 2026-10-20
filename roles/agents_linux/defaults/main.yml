@@ -52,3 +52,16 @@ vllm_max_context: 131072
 # GLM Spark context advertised by the LAN-direct client provider. Must not
 # exceed /v1/models max_model_len; see roles/vllm/README.md.
 agents_linux_glm_context: 950272
+
+# Komodo MCP — read-only agent access to Komodo. The agent-ro identity's
+# permissions come from the agent-readonly group declared in
+# komodo/stacks.toml (Read on all resource types, Logs feature gate only);
+# the key pair renders into 0600 files and reaches the server through _FILE
+# env vars so no secret lands in opencode.jsonc. terminal/user/variable/
+# tag/builder/swarm tool categories are pruned from the surface.
+komodo_mcp_image: "ghcr.io/mp-tool/komodo-mcp-server"
+komodo_mcp_image_tag: "1.5.0"
+komodo_mcp_url: "https://ko.atelier.house"
+komodo_mcp_excluded_categories: "terminal,user,variable,tag,builder,swarm"
+komodo_mcp_api_key: "{{ vault_komodo_mcp_api_key | default('') }}"
+komodo_mcp_api_secret: "{{ vault_komodo_mcp_api_secret | default('') }}"
