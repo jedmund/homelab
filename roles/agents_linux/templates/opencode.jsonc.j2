@@ -44,14 +44,17 @@
       "enabled": true
     },
     // Komodo: read-only agent identity via the agent-readonly group (see
-    // komodo/stacks.toml). Pinned upstream image over stdio; the key pair
-    // reaches it through 0600 files, never through this config. The server's
-    // destructive-action confirmations are belt-and-braces: the identity
-    // itself cannot Execute or Write.
+    // komodo/stacks.toml). Pinned upstream image over stdio; the transport is
+    // pinned explicitly because the image's entrypoint falls back to HTTP
+    // when stdin is a pipe rather than a TTY. The key pair reaches it through
+    // 0600 files, never through this config. The server's destructive-action
+    // confirmations are belt-and-braces: the identity itself cannot Execute
+    // or Write.
     "komodo": {
       "type": "local",
       "command": [
         "docker", "run", "-i", "--rm",
+        "-e", "MCP_TRANSPORT=stdio",
         "-e", "KOMODO_URL={{ komodo_mcp_url }}",
         "-e", "KOMODO_API_KEY_FILE=/run/secrets/komodo-api-key",
         "-e", "KOMODO_API_SECRET_FILE=/run/secrets/komodo-api-secret",
