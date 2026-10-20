@@ -1133,6 +1133,25 @@ if (operation === 'destroy') {
 '''
 
 [[user_group]]
+name = "agent-readonly"
+description = "Read-only visibility for the OpenCode Komodo MCP identity (agent-ro). Read on all resource types with the Logs feature gate; no Execute, Write, Inspect, or Terminal anywhere."
+users = ["agent-ro"]
+permissions = [
+  { target.type = "Server", target.id = "all", level = "Read", specific = ["Logs"] },
+  { target.type = "Stack", target.id = "all", level = "Read", specific = ["Logs"] },
+  { target.type = "Deployment", target.id = "all", level = "Read", specific = ["Logs"] },
+  { target.type = "Build", target.id = "all", level = "Read" },
+  { target.type = "Repo", target.id = "all", level = "Read" },
+  { target.type = "Alerter", target.id = "all", level = "Read" },
+  { target.type = "ResourceSync", target.id = "all", level = "Read" },
+  { target.type = "Variable", target.id = "all", level = "Read" },
+  { target.type = "Builder", target.id = "all", level = "Read" },
+  { target.type = "Tag", target.id = "all", level = "Read" },
+  { target.type = "Procedure", target.id = "all", level = "Read" },
+  { target.type = "Action", target.id = "all", level = "Read" },
+]
+
+[[user_group]]
 name = "kizuna-storybook-review-ci"
 users = ["kizuna-storybook-review-ci"]
 permissions = [
