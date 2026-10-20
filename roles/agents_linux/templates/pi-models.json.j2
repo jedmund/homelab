@@ -54,7 +54,7 @@
     },
 
     "vllm-max": {
-      "baseUrl": "http://192.168.1.100:11437/v1",
+      "baseUrl": "http://192.168.1.100:11438/v1",
       "api": "openai-completions",
       "apiKey": "vllm",
       "compat": {
@@ -63,10 +63,10 @@
       },
       "models": [
         {
-          "id": "DeepSeek-V4-Flash",
-          "name": "DeepSeek V4 Flash (reasoning)",
+          "id": "GLM-5.3-Flash",
+          "name": "GLM 5.3 Flash Spark (reasoning)",
           "reasoning": true,
-          "contextWindow": {{ vllm_max_context }},
+          "contextWindow": {{ agents_linux_glm_context }},
           "maxTokens": 32768
         }
       ]
