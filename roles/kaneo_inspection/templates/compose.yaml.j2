@@ -51,7 +51,7 @@ services:
     <<: *runtime
     image: '{{ kaneo_inspection_adapter_image }}'
     command: [node, apps/inspection-adapter/tcp-forwarder.mjs]
-    environment: {FORWARD_HOST: '{{ kaneo_inspection_model_address }}', FORWARD_PORT: '{{ kaneo_inspection_model_port }}', LISTEN_PORT: '11437'}
+    environment: {FORWARD_HOST: '{{ kaneo_inspection_model_address }}', FORWARD_PORT: '{{ kaneo_inspection_model_port }}', LISTEN_PORT: '{{ kaneo_inspection_model_port }}'}
     networks: [inference, egress]
   relay-egress:
     <<: *runtime

@@ -91,15 +91,8 @@
           "limit": { "context": 32768, "output": 4096 }
         },
 
-        // V4 Flash via the OpenWebUI proxy (not llama-swap). Works
-        // both on-LAN (split DNS) and from anywhere DNS resolves to
-        // ai.atelier.house. Slower than the LAN-direct vllm-max
-        // provider below because of TLS + proxy hops, but the only
-        // way in when traveling. Still fails when the vLLM container
-        // isn't running on max; ssh in and start its compose profile:
-        //   cd /opt/docker/vllm && docker compose --profile <p> up -d
-        // Proxies to the same vLLM container as vllm-max below, so it
-        // shares the same context ceiling.
+        // DeepSeek proxy alternative. Requires its own vLLM profile,
+        // which is stopped while GLM uses the same GPU pair.
         "DeepSeek-V4-Flash": {
           "name": "DeepSeek V4 Flash (via proxy, reasoning)",
           "limit": { "context": {{ vllm_max_context }}, "output": 32768 }
@@ -107,36 +100,19 @@
       }
     },
 
-    // V4 Flash runs on its own vLLM container on max:11437, separate
-    // from the llama-swap stack behind the Atelier Traefik route.
-    // Direct LAN IP because no Traefik route is configured (vLLM
-    // lifecycle is manual: docker stop ds4 / docker run ... on max).
-    // Only reachable from the LAN; requests will fail when off-network
-    // OR when the container isn't running. Both expected.
+    // GLM Spark runs on GPUs 0 and 1 at max:11438. The direct endpoint
+    // requires LAN access and the glm-5.3-flash-spark Compose profile.
     "vllm-max": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "vLLM (max)",
       "options": {
-        "baseURL": "http://192.168.1.100:11437/v1"
+        "baseURL": "http://192.168.1.100:11438/v1"
       },
       "models": {
-        // DeepSeek V4 Flash served via lavd/vllm:jasl-dsv4-5-21-13.2.
-        // Mixed FP4+FP8 quant, 284B total / 13B active MoE, TP=2
-        // across both Blackwells. Reasoning-tuned ("thinking": true is
-        // baked into the container's --default-chat-template-kwargs).
-        // Concurrency is capped by the profile's max_num_seqs on max.
-        // The context limit below tracks vllm_max_context, which must
-        // stay at or under the running profile's max-model-len; see
-        // roles/agents_linux/defaults/main.yml.
-        // The model id is pinned server-side via --served-model-name /
-        // SERVED_MODEL_NAME, so it stays stable across the preview and
-        // 0731 profiles and this block needs no edit when they swap.
-        // This is the primary coding model (see `model` at the bottom
-        // of this file). atelier/DeepSeek-V4-Flash is the proxy fallback
-        // for travel; vllm-max is LAN-direct and faster.
-        "DeepSeek-V4-Flash": {
-          "name": "DeepSeek V4 Flash (reasoning)",
-          "limit": { "context": {{ vllm_max_context }}, "output": 32768 }
+        "GLM-5.3-Flash": {
+          "name": "GLM 5.3 Flash Spark (reasoning)",
+          "reasoning": true,
+          "limit": { "context": {{ agents_linux_glm_context }}, "output": 32768 }
         }
       }
     },
@@ -219,7 +195,7 @@
   },
 
   // Agent overrides. `build` is opencode's default primary agent and
-  // inherits the top-level `model` (DSV4 Flash via the atelier proxy).
+  // inherits the top-level GLM Spark model.
   // `plan` is also built-in but we redirect it to Codex 5.5 for
   // planning-grade reasoning. `review` is a custom read-only subagent
   // the primary hands off to for a second-opinion pass.
@@ -253,15 +229,9 @@
     ]
   },
 
-  // Primary coding (and planning) model: DSV4 Flash via the atelier
-  // proxy. Travel-safe because it resolves to ai.atelier.house from
-  // anywhere DNS works, not just on the LAN. Slower than the
-  // LAN-direct vllm-max/DeepSeek-V4-Flash because of TLS + proxy hops,
-  // so swap to that one when home if you want the faster path. Still
-  // fails when the ds4 container is stopped on max either way.
-  // small_model stays on the CPU-resident qwen3-small so compaction
-  // summaries don't compete with chat for GPU slots.
-  "model": "atelier/DeepSeek-V4-Flash",
+  // Primary coding model: GLM Spark over the LAN. Compaction retains
+  // the existing CPU-resident small model.
+  "model": "vllm-max/GLM-5.3-Flash",
   "small_model": "atelier/qwen3-small",
 
   "lsp": true,

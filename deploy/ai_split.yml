@@ -7,7 +7,7 @@
 #   2. vllm.yml renders the vLLM compose at /opt/docker/vllm.
 #   3. The trailing play starts the configured vLLM model profile.
 #
-# The profile defaults to DeepSeek 0731; GLM Spark is an alternative.
+# The profile defaults to GLM 5.3 Flash Spark; DeepSeek 0731 is an alternative.
 # The play below stops any other running model profile first, so the
 # deploy is declarative: whatever was running before, the configured
 # profile is what runs after. These profiles share GPUs 0,1, so stop
@@ -24,7 +24,7 @@
   become: true
   gather_facts: false
   vars:
-    vllm_split_profile: "{{ ai_split_vllm_profile | default('deepseek-v4-flash-0731') }}"
+    vllm_split_profile: "{{ ai_split_vllm_profile | default('glm-5.3-flash-spark') }}"
   tasks:
     # Model profiles share a GPU pair. Stop the others first so the deploy is
     # declarative: after this play, the configured profile is the one

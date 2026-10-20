@@ -1,8 +1,8 @@
 {
   "lastChangelogVersion": "0.79.0",
   "quietStartup": true,
-  "defaultProvider": "atelier",
-  "defaultModel": "DeepSeek-V4-Flash",
+  "defaultProvider": "vllm-max",
+  "defaultModel": "GLM-5.3-Flash",
   "defaultThinkingLevel": "medium",
   "skills": ["!paseo*"]
 }
