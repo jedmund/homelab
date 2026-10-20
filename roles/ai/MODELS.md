@@ -22,8 +22,8 @@ split:
 
 | Mode | llama-swap GPUs | SGLang GPUs | When to pick |
 |---|---|---|---|
-| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent DeepSeek + llama-swap. Smaller llama-swap catalogue (no gpt-oss). |
-| `shared` | indices 0,1,2 (288 GB) | none (SGLang torn down) | Heavy llama-swap workloads needing the big models; DeepSeek is off. |
+| `split` (default) | index 2 (96 GB) | indices 0,1 via TP=2 (192 GB) | Concurrent vLLM (GLM 5.3 Flash Spark by default) + llama-swap. Smaller llama-swap catalogue (no gpt-oss). |
+| `shared` | indices 0,1,2 (288 GB) | none (SGLang torn down) | Heavy llama-swap workloads needing the big models; the dedicated vLLM container is off. |
 
 Switch via `make deploy-ai-split` or `make deploy-ai-shared`. Switching
 restarts the llama-swap container (drops resident models; next request
