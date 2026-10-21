@@ -12,7 +12,9 @@ patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
 described below. Recheck GitLab's current upgrade path and version notes before
 using this runbook for a later release.
 
-## Current versions
+## Recorded versions (2026-09-23)
+
+This table records the September upgrade. It is not a live inventory.
 
 | Component | Version |
 | --- | --- |
@@ -21,6 +23,42 @@ using this runbook for a later release.
 | `max-docker` runner, ID 3 | `19.4.0` |
 | Embedded PostgreSQL | `17.11` |
 | `mac-mini-xcode` runner, ID 2 | `19.4.0` |
+
+## 19.5.0 to 19.5.1 preparation (2026-10-21)
+
+The operator reported that the live server runs `19.5.0-ce.0`; read-only
+container inspection on `nuc-mini` confirmed that image and the local
+runner's `v19.5.0` image on 2026-10-21.
+[defaults/main.yml](defaults/main.yml) now prepares `19.5.1-ce.0`, pinned to
+the published multi-platform index digest
+`sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e991ecdd6cae11ca7d7e5d36fc3`.
+The index includes `linux/amd64` and `linux/arm64` images. This entry records
+preparation, not a completed deployment or a verified live migration state.
+
+Read the [19.5.1 patch advisory](https://docs.gitlab.com/releases/patches/patch-release-gitlab-19-5-1-released/)
+and [GitLab 19 upgrade notes](https://docs.gitlab.com/update/versions/gitlab_19_changes/)
+before applying the patch. The source and target are in the same minor series;
+there is no intermediate minor stop for this hop. Check regular and batched
+migration state before and after, and do not run `pg-upgrade` as part of this
+patch preparation.
+
+Pause and drain CI, then take and verify the database and `/etc/gitlab` backup
+pair under the actual running `19.5.0-ce.0` image before changing it. Recovery
+must use that exact source version and its matching backup pair; the older
+repository pin is not the rollback source for this deployment.
+
+This role's runner pin is reconciled to the verified live `v19.5.0` image so a
+full role deployment retains that version. Read-only inspection found the
+`max` runner still on `v19.4.0`, matching `roles/development_linux`; its
+alignment to 19.5 is separate work. The macOS runner version was not verified.
+This patch does not deploy a runner upgrade. The full role also manages
+Renovate, registry cleanup, and CI cache settings, so review its complete
+deployment scope.
+
+After applying an authorized deployment, verify the server version, readiness,
+migration state, sign-in, repository access, registry operations, and a CI job
+before resuming the normal runner workload. Record the deployed image digest
+and backup artifacts when those checks complete.
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -184,9 +222,10 @@ published patch is not necessarily proposed immediately.
 
 ## Patch releases inside one minor series
 
-A patch hop such as 19.2.0 to 19.2.4 stays inside the same minor series and
-carries no database migrations, so it needs no intermediate stop and no
-PostgreSQL check. Still honor the invariants below: pause and drain the
+A patch hop stays inside the same minor series and needs no intermediate
+minor stop. Patch releases can include database migrations; read the notes for
+the exact target instead of assuming that every patch has none. Honor the
+invariants below: pause and drain the
 runners, take the rollback pair, and require a clean migration gate before and
 after. Runners do not need a matching patch version, only a matching
 major/minor, so leave them alone unless the advisory names the runner.
