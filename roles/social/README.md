@@ -33,6 +33,15 @@ The playbook waits up to 180 seconds for Compose health checks. It does not
 run database migrations; perform any migration required by the release notes
 as a separate upgrade step.
 
+## Upgrading from 4.7.2 to 4.7.3
+
+The [4.7.3 release notes](https://github.com/glitch-soc/mastodon/releases/tag/v4.7.3)
+require restarting all Mastodon processes when using Docker. Update both image
+references and deploy the role to recreate web, Sidekiq, and streaming with the
+new images. The published images include compiled assets; no database migration
+is required for this update. Keep PostgreSQL and Redis on their existing images
+when performing this application update.
+
 ## Upgrading from 4.6 to 4.7
 
 The [4.7.0 release notes](https://github.com/glitch-soc/mastodon/releases/tag/v4.7.0)
