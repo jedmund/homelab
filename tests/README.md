@@ -6,11 +6,14 @@ the Compose plugin:
 
 ```sh
 python3 tests/test_maintenance.py
+python3 tests/test_compose_task_order.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
 
-The static phase verifies handler references, configuration-change decisions,
+The static phase follows task includes and imports from each role's main task
+file to check recreation inputs in execution order. It also verifies handler
+references, configuration-change decisions,
 and rendered production Compose files. The lifecycle phase loads the repository's
 actual build and deployment tasks with fixture variables and files. It tests
 container identity, applied configuration, build decisions, failed-build retries,
