@@ -44,6 +44,27 @@ def tasks(items):
                 yield from tasks(item.get(key, []))
 
 
+def load_tasks(path):
+    """Expand task files at their include/import positions."""
+    for task in tasks(yaml.safe_load(path.read_text())):
+        yield task
+        for module in ('ansible.builtin.include_tasks', 'ansible.builtin.import_tasks'):
+            included = task.get(module)
+            if included is not None:
+                filename = included['file'] if isinstance(included, dict) else included
+                yield from load_tasks(path.parent / filename)
+
+
+def check_recreation_order(path):
+    prior = set()
+    for task in load_tasks(path):
+        if COMPOSE in task:
+            flags = re.findall(r'\b([a-z_]+)\.changed', task[COMPOSE].get('recreate', ''))
+            assert set(flags) <= prior, (str(path), set(flags) - prior)
+        if 'register' in task:
+            prior.add(task['register'])
+
+
 def static_checks():
     """Check actual task reachability and ordering across every product role."""
     for role in (ROOT / 'roles').iterdir():
@@ -60,12 +81,9 @@ def static_checks():
             notify = task.get('notify', [])
             for listener in [notify] if isinstance(notify, str) else notify:
                 assert listener in allowed, (role.name, task['name'], listener)
-        for i, task in enumerate(all_tasks):
-            if COMPOSE not in task:
-                continue
-            flags = re.findall(r'\b([a-z_]+)\.changed', task[COMPOSE].get('recreate', ''))
-            prior = {t.get('register') for t in all_tasks[:i]}
-            assert set(flags) <= prior, (role.name, set(flags) - prior)
+        main = role / 'tasks/main.yml'
+        if main.exists():
+            check_recreation_order(main)
     for role in BUILD_ROLES:
         main = yaml.safe_load((ROOT / 'roles' / role / 'tasks/main.yml').read_text())
         project = next(t[COMPOSE]['project_src'] for t in main if COMPOSE in t)
@@ -123,22 +141,24 @@ def template_checks(root, env, docker):
             checks.append({'name': f'Render {role} template', 'vars': values,
                            'ansible.builtin.template': {'src': str(ROOT / 'roles' / role / 'templates/compose.yaml.j2'),
                                                       'dest': str(file), 'mode': '0600'}})
-            outputs.append((role, enabled, file))
+            outputs.append((role, enabled, file, defaults))
     file = root / 'templates.yml'
     file.write_text(yaml.safe_dump([{'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
                                    'vars': {'ansible_python_interpreter': sys.executable}, 'tasks': checks}], sort_keys=False))
     result = run(['ansible-playbook', '-i', 'localhost,', str(file)], env=env)
     (root / 'templates.log').write_text(result.stdout + result.stderr)
     assert result.returncode == 0, f'Template rendering failed: {root / "templates.log"}'
-    for role, enabled, file in outputs:
+    for role, enabled, file, defaults in outputs:
         require([docker, 'compose', '-f', str(file), 'config', '--no-env-resolution', '--quiet'], env=env)
         services = yaml.safe_load(file.read_text())['services']
         if role == 'petlibro':
             assert ('catbro' in services) == enabled
         if role == 'bentopdf':
             service = services['bentopdf']
-            assert service['image'].endswith(
-                ':2.8.8@sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74'
+            assert re.fullmatch(r'sha256:[0-9a-f]{64}', defaults['bentopdf_image_digest'])
+            assert service['image'] == (
+                f"{defaults['bentopdf_image']}:{defaults['bentopdf_image_tag']}"
+                f"@{defaults['bentopdf_image_digest']}"
             )
             assert 'wget --quiet --spider' in service['healthcheck']['test'][-1]
             continue

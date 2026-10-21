@@ -6,7 +6,7 @@ that zero-mount state; it is the service's backup exemption.
 
 ## Image and health
 
-The `2.8.8` image is pinned to its multi-platform OCI digest in
+The application image is pinned to its release tag and multi-platform OCI digest in
 [defaults](defaults/main.yml). The container health check uses the image's
 existing `wget` to request its local nginx endpoint on port 8080.
 
