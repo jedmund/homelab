@@ -2,6 +2,8 @@
 """Regression tests for validation planning and fast repository checks."""
 
 from pathlib import Path
+import json
+import re
 import sys
 import tempfile
 import unittest
@@ -58,6 +60,47 @@ class PlanTests(unittest.TestCase):
 
 
 class FastValidationTests(unittest.TestCase):
+    def test_renovate_extracts_gitlab_ce_tags_and_digests(self):
+        config = json.loads((ROOT / '.renovaterc.json').read_text())
+        manager = next(
+            item for item in config['customManagers']
+            if item.get('description') == 'GitLab CE full image reference in Ansible defaults'
+        )
+        self.assertTrue(any(
+            re.search(pattern, 'roles/gitlab/defaults/main.yml')
+            for pattern in manager['fileMatch']
+        ))
+        expression = re.compile(manager['matchStrings'][0].replace('(?<', '(?P<'))
+        self.assertEqual(manager['datasourceTemplate'], 'docker')
+        self.assertEqual(manager['versioningTemplate'], 'docker')
+        self.assertEqual(manager['depTypeTemplate'], 'application-image')
+        digest = 'sha256:' + 'a' * 64
+        for version, pin, quote, newline in [
+            ('19.5.0-ce.0', '', '', '\n'),
+            ('19.5.1-ce.0', '@' + digest, '"', '\r\n'),
+            ('19.6.0-ce.0', '@' + digest, "'", ''),
+        ]:
+            with self.subTest(version=version, pin=pin):
+                contents = f'---\ngitlab_image: {quote}gitlab/gitlab-ce:{version}{pin}{quote}{newline}'
+                match = expression.search(contents)
+                self.assertIsNotNone(match)
+                self.assertEqual(match['depName'], 'gitlab/gitlab-ce')
+                self.assertEqual(match['currentValue'], version)
+                self.assertEqual(match['currentDigest'], digest if pin else None)
+                updated = contents[:match.start('currentValue')] + '19.6.1-ce.0' + contents[match.end('currentValue'):]
+                self.assertEqual(updated, contents.replace(version, '19.6.1-ce.0'))
+        for contents in [
+            'gitlab_runner_image: gitlab/gitlab-runner:v19.5.0\n',
+            '# gitlab_image: gitlab/gitlab-ce:19.5.0-ce.0\n',
+            'gitlab_image: gitlab/gitlab-ee:19.5.0-ee.0\n',
+            'gitlab_image: gitlab/gitlab-ce:latest\n',
+        ]:
+            with self.subTest(contents=contents):
+                self.assertIsNone(expression.search(contents))
+        self.assertIsNotNone(expression.search(
+            (ROOT / 'roles/gitlab/defaults/main.yml').read_text()
+        ))
+
     def test_markdown_links_and_duplicate_anchors(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

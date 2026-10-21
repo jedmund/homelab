@@ -13,6 +13,19 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) depType=(?<depType>\\S+)\\n(?<indentation>\\s*)[a-z0-9_]+_image_tag:\\s*[\\\"']?(?<currentValue>[^\\\"'\\s]+)[\\\"']?\\n\\s*[a-z0-9_]+_image_digest:\\s*(?<currentDigest>sha256:[a-f0-9]{64})"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "GitLab CE full image reference in Ansible defaults",
+      "fileMatch": [
+        "^roles/gitlab/defaults/main\\.yml$"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)gitlab_image:[ \\t]*[\"']?(?<depName>gitlab/gitlab-ce):(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+-ce\\.[0-9]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?[\"']?[ \\t]*(?:\\r?\\n|$)"
+      ],
+      "datasourceTemplate": "docker",
+      "depTypeTemplate": "application-image",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
