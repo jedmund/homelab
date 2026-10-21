@@ -17,6 +17,7 @@ import tomllib
 import unittest
 
 from jinja2 import Environment, StrictUndefined
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,28 +64,28 @@ class BentoPdfMaintenanceTests(unittest.TestCase):
         self.assertIn("has not implemented staging", rejected.stdout)
 
     def test_rendered_healthcheck_and_digest_contract(self):
-        defaults = (ROOT / "roles/bentopdf/defaults/main.yml").read_text(
-            encoding="utf-8"
+        defaults = yaml.safe_load(
+            (ROOT / "roles/bentopdf/defaults/main.yml").read_text(encoding="utf-8")
         )
         compose = (ROOT / "roles/bentopdf/templates/compose.yaml.j2").read_text(
             encoding="utf-8"
         )
-        self.assertRegex(defaults, r"bentopdf_image_digest: sha256:[0-9a-f]{64}")
+        self.assertRegex(defaults["bentopdf_image_digest"], r"^sha256:[0-9a-f]{64}$")
         self.assertIn('image: "{{ bentopdf_image_reference }}"', compose)
         self.assertIn("wget --quiet --spider", compose)
         self.assertIn("healthcheck:", compose)
+        image_reference = (
+            f"{defaults['bentopdf_image']}:{defaults['bentopdf_image_tag']}"
+            f"@{defaults['bentopdf_image_digest']}"
+        )
         script = render_template(
             ROOT / "roles/bentopdf/templates/maintenance-check.sh.j2",
             config_base="/opt/docker/bentopdf",
-            bentopdf_image="ghcr.io/alam00000/bentopdf-simple",
-            bentopdf_image_reference=(
-                "ghcr.io/alam00000/bentopdf-simple:2.8.8@"
-                "sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74"
-            ),
-            bentopdf_image_digest=(
-                "sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74"
-            ),
+            bentopdf_image=defaults["bentopdf_image"],
+            bentopdf_image_reference=image_reference,
+            bentopdf_image_digest=defaults["bentopdf_image_digest"],
         )
+        self.assertIn(image_reference, script)
         self.assertNotIn("python3", script)
         self.assertIn("docker container inspect --format", script)
         self.assertIn("docker image inspect --format", script)
@@ -125,14 +126,16 @@ class BentoPdfMaintenanceTests(unittest.TestCase):
         config = json.loads((ROOT / ".renovaterc.json").read_text(encoding="utf-8"))
         expression = config["customManagers"][0]["matchStrings"][0]
         python_expression = expression.replace("(?<", "(?P<")
-        match = re.search(
-            python_expression,
-            (ROOT / "roles/bentopdf/defaults/main.yml").read_text(encoding="utf-8"),
+        defaults_text = (ROOT / "roles/bentopdf/defaults/main.yml").read_text(
+            encoding="utf-8"
         )
+        defaults = yaml.safe_load(defaults_text)
+        match = re.search(python_expression, defaults_text)
         self.assertIsNotNone(match)
         self.assertEqual(match.group("depType"), "application-image")
-        self.assertEqual(match.group("currentValue"), "2.8.8")
-        self.assertTrue(match.group("currentDigest").startswith("sha256:"))
+        self.assertEqual(match.group("currentValue"), defaults["bentopdf_image_tag"])
+        self.assertEqual(match.group("currentDigest"), defaults["bentopdf_image_digest"])
+        self.assertRegex(match.group("currentDigest"), r"^sha256:[0-9a-f]{64}$")
         self.assertFalse(config["automerge"])
 
 
