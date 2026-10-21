@@ -1,8 +1,10 @@
 # vLLM
 
-DeepSeek V4 Flash on `max`, published at port `11437` with API model name
-`DeepSeek-V4-Flash`, plus an alternative GLM 5.3 Flash Spark profile on `11438`. The role renders the Compose file and creates cache
-directories. Model startup remains an explicit Compose profile action.
+GLM 5.3 Flash Spark on `max`, published at port `11438` with API model name
+`GLM-5.3-Flash`, is the default for `make deploy-ai-split`. DeepSeek V4 Flash
+remains available on port `11437` with API model name `DeepSeek-V4-Flash`.
+The role renders the Compose file and creates cache directories. Model startup
+remains an explicit Compose profile action.
 
 Model services use `restart: unless-stopped`, so the model that was running
 when `max` went down starts again at boot. A model stopped with
@@ -87,11 +89,11 @@ its effective launch. For a target-only diagnostic, override `--mode dspark`
 with `--mode off --draft-tokens 0` in a temporary Compose command override
 while retaining the other arguments. Positive draft tokens conflict with off mode. Restore the normal command before measuring K5 performance.
 
-`make deploy-ai-split` also starts this profile, but redeploys the AI stack.
-Use the vLLM-only workflow for a runtime upgrade that should preserve other
-GPU services. `ai_split_vllm_profile` retains its existing default name.
+`make deploy-ai-split` starts GLM 5.3 Flash Spark by default and redeploys the
+AI stack. Use the vLLM-only workflow for a runtime upgrade that should preserve
+other GPU services.
 
-## GLM 5.3 Flash Spark alternative
+## GLM 5.3 Flash Spark default
 
 `glm-5.3-flash-spark` uses the same pinned runtime image and the dedicated
 `glm53-spark-tp2` preset. The checkpoint is
@@ -140,12 +142,16 @@ docker compose --profile deepseek-v4-flash-0731 up -d --pull never deepseek-v4-f
 curl -fsS http://127.0.0.1:11437/health
 ```
 
-The split deployment workflow can select GLM with
-`-e ai_split_vllm_profile=glm-5.3-flash-spark` passed to
-`ansible-playbook deploy/ai_split.yml -e ai_gpu_mode=split`; this also redeploys
-the AI stack. Its default remains DeepSeek. Normal `deploy/all.yml` applies
-the AI role in split mode and does not render or switch vLLM profiles.
-The pinned model profiles are preserved by subsequent vLLM renders.
+The split deployment workflow defaults to `glm-5.3-flash-spark` and stops other
+running vLLM model profiles before starting it. To select DeepSeek instead:
+
+```sh
+ansible-playbook deploy/ai_split.yml -e ai_gpu_mode=split -e ai_split_vllm_profile=deepseek-v4-flash-0731
+```
+
+This also redeploys the AI stack. Normal `deploy/all.yml` applies the AI role
+in split mode and does not render or switch vLLM profiles. The pinned model
+profiles are preserved by subsequent vLLM renders.
 
 ## Storage and networking
 
@@ -197,9 +203,11 @@ For CUDA error 803 after a host driver upgrade, see the
 
 ## Clients and records
 
-The Linux agent clients use `DeepSeek-V4-Flash` at port 11437 and advertise
-131,072 context tokens. Those identifiers remain unchanged. Client-selected
-reasoning effort and interactive client workflows require separate validation.
+The Linux agent clients default to `vllm-max/GLM-5.3-Flash` at port 11438
+and advertise 950,272 context tokens. Client configuration and profile switching
+are described in the [agent tooling runbook](../agents_linux/README.md).
+Client-selected reasoning effort and interactive workflows require separate
+validation.
 
 - [GLM setup and checkout synchronization](../../docs/inference-glm-setup-2026-09-21.md)
 - [Runtime upgrade and validation](../../docs/inference-runtime-upgrade-2026-09-21.md)

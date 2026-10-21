@@ -2,6 +2,8 @@
 # Ansible remains the source of truth for /opt/docker/<stack>/compose.yaml
 # and any env/config files. Komodo reads those host files and may redeploy
 # them on demand, but it should not clone stack repos or auto-update images.
+# Exception: the scheduled update-plex Action pulls and redeploys the
+# Ansible-rendered Plex stack on image digest changes (komodo/README.md).
 
 [[alerter]]
 name = "homelab-operations"
@@ -890,6 +892,57 @@ if (changes.length === 0 && errors.length === 0) {
 }
 '''
 
+[[action]]
+name = "update-plex"
+description = "Redeploy the Ansible-rendered Plex stack when its image digest changes"
+tags = ["homelab", "plex", "maintenance"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 30 4 * * ?"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const STACK = 'plex'
+const SERVER = 'Atelier'
+
+const update = await komodo.write('CheckStackForUpdate', {
+  stack: STACK,
+  skip_auto_update: true,
+  wait_for_auto_update: true,
+})
+const changed = update.services.filter((service) => service.update_available)
+
+if (changed.length === 0) {
+  console.log('Plex image is current')
+} else {
+  for (const service of changed) {
+    console.log(`Update available for ${service.service}: ${service.image}`)
+  }
+  let exitCode = 'Early exit without code'
+  await komodo.execute_server_terminal({
+    server: SERVER,
+    terminal: 'update-plex',
+    command: 'docker compose -f /opt/docker/plex/compose.yaml pull plex && docker compose -f /opt/docker/plex/compose.yaml up -d plex',
+    init: { command: 'bash', recreate: 'Always' },
+  }, {
+    onLine: (line) => console.log(line),
+    onFinish: (code) => { exitCode = code },
+  })
+  if (exitCode !== '0') {
+    throw new Error(`Plex update failed with exit code ${exitCode}`)
+  }
+  await komodo.execute_and_poll('SendAlert', {
+    level: 'WARNING',
+    message: 'Plex image updated',
+    details: changed.map((service) => `${service.service}: ${service.image}`).join('\n'),
+    alerters: ['homelab-operations'],
+  })
+}
+'''
+
 [[procedure]]
 name = "Backup Core Database"
 description = "Create the scheduled Komodo Core database backup"
@@ -1078,6 +1131,22 @@ if (operation === 'destroy') {
   console.log(`Deployed ${stackName} at https://${host} (${revision})`)
 }
 '''
+
+[[user_group]]
+name = "agent-readonly"
+description = "Read-only visibility for the OpenCode Komodo MCP identity (agent-ro). Read on all resource types with the Logs feature gate; no Execute, Write, Inspect, or Terminal anywhere."
+users = ["agent-ro"]
+permissions = []
+all.Server = { level = "Read", specific = ["Logs"] }
+all.Stack = { level = "Read", specific = ["Logs"] }
+all.Deployment = { level = "Read", specific = ["Logs"] }
+all.Build = "Read"
+all.Repo = "Read"
+all.Alerter = "Read"
+all.ResourceSync = "Read"
+all.Builder = "Read"
+all.Procedure = "Read"
+all.Action = "Read"
 
 [[user_group]]
 name = "kizuna-storybook-review-ci"

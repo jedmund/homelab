@@ -2,6 +2,11 @@
 # Core Gatus configuration. Endpoint definitions live in endpoints.yaml;
 # Gatus deep-merges every *.yaml in this directory.
 
+# The alert relay renders the human embed; this payload only carries the
+# resolved placeholders. [RESULT_CONDITIONS] stays unresolved for pushed host
+# reports, which have no conditions, and the relay treats that as "none".
+{% set relay_payload = {'state': '[ALERT_TRIGGERED_OR_RESOLVED]', 'group': '[ENDPOINT_GROUP]', 'name': '[ENDPOINT_NAME]', 'description': '[ALERT_DESCRIPTION]', 'conditions': '[RESULT_CONDITIONS]', 'errors': '[RESULT_ERRORS]'} %}
+
 storage:
   type: sqlite
   path: {{ gatus_storage_path }}
@@ -44,17 +49,19 @@ alerting:
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endif %}
 {% if gatus_discord_webhook_url | length > 0 %}
-  discord:
-    webhook-url: "${GATUS_DISCORD_WEBHOOK_URL}"
-    title: "{{ gatus_discord_title }}"
-{% if gatus_discord_message_content | length > 0 %}
-    # Sent as plain content before the embed, so a role or user mention here
-    # actually notifies rather than sitting silently in the embed body.
-    message-content: "{{ gatus_discord_message_content }}"
-{% endif %}
+  # Discord through the custom provider: alerts POST to the relay container
+  # on this network, which renders the human embed (state header, translated
+  # conditions, links, host pings) and forwards to the operations webhook.
+  # The relay URL is not a credential; the webhook never appears in config.
+  custom:
+    url: "http://relay:8080/alert"
+    method: POST
+    headers:
+      Content-Type: application/json
     default-alert:
       failure-threshold: {{ gatus_alert_failure_threshold }}
       success-threshold: {{ gatus_alert_success_threshold }}
       send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+    body: {{ relay_payload | to_json | to_json }}
 {% endif %}
 {% endif %}

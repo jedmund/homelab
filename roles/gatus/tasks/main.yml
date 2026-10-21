@@ -12,6 +12,7 @@
     - "{{ config_base }}/config"
     - "{{ config_base }}/data"
     - "{{ config_base }}/env"
+    - "{{ config_base }}/relay"
 
 - name: Deploy environment file
   ansible.builtin.template:
@@ -21,6 +22,16 @@
     mode: '0600'
   no_log: true
   register: gatus_deploy_environment_file
+
+# The relay script is versioned in the repository and mounted read-only into
+# the pinned Python image; a script change recreates the relay container.
+- name: Deploy alert relay script
+  ansible.builtin.copy:
+    src: relay.py
+    dest: "{{ config_base }}/relay/relay.py"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: gatus_deploy_relay_script
 
 # Secrets stay out of these files: they carry ${VAR} placeholders that Gatus
 # substitutes from the environment at load, so they are readable config.
@@ -51,6 +62,7 @@
     recreate: >-
       {{ 'always' if
          (gatus_deploy_environment_file.changed | default(false)) or
-         (gatus_deploy_gatus_config.changed | default(false))
+         (gatus_deploy_gatus_config.changed | default(false)) or
+         (gatus_deploy_relay_script.changed | default(false))
          else 'auto' }}
   register: compose_result

@@ -102,7 +102,6 @@
     (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
     (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
     (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
-  notify: Restart Degoog after extension configuration
   when:
     - not ansible_check_mode
     - >-
@@ -110,3 +109,14 @@
       (degoog_4play_current_settings.password | default('') | string != degoog_4play_password | string) or
       (degoog_4play_current_settings.timeout | default('') | string != degoog_4play_timeout | string) or
       (degoog_4play_current_settings.useContainer | default('') | string != degoog_4play_use_container | string)
+
+- name: Restart Degoog after extension configuration
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    services:
+      - degoog
+    state: restarted
+  register: degoog_restart_after_extension_configuration
+  when:
+    - degoog_4play_settings.changed | default(false)
+    - not ansible_check_mode

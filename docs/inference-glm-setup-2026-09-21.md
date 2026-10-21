@@ -12,7 +12,7 @@ The alternative `glm-5.3-flash-spark` profile uses
 `a608241037e4c2565356bff7ca293f2133888f88`. Target, code, and MTP revisions
 are pinned. The image remains the validated Karmic assembly from the
 [DeepSeek runtime update](inference-runtime-upgrade-2026-09-21.md).
-The [vLLM runbook](../roles/vllm/README.md#glm-53-flash-spark-alternative)
+The [vLLM runbook](../roles/vllm/README.md#glm-53-flash-spark-default)
 owns download, switching, and recovery commands.
 
 The exact image's `--print-config` confirmed the dedicated upstream preset:

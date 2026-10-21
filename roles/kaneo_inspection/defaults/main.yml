@@ -4,7 +4,9 @@ kaneo_inspection_adapter_image: ''
 kaneo_inspection_paseo_image: ''
 kaneo_inspection_api_network: kaneo-inspection-api
 kaneo_inspection_model_address: 192.168.1.100
-kaneo_inspection_model_port: 11437
+# The GLM 5.3 Flash Spark profile on max; see roles/vllm/README.md. DeepSeek
+# 0731 remains pinned on 11437 as the manually selected alternative.
+kaneo_inspection_model_port: 11438
 kaneo_inspection_relay_address: 192.168.1.6
 kaneo_inspection_relay_port: 8411
 kaneo_inspection_relay_public_endpoint: paseo.relay.atelier.house:443
@@ -14,14 +16,14 @@ kaneo_inspection_model_auth: "{{ vault_kaneo_inspection_model_auth | default('vl
 
 # Explicitly permitted OpenCode models; this catalog does not provision egress.
 kaneo_inspection_configuration:
-  defaultModel: vllm-max/DeepSeek-V4-Flash
+  defaultModel: vllm-max/GLM-5.3-Flash
   providers:
     - id: vllm-max
       label: Local inference
       npm: '@ai-sdk/openai-compatible'
-      baseURL: http://model-egress:11437/v1
+      baseURL: http://model-egress:{{ kaneo_inspection_model_port }}/v1
       apiKeyEnvironment: INSPECTION_MODEL_AUTH
       models:
-        - id: DeepSeek-V4-Flash
-          label: DeepSeek-V4-Flash
+        - id: GLM-5.3-Flash
+          label: GLM 5.3 Flash Spark
 kaneo_inspection_provider_credentials: "{{ vault_kaneo_inspection_provider_credentials | default({}) }}"

@@ -78,6 +78,9 @@
     project_src: "{{ kaneo_inspection_root }}"
     state: present
     pull: always
-    recreate: "{{ 'always' if kaneo_inspection_environments.changed or kaneo_inspection_configuration_file.changed else 'auto' }}"
+    recreate: "{{ 'always' if
+       (kaneo_inspection_environments.changed | default(false)) or
+       (kaneo_inspection_configuration_file.changed | default(false))
+       else 'auto' }}"
     wait: true
     wait_timeout: 180

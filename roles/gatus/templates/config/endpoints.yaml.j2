@@ -4,7 +4,7 @@
 # enabling Discord in the vault fans every existing check out to it too.
 {% set alert_types = [] %}
 {% if gatus_alert_to | length > 0 %}{% set _ = alert_types.append('email') %}{% endif %}
-{% if gatus_discord_webhook_url | length > 0 %}{% set _ = alert_types.append('discord') %}{% endif %}
+{% if gatus_discord_webhook_url | length > 0 %}{% set _ = alert_types.append('custom') %}{% endif %}
 
 endpoints:
 {% for runner in gatus_gitlab_runners %}
@@ -28,7 +28,7 @@ endpoints:
     alerts:
 {% for alert_type in alert_types %}
       - type: {{ alert_type }}
-        description: "GitLab runner {{ runner.name }} stopped checking in"
+        description: "Runner {{ runner.name }} on {{ runner.host }} stopped checking in to GitLab — its CI jobs will queue. Expect up to ~2h of detection latency; if it stays down, inspect the runner service on {{ runner.host }}."
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endfor %}
 {% endif %}
@@ -45,7 +45,7 @@ endpoints:
     alerts:
 {% for alert_type in alert_types %}
       - type: {{ alert_type }}
-        description: "{{ endpoint.name }} is not responding as expected"
+        description: "{{ endpoint.description | default(endpoint.name ~ ' is not responding as expected') }}"
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endfor %}
 {% endif %}
@@ -64,7 +64,7 @@ endpoints:
     alerts:
 {% for alert_type in alert_types %}
       - type: {{ alert_type }}
-        description: "Wildcard certificate is inside {{ gatus_cert_warning_hours }}h of expiry"
+        description: "Wildcard certificate *.atelier.house is inside {{ gatus_cert_warning_hours }}h of expiry — Traefik's Cloudflare DNS-challenge renewal has stopped. Renew manually before it lapses."
         send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
 {% endfor %}
 {% endif %}

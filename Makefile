@@ -312,7 +312,7 @@ deploy-degoog-4play: ## Deploy the experimental native Degoog Firefox client on 
 	@echo "$(BLUE)Deploying Degoog 4play client...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog_4play.yml $(VAULT_FLAG)
 
-deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM DeepSeek V4 Flash up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
+deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM GLM 5.3 Flash Spark up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
 	@echo "$(BLUE)Deploying AI stack in split mode + starting vLLM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
 
@@ -320,7 +320,7 @@ deploy-ai-shared: ## Deploy AI stack in shared mode (llama-swap on all 3 GPUs, s
 	@echo "$(BLUE)Deploying AI stack in shared mode (llama-swap on all 3 GPUs)...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG) -e ai_gpu_mode=shared
 
-deploy-vllm: ## Deploy vLLM stack on max (compose rendered; bring DeepSeek up via --profile)
+deploy-vllm: ## Deploy vLLM stack on max (compose rendered; start a model via --profile)
 	@echo "$(BLUE)Deploying vLLM stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/vllm.yml $(VAULT_FLAG)
 
