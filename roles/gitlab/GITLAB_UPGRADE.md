@@ -166,6 +166,22 @@ The macOS runner gains a fresh binary with the Homebrew upgrade to 19.4.0, so
 expect the Local Network gate and confirm runner 2 reconnects as described
 below.
 
+## Update discovery
+
+Renovate tracks `gitlab_image` in
+[defaults/main.yml](defaults/main.yml) through the repository's
+[custom manager](../../.renovaterc.json). It recognizes the GitLab CE release
+tag and optional OCI digest in the full image reference. Docker versioning
+preserves the `-ce.0` compatibility suffix when proposing newer releases.
+Proposals use the `maintenance::application-image` label and require review;
+there is no minor-version ceiling and no automatic merge or deployment.
+
+Komodo's digest checks compare the image tag already rendered in Compose.
+The GitLab stack is excluded from the shared digest report. New GitLab release
+discovery belongs to Renovate; apply approved versions through this runbook.
+Renovate's host schedule is Monday at 08:00 unless overridden, so a newly
+published patch is not necessarily proposed immediately.
+
 ## Patch releases inside one minor series
 
 A patch hop such as 19.2.0 to 19.2.4 stays inside the same minor series and
