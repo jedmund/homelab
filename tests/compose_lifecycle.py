@@ -141,22 +141,24 @@ def template_checks(root, env, docker):
             checks.append({'name': f'Render {role} template', 'vars': values,
                            'ansible.builtin.template': {'src': str(ROOT / 'roles' / role / 'templates/compose.yaml.j2'),
                                                       'dest': str(file), 'mode': '0600'}})
-            outputs.append((role, enabled, file))
+            outputs.append((role, enabled, file, defaults))
     file = root / 'templates.yml'
     file.write_text(yaml.safe_dump([{'hosts': 'localhost', 'connection': 'local', 'gather_facts': False,
                                    'vars': {'ansible_python_interpreter': sys.executable}, 'tasks': checks}], sort_keys=False))
     result = run(['ansible-playbook', '-i', 'localhost,', str(file)], env=env)
     (root / 'templates.log').write_text(result.stdout + result.stderr)
     assert result.returncode == 0, f'Template rendering failed: {root / "templates.log"}'
-    for role, enabled, file in outputs:
+    for role, enabled, file, defaults in outputs:
         require([docker, 'compose', '-f', str(file), 'config', '--no-env-resolution', '--quiet'], env=env)
         services = yaml.safe_load(file.read_text())['services']
         if role == 'petlibro':
             assert ('catbro' in services) == enabled
         if role == 'bentopdf':
             service = services['bentopdf']
-            assert service['image'].endswith(
-                ':2.8.8@sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74'
+            assert re.fullmatch(r'sha256:[0-9a-f]{64}', defaults['bentopdf_image_digest'])
+            assert service['image'] == (
+                f"{defaults['bentopdf_image']}:{defaults['bentopdf_image_tag']}"
+                f"@{defaults['bentopdf_image_digest']}"
             )
             assert 'wget --quiet --spider' in service['healthcheck']['test'][-1]
             continue
