@@ -207,6 +207,12 @@
 - import_playbook: kibble.yml
   tags: [kibble]
 
+- import_playbook: photon.yml
+  tags: [photon, geo]
+
+- import_playbook: valhalla.yml
+  tags: [valhalla, geo]
+
 - import_playbook: kizuna.yml
   tags: [kizuna]
 

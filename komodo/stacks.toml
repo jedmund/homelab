@@ -636,6 +636,30 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "photon"
+description = "Shared Photon geocoder (US and Japan)"
+tags = ["homelab", "ansible", "nuc-mini", "geo"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/photon"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "valhalla"
+description = "Shared Valhalla router (US and Japan)"
+tags = ["homelab", "ansible", "nuc-mini", "geo"]
+[stack.config]
+server = "Atelier"
+files_on_host = true
+run_directory = "/opt/docker/valhalla"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "protomaps"
 description = "Protomaps basemap archive, fonts, and sprites at maps.atelier.house"
 tags = ["homelab", "ansible", "nuc-mini", "utility", "update-monitor"]
