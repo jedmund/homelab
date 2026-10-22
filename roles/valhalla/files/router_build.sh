@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Build the Kizuna walking router's Valhalla tiles from Geofabrik extracts.
-# Run it on max (see "Walking router" in roles/kizuna/README.md), not on the
-# Kizuna host.
+# Build the shared Valhalla tiles from Geofabrik extracts.
+# Run it on max (see roles/valhalla/README.md), not on the serving host.
 #
 #   router_build.sh <scratch-dir> <valhalla-image>
 #

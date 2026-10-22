@@ -1,0 +1,62 @@
+---
+- name: Inspect the legacy Kizuna router container
+  community.docker.docker_container_info:
+    name: kizuna-router
+  register: valhalla_legacy_container
+
+- name: Require the legacy router cutover before starting shared Valhalla
+  ansible.builtin.assert:
+    that:
+      - not valhalla_legacy_container.exists
+    fail_msg: Follow roles/photon/README.md to retire Kizuna's router before the shared-service deployment.
+
+- name: Check for the Valhalla dataset
+  ansible.builtin.stat:
+    path: "{{ valhalla_data_path }}/{{ item }}"
+    get_checksum: false
+  loop:
+    - valhalla_tiles.tar
+    - admins.sqlite
+    - timezones.sqlite
+  register: valhalla_dataset
+
+- name: Require the existing Valhalla dataset
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+    fail_msg: "Build the dataset in {{ valhalla_data_path }} before deployment; see roles/valhalla/README.md."
+  loop: "{{ valhalla_dataset.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create Valhalla directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: '0755'
+  loop:
+    - path: "{{ config_base }}"
+      owner: "{{ ansible_user }}"
+    - path: "{{ valhalla_data_path }}"
+      owner: "{{ valhalla_uid }}"
+      group: "{{ valhalla_gid }}"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy Valhalla stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: auto
+    wait: true
+    wait_timeout: 180
+  register: compose_result

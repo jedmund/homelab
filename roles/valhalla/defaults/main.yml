@@ -1,0 +1,11 @@
+---
+stack_name: valhalla
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+valhalla_image: ghcr.io/valhalla/valhalla:3.9.1@sha256:4fd114eb1d26b8fc2f43bcb3df234c1b63a0bf13c277405e5943d5361dc575de
+# Preserve the existing US/Japan tiles and runtime ownership.
+valhalla_data_path: /srv/kizuna-router
+valhalla_uid: "{{ puid }}"
+valhalla_gid: "{{ pgid }}"
+valhalla_threads: 4
+valhalla_cache_bytes: 1000000000

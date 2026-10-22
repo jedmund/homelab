@@ -1,0 +1,55 @@
+---
+- name: Inspect the legacy Kizuna geocoder container
+  community.docker.docker_container_info:
+    name: kizuna-geocoder
+  register: photon_legacy_container
+
+- name: Require the legacy geocoder cutover before starting shared Photon
+  ansible.builtin.assert:
+    that:
+      - not photon_legacy_container.exists
+    fail_msg: Follow roles/photon/README.md to retire Kizuna's geocoder before sharing its database.
+
+- name: Check for the Photon database
+  ansible.builtin.stat:
+    path: "{{ photon_data_path }}/photon_data"
+    get_checksum: false
+  register: photon_database
+
+- name: Require the existing Photon database
+  ansible.builtin.assert:
+    that:
+      - photon_database.stat.isdir | default(false)
+    fail_msg: "Import the Photon database into {{ photon_data_path }} before deployment; see roles/photon/README.md."
+
+- name: Create Photon directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group | default(omit) }}"
+    mode: '0755'
+  loop:
+    - path: "{{ config_base }}"
+      owner: "{{ ansible_user }}"
+    - path: "{{ photon_data_path }}"
+      owner: "{{ photon_uid }}"
+      group: "{{ photon_gid }}"
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy Photon stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: auto
+    wait: true
+    wait_timeout: 180
+  register: compose_result

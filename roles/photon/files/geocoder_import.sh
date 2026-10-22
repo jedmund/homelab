@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the Kizuna geocoder's Photon database from the worldwide Photon JSON
+# Build the shared Photon database from the worldwide Photon JSON
 # dump, keeping only the countries in COUNTRY_CODES. Run it on max (see
-# "Geocoder" in roles/kizuna/README.md), not on the Kizuna host.
+# roles/photon/README.md), not on the serving host.
 #
 #   geocoder_import.sh <scratch-dir> <photon-image>
 #
@@ -79,7 +79,7 @@ pattern=$(tr ',' '|' <<<"$COUNTRY_CODES")
 set +e
 stream_chunks | zstd -dc |
   LC_ALL=C grep -E "\"country_code\":\"($pattern)\"|^ ?\{\"type\":\"(NominatimDumpFile|CountryInfo)\"" |
-  docker run -i --rm --name kizuna-geocoder-import --user 9011:9011 \
+  docker run -i --rm --name photon-import --user 9011:9011 \
     -w /photon/data -v "$SCRATCH/data:/photon/data" --entrypoint java "$IMAGE" \
     "-Xms$HEAP" "-Xmx$HEAP" -jar /photon/photon.jar import -import-file - \
     -j "$THREADS" -country-codes "$COUNTRY_CODES" -languages "$LANGUAGES" \
