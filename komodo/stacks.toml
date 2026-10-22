@@ -764,6 +764,8 @@ server = "max"
 files_on_host = true
 run_directory = "/opt/docker/vllm"
 file_paths = ["compose.yaml"]
+# GLM is the active profile; change this exclusion when selecting DeepSeek.
+ignore_services = ["deepseek-v4-flash-0731"]
 poll_for_updates = false
 auto_update = false
 
