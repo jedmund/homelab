@@ -121,26 +121,6 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  dawarich-photon:
-    container_name: dawarich_photon
-    image: {{ dawarich_photon_image }}
-    restart: {{ restart_policy }}
-    environment:
-      - REGION={{ dawarich_photon_region }}
-      - INITIAL_DOWNLOAD={{ dawarich_photon_initial_download }}
-    volumes:
-      - dawarich-photon-data:/photon/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:2322/api?q=test"]
-      interval: 60s
-      timeout: 10s
-      retries: 10
-      start_period: 60m
-    logging:
-      driver: {{ logging_driver }}
-      options:
-        max-size: {{ logging_max_size }}
-        max-file: {{ logging_max_file }}
 
 volumes:
   dawarich-db-data:
@@ -153,8 +133,6 @@ volumes:
     name: dawarich-watched
   dawarich-storage:
     name: dawarich-storage
-  dawarich-photon-data:
-    name: dawarich-photon-data
 
 networks:
   default:

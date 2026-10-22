@@ -1,18 +1,35 @@
 ---
-- name: Inspect the legacy Kizuna geocoder container
+- name: Inspect legacy application-owned Photon containers
   community.docker.docker_container_info:
-    name: kizuna-geocoder
-  register: photon_legacy_container
+    name: "{{ item }}"
+  loop:
+    - kizuna-geocoder
+    - dawarich_photon
+  register: photon_legacy_containers
 
-- name: Require the legacy geocoder cutover before starting shared Photon
+- name: Require the legacy geocoder cutovers before starting shared Photon
   ansible.builtin.assert:
     that:
-      - not photon_legacy_container.exists
-    fail_msg: Follow roles/photon/README.md to retire Kizuna's geocoder before sharing its database.
+      - not item.exists
+    fail_msg: Follow roles/photon/README.md to retire application-owned Photon containers before sharing the index.
+  loop: "{{ photon_legacy_containers.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect the existing worldwide Photon volume
+  community.docker.docker_volume_info:
+    name: "{{ photon_data_volume }}"
+  register: photon_volume
+
+- name: Require the existing worldwide Photon volume
+  ansible.builtin.assert:
+    that:
+      - photon_volume.exists
+    fail_msg: "Prepare {{ photon_data_volume }} with a compatible worldwide index before deployment; see roles/photon/README.md."
 
 - name: Check for the Photon database
   ansible.builtin.stat:
-    path: "{{ photon_data_path }}/photon_data"
+    path: "{{ photon_volume.volume.Mountpoint }}/photon_data"
     get_checksum: false
   register: photon_database
 
@@ -20,21 +37,16 @@
   ansible.builtin.assert:
     that:
       - photon_database.stat.isdir | default(false)
-    fail_msg: "Import the Photon database into {{ photon_data_path }} before deployment; see roles/photon/README.md."
+      - photon_database.stat.uid | default(-1) == photon_uid
+      - photon_database.stat.gid | default(-1) == photon_gid
+    fail_msg: "Prepare the index in {{ photon_data_volume }} with the Photon UID/GID before deployment; see roles/photon/README.md."
 
-- name: Create Photon directories
+- name: Create Photon deployment directory
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ config_base }}"
     state: directory
-    owner: "{{ item.owner }}"
-    group: "{{ item.group | default(omit) }}"
+    owner: "{{ ansible_user }}"
     mode: '0755'
-  loop:
-    - path: "{{ config_base }}"
-      owner: "{{ ansible_user }}"
-    - path: "{{ photon_data_path }}"
-      owner: "{{ photon_uid }}"
-      group: "{{ photon_gid }}"
 
 - name: Deploy compose file
   ansible.builtin.template:

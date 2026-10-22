@@ -2,10 +2,10 @@
 stack_name: photon
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Photon 1.3.0 on Temurin 21, serving the existing US/Japan index.
+# Photon 1.3.0 on Temurin 21, serving the existing worldwide index.
 photon_image: ghcr.io/rtuszik/photon-docker:2.4.0@sha256:21549c60f9e6488fff3217e40429a652c4b445f374800333fe32859e47cec293
 photon_uid: 9011
 photon_gid: 9011
 photon_java_heap: 2g
-# Preserve the existing database path and ownership during extraction.
-photon_data_path: /srv/kizuna-geocoder
+# Adopt the worldwide volume without copying or renaming it.
+photon_data_volume: dawarich-photon-data
