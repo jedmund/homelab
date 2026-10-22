@@ -4,10 +4,8 @@ name: {{ stack_name }}
 services:
   photon:
     container_name: photon
-    # Photon geocoder. kizuna-api resolves PlaceMap addresses with
-    # GET /api?q=<address>&limit=1. The database is imported offline from the
-    # Photon JSON dump into {{ photon_data_path }} (see the role
-    # README); this container only serves it.
+    # Shared worldwide forward and reverse geocoder. Reuse the existing
+    # external index volume; this process only serves it.
     image: "{{ photon_image }}"
     # Run the jar directly instead of the image's process manager, which
     # downloads and updates databases on its own schedule. The image's
@@ -15,6 +13,12 @@ services:
     user: "{{ photon_uid }}:{{ photon_gid }}"
     entrypoint:
       - java
+      - --add-modules
+      - jdk.incubator.vector
+      - --enable-native-access=ALL-UNNAMED
+      - -Des.gateway.auto_import_dangling_indices=true
+      - -Des.cluster.routing.allocation.batch_mode=true
+      - -Dlog4j2.disable.jmx=true
       - -Xms{{ photon_java_heap }}
       - -Xmx{{ photon_java_heap }}
       - -jar
@@ -31,14 +35,17 @@ services:
       - "2322"
     restart: {{ restart_policy }}
     networks:
-      # backend only: Photon serves a local database and makes no outbound
-      # calls; `backend` is internal: true with no gateway, so it has no
-      # egress. NOT fronted by Traefik — no public route.
+      # Kizuna uses backend; Dawarich uses shared. No host port or Traefik
+      # route is published. The jar does not run the image's index updater.
       backend:
         aliases:
           - kizuna-geocoder
+      shared:
+        aliases:
+          - dawarich-photon
+          - dawarich_photon
     volumes:
-      - {{ photon_data_path }}:/photon/data
+      - photon-data:/photon/data
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:2322/status"]
       interval: 30s
@@ -53,7 +60,15 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+volumes:
+  photon-data:
+    name: {{ photon_data_volume }}
+    external: true
+
 networks:
   backend:
     name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
     external: true

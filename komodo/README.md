@@ -289,7 +289,7 @@ Use the `run_directory` and `file_paths` in `stacks.toml` as the path reference.
 | --- | --- |
 | `line` | Builds from Ansible's checkout under `/opt/docker/line/source/line`; `auto_pull = false`, `run_build = true` |
 | `kibble` | Retains `/opt/docker/feederhub` for existing data |
-| `photon`, `valhalla` | Shared private geo services with independent projects; see the [cutover procedure](../roles/photon/README.md#moving-the-services-out-of-kizuna). Kizuna keeps legacy DNS aliases; Dawarich's worldwide Photon remains separate |
+| `photon`, `valhalla` | Shared private geo services with independent projects. [Photon](../roles/photon/README.md) serves one worldwide index for Kizuna and Dawarich, retaining both legacy DNS aliases. Valhalla serves US/Japan routing data |
 | `musicbrainz` | Uses `/opt/docker/musicbrainz/upstream` and `local/compose.merged.yml` |
 | `beszel-agent-nuc-mini`, `beszel-agent-max` | Use `/opt/docker/beszel-agent` on different servers; the macOS agent is native and has no Stack resource |
 | `vllm`, `sglang` | Model startup requires an explicit Compose profile; Resource Sync does not select a model. vLLM excludes inactive DeepSeek from stack monitoring; update the exclusion when [switching models](../roles/vllm/README.md#komodo-health-monitoring) |

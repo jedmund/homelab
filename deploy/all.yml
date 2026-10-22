@@ -138,6 +138,9 @@
 - import_playbook: album_sort.yml
   tags: [album_sort]
 
+- import_playbook: photon.yml
+  tags: [photon, geo]
+
 - import_playbook: dawarich.yml
   tags: [dawarich]
 
@@ -206,9 +209,6 @@
 
 - import_playbook: kibble.yml
   tags: [kibble]
-
-- import_playbook: photon.yml
-  tags: [photon, geo]
 
 - import_playbook: valhalla.yml
   tags: [valhalla, geo]

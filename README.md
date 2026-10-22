@@ -90,7 +90,7 @@ have additional operating instructions:
 
 | Area | Runbooks |
 | --- | --- |
-| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [Granblue](roles/granblue/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md), [Protomaps](roles/protomaps/README.md) |
+| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Dawarich](roles/dawarich/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [Granblue](roles/granblue/README.md), [HuggingHack](roles/hugginghack/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md), [Protomaps](roles/protomaps/README.md) |
 | Media | [Multi-Scrobbler](roles/multi_scrobbler/README.md), [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Geospatial | [Photon](roles/photon/README.md), [Valhalla](roles/valhalla/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |

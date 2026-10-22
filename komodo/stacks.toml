@@ -637,7 +637,7 @@ auto_update = false
 
 [[stack]]
 name = "photon"
-description = "Shared Photon geocoder (US and Japan)"
+description = "Shared worldwide Photon geocoder for Kizuna and Dawarich"
 tags = ["homelab", "ansible", "nuc-mini", "geo"]
 [stack.config]
 server = "Atelier"

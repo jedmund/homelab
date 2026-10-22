@@ -44,11 +44,8 @@ dawarich_smtp_domain: "atelier.house"
 dawarich_smtp_starttls: "true"
 dawarich_smtp_authentication: plain
 
-# Dawarich Photon (self-hosted worldwide reverse geocoder, ~90 GB on disk)
-dawarich_photon_image: rtuszik/photon-docker:latest
-dawarich_photon_region: planet
-dawarich_photon_initial_download: "TRUE"
-dawarich_photon_api_host: "dawarich-photon:2322"
+# Shared worldwide Photon, deployed independently before Dawarich.
+dawarich_photon_api_host: "photon:2322"
 dawarich_photon_api_use_https: "false"
 
 # Dawarich secrets defined in vault:

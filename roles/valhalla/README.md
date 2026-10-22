@@ -18,8 +18,10 @@ make -C deploy valhalla
 
 The role checks for the tile archive, admin database, and timezone database
 before deploying. It refuses to start while the old `kizuna-router` container
-exists. On an existing host, follow the shared [Kizuna cutover](../photon/README.md#moving-the-services-out-of-kizuna)
-first. Keep the data mount read-only and verify actual routes as well as health.
+exists. For a legacy deployment, first remove only `kizuna-router` from
+Kizuna's Compose file, then stop and remove that old container. Preserve
+`/srv/kizuna-router` and its ownership when deploying this role. Keep the data
+mount read-only and verify actual routes as well as health.
 
 ## Tiles and serving
 

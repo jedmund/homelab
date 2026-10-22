@@ -99,10 +99,12 @@ fetch them again. Its rendered configuration under `/opt/docker/protomaps` is
 backed up with the other stacks.
 
 The shared [Photon](../photon/README.md) and [Valhalla](../valhalla/README.md)
-datasets retain `/srv/kizuna-geocoder` and `/srv/kizuna-router`. These paths are
-outside the backup sources; rebuild them using their runbooks. Their deployment
-files under `/opt/docker/photon` and `/opt/docker/valhalla` are covered by the
-file-level backup.
+datasets use the external `dawarich-photon-data` volume and `/srv/kizuna-router`.
+Neither is in the backup sources; rebuild them using their runbooks. The old
+regional `/srv/kizuna-geocoder` index is retired after worldwide consolidation.
+Deployment files under `/opt/docker/photon` and `/opt/docker/valhalla` are covered
+by the file-level backup. Retain a previous index volume separately during any
+future worldwide index replacement.
 
 ## Consistency and coverage limits
 
