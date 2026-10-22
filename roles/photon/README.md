@@ -54,6 +54,22 @@ Save `/opt/docker/kizuna/compose.yaml` in a restricted backup directory first.
    the repository declarations, and refresh Kizuna's cached service list.
    Preview any Resource Sync before applying it.
 
+Komodo 2.3.3's `RefreshStackCache` refreshes the latest file contents but
+preserves the service list from the previous deployment. To reconcile that
+list without replacing application containers, first verify that Kizuna's
+build, destroy-before-deploy, and pre/post commands are disabled. Save its
+current `auto_pull` and `extra_args`, temporarily set `auto_pull = false` and:
+
+```toml
+extra_args = ["--no-recreate", "--no-deps", "--pull", "never"]
+```
+
+Deploy only the already-running `kizuna-web` service through Komodo, wait for
+success, then restore the saved settings. Confirm that the cached deployment
+lists only Kizuna's remaining services and that all application container IDs,
+start times, and restart counts are unchanged. This updates deployment metadata
+without fetching images or restarting the application.
+
 The cutover does not require restarting Kizuna or deploying new application
 images. Its next normal deployment writes the configurable shared URLs.
 The new geo services have no host ports, public DNS, Traefik route, or secret
