@@ -291,7 +291,7 @@ Use the `run_directory` and `file_paths` in `stacks.toml` as the path reference.
 | `kibble` | Retains `/opt/docker/feederhub` for existing data |
 | `musicbrainz` | Uses `/opt/docker/musicbrainz/upstream` and `local/compose.merged.yml` |
 | `beszel-agent-nuc-mini`, `beszel-agent-max` | Use `/opt/docker/beszel-agent` on different servers; the macOS agent is native and has no Stack resource |
-| `vllm`, `sglang` | Model startup requires an explicit Compose profile; Resource Sync does not select a model |
+| `vllm`, `sglang` | Model startup requires an explicit Compose profile; Resource Sync does not select a model. vLLM excludes inactive DeepSeek from stack monitoring; update the exclusion when [switching models](../roles/vllm/README.md#komodo-health-monitoring) |
 
 ## Periphery registry access
 

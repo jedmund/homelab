@@ -153,6 +153,19 @@ This also redeploys the AI stack. Normal `deploy/all.yml` applies the AI role
 in split mode and does not render or switch vLLM profiles. The pinned model
 profiles are preserved by subsequent vLLM renders.
 
+## Komodo health monitoring
+
+The `vllm` Stack in [Komodo](../../komodo/stacks.toml) excludes the inactive
+`deepseek-v4-flash-0731` service with `ignore_services`. GLM remains monitored.
+Komodo otherwise counts an exited alternative profile against the stack state,
+even when the selected model is healthy.
+
+When switching to DeepSeek, change the exclusion to `glm-5.3-flash-spark` in
+the repository declaration and the live Komodo Stack configuration. Restore
+`deepseek-v4-flash-0731` when switching back to GLM. Keep the active model
+included in monitoring. Review the Resource Sync preview before reconciling;
+the monitoring change does not require restarting either model.
+
 ## Storage and networking
 
 The existing mounts remain:
