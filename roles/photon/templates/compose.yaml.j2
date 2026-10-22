@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  photon:
+    container_name: photon
+    # Photon geocoder. kizuna-api resolves PlaceMap addresses with
+    # GET /api?q=<address>&limit=1. The database is imported offline from the
+    # Photon JSON dump into {{ photon_data_path }} (see the role
+    # README); this container only serves it.
+    image: "{{ photon_image }}"
+    # Run the jar directly instead of the image's process manager, which
+    # downloads and updates databases on its own schedule. The image's
+    # entrypoint would also chown the whole database on every start.
+    user: "{{ photon_uid }}:{{ photon_gid }}"
+    entrypoint:
+      - java
+      - -Xms{{ photon_java_heap }}
+      - -Xmx{{ photon_java_heap }}
+      - -jar
+      - /photon/photon.jar
+    command:
+      - serve
+      - -data-dir
+      - /photon/data
+      # Photon listens on 127.0.0.1 by default, unreachable from other
+      # containers.
+      - -listen-ip
+      - 0.0.0.0
+      - -listen-port
+      - "2322"
+    restart: {{ restart_policy }}
+    networks:
+      # backend only: Photon serves a local database and makes no outbound
+      # calls; `backend` is internal: true with no gateway, so it has no
+      # egress. NOT fronted by Traefik — no public route.
+      backend:
+        aliases:
+          - kizuna-geocoder
+    volumes:
+      - {{ photon_data_path }}:/photon/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:2322/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The deploy waits at most 180 s for health; probe often while starting.
+      start_period: 120s
+      start_interval: 5s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
