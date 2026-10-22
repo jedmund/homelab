@@ -20,6 +20,8 @@ The gateway has separate groups and vaults for `traefik`, `pocketid`,
 `tinyauth`, `line`, and `ddclient`. There is no current `infra_gateway` group.
 OpenSpeedTest has no secret inputs in its current role.
 Protomaps has no secret inputs and no vault file.
+Photon and Valhalla also have no secret inputs or vault files. They are private
+services on the host's internal Docker network.
 
 ## Create and edit
 

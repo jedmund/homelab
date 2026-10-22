@@ -98,6 +98,12 @@ sources; the [Protomaps runbook](../protomaps/README.md) describes how to
 fetch them again. Its rendered configuration under `/opt/docker/protomaps` is
 backed up with the other stacks.
 
+The shared [Photon](../photon/README.md) and [Valhalla](../valhalla/README.md)
+datasets retain `/srv/kizuna-geocoder` and `/srv/kizuna-router`. These paths are
+outside the backup sources; rebuild them using their runbooks. Their deployment
+files under `/opt/docker/photon` and `/opt/docker/valhalla` are covered by the
+file-level backup.
+
 ## Consistency and coverage limits
 
 The [SQLite dump script](templates/scripts/dump-sqlite.sh.j2) reads files from

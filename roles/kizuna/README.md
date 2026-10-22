@@ -211,264 +211,32 @@ docker exec kizuna-api curl --fail --silent http://kizuna-widget-compiler:4100/h
 To disable widgets without removing the sidecar, blank
 `WIDGET_COMPILER_URL` in `templates/env/api.env.j2` and redeploy.
 
-## Walking router
+## Shared geo services
 
-`kizuna-router` runs [Valhalla](https://github.com/valhalla/valhalla) to give
-route PlaceMaps walking paths with per-leg distance and time. The API calls
-`POST /route` with `costing: pedestrian`, one attempt with a 5 s timeout; a
-blank `WIDGET_ROUTER_URL` in `templates/env/api.env.j2` disables routing and
-legs fall back to straight-line estimates. The service joins only the
-internal `backend` network, so it has no egress and no Traefik route.
+PlaceMap address lookup uses the shared [Photon](../photon/README.md) stack;
+walking routes use [Valhalla](../valhalla/README.md). Deploy both before Kizuna.
+They have independent Compose projects and Komodo Stack resources.
 
-The image is the official `ghcr.io/valhalla/valhalla`, pinned by tag and
-digest in [defaults](defaults/main.yml). It has no image user, so Compose
-runs it as the shared runtime user (`puid`/`pgid`). On every start, the
-container generates its configuration with the image's
-`valhalla_build_config`, so the configuration matches the Valhalla version,
-then serves `valhalla_tiles.tar` from `/srv/kizuna-router`, mounted read-only.
-The directory is outside `/opt/docker`, so Borg does not back it up; it is
-rebuilt from the upstream extracts. The role stops before deploying if the
-tile archive is missing.
+`kizuna_geocoder_url` defaults to `http://photon:2322` and
+`kizuna_router_url` to `http://valhalla:8002`. Blank URLs disable the respective
+feature: places render without map pins, or routes use straight-line estimates.
+The API and workers share these settings through `WIDGET_GEOCODER_URL` and
+`WIDGET_ROUTER_URL`. Both endpoints are private on `backend-internal`.
 
-Valhalla was chosen over GraphHopper and OSRM because it reads the tile
-archive through `mmap` with a bounded cache (`kizuna_router_cache_bytes`).
-GraphHopper and OSRM load the whole routing graph into process memory, which
-for the United States does not fit next to the rest of nuc-mini.
-
-Measured on 2026-10-16 with Geofabrik extracts of that day: the build on max
-took 31 minutes and needed 14.8 GB of extracts plus at least 90 GB of
-intermediate tiles. The result is 23 GiB (`valhalla_tiles.tar`, 18,677 tiles)
-plus 141 MB of admin and timezone databases. On nuc-mini, Valhalla answered
-`/status` within a second of starting with a resident size of about 215 MiB.
-A four-leg 3.3 km loop and a two-leg 2.7 km route took 20–70 ms, including
-with eight requests at once.
-
-There is no elevation data, so walking time is a flat rate and steep routes
-are underestimated. Adding elevation (`valhalla_build_elevation`) is a
-separate change.
-
-### Build or refresh the tiles
-
-Build the tiles on max, then copy them to nuc-mini. Refresh when map data is
-noticeably stale or after a Valhalla upgrade that changes the tile format
-(read the release notes).
-
-[`files/router_build.sh`](files/router_build.sh) runs the build. It downloads
-`us-latest.osm.pbf` and `japan-latest.osm.pbf` from Geofabrik and checks
-their MD5 sums. `valhalla_build_tiles` reads each extract several times, so
-they are stored in the scratch directory rather than streamed. It then builds
-the timezone and admin databases and the tiles, writes the tile archive, and
-deletes the extracts and intermediate tiles. Valhalla warns that building
-from more than one extract is discouraged; that concerns overlapping
-extracts with duplicate OSM IDs, and these two do not overlap. The admin
-`NOT NULL constraint failed` errors are expected for a non-planet build.
-
-1. On max, copy the script into a new scratch directory with at least 120 GB
-   free and run it under `tmux` or `nohup` with the image from
-   `kizuna_router_image`:
-
-   ```sh
-   IMG='ghcr.io/valhalla/valhalla:3.9.1@sha256:4fd114eb1d26b8fc2f43bcb3df234c1b63a0bf13c277405e5943d5361dc575de'
-   mkdir ~/kizuna-router-build && cd ~/kizuna-router-build
-   # copy roles/kizuna/files/router_build.sh here
-   ./router_build.sh "$PWD" "$IMG" 2>&1 | tee build.log
-   ```
-
-2. Check the result on max before copying:
-
-   ```sh
-   docker run -d --rm --name kizuna-router-check --user "$(id -u):$(id -g)" \
-     -p 127.0.0.1:8099:8002 -v "$PWD/out:/data:ro" "$IMG" bash -ec '
-       valhalla_build_config --mjolnir-tile-extract /data/valhalla_tiles.tar \
-         --mjolnir-admin /data/admins.sqlite \
-         --mjolnir-timezone /data/timezones.sqlite \
-         --httpd-service-listen tcp://0.0.0.0:8002 > /tmp/valhalla.json
-       exec valhalla_service /tmp/valhalla.json 4'
-   curl -s http://127.0.0.1:8099/status
-   curl -s http://127.0.0.1:8099/route -H 'Content-Type: application/json' -d '
-     {"locations": [{"lat": 37.7793, "lon": -122.4193},
-                    {"lat": 37.7955, "lon": -122.3937}],
-      "costing": "pedestrian", "directions_type": "none"}'
-   curl -s http://127.0.0.1:8099/route -H 'Content-Type: application/json' -d '
-     {"locations": [{"lat": 35.6596, "lon": 139.6987},
-                    {"lat": 35.6717, "lon": 139.7032}],
-      "costing": "pedestrian", "directions_type": "none"}'
-   docker stop kizuna-router-check
-   ```
-
-3. From a workstation that can reach both hosts, copy the files to a staging
-   directory on nuc-mini and give them to the runtime user:
-
-   ```sh
-   ssh -p 6768 justin@192.168.1.100 \
-       'tar -C ~/kizuna-router-build/out -cf - \
-          valhalla_tiles.tar admins.sqlite timezones.sqlite' \
-     | ssh -p 6895 justin@192.168.1.6 \
-       'sudo mkdir -p /srv/kizuna-router/staging &&
-        sudo tar -C /srv/kizuna-router/staging -xf - &&
-        sudo chown -R 977:988 /srv/kizuna-router/staging'
-   ```
-
-   On nuc-mini, swap the files into place. The router is stopped only for
-   the rename:
-
-   ```sh
-   cd /opt/docker/kizuna && docker compose stop kizuna-router
-   cd /srv/kizuna-router
-   for f in valhalla_tiles.tar admins.sqlite timezones.sqlite; do
-     sudo mv "staging/$f" "$f"
-   done
-   sudo rmdir staging
-   cd /opt/docker/kizuna && docker compose start kizuna-router
-   ```
-
-   For the first build, extract straight into `/srv/kizuna-router` and skip
-   the swap.
-
-4. Run the checks below, then delete `~/kizuna-router-build` on max.
-
-### Verify the router
-
-```sh
-docker inspect --format '{{.State.Health.Status}}' kizuna-router
-docker exec kizuna-api sh -c 'test -n "$WIDGET_ROUTER_URL"'
-docker exec kizuna-worker sh -c 'test -n "$WIDGET_ROUTER_URL"'
-docker exec kizuna-api curl --fail --silent http://kizuna-router:8002/status
-```
-
-## Geocoder
-
-`kizuna-geocoder` runs [Photon](https://github.com/komoot/photon) 1.x to turn
-PlaceMap addresses into coordinates. The API calls
-`GET /api?q=<address>&limit=1` with a 3 s timeout and one attempt; a blank
-`WIDGET_GEOCODER_URL` in `templates/env/api.env.j2` disables lookups and
-places render as cards without pins. The service joins only the internal
-`backend` network, so it has no egress and no Traefik route.
-
-The image is `ghcr.io/rtuszik/photon-docker`, pinned by tag and digest in
-[defaults](defaults/main.yml). Tag 2.4.0 contains the upstream
-`photon-1.3.0.jar` on a Temurin 21 JRE. Compose runs the jar directly as the
-image's `photon` user (UID/GID 9011); the image's Python process manager,
-which downloads and replaces databases on its own schedule, is not used.
-
-Photon serves a US and Japan database from `/srv/kizuna-geocoder/photon_data`
-on nuc-mini. The directory is outside `/opt/docker`, so Borg does not back it
-up; it is rebuilt from the upstream dump. The role stops before deploying if
-`photon_data` is missing, because Photon cannot build its database at startup
-and the Compose wait would otherwise time out.
-
-The JVM heap is `kizuna_geocoder_java_heap` (2 GB). Embedded OpenSearch reads
-the index through the page cache, outside the heap.
-
-Measured on 2026-10-15 with the 2026-10-10 dump: the import on max processed
-57.6 million documents in 31 minutes, and the database is 15.4 GiB
-(15,800 MiB). On nuc-mini, Photon answered `/status` 7 s after start with a
-resident size of 1.9 GiB. The first lookup of each address took 0.07–0.58 s; repeated
-lookups took 0.02–0.13 s.
-
-Japanese addresses written without spaces match poorly, because Photon does
-not segment Japanese text: `東京都渋谷区道玄坂2-29-1` returns a building in
-Bunkyō, while `東京都 渋谷区 道玄坂 2-29-1` and
-`2-29-1 Dogenzaka, Shibuya, Tokyo` return the correct building.
-
-### Build or refresh the database
-
-Build the database on max, which has the CPU, memory, and disk for the
-import, then copy it to nuc-mini. The dump's major version must match the
-Photon major version in the image: use `photon-dump-planet-1.0-latest`
-with Photon 1.x. Upstream republishes the dump periodically at
-<https://download1.graphhopper.com/public/>. Refresh when addresses are
-missing from lookups or after a Photon major upgrade.
-
-[`files/geocoder_import.sh`](files/geocoder_import.sh) runs the import. It
-fetches the 27 GB compressed dump in ordered 256 MiB range chunks, eight at a
-time, because one connection to the download server can fall to about
-2 MB/s. Each chunk is decompressed, filtered, and deleted in order, so the
-full dump is never stored. `grep` drops lines for other countries before
-Photon parses them; Photon still applies `-country-codes us,jp`.
-`-languages en,ja` stores English and Japanese name translations in addition
-to each place's local name. The script exits non-zero if any stage or chunk
-fetch failed. Discard the data directory and run it again in that case:
-Photon can exit successfully on truncated input, and the dump is sorted by
-country, so a partial database silently lacks `us`.
-
-1. On max, copy the script into a new scratch directory and run it under
-   `tmux` or `nohup` with the image from `kizuna_geocoder_image`. It needs
-   passwordless `sudo` to give the data directory to UID 9011:
-
-   ```sh
-   IMG='ghcr.io/rtuszik/photon-docker:2.4.0@sha256:21549c60f9e6488fff3217e40429a652c4b445f374800333fe32859e47cec293'
-   mkdir ~/kizuna-geocoder-import && cd ~/kizuna-geocoder-import
-   # copy roles/kizuna/files/geocoder_import.sh here
-   ./geocoder_import.sh "$PWD" "$IMG" 2>&1 | tee import.log
-   ```
-
-2. Check the result on max before copying. Start a temporary server on a
-   loopback port and query it:
-
-   ```sh
-   docker run -d --rm --name kizuna-geocoder-check --user 9011:9011 \
-     -p 127.0.0.1:2399:2322 -v "$PWD/data:/photon/data" \
-     --entrypoint java "$IMG" -Xmx2g -jar /photon/photon.jar serve \
-     -data-dir /photon/data -listen-ip 0.0.0.0
-   curl -s http://127.0.0.1:2399/status
-   for q in '1 Dr Carlton B Goodlett Pl, San Francisco' \
-            '東京都 渋谷区 道玄坂 2-29-1' '2-29-1 Dogenzaka, Shibuya, Tokyo'; do
-     curl -s -G --data-urlencode "q=$q" -d limit=1 http://127.0.0.1:2399/api
-     echo
-   done
-   docker stop kizuna-geocoder-check
-   ```
-
-3. Copy the database from max to a staging directory on nuc-mini. max has
-   no SSH key for nuc-mini, so run this from a workstation that can reach
-   both. Both ends run `tar` with `sudo` so the UID 9011 ownership is
-   preserved:
-
-   ```sh
-   ssh -p 6768 justin@192.168.1.100 \
-       'sudo tar -C ~/kizuna-geocoder-import/data -cf - photon_data' \
-     | ssh -p 6895 justin@192.168.1.6 \
-       'sudo mkdir -p /srv/kizuna-geocoder/staging &&
-        sudo tar -C /srv/kizuna-geocoder/staging --numeric-owner -xpf -'
-   ```
-
-   On nuc-mini, swap it into place. The geocoder is stopped only for the
-   rename:
-
-   ```sh
-   cd /opt/docker/kizuna && docker compose stop kizuna-geocoder
-   sudo mv /srv/kizuna-geocoder/photon_data /srv/kizuna-geocoder/photon_data.old
-   sudo mv /srv/kizuna-geocoder/staging/photon_data /srv/kizuna-geocoder/photon_data
-   docker compose start kizuna-geocoder
-   ```
-
-   For the first build, there is no `photon_data` to move aside and no
-   container to stop.
-
-4. Run the checks below, then delete `photon_data.old` and `staging` on
-   nuc-mini and `~/kizuna-geocoder-import` on max with `sudo rm -rf`; the
-   files belong to UID 9011.
-
-### Verify
-
-```sh
-docker inspect --format '{{.State.Health.Status}}' kizuna-geocoder
-docker exec kizuna-api sh -c 'test -n "$WIDGET_GEOCODER_URL"'
-docker exec kizuna-worker sh -c 'test -n "$WIDGET_GEOCODER_URL"'
-docker exec kizuna-chat-worker sh -c 'test -n "$WIDGET_GEOCODER_URL"'
-docker exec kizuna-api curl --fail --silent http://kizuna-geocoder:2322/status
-docker exec kizuna-api curl --fail --silent \
-  'http://kizuna-geocoder:2322/api?q=San+Francisco+City+Hall&limit=1'
-```
+The shared services retain `kizuna-geocoder` and `kizuna-router` as network
+aliases for existing clients. Their US/Japan datasets stay in their original
+`/srv/kizuna-geocoder` and `/srv/kizuna-router` directories. Dawarich's worldwide
+Photon instance remains separate. Follow the [cutover procedure](../photon/README.md#moving-the-services-out-of-kizuna)
+before the first shared-service deployment on an existing host.
 
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
    default-branch pipeline exercises the Komodo completion and revision gates.
 2. Confirm `docker compose ps` reports the API, Postgres, Redis,
-   screenshotter, widget compiler, and geocoder as healthy. Confirm both
-   workers are running.
+   screenshotter, and widget compiler as healthy. Verify the shared Photon
+   and Valhalla stacks separately, then query both from the API. Confirm
+   the workers are running.
 3. Sign in through PocketID. Sign out and back in with the password path as a
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved
