@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Build the shared Photon database from the worldwide Photon JSON
-# dump, keeping only the countries in COUNTRY_CODES. Run it on max (see
-# roles/photon/README.md), not on the serving host.
+# Build a regional Photon database from the worldwide Photon JSON dump.
+# COUNTRY_CODES defaults to US/Japan for recovery of the retired regional
+# index; this helper does not rebuild the shared worldwide index. Run it
+# on max (see roles/photon/README.md), not on the serving host.
 #
 #   geocoder_import.sh <scratch-dir> <photon-image>
 #

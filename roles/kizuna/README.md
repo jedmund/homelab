@@ -224,10 +224,10 @@ The API and workers share these settings through `WIDGET_GEOCODER_URL` and
 `WIDGET_ROUTER_URL`. Both endpoints are private on `backend-internal`.
 
 The shared services retain `kizuna-geocoder` and `kizuna-router` as network
-aliases for existing clients. Their US/Japan datasets stay in their original
-`/srv/kizuna-geocoder` and `/srv/kizuna-router` directories. Dawarich's worldwide
-Photon instance remains separate. Follow the [cutover procedure](../photon/README.md#moving-the-services-out-of-kizuna)
-before the first shared-service deployment on an existing host.
+aliases for existing clients. Photon shares the worldwide `dawarich-photon-data`
+volume with Dawarich's client; Valhalla retains its US/Japan routing data at
+`/srv/kizuna-router`. See the [Photon runbook](../photon/README.md) for the
+consolidation procedure and data refresh requirements.
 
 ## First acceptance pass
 
