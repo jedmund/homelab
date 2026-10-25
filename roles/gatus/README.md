@@ -218,7 +218,7 @@ gatus_discord_hosts_ping: "<@&000000000000000000>"
 ## Deploy
 
 ```sh
-ansible-playbook deploy/gatus.yml
+make deploy-gatus
 ```
 
 ## Notes

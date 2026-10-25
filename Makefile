@@ -88,6 +88,10 @@ deploy-beszel: ## Deploy Beszel monitoring hub
 	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
 
+deploy-gatus: ## Deploy Gatus and its Discord alert relay on nuc-mini
+	@echo "$(BLUE)Deploying Gatus...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gatus.yml $(VAULT_FLAG)
+
 deploy-beszel-agents: ## Deploy Beszel agents on monitored machines
 	@echo "$(BLUE)Deploying Beszel agents...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
