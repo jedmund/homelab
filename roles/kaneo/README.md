@@ -193,11 +193,10 @@ PostgreSQL dumps after `make deploy-backup`.
 
 ## Rollout and rollback
 
-The deployment is pinned to `workflow-40a1e34ac728`, built from the
-reviewed Kaneo Git tree `40a1e34ac728c414d8fcac393f2802007084caf2`.
-No commit or mutable registry tag was published for this deployment. The image
-archive is retained at
-`/opt/docker/kaneo/upgrade/workflow-40a1e34ac728/image.tar` on `nuc-mini`.
+The deployment is pinned to the fork's 2.47.0 merge commit
+`0d8d1eb84e2f8b45625ac80dff0283843543361d`, using the immutable commit-SHA
+image that GitLab CI published for it. The image archive is retained at
+`/opt/docker/kaneo/upgrade/2.47.0-0d8d1eb8/image.tar` on `nuc-mini`.
 The role's `kaneo_pull_policy: missing` preserves that local image on ordinary
 `make deploy-kaneo` runs. For a replacement host, securely transfer the archive
 and run the upgrade playbook's staging phase before deploying the role.
@@ -297,6 +296,39 @@ the GitLab event mappings and reset control. No new database migrations were
 introduced; the migration journal remains at 49 entries. Existing production
 workflow rules were not changed. Workflow controls and synthetic webhook events passed local tests;
 authenticated interaction and real provider events were not exercised on production.
+
+### Upstream 2.47.0 deployment — 2026-10-25
+
+Before this rollout, production ran image
+`sha256:43e03dc61cba08e19592a84a28fab924e21d4941873fb6422135aba603090cdd`
+under the reused `workflow-40a1e34ac728` tag, with 64 migration records (through
+`0063`, the fork's 2.26.0 upgrade). The 2.46.2 upgrade had not been deployed, so
+this rollout applied `0064`–`0068`.
+
+The candidate is GitLab CI's image for merge commit
+`0d8d1eb84e2f8b45625ac80dff0283843543361d` (pipeline 8209), pulled on the NUC and
+saved as the archive. Image ID / registry digest:
+`sha256:bcdcc43c64f779229845c43e6957f76dc2116b00235b92902e4d4aa9af032f8a`.
+
+The staging phase's read-only preflight passed. A rehearsal restored a live dump
+into a disposable database on an internal Docker network and started the
+candidate against it. Migrations went from 64 to 69 records with unchanged
+counts, and the preflight passed again.
+
+The maintenance playbook completed with 43 successful tasks and no failures or
+rollback. Rollback artifacts:
+`/opt/docker/backups/kaneo-2.47.0-0d8d1eb8-20261025T012028/`, with checksums
+verified. Retained rollback tag:
+`kaneo-rollback:2.47.0-0d8d1eb8-20261025T012028`. Application-only rollback is
+not supported after these migrations; restore the matching pre-upgrade backup
+instead.
+
+Verified the running image ID, container and HTTPS health, the post-start
+preflight, 69 migration records and matching counts before and after: 185 tasks,
+5 projects, 6 repositories, 1 SCM connection, 64 external links and 0 sync jobs.
+Startup logged the Redis WebSocket adapter and both schedulers with no errors.
+A browser passed PocketID sign-in and loaded the workspace's Projects page.
+Uploads and real provider sync were not exercised.
 
 ## Object storage
 
