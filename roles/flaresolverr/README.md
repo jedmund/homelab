@@ -43,7 +43,7 @@ make -C deploy flaresolverr
 
 The Python tests require the Ansible environment's PyYAML and Jinja2. Run the
 deployment a second time and confirm no container recreation. Komodo's stack
-uses the existing `Atelier` server; automatic updates are disabled. Docker health
+uses the existing `NUC` server; automatic updates are disabled. Docker health
 and Komodo provide initial monitoring. No Gatus networking is changed.
 
 Verify local `/health`, then the LAN endpoint from `max`, and confirm a client

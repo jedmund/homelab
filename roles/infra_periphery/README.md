@@ -1,9 +1,9 @@
 # infra_periphery
 
 Standalone Komodo Periphery agent for hosts that are not the Komodo Core
-host. Currently deploys to `max`, which four Komodo stacks (`ai`, `vllm`,
-`sglang`, `beszel-agent-max`) depend on via `server = "max"` in
-`komodo/stacks.toml`.
+host. Currently deploys to `max`, the Komodo Server `Workstation`. Five
+Komodo stacks (`infra-periphery`, `beszel-agent-max`, `ai`, `vllm`, `sglang`)
+depend on it via `server = "Workstation"` in `komodo/stacks.toml`.
 
 Core (on `nuc-mini`, see `roles/infra_core`) connects inbound to
 `https://<max>:8120`; UFW scopes 8120 to the core host's IP

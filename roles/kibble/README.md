@@ -76,7 +76,7 @@ make -C deploy kibble
 ```
 
 Use [Komodo Resource Sync](../../komodo/README.md) for the Stack resource.
-Its server is `Atelier`, its resource name is `kibble`, and its directory is
+Its server is `NUC`, its resource name is `kibble`, and its directory is
 `/opt/docker/feederhub`. Application CI uses `KOMODO_KIBBLE_STACK=kibble` along
 with its own Komodo API credentials. Static stack polling and automatic
 updates are disabled; CI can explicitly request a redeployment.
