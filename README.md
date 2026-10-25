@@ -97,7 +97,7 @@ have additional operating instructions:
 | Media | [Multi-Scrobbler](roles/multi_scrobbler/README.md), [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Geospatial | [Photon](roles/photon/README.md), [Valhalla](roles/valhalla/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
-| Infrastructure | [Backup](roles/backup/README.md), [Crash capture on max](roles/crash_capture/README.md), [Docker boot recovery](roles/docker/NOTES.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md), [GitLab Runner on max](roles/development_linux/README.md), [GitLab Runner on mac-mini](roles/development_macos/README.md) |
+| Infrastructure | [Backup](roles/backup/README.md), [Crash capture on max](roles/crash_capture/README.md), [Docker boot recovery](roles/docker/NOTES.md), [fastfetch](roles/fastfetch/README.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md), [GitLab Runner on max](roles/development_linux/README.md), [GitLab Runner on mac-mini](roles/development_macos/README.md) |
 | GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md), [GPU host tools](roles/gpu_tools/README.md), [Model storage](roles/model_storage/README.md) |
 | Agent tooling | [Linux agent tooling](roles/agents_linux/README.md) |
 

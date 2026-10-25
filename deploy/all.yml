@@ -48,6 +48,10 @@
 - import_playbook: beszel_agents.yml
   tags: [monitoring, beszel_agents]
 
+# Host tooling: fastfetch system summary on every compute host
+- import_playbook: fastfetch.yml
+  tags: [fastfetch]
+
 # Gatus uptime and invariant checks (status.atelier.house)
 - import_playbook: gatus.yml
   tags: [monitoring, gatus]
