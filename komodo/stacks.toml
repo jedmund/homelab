@@ -21,10 +21,12 @@ alert_types = [
   "ActionFailed",
   "Custom",
 ]
+# Custom posts the Alert JSON to the Gatus relay on the shared network, which
+# renders it in the same Discord embed format as Gatus alerts.
 [alerter.config.endpoint]
-type = "Discord"
+type = "Custom"
 [alerter.config.endpoint.params]
-url = "[[HOMELAB_DISCORD_WEBHOOK_URL]]"
+url = "http://gatus-relay:8080/komodo"
 
 [[stack]]
 name = "traefik"
