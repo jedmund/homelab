@@ -305,9 +305,10 @@ embedding is on TEI (see Embeddings section below).
   evict it whenever a chat model swaps in. CPU placement sidesteps both,
   and the `cpu` group keeps the llama-server process warm so compaction
   skips the model-load tax on top of slow CPU prompt processing.
-- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`. Runs on the 9955WX with
-  `--threads 12 --threads-batch 12`. Expect ~200 tok/s prompt processing on
-  long inputs, so a 100k-token compaction lands in the 5-8 minute range.
+- **RAM**: ~2.5 GB resident; CPU-only via `-ngl 0`, with
+  `--threads 12 --threads-batch 12`. On the earlier 9955WX it processed
+  prompts at ~200 tok/s on long inputs, so a 100k-token compaction landed in
+  the 5-8 minute range. It has not been re-measured on the 9985WX.
 - **Notes**: Not for interactive chat: its `name`/`alias` is intentionally
   not exposed in OpenWebUI's normal model list (no one would pick it). The
   alias `qwen3:4b` exists so opencode can reach it under a friendly name.
