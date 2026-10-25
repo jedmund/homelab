@@ -31,6 +31,15 @@
         - "{{ beszel_agent_config_base }}/data"
         - "{{ beszel_agent_config_base }}/env"
 
+    - name: Create Beszel extra filesystem markers
+      ansible.builtin.file:
+        path: "{{ item.source }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ beszel_agent_extra_filesystems }}"
+      loop_control:
+        label: "{{ item.name }}"
+
     - name: Deploy Beszel agent environment file
       ansible.builtin.template:
         src: env/beszel-agent.env.j2

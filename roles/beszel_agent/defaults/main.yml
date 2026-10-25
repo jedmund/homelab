@@ -33,11 +33,14 @@ beszel_agent_intel_gpu_device: drm:/dev/dri/card0
 beszel_agent_install_macmon: "{{ gpu_type | default('') == 'apple_silicon' }}"
 
 # Docker agent can monitor additional filesystems by bind-mounting a marker
-# directory from each filesystem into /extra-filesystems.
+# directory from each filesystem into /extra-filesystems. The role creates
+# each source directory. The name is the partition's kernel name (lsblk
+# KNAME), which Beszel uses for I/O stats, optionally followed by
+# __<display name>.
 # Example:
 # beszel_agent_extra_filesystems:
 #   - source: /mnt/media/.beszel
-#     name: media
+#     name: sdb1__Media
 beszel_agent_extra_filesystems: []
 
 beszel_agent_credentials_configured: >-
