@@ -53,8 +53,12 @@ The declarations expect these Komodo Server resource names:
 
 | Inventory host | Komodo Server |
 | --- | --- |
-| `nuc-mini` | `Atelier` |
-| `max` | `max` |
+| `nuc-mini` | `NUC` |
+| `max` | `Workstation` |
+
+Actions also resolve these names when they run, so renaming a Server in
+Komodo requires updating every `server` field and Action `SERVER` constant
+here, then reconciling the Resource Sync.
 
 Deploy the Ansible stack before adding its Komodo resource so the referenced
 host files exist.
@@ -316,7 +320,7 @@ from `kizuna-app` CI. Its configuration restricts deployments to:
 
 | Setting | Value |
 | --- | --- |
-| Server | `Atelier` |
+| Server | `NUC` |
 | Image repository | `registry.atelier.house/kizuna/kizuna-app/storybook` |
 | Host pattern | `storybook-mr-<iid>.review.atelier.house` |
 | Network | `proxy-network` |
@@ -351,7 +355,7 @@ The separate `album-sort-storybook` Action accepts `operation` (`deploy` or
 `destroy`), `target` (`main` or a positive MR IID), and a full lowercase 40-character
 `revision` for deployment. CI cannot destroy main. Registry, host, network, router,
 authentication and image repository are derived inside the Action, never from CI
-arguments. Deployments use the `Atelier` server and `tinyauth@file` on every path.
+arguments. Deployments use the `NUC` server and `tinyauth@file` on every path.
 The main hostname is `music-storybook.review.atelier.house`; MR hosts are
 `music-storybook-mr-<iid>.review.atelier.house`. There are no host ports or
 persistent volumes. Deletion is idempotent and preserves Kizuna resources.
