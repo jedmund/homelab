@@ -6,7 +6,7 @@
 # Exists because nuc-mini, which hosts GitLab itself plus ~50 other
 # stacks, sits near its load ceiling and cannot absorb more concurrent CI
 # without starving those services. max is a Threadripper PRO 9985WX
-# workstation (64 cores / 128 threads, 122 GiB visible RAM) that shares CPU
+# workstation (64 cores / 128 threads, 498 GiB visible RAM) that shares CPU
 # and memory between CI and GPU inference services.
 
 # Stack identity
@@ -43,8 +43,8 @@ gitlab_runner_linux_tags:
 gitlab_runner_linux_run_untagged: true
 
 # Concurrency. Two runner entries share this process: the general pool
-# (max-docker, up to 10 jobs capped at 6 CPUs / 8 GB each) and the large pool
-# (max-docker-large, 2 jobs capped at 12 CPUs / 24 GB each) for suites that
+# (max-docker, up to 14 jobs capped at 6 CPUs / 8 GB each) and the large pool
+# (max-docker-large, 3 jobs capped at 12 CPUs / 24 GB each) for suites that
 # parallelize, such as album-sort's Vitest run. A single 3-CPU job cannot
 # use this host: album-sort's suite took 16-26 minutes across three 3-CPU
 # shards and under 4 minutes in one 16-CPU container.
@@ -56,20 +56,18 @@ gitlab_runner_linux_run_untagged: true
 # Node tools size their workers from the quota (availableParallelism() is
 # the cpus value), so more CPUs reach Vitest and pnpm without per-job flags.
 #
-# The process-wide cap is 12, independent of the pool limits: one Kizuna app
-# pipeline alone runs about ten general jobs. With 2 large jobs, at most 10
-# general jobs can run: 84 CPUs of quota on 128 threads and 128 GB of memory
-# limits on 122 GiB of RAM. Limits are ceilings, not reservations; one full
-# Kizuna app pipeline measured about 36 GiB in use across its jobs. CPU
-# quotas can still contend with inference services at simultaneous peaks.
-# After the 512 GB upgrade, raise gitlab_runner_linux_limit and
-# gitlab_runner_linux_concurrent, and the large pool's limit, rather than
-# per-job caps.
-gitlab_runner_linux_limit: 10
+# The process-wide cap is 17, the sum of the pool limits: one Kizuna app
+# pipeline alone runs about ten general jobs. With every slot busy, jobs hold
+# 120 CPUs of quota on 128 threads and 184 GB of memory limits on 498 GiB of
+# RAM. Since the 2026-10-24 upgrade to 512 GB, CPU quota rather than memory
+# bounds the pools; they stay below the thread count because inference
+# services share the CPU. Limits are ceilings, not reservations; one full
+# Kizuna app pipeline measured about 36 GiB in use across its jobs.
+gitlab_runner_linux_limit: 14
 gitlab_runner_linux_cpus: "6"
 gitlab_runner_linux_memory: 8g
 gitlab_runner_linux_tmpfs_size: 2g
-gitlab_runner_linux_concurrent: 12
+gitlab_runner_linux_concurrent: 17
 
 # Large pool. A separate GitLab runner registration, because tags and the
 # untagged flag belong to the registration, not to config.toml. Tagged-only
@@ -85,7 +83,7 @@ gitlab_runner_linux_large_tags:
   - linux
   - pnpm-cache
 gitlab_runner_linux_large_run_untagged: false
-gitlab_runner_linux_large_limit: 2
+gitlab_runner_linux_large_limit: 3
 gitlab_runner_linux_large_cpus: "12"
 gitlab_runner_linux_large_memory: 24g
 gitlab_runner_linux_large_tmpfs_size: 8g

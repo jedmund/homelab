@@ -19,7 +19,8 @@ choice. The current CI incidents do not, by themselves, demonstrate a need for
 512 GB. The model choices and actual working-set measurements should determine
 that purchase. The [October 15 update](#october-15-update-memory-sizing-for-eight-gpus-and-photon)
 revises this: with eight GPUs waiting for the electrical upgrade, buy 512 GB
-once.
+once. The [October 24 update](#october-24-update-512-gb-installed-and-board-replaced)
+records the installed memory and the replacement motherboard.
 
 ## Hardware and running services
 
@@ -509,6 +510,51 @@ the worldwide JSON dump with `-country-codes us,jp`. The US-only database
 alone is a 10.5 GB download, so the combined database is small enough for
 nuc-mini, with max as the fallback host if lookups there are slow. After a
 512 GB upgrade, a worldwide Photon index on max would fit easily.
+
+## October 24 update: 512 GB installed and board replaced
+
+The 512 GB kit is installed, and the motherboard was replaced at the same time.
+The ASRock board's A0 memory slot was defective, so the host now runs on an
+ASUS Pro WS WRX90E-SAGE SE. Read from max at 18:01 PDT, eight minutes after
+boot:
+
+| Component | Configuration |
+| --- | --- |
+| Motherboard | ASUS Pro WS WRX90E-SAGE SE, BIOS 1317; BMC firmware 2.01 |
+| CPU | AMD Ryzen Threadripper PRO 9985WX, 64 cores / 128 threads |
+| RAM | 512 GB, eight 64 GB Samsung 2Rx4 ECC RDIMMs, one per channel; 498 GiB visible to the OS |
+| Memory identification | Six `M321R8GA0EB2-CJRQK` and two `M321R8GA0EB2-CJRTK`; rated 7200 MT/s, configured at 6400 MT/s |
+| GPU PCI addresses | `21:00.0`, `C1:00.0`, `F1:00.0`; index order unchanged, GPU 1 moved from `D1:00.0` |
+| Storage | 2 TB Samsung 990 PRO for the OS and `/opt/docker` (440 GB free); 4 TB Samsung 990 PRO, ext4 at `/mnt/storage`, formatted October 23 and still empty |
+| Swap and `/dev/shm` | 8 GiB swap file, unused; `/dev/shm` 250 GiB |
+| kdump | Ready, with 4 GiB reserved by the `128G-:4096M` crashkernel band |
+
+The two part-number suffixes indicate that the modules do not all come from one
+production lot. The board trained all eight at 6400 MT/s.
+
+**ECC history.** rasdaemon recorded 2,101 corrected memory errors on the
+ASRock board between October 13 16:44 and October 23 22:54. Most were on
+memory channel 3, with smaller counts on channels 9 and 0. There were no
+uncorrected errors. The October 23 evening boots ran with 32 GB and then
+64 GB, which is consistent with isolating DIMMs or slots. The ASUS board
+has booted eight times since October 24 09:15 with 512 GB each time. No
+corrected errors have been recorded on it, and the EDAC counters were zero
+at 18:01. The [power event record](max-power-events-2026-10.md) reported no
+ECC errors through October 7. These errors began afterwards.
+
+**Repository changes for the new board.** The crash-capture cooling limits
+matched ASRock BMC sensor names (`TEMP_CPU`, `TEMP_DDR5_*`, `CPU_FAN1`). None
+of these exist on the ASUS BMC, so only BMC critical states were being
+checked. The limits now use the ASUS names, and the SEL-flapping sensor
+changed from `CHA_FAN1/WP` to `CHA_FAN4`. See the
+[crash capture runbook](../roles/crash_capture/README.md#bmc-event-log).
+Nothing in vLLM, llama-swap, or SGLang is sized by host RAM. `shm_size`,
+`memlock`, and the VRAM prompt cache are unaffected.
+
+**Not verified.** This record has no evidence of a memory test or burn-in
+of the new kit. One week of uptime under CI and inference load without
+corrected errors would be the first stability checkpoint. The sustained CPU
+and memory stress in step 5 below still applies.
 
 ## Recommended sequence and decision points
 

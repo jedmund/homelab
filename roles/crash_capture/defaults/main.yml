@@ -47,7 +47,8 @@ crash_capture_kernel_args:
 crash_capture_journal_max_use: 8G
 
 # kdump writes filtered vmcores here. -d 31 drops page cache, user, free,
-# and zero pages, which keeps a dump of this 128 GB host to kernel memory.
+# and zero pages, which keeps a dump of this 512 GB host to kernel memory.
+# The crashkernel= range reserves 4 GB on hosts above 128 GB.
 crash_capture_kdump_dir: /var/crash
 crash_capture_kdump_makedumpfile_args: "-c -d 31"
 
@@ -63,12 +64,14 @@ crash_capture_netconsole_log_dir: /var/log/netconsole
 crash_capture_netconsole_senders: "{{ groups['crash_capture'] | map('extract', hostvars, 'ansible_host') | list }}"
 
 # BMC sensors whose events are switched off. Each flap is two event log
-# entries; CHA_FAN1/WP reads 0 RPM at idle and filled the 3,639-entry log
-# within minutes of the June rebuild, after which the BMC stopped recording
-# anything. The sensor keeps reporting readings. The BMC forgets the setting
-# when AC power is removed, so the boot report re-applies it on every boot.
+# entries; on the earlier ASRock board CHA_FAN1/WP read 0 RPM at idle and
+# filled the 3,639-entry log within minutes of the June rebuild, after which
+# the BMC stopped recording anything. On the ASUS board CHA_FAN4 idles at
+# 240-480 RPM against a 240 RPM threshold and flaps the same way. The sensor
+# keeps reporting readings. The BMC forgets the setting when AC power is
+# removed, so the boot report re-applies it on every boot.
 crash_capture_bmc_quiet_sensors:
-  - "CHA_FAN1/WP"
+  - CHA_FAN4
 # Warn when the BMC event log is at least this full.
 crash_capture_bmc_sel_warn_percent: 80
 
@@ -92,19 +95,19 @@ crash_capture_psu_log_interval: 15s
 crash_capture_boot_push_attempts: 20
 crash_capture_report_error_max_length: 900
 
-# Cooling limits, below the BMC's own critical thresholds so a warning comes
-# while there is still headroom: CPU critical is 98C and DDR5 84C. VRM, board,
-# and NIC sensors have no BMC thresholds at all. Fans are the CPU and pump
-# headers; their tach reads 0 for a second at low speed, which the Gatus
-# failure threshold of two runs absorbs.
+# Cooling limits, matched against the ASUS Pro WS WRX90E-SAGE SE BMC's
+# sensor names and set below its upper non-critical thresholds so a warning
+# comes while there is still headroom: CPU 93C, DIMM 81C, LAN 93C, and PCIe
+# slot 90C. The board exposes no VRM temperature. Fans are the CPU and pump
+# headers, whose BMC lower critical is 360 RPM; a tach can read low for a
+# second at idle, which the Gatus failure threshold of two runs absorbs.
 crash_capture_sensor_limits:
-  - { sensor: TEMP_CPU, max: 90 }
-  - { sensor: "TEMP_DDR5_.*", max: 75 }
-  - { sensor: "TEMP_VRM.*", max: 100 }
-  - { sensor: "TEMP_MB_.*", max: 70 }
-  - { sensor: TEMP_LAN, max: 95 }
-  - { sensor: CPU_FAN1, min: 200 }
-  - { sensor: "CPU_FAN2/WP", min: 200 }
+  - { sensor: CPU Package Temp, max: 88 }
+  - { sensor: "DIMM[A-H]1_Temp", max: 75 }
+  - { sensor: LAN Temp, max: 88 }
+  - { sensor: "PCIE0[0-9] Temp", max: 85 }
+  - { sensor: CPU_FAN, min: 200 }
+  - { sensor: "W_PUMP\\+", min: 200 }
   # Corsair PSUs over USB (corsair-psu): <model>_<reading>. The driver
   # reports 70C as the critical temperature for both sensors, and ATX allows
   # the 12V rail to drift 5 percent either way.

@@ -27,9 +27,11 @@ The kernel arguments are appended through `/etc/default/grub.d/90-crash-capture.
 `/etc/default/grub` remains hand managed; see the
 [GPU host runbook](../gpu_tools/README.md).
 
-The firmware publishes no SPCR table, so the role does not know which UART
-the BMC's serial-over-LAN is wired to and uses both. Serial-over-LAN only
-records while a session is attached; nothing records it continuously yet.
+Neither the original ASRock board nor the ASUS Pro WS WRX90E-SAGE SE that
+replaced it on October 24, 2026 publishes an SPCR table, so the role does not
+know which UART the BMC's serial-over-LAN is wired to and uses both.
+Serial-over-LAN only records while a session is attached; nothing records it
+continuously yet.
 
 Lockup panics depend on the kernel noticing the lockup. A freeze that stops
 every CPU, or a hardware fault below the kernel, still ends in a watchdog
@@ -118,12 +120,14 @@ classification, then collect, in this order:
 
 ## BMC event log
 
-The BMC event log holds 3,639 entries and stops recording when full. The
-`CHA_FAN1/WP` header reads 0 RPM at idle and crossed its 200 RPM lower
-threshold every few seconds, which filled the log within minutes of the
-June 1, 2026 rebuild. Nothing was recorded from then until October 6.
+The BMC event log holds 3,639 entries and stops recording when full. On the
+ASRock board, the `CHA_FAN1/WP` header read 0 RPM at idle and crossed its
+200 RPM lower threshold every few seconds, which filled the log within minutes
+of the June 1, 2026 rebuild. Nothing was recorded from then until October 6.
+On the ASUS board, `CHA_FAN4` idles between 240 and 480 RPM against a 240 RPM
+lower threshold and flaps the same way.
 
-Lowering the threshold to 0 does not stop the events: this BMC treats a
+Lowering the threshold to 0 does not stop the events: both BMCs treat a
 reading equal to the threshold as crossing it. The role instead disables
 event messages for each sensor in `crash_capture_bmc_quiet_sensors` (IPMI
 Set Sensor Event Enable). The sensor still reports readings and shows
