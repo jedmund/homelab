@@ -26,10 +26,13 @@ Assignments are defined in [inventory/hosts.yml](inventory/hosts.yml).
 | `nuc-mini` | Gateway, application stacks, GitLab, Komodo Core, backups, Linux agent tooling |
 | `max` | GPU inference, Linux CI runner, emulator streaming, Komodo Periphery |
 | `mac-mini` | Native macOS runner, Paseo daemon, monitoring |
+| `gaming-pc` | CachyOS desktop: Beszel agent and Komodo Periphery only |
 | `dokploy-vm` | Dokploy guest, provisioned separately through `dokploy_host` |
 
 `mac-mini` belongs to `compute_servers` but skips Linux Docker prerequisites.
-The monitoring play still includes it. Inventory membership describes desired
+The monitoring play still includes it. `gaming-pc` also skips prerequisites,
+and the monitoring play skips it because Netdata supports only Debian and
+macOS here; its host setup is manual. Inventory membership describes desired
 placement; it does not report whether a service is running.
 
 ## Common commands

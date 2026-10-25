@@ -101,8 +101,12 @@ make deploy-all
 PocketID, TinyAuth, Line, OpenSpeedTest, ddclient. It stops if one fails.
 
 `deploy-all` follows the imports in [deploy/all.yml](../deploy/all.yml).
-Prerequisites run first. The Linux prerequisites play skips `mac-mini`; the
-separate Netdata play includes all compute hosts. Backup is deployed last.
+Prerequisites run first. The Linux prerequisites play skips `mac-mini` and
+`gaming-pc`; the separate Netdata play includes every Debian and macOS compute
+host. `gaming-pc` is often powered off; then `deploy-all` reports it
+unreachable and exits nonzero after finishing the other hosts. Deploy its
+agents with `make deploy-limit HOST=gaming-pc` while it is on. Backup is
+deployed last.
 Deploying the backup stack does not itself create a backup archive.
 
 For a subset of the full deployment:
