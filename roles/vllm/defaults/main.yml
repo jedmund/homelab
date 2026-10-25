@@ -8,10 +8,14 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 vllm_image: ghcr.io/local-inference-lab/vllm@sha256:60dc178fe69015eb289db12b6183b8d6aec75613e0c659ce7e1f9ba05e8bbed1
 vllm_default_shm_size: "32gb"
 
-# Preserve the existing model download and broad cache mounts. The image
-# puts its runtime/compiler cache in the separate /cache mount below.
+# Preserve the existing broad cache mount. The image puts its
+# runtime/compiler cache in the separate /cache mount below. Model weights
+# use the Hugging Face cache on the model storage drive
+# (roles/model_storage), which ~/.cache/huggingface links to. It is bound
+# with create_host_path disabled, so a model fails to start rather than
+# downloading onto the root volume when the drive is not mounted.
 vllm_cache_root: "/home/{{ ansible_user }}/.cache/deepseek"
-vllm_hf_cache_dir: "/home/{{ ansible_user }}/.cache/huggingface"
+vllm_hf_cache_dir: /mnt/storage/models/huggingface
 vllm_model_cache_dirs:
   # Keep the prior runtime cache available for rollback.
   - "{{ config_base }}/cache/ds4-v20-r15"

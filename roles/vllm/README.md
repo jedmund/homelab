@@ -119,7 +119,7 @@ about 188 GB; reserve additional space for runtime caches:
 ```sh
 ~/.local/bin/hf download local-inference-lab/GLM-5.3-Flash-NVFP4-Spark \
   --revision a608241037e4c2565356bff7ca293f2133888f88 \
-  --cache-dir /home/justin/.cache/huggingface/hub
+  --cache-dir /mnt/storage/models/huggingface/hub
 ```
 
 Both models occupy GPUs 0 and 1. Run only one at a time; do not use
@@ -168,9 +168,11 @@ the monitoring change does not require restarting either model.
 
 ## Storage and networking
 
-The existing mounts remain:
+The mounts are:
 
-- `/home/justin/.cache/huggingface` for model weights.
+- `/mnt/storage/models/huggingface` for model weights, on the
+  [model storage](../model_storage/README.md) drive.
+  `/home/justin/.cache/huggingface` links to it.
 - `/home/justin/.cache/deepseek` for the broader existing cache mount.
 - `/opt/docker/vllm/cache/ds4-karmic-22f3f98b` for the new runtime/compiler cache.
 - `/opt/docker/vllm/cache/ds4-v20-r15` retained for the prior runtime.
