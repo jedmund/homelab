@@ -63,12 +63,10 @@ here, then reconciling the Resource Sync.
 Deploy the Ansible stack before adding its Komodo resource so the referenced
 host files exist.
 
-Before syncing the Alerter, create the secret Komodo variable
-`HOMELAB_DISCORD_WEBHOOK_URL` from `vault_gatus_discord_webhook_url` in the ignored
-`group_vars/gatus/vault.yml`. Mark it secret before supplying the value. Keep
-**Include Variables** disabled: the repository declares the reference, not the
-credential. Rotate the vault value and Komodo variable together when replacing
-the Discord webhook.
+The Alerter posts to the Gatus alert relay rather than to Discord directly, so
+Komodo holds no webhook credential. Deploy the Gatus role before syncing the
+Alerter: the relay must be on the shared network under the `gatus-relay` alias.
+Keep **Include Variables** disabled.
 
 ### GitLab cutover
 
@@ -92,7 +90,12 @@ GitLab webhook separately; switching the Git provider does not create one.
 
 ## Operational alerts
 
-The `homelab-operations` Alerter sends to Gatus's Discord destination. Its explicit
+The `homelab-operations` Alerter is a Custom endpoint that POSTs each alert to
+`http://gatus-relay:8080/komodo`. The [Gatus relay](../roles/gatus/README.md#alerting-to-discord)
+renders it in the same Discord embed format as Gatus alerts: severity title,
+description, `What happened`, and links to the Komodo resource and this
+section. If the relay is down, Komodo logs the failed send and the alert is not
+delivered. Its explicit
 alert-type list applies across this Komodo installation. Stacks must also have
 `send_alerts` enabled; temporary Storybook review stacks keep it disabled.
 

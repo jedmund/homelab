@@ -62,6 +62,13 @@ gatus_discord_hosts_ping: ""
 gatus_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/gatus/README.md"
 gatus_host_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/roles/crash_capture/README.md#gatus-reports"
 
+# Komodo's homelab-operations Alerter posts to the relay's /komodo route at
+# http://<gatus_relay_alias>:8080/komodo over the shared network
+# (komodo/stacks.toml). Its embeds link to the alerted resource in Komodo.
+gatus_relay_alias: gatus-relay
+gatus_komodo_url: "https://ko.atelier.house"
+gatus_komodo_runbook_url: "https://git.atelier.house/jedmund/homelab/-/blob/main/komodo/README.md#operational-alerts"
+
 # The relay runs the repository-versioned script on a pinned official Python
 # image; no image is built. Bump the tag deliberately and redeploy.
 gatus_relay_image: "python:3.12-alpine"
