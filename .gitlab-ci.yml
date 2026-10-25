@@ -34,6 +34,7 @@ plan-validation:
       python3 ci/validation.py plan --base "$base" $full_argument \
         --output ci-results/selection.json --dotenv ci-results/selection.env
       python3 tests/test_validation.py
+      python3 tests/test_gatus_relay.py
       if git cat-file -e "${base}^{commit}" 2>/dev/null \
           && ! git diff --quiet "$base"...HEAD; then
         python3 ci/validation.py fast --base "$base" --report ci-results/fast.json

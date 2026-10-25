@@ -44,16 +44,21 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
-  # Renders Gatus's custom-provider payloads into human Discord embeds and
-  # forwards them to the operations webhook. Joins the proxy network only so
-  # Gatus can reach it; nothing is published. The script is versioned in the
+  # Renders Gatus's custom-provider payloads and Komodo's Custom alerter
+  # payloads into human Discord embeds and forwards them to the operations
+  # webhook. Joins the proxy network so Gatus can reach it and the shared
+  # network, under gatus_relay_alias, so Komodo Core can; nothing is
+  # published. The script is versioned in the
   # repository and mounted read-only, so a script change must recreate the
   # container, which the deployment task handles through its register.
   relay:
     image: {{ gatus_relay_image }}
     restart: {{ restart_policy }}
     networks:
-      - proxy
+      proxy:
+      shared:
+        aliases:
+          - {{ gatus_relay_alias }}
     command: ["python", "/app/relay.py"]
     env_file:
       - ./env/gatus.env
@@ -62,6 +67,8 @@ services:
       GATUS_DASHBOARD_URL: {{ gatus_app_url }}
       GATUS_RUNBOOK_URL: {{ gatus_runbook_url }}
       GATUS_HOST_RUNBOOK_URL: {{ gatus_host_runbook_url }}
+      KOMODO_URL: {{ gatus_komodo_url }}
+      KOMODO_RUNBOOK_URL: {{ gatus_komodo_runbook_url }}
     volumes:
       - ./relay/relay.py:/app/relay.py:ro
     healthcheck:
@@ -79,4 +86,7 @@ services:
 networks:
   proxy:
     name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
     external: true

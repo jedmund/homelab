@@ -192,6 +192,15 @@ message has:
 - `Dashboard` and `Runbook` link fields (host checks link to the
   crash-capture runbook section).
 
+Komodo's `homelab-operations` Alerter posts its alerts to the relay's
+`/komodo` route over the shared network, where the relay answers as
+`gatus-relay` (`gatus_relay_alias`). Those embeds use the same layout. The
+title carries Komodo's severity (`🔴 Critical`, `🟡 Warning`, `🟢 Resolved`)
+and the alerted resource, such as `komodo/Workstation disk`. The link fields
+are `Komodo`, pointing at the resource, and `Runbook`, pointing at the
+[Komodo operational alerts](../../komodo/README.md#operational-alerts) section.
+`tests/test_gatus_relay.py` covers both routes.
+
 The relay is the repository-versioned script in `files/relay.py`, mounted
 read-only into a pinned official Python image (`gatus_relay_image`); nothing
 is built. A script change recreates the relay container on the next deploy.
