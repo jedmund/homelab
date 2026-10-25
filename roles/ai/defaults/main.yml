@@ -38,10 +38,15 @@ llama_swap_log_level: debug
 # headroom for that and any larger future model.
 llama_swap_health_check_timeout: 300
 
+# Host directory for llama-swap GGUFs and TEI model directories, on the
+# model storage drive (roles/model_storage). Containers bind it with
+# create_host_path disabled, so they fail rather than start against an
+# empty directory when the drive is not mounted.
+ai_models_dir: /mnt/storage/models/ai
+
 # Model catalogue
-# Models live in {{ config_base }}/models on the host and are mounted at
-# /models inside the container. Files are downloaded out of band (see
-# roles/ai/README.md). Each entry becomes a llama-swap model with a
+# Models live in ai_models_dir on the host and are mounted at /models inside
+# the container. Files are downloaded out of band (see roles/ai/README.md). Each entry becomes a llama-swap model with a
 # llama-server backend; aliases let OpenWebUI/Ollama clients reach them
 # under familiar names.
 ai_models:

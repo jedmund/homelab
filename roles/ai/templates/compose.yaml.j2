@@ -10,7 +10,11 @@ services:
       - {{ llama_swap_port }}:8080
     volumes:
       - ./config/llama-swap.yaml:/app/config.yaml
-      - ./models:/models
+      - type: bind
+        source: {{ ai_models_dir }}
+        target: /models
+        bind:
+          create_host_path: false
     deploy:
       resources:
         reservations:
@@ -88,7 +92,12 @@ services:
       - {{ tei_port }}:80
     volumes:
       - tei-cache:/data
-      - ./models:/models:ro
+      - type: bind
+        source: {{ ai_models_dir }}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
     command:
       - --model-id={{ tei_model_id }}
       - --max-concurrent-requests={{ tei_max_concurrent_requests }}
@@ -131,7 +140,12 @@ services:
       - {{ tei_jina_port }}:80
     volumes:
       - tei-cache:/data
-      - ./models:/models:ro
+      - type: bind
+        source: {{ ai_models_dir }}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
     command:
       - --model-id={{ tei_jina_model_path }}
       # Explicit: TEI cannot read this model's sentence-transformers config
