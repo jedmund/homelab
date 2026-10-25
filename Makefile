@@ -96,6 +96,10 @@ deploy-beszel-agents: ## Deploy Beszel agents on monitored machines
 	@echo "$(BLUE)Deploying Beszel agents...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
 
+deploy-fastfetch: ## Install fastfetch on every compute host
+	@echo "$(BLUE)Installing fastfetch...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/fastfetch.yml $(VAULT_FLAG)
+
 deploy-monitoring: ## Deploy Beszel hub and agents
 	@echo "$(BLUE)Deploying monitoring stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
