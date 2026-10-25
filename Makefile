@@ -74,7 +74,7 @@ deploy-infra-core: ## Deploy infrastructure core (Komodo, MongoDB)
 	@echo "$(BLUE)Deploying infrastructure core...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_core.yml $(VAULT_FLAG)
 
-deploy-infra-periphery: ## Deploy Komodo Periphery agents (max, gaming-pc)
+deploy-infra-periphery: ## Deploy Komodo Periphery agents (max, gaming-pc, mac-mini)
 	@echo "$(BLUE)Deploying Komodo Periphery agent...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_periphery.yml $(VAULT_FLAG)
 
