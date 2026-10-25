@@ -7,6 +7,12 @@ outages through October 7, 2026, what was ruled out, and the instruments
 added to catch the next one. Procedures live in the
 [crash capture runbook](../roles/crash_capture/README.md).
 
+> **October 24, 2026.** Corrected ECC errors began on October 13, after this
+> record was written. The ASRock board's A0 memory slot was found defective,
+> and the board was replaced with an ASUS Pro WS WRX90E-SAGE SE. The
+> [hardware report update](max-hardware-and-inference-report-2026-10-11.md#october-24-update-512-gb-installed-and-board-replaced)
+> covers the replacement and the new 512 GB configuration.
+
 ## Events
 
 | Time (PDT) | Uptime before | Load at the time | Found in |
