@@ -1,43 +1,103 @@
 ---
-# Komodo Periphery agent (non-core hosts)
+# Komodo Periphery agent (non-core hosts). Linux hosts run the container;
+# macOS hosts run the native binary under a LaunchAgent.
 
-- name: Create {{ stack_name }} directories
-  file:
-    path: "{{ item }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    mode: '0755'
-  loop:
-    - "{{ config_base }}"
-    - "{{ config_base }}/env"
-    - "{{ periphery_root_directory }}"
+- name: Deploy Periphery container on Linux hosts
+  become: true
+  when: ansible_facts['os_family'] != 'Darwin'
+  block:
+    - name: Create {{ stack_name }} directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - "{{ config_base }}"
+        - "{{ config_base }}/env"
+        - "{{ periphery_root_directory }}"
 
-- name: Deploy compose file
-  template:
-    src: compose.yaml.j2
-    dest: "{{ config_base }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    - name: Deploy compose file
+      template:
+        src: compose.yaml.j2
+        dest: "{{ config_base }}/compose.yaml"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
 
-- name: Deploy environment files
-  template:
-    src: "env/{{ item }}.env.j2"
-    dest: "{{ config_base }}/env/{{ item }}.env"
-    owner: "{{ ansible_user }}"
-    mode: '0600'
-  loop:
-    - periphery
-  no_log: true
-  register: infra_periphery_deploy_environment_files
+    - name: Deploy environment files
+      template:
+        src: "env/{{ item }}.env.j2"
+        dest: "{{ config_base }}/env/{{ item }}.env"
+        owner: "{{ ansible_user }}"
+        mode: '0600'
+      loop:
+        - periphery
+      no_log: true
+      register: infra_periphery_deploy_environment_files
 
-- name: Deploy {{ stack_name }} stack
-  community.docker.docker_compose_v2:
-    project_src: "{{ config_base }}"
-    state: present
-    remove_orphans: true
-    pull: "{{ docker_pull_policy | default('missing') }}"
-    recreate: >-
-      {{ 'always' if
-         (infra_periphery_deploy_environment_files.changed | default(false))
-         else 'auto' }}
-  register: compose_result
+    - name: Deploy {{ stack_name }} stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ config_base }}"
+        state: present
+        remove_orphans: true
+        pull: "{{ docker_pull_policy | default('missing') }}"
+        recreate: >-
+          {{ 'always' if
+             (infra_periphery_deploy_environment_files.changed | default(false))
+             else 'auto' }}
+      register: compose_result
+
+- name: Deploy Periphery LaunchAgent on macOS hosts
+  when: ansible_facts['os_family'] == 'Darwin'
+  block:
+    - name: Install OpenSSL 3 for Periphery certificate generation
+      community.general.homebrew:
+        name: openssl@3
+        state: present
+
+    - name: Create Periphery directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+        - "{{ periphery_macos_root_directory }}"
+        - "{{ periphery_macos_root_directory }}/bin"
+
+    - name: Ensure LaunchAgents and log directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_user_dir }}/Library/LaunchAgents"
+        - "{{ periphery_macos_log_dir }}"
+
+    # The versioned file name makes a tag bump download a new binary and
+    # restart the agent.
+    - name: Download Periphery {{ komodo_periphery_image_tag }} for macOS
+      ansible.builtin.get_url:
+        url: "{{ periphery_macos_binary_url }}"
+        dest: "{{ periphery_macos_binary }}"
+        mode: '0755'
+      notify: Reload Komodo Periphery LaunchAgent
+
+    # The plist carries the passkey, so it is private to the user.
+    - name: Deploy Periphery LaunchAgent plist
+      ansible.builtin.template:
+        src: launchd.plist.j2
+        dest: "{{ periphery_macos_launchd_plist }}"
+        mode: '0600'
+      no_log: true
+      notify: Reload Komodo Periphery LaunchAgent
+
+    # bootstrap fails when the label is already loaded, so check first. The
+    # handler re-bootstraps on change.
+    - name: Ensure Periphery LaunchAgent is loaded
+      ansible.builtin.shell: |
+        if ! launchctl print gui/$(id -u)/{{ periphery_macos_launchd_label }} >/dev/null 2>&1; then
+          launchctl bootstrap gui/$(id -u) {{ periphery_macos_launchd_plist }}
+          echo "loaded"
+        fi
+      register: infra_periphery_launchd_state
+      changed_when: "'loaded' in infra_periphery_launchd_state.stdout"

@@ -25,4 +25,24 @@ periphery_include_disk_mounts: /etc/hostname
 periphery_logging_pretty: "false"
 periphery_pretty_startup_config: "false"
 
+# macOS hosts run the native periphery-apple release binary under a user
+# LaunchAgent instead of the container, so stats describe the Mac rather
+# than a Docker VM. The binary is pinned to the same version as the image.
+periphery_macos_root_directory: "{{ ansible_user_dir }}/.komodo"
+periphery_macos_binary_url: >-
+  https://github.com/moghtech/komodo/releases/download/v{{ komodo_periphery_image_tag }}/periphery-apple
+periphery_macos_binary: "{{ periphery_macos_root_directory }}/bin/periphery-{{ komodo_periphery_image_tag }}"
+periphery_macos_launchd_label: house.atelier.komodo-periphery
+periphery_macos_launchd_plist: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ periphery_macos_launchd_label }}.plist"
+periphery_macos_log_dir: "{{ ansible_user_dir }}/Library/Logs"
+# The data volume holds everything writable; / is the sealed system snapshot.
+periphery_macos_include_disk_mounts: /System/Volumes/Data
+# Colima's socket; Periphery logs a container stats error every poll
+# without one.
+periphery_macos_docker_host: "unix://{{ ansible_user_dir }}/.colima/default/docker.sock"
+# Periphery generates its TLS certificate with the first openssl on PATH.
+# macOS's LibreSSL produces an X.509 v1 certificate that Periphery's own TLS
+# stack rejects, and the agent exits, so Homebrew OpenSSL 3 goes first.
+periphery_macos_openssl_bin: /opt/homebrew/opt/openssl@3/bin
+
 # komodo_passkey - defined in vault (must equal infra_core's komodo_passkey)
