@@ -1,4 +1,12 @@
 ---
+# Netdata is only installed on Debian and macOS. Other compute hosts
+# (gaming-pc runs CachyOS) would fall through to the macOS config paths.
+# tags: always keeps the guard active under tag-filtered runs.
+- name: Skip Netdata on unsupported OS families
+  ansible.builtin.meta: end_host
+  when: ansible_facts['os_family'] not in ['Debian', 'Darwin']
+  tags: always
+
 - name: Install Netdata (Debian/Ubuntu)
   when: ansible_facts['os_family'] == 'Debian'
   become: true
