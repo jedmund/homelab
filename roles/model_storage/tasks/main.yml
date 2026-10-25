@@ -1,0 +1,38 @@
+---
+- name: Require the model storage partition
+  ansible.builtin.assert:
+    that: model_storage_mount_src | length > 0
+    fail_msg: Set model_storage_mount_src for {{ inventory_hostname }} in inventory.
+    quiet: true
+
+- name: Mount the model storage filesystem
+  ansible.posix.mount:
+    path: "{{ model_storage_mount_path }}"
+    src: "{{ model_storage_mount_src }}"
+    fstype: "{{ model_storage_mount_fstype }}"
+    opts: "{{ model_storage_mount_opts }}"
+    dump: '0'
+    passno: '2'
+    state: mounted
+
+- name: Refuse to place models on an unmounted filesystem
+  ansible.builtin.command: mountpoint -q {{ model_storage_mount_path }}
+  changed_when: false
+
+- name: Create model storage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop: "{{ [model_storage_root] + model_storage_dirs }}"
+
+- name: Link the default Hugging Face cache to model storage
+  ansible.builtin.file:
+    src: "{{ model_storage_root }}/huggingface"
+    path: "{{ model_storage_hf_home }}"
+    state: link
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  tags: [model_storage_hf_link]
