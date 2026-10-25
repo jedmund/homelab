@@ -20,7 +20,7 @@ Ansible role name. The `update-plex` Action is a documented exception: it
 redeploys the Ansible-rendered Plex stack on registry digest changes, while
 the stack resource itself keeps both settings disabled.
 
-Core and both Periphery agents are pinned to 2.3.3. Komodo 2.3 paginates resource
+Core and every Periphery agent are pinned to 2.3.3. Komodo 2.3 paginates resource
 list APIs. Actions that need the complete stack list must pass `limit: 0`;
 otherwise reporting and review-app lookup can omit stacks after the first page.
 MongoDB is separately pinned to 8.3.11 so a Komodo deployment does not advance
@@ -55,6 +55,7 @@ The declarations expect these Komodo Server resource names:
 | --- | --- |
 | `nuc-mini` | `NUC` |
 | `max` | `Workstation` |
+| `gaming-pc` | `Gaming PC` |
 
 Actions also resolve these names when they run, so renaming a Server in
 Komodo requires updating every `server` field and Action `SERVER` constant
@@ -179,7 +180,9 @@ The excluded stacks are `line`, `musicbrainz`, `album-sort`, `strudel`, `gitlab`
 `vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, and `sglang`.
 They use local builds, private registry paths without the shared Komodo
 credential, externally merged Compose files, or inactive profiles that make a
-whole-stack registry check unreliable. Kizuna is included because Periphery has
+whole-stack registry check unreliable. `infra-periphery-gaming-pc` and
+`beszel-agent-gaming-pc` are also excluded because that host is often powered
+off, which the report would count as a lookup failure. Kizuna is included because Periphery has
 its dedicated registry credential. Recheck every proposed tag during the first
 rollout preview and remove any tag whose live registry query does not succeed.
 

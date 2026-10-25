@@ -129,6 +129,23 @@ file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# gaming-pc is a desktop that is often off or booted into Windows, so its
+# stacks do not alert on state changes and stay out of the Monday
+# update-monitor digest check, which reports an unreachable server as a
+# failure.
+[[stack]]
+name = "infra-periphery-gaming-pc"
+description = "Komodo Periphery agent on gaming-pc"
+tags = ["homelab", "ansible", "gaming-pc", "infrastructure"]
+[stack.config]
+server = "Gaming PC"
+files_on_host = true
+run_directory = "/opt/docker/infra-periphery"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+send_alerts = false
+
 [[stack]]
 name = "beszel"
 description = "Beszel monitoring hub"
@@ -744,6 +761,21 @@ run_directory = "/opt/docker/beszel-agent"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+# Alerts and update-monitor off for the same reason as
+# infra-periphery-gaming-pc.
+[[stack]]
+name = "beszel-agent-gaming-pc"
+description = "Beszel Docker agent on gaming-pc"
+tags = ["homelab", "ansible", "gaming-pc", "monitoring"]
+[stack.config]
+server = "Gaming PC"
+files_on_host = true
+run_directory = "/opt/docker/beszel-agent"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+send_alerts = false
 
 [[stack]]
 name = "ai"
