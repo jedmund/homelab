@@ -6,6 +6,11 @@
 external_url '{{ gitlab_root_url }}'
 registry_external_url '{{ gitlab_registry_url }}'
 
+# Preserve filesystem metadata for the scheduled offline garbage collector.
+# The default 'prefer' mode rejects offline GC even when the running registry
+# falls back to filesystem metadata.
+registry['database'] = { 'enabled' => false }
+
 # Traefik terminates TLS; GitLab speaks plain HTTP behind it.
 nginx['listen_https'] = false
 nginx['listen_port'] = {{ gitlab_web_port }}

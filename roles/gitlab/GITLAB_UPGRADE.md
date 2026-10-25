@@ -450,6 +450,24 @@ All three runners must be online on the intended version. Treat a null
 reads online. GitLab only rewrites `contacted_at` every 40 to 55 minutes, so a
 frozen timestamp is not by itself a fault.
 
+## Registry garbage collection
+
+The managed `gitlab.rb` explicitly sets `registry['database']['enabled']` to
+`false` because this deployment uses filesystem metadata and schedules offline
+garbage collection. GitLab's default `prefer` mode can serve filesystem metadata
+while the offline collector rejects that configuration before scanning any data.
+See [metadata backend selection](https://docs.gitlab.com/administration/packages/container_registry_metadata_database/#prefer-mode).
+
+The weekly `gitlab-ctl registry-garbage-collect -m` job removes untagged manifests
+and unreferenced blobs after tag expiration. It stops the registry during the
+scan, so pushes and pulls fail for that window. After an authorized deployment,
+verify `database.enabled: false` in `/var/opt/gitlab/registry/config.yml` inside
+the GitLab container, registry health, and a successful scheduled collection.
+
+A future metadata-database migration must replace this explicit filesystem
+setting and retire the offline GC job in favor of online garbage collection.
+Do not disable a metadata database that already holds registry data.
+
 ## macOS Local Network permission on the Xcode runner
 
 Runner 2 runs from a user LaunchAgent on `mac-mini`, so it is subject to the
