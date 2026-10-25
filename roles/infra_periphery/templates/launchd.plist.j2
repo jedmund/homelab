@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- {{ ansible_managed }} -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{ periphery_macos_launchd_label }}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ periphery_macos_binary }}</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{ periphery_macos_openssl_bin }}:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>{{ ansible_user_dir }}</string>
+    <key>DOCKER_HOST</key>
+    <string>{{ periphery_macos_docker_host }}</string>
+    <key>PERIPHERY_PORT</key>
+    <string>{{ periphery_port }}</string>
+    <key>PERIPHERY_ROOT_DIRECTORY</key>
+    <string>{{ periphery_macos_root_directory }}</string>
+    <key>PERIPHERY_DISABLE_TERMINALS</key>
+    <string>{{ periphery_disable_terminals }}</string>
+    <key>PERIPHERY_SSL_ENABLED</key>
+    <string>{{ periphery_ssl_enabled }}</string>
+    <key>PERIPHERY_INCLUDE_DISK_MOUNTS</key>
+    <string>{{ periphery_macos_include_disk_mounts }}</string>
+    <key>PERIPHERY_LOGGING_PRETTY</key>
+    <string>{{ periphery_logging_pretty }}</string>
+    <key>PERIPHERY_LOGGING_ANSI</key>
+    <string>false</string>
+    <key>PERIPHERY_PRETTY_STARTUP_CONFIG</key>
+    <string>{{ periphery_pretty_startup_config }}</string>
+{% if komodo_passkey is defined %}
+    <key>PERIPHERY_PASSKEYS</key>
+    <string>{{ komodo_passkey | e }}</string>
+{% endif %}
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>{{ periphery_macos_log_dir }}/komodo-periphery.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{ periphery_macos_log_dir }}/komodo-periphery.err.log</string>
+</dict>
+</plist>

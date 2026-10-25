@@ -1,0 +1,6 @@
+---
+- name: Reload Komodo Periphery LaunchAgent
+  ansible.builtin.shell: |
+    launchctl bootout gui/$(id -u) {{ periphery_macos_launchd_plist }} 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) {{ periphery_macos_launchd_plist }}
+  changed_when: true
