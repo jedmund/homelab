@@ -1,6 +1,6 @@
 ---
 # AI Stack - llama-swap (OpenAI-compatible proxy in front of llama.cpp).
-# Models are downloaded out of band into {{ config_base }}/models; see
+# Models are downloaded out of band into ai_models_dir; see
 # roles/ai/README.md for the model URLs and pull commands.
 
 - name: Create {{ stack_name }} directories
@@ -13,7 +13,17 @@
     - "{{ config_base }}"
     - "{{ config_base }}/config"
     - "{{ config_base }}/config/searxng"
-    - "{{ config_base }}/models"
+
+- name: Check the model directory
+  ansible.builtin.stat:
+    path: "{{ ai_models_dir }}"
+  register: _ai_models_dir
+
+- name: Require the model directory
+  ansible.builtin.assert:
+    that: _ai_models_dir.stat.isdir | default(false)
+    fail_msg: "{{ ai_models_dir }} is missing; deploy roles/model_storage and check its mount."
+    quiet: true
 
 # In shared mode llama-swap claims GPUs 0,1,2; any running vLLM (or
 # SGLang) containers pinned to 0,1 would contend for the Max-Q pair.

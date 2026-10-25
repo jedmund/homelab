@@ -1,0 +1,24 @@
+---
+# Model storage on max's second NVMe (Samsung 990 PRO 4TB). Model weights
+# are large and re-downloadable, so they live off the root volume, which
+# keeps a new checkpoint from filling the disk Docker and CI depend on.
+
+# The partition UUID is host-specific and set in inventory.
+model_storage_mount_src: ""
+model_storage_mount_path: /mnt/storage
+model_storage_mount_fstype: ext4
+# nofail lets the host boot without the drive. Model containers then refuse
+# to start because their bind sources are missing; see the role README.
+model_storage_mount_opts: defaults,noatime,nofail,x-systemd.device-timeout=10
+
+model_storage_root: "{{ model_storage_mount_path }}/models"
+model_storage_dirs:
+  # llama-swap GGUFs and TEI model directories (roles/ai ai_models_dir).
+  - "{{ model_storage_root }}/ai"
+  # Hugging Face cache used by vLLM (roles/vllm vllm_hf_cache_dir).
+  - "{{ model_storage_root }}/huggingface"
+
+# Point the default Hugging Face cache at the drive so hand-run
+# `hf download` commands land there too. Tagged model_storage_hf_link so a
+# migration can create the directories before the old cache is moved aside.
+model_storage_hf_home: "/home/{{ ansible_user }}/.cache/huggingface"

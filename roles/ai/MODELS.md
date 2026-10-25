@@ -1,7 +1,7 @@
 # Models
 
-Reference for the GGUFs installed on `max` under `/opt/docker/ai/models/` and
-served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
+Reference for the GGUFs installed on `max` under `/mnt/storage/models/ai/`
+([model storage](../model_storage/README.md)) and served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
 list in `roles/ai/defaults/main.yml` references each file by name; keep this
 document and that list in sync when adding or removing a model.
 
@@ -199,7 +199,7 @@ second costs disk only.
   `/mnt/files/HuggingHack/openai/gpt-oss-20b`. The snapshot is already
   natively MXFP4-quantized; convert it to GGUF without an additional weight
   quantization step:
-  `python3 convert_hf_to_gguf.py /mnt/files/HuggingHack/openai/gpt-oss-20b --outfile /opt/docker/ai/models/gpt-oss-20b-mxfp4.gguf --outtype auto`
+  `python3 convert_hf_to_gguf.py /mnt/files/HuggingHack/openai/gpt-oss-20b --outfile /mnt/storage/models/ai/gpt-oss-20b-mxfp4.gguf --outtype auto`
 - **Why**: OpenAI's open-weight 20B MoE (~3.6B active per token) gives a
   lower-latency GPT-OSS option than the 120B entry while fitting easily on
   the single GPU used by split mode. It is in the `chat` group and is

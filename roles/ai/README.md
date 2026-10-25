@@ -68,8 +68,8 @@ non-exclusive `ocr` group, so it loads on demand without displacing chat or
 embedding models. Install the community llama.cpp conversion before deploy:
 
 ```sh
-mkdir -p /opt/docker/ai/models/Unlimited-OCR
-cd /opt/docker/ai/models/Unlimited-OCR
+mkdir -p /mnt/storage/models/ai/Unlimited-OCR
+cd /mnt/storage/models/ai/Unlimited-OCR
 hf download sahilchachra/Unlimited-OCR-GGUF Unlimited-OCR-BF16.gguf mmproj-Unlimited-OCR-F16.gguf --local-dir .
 ```
 

@@ -4,4 +4,6 @@
   become: true
 
   roles:
+    - role: model_storage
+      tags: [model_storage]
     - vllm

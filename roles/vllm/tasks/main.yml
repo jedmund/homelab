@@ -16,7 +16,17 @@
     mode: '0755'
   loop:
     - "{{ vllm_cache_root }}"
-    - "{{ vllm_hf_cache_dir }}"
+
+- name: Check the Hugging Face model cache
+  ansible.builtin.stat:
+    path: "{{ vllm_hf_cache_dir }}"
+  register: _vllm_hf_cache_dir
+
+- name: Require the Hugging Face model cache
+  ansible.builtin.assert:
+    that: _vllm_hf_cache_dir.stat.isdir | default(false)
+    fail_msg: "{{ vllm_hf_cache_dir }} is missing; deploy roles/model_storage and check its mount."
+    quiet: true
 
 # Launcher-style images write JIT caches and scratch into their own
 # bind-mounted directories. Docker creates missing bind-mount sources

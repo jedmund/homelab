@@ -36,7 +36,11 @@ services:
       # download is reused across compose recreates. The HF cache is
       # mounted second so it overlays the broader /root/.cache mount.
       - {{ vllm_cache_root }}:/root/.cache
-      - {{ vllm_hf_cache_dir }}:/root/.cache/huggingface
+      - type: bind
+        source: {{ vllm_hf_cache_dir }}
+        target: /root/.cache/huggingface
+        bind:
+          create_host_path: false
       - /dev/shm:/dev/shm
 {% for vol in m.extra_volumes | default([]) %}
       - {{ vol }}
