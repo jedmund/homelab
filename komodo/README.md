@@ -56,6 +56,7 @@ The declarations expect these Komodo Server resource names:
 | `nuc-mini` | `NUC` |
 | `max` | `Workstation` |
 | `gaming-pc` | `Gaming PC` |
+| `mac-mini` | `Mac mini` |
 
 Actions also resolve these names when they run, so renaming a Server in
 Komodo requires updating every `server` field and Action `SERVER` constant

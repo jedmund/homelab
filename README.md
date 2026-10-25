@@ -25,7 +25,7 @@ Assignments are defined in [inventory/hosts.yml](inventory/hosts.yml).
 | --- | --- |
 | `nuc-mini` | Gateway, application stacks, GitLab, Komodo Core, backups, Linux agent tooling |
 | `max` | GPU inference, Linux CI runner, emulator streaming, Komodo Periphery |
-| `mac-mini` | Native macOS runner, Paseo daemon, monitoring |
+| `mac-mini` | Native macOS runner, Paseo daemon, monitoring, Komodo Periphery |
 | `gaming-pc` | CachyOS desktop: Beszel agent and Komodo Periphery only |
 | `dokploy-vm` | Dokploy guest, provisioned separately through `dokploy_host` |
 
