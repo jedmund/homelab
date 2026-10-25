@@ -88,6 +88,24 @@ Extension provisioning can be skipped with `-e degoog_manage_extensions=false`.
 The migration always skips it. Changing the transport through normal provisioning
 retains its existing settings-password authentication and restart behavior.
 
+## Consumers
+
+Open WebUI uses Degoog for web search through its SearXNG engine, at
+`http://degoog:4444/api/search?q=<query>&format=json` on `proxy-network`
+(`open_webui_searxng_query_url` in `roles/open_webui/defaults/main.yml`).
+It reads only the `url`, `title`, `content`, and `score` fields of
+Degoog's native results, so Degoog's SearX compatibility setting is not
+required. Renaming the `degoog` container or removing it from
+`proxy-network` breaks Open WebUI search.
+
+Open WebUI keeps the query URL in its database after first boot, and the
+saved value overrides the environment. Change or revert it under
+Admin Panel > Settings > Web Search. To check the path Open WebUI uses:
+
+```sh
+docker exec open_webui python3 -c "import json,urllib.request; print(len(json.load(urllib.request.urlopen('http://degoog:4444/api/search?q=test&format=json', timeout=60))['results']))"
+```
+
 ## Release upgrades
 
 `degoog_image` pins a release by its multi-arch index digest. Routine

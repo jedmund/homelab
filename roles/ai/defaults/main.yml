@@ -426,7 +426,7 @@ kokoro_port: 8880
 # af_sky | af_bella | af_nicole | am_adam | am_michael | bf_emma | bf_isabella
 kokoro_default_voice: af_sky
 
-# SearXNG (metasearch, fronts web search for OpenWebUI's RAG)
+# SearXNG (metasearch for Kizuna and n8n; Open WebUI uses Degoog)
 # https://github.com/searxng/searxng
 searxng_image: docker.io/searxng/searxng:latest
 searxng_port: 8889

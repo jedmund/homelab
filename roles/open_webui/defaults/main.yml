@@ -26,15 +26,21 @@ open_webui_oauth_provider_name: PocketID
 open_webui_oidc_provider_url: "https://id.atelier.house/.well-known/openid-configuration"
 open_webui_oauth_scopes: "openid email profile"
 
-# Voice + web-search wiring for OpenWebUI. Services run in the `ai` stack
-# on max; keep these ports in sync with roles/ai/defaults/main.yml.
+# Voice wiring for OpenWebUI. Services run in the `ai` stack on max; keep
+# these ports in sync with roles/ai/defaults/main.yml.
 open_webui_whisper_port: 9000
 open_webui_kokoro_port: 8880
-open_webui_searxng_port: 8889
 open_webui_audio_stt_base_url: "http://{{ max_server_ip }}:{{ open_webui_whisper_port }}/v1"
 open_webui_audio_tts_base_url: "http://{{ max_server_ip }}:{{ open_webui_kokoro_port }}/v1"
 open_webui_audio_tts_voice: af_sky
-open_webui_searxng_query_url: "http://{{ max_server_ip }}:{{ open_webui_searxng_port }}/search?q=<query>&format=json"
+
+# Web search uses Degoog (roles/degoog) through Open WebUI's SearXNG engine.
+# Degoog's /api/search?format=json results carry the url, title, content,
+# and score fields that engine reads. Both containers share proxy-network on
+# nuc-mini, so this skips Traefik and TinyAuth. Open WebUI stores the URL in
+# its database after first boot, and the saved value wins over this env
+# value: change it under Admin Panel > Settings > Web Search as well.
+open_webui_searxng_query_url: "http://degoog:4444/api/search?q=<query>&format=json"
 
 # Playwright sidecar in the ai stack on max.
 open_webui_playwright_port: 3000
