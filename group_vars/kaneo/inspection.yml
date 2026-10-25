@@ -1,7 +1,8 @@
 ---
 # Updated deliberately after smoke testing; record resolved digests in each deployment backup.
 kaneo_image: registry.atelier.house/jedmund/kaneo
-kaneo_image_tag: inspection
+# The application image is pinned to the 2.47.0 merge commit; see roles/kaneo/README.md.
+kaneo_image_tag: 0d8d1eb84e2f8b45625ac80dff0283843543361d
 kaneo_agent_inspections_enabled: true
 kaneo_inspection_adapter_image: registry.atelier.house/jedmund/kaneo/inspection-adapter:inspection
 kaneo_inspection_paseo_image: registry.atelier.house/jedmund/kaneo/inspection-paseo@sha256:6ed8de987afdc2d7610460bd8d861fea8da7da2a852b0913f8a12528081d1089
