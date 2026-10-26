@@ -1,8 +1,44 @@
 # Vane
 
-Vane runs on `nuc-mini` using the existing `utilities_vane-data` volume.
+Vane is parked on `nuc-mini` using the existing `utilities_vane-data` volume.
 Its private image is built by the Vane GitLab project. The role preserves
 PocketID OIDC configuration and the shared session secret.
+
+## Parked deployment
+
+`vane_enabled: false` is the default. The role renders the preserved service
+behind the `vane` Compose profile with `restart: "no"` and
+`traefik.enable: "false"`, stops its existing container, and disables that
+container's restart policy. It retains the image, environment file, PocketID
+client, session secret, data volume, saved settings, and application data.
+Routine Ansible deployments keep it stopped. A first deployment while disabled
+does not create the application container.
+
+The Komodo Stack remains registered for recovery with automatic pulls and
+alerts disabled, the stopped service ignored for status, and `--no-start` for
+deployment requests. Default Compose commands also exclude the parked profile.
+The Vane availability check is removed from Gatus. The exact
+`vane.atelier.house` DNS address record is removed separately in Cloudflare;
+DDClient does not manage or recreate that hostname. Local wildcard DNS may
+still resolve the name, but Traefik must not route it to Vane.
+
+Apply the parked state with `make deploy-vane`. Verify the existing container
+is stopped, its restart policy is `no`, `utilities_vane-data` still exists,
+and the Vane host no longer has an application route. Do not run Compose
+`down`, remove the container, or delete the volume to park it.
+
+To re-enable:
+
+1. Restore the exact DNS record for `vane.atelier.house` and restore its Gatus
+   check if availability monitoring is wanted.
+2. Set `vane_enabled: true` in the deployment variables and run
+   `make deploy-vane`. This restores the configured restart policy and Docker
+   routing labels; the existing external data volume is reused.
+3. Remove `--no-start` and the parked status overrides from the Komodo Stack
+   declaration and synchronize them before resuming CI-triggered deployments.
+4. Verify PocketID sign-in and saved application settings before use.
+
+The historical Degoog cutover below applies when Vane is enabled.
 
 ## Web search through Degoog
 
@@ -14,7 +50,7 @@ See the [Degoog runbook](../degoog/README.md).
 
 After the change is merged:
 
-1. Run `make deploy-vane` to update `SEARXNG_API_URL` and recreate Vane.
+1. With `vane_enabled: true`, run `make deploy-vane` to update `SEARXNG_API_URL` and recreate Vane.
 2. Sign in as a Vane administrator and open Settings → Search. Set **SearXNG URL** to
    `http://degoog:4444/api` and save. Existing installations must perform this
    step: the environment only seeds an empty `search.searxngURL` in

@@ -3,6 +3,9 @@
 stack_name: vane
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
+# Parked by default; retain the existing container, volume, and credentials.
+vane_enabled: false
+
 # Vane (https://github.com/ItzCrazyKns/Vane, jedmund/Vane fork with OIDC)
 # Self-hosted Perplexity-style AI answering engine.
 #
