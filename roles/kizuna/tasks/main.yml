@@ -194,9 +194,7 @@
     DOCKER_CONFIG: "{{ kizuna_registry_config_path | dirname }}"
   register: compose_result
 
-# Apply storage access before optional external-tool provisioning so a
-# SearXNG outage cannot leave browser uploads or PDF range reads broken after
-# the stack itself has already deployed.
+# Apply storage access after the stack is healthy.
 # The one-time garage_bootstrap.sh handles layout + bucket + key creation
 # (the key secret has to be captured into the vault by a human). Its two
 # idempotent, declarative steps — granting the key access and setting CORS —
@@ -253,19 +251,6 @@
             )
       changed_when: false
       when: kizuna_garage_bucket_info.rc == 0
-
-- name: Provision Kizuna agent tool connections
-  command:
-    argv:
-      - docker
-      - exec
-      - kizuna-api
-      - bin/rails
-      - agent_tools:provision
-  register: kizuna_agent_tools_provision
-  changed_when: >-
-    'created searxng' in kizuna_agent_tools_provision.stdout or
-    'updated searxng' in kizuna_agent_tools_provision.stdout
 
 # Search documents are a rebuildable projection. Running this after every
 # healthy deploy covers both first-time migrations and any rows missed while
