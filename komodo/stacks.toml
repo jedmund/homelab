@@ -620,8 +620,8 @@ auto_update = false
 
 [[stack]]
 name = "vane"
-description = "Vane"
-tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+description = "Vane (parked; container and data retained)"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "parked"]
 [stack.config]
 server = "NUC"
 files_on_host = true
@@ -629,6 +629,10 @@ run_directory = "/opt/docker/vane"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+auto_pull = false
+extra_args = ["--no-start"]
+ignore_services = ["vane"]
+send_alerts = false
 
 [[stack]]
 name = "kibble"
