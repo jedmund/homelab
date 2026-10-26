@@ -3,10 +3,6 @@
 stack_name: vane
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Server IPs (sourced from inventory so the value lives in one place).
-# Vane needs max's address for SearXNG.
-max_server_ip: "{{ hostvars['max'].ansible_host }}"
-
 # Vane (https://github.com/ItzCrazyKns/Vane, jedmund/Vane fork with OIDC)
 # Self-hosted Perplexity-style AI answering engine.
 #
@@ -32,10 +28,11 @@ vane_port: 3000
 # moves the compose project boundary.
 vane_data_volume: utilities_vane-data
 
-# Reuse max's SearXNG so the bundled instance in Vane's image becomes
-# dead weight. Same instance Odysseus and OpenWebUI use.
-vane_searxng_url: "http://{{ max_server_ip }}:{{ vane_searxng_port }}"
-vane_searxng_port: 8889
+# Web search through Degoog (roles/degoog) on proxy-network. Vane requests
+# <url>/search?format=json, so the /api prefix reaches Degoog's JSON search.
+# Vane copies this into data/config.json only while the saved value is
+# empty; afterwards the saved SearXNG URL in Vane's settings wins.
+vane_searxng_url: "http://degoog:4444/api"
 
 # OIDC env (PocketID). client_id, client_secret, and session_secret come
 # from vault; empty defaults let templating succeed before the vault is
