@@ -202,12 +202,6 @@ gatus_endpoints:
     url: "https://beszel.atelier.house/"
     status: 200
     description: "Beszel is not answering — host and container monitoring dashboards are down. Agents keep reporting; history is preserved."
-  - name: Vane
-    group: apps
-    url: "https://vane.atelier.house/"
-    # Redirects to /login.
-    status: 200
-    description: "Vane is not answering (redirects to /login when healthy)."
   - name: Open WebUI
     group: apps
     url: "https://chat.atelier.house/"

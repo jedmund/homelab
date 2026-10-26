@@ -39,7 +39,15 @@
     registry_url: "{{ vane_registry_url }}"
     username: "{{ vane_registry_username }}"
     password: "{{ vane_registry_password }}"
-  when: vane_registry_username | length > 0 and vane_registry_password | length > 0
+  when:
+    - vane_enabled | bool
+    - vane_registry_username | length > 0 and vane_registry_password | length > 0
+  no_log: true
+
+- name: Inspect the retained Vane container
+  community.docker.docker_container_info:
+    name: vane
+  register: vane_existing_container
   no_log: true
 
 - name: Deploy {{ stack_name }} stack
@@ -53,18 +61,35 @@
          (vane_deploy_environment_file.changed | default(false))
          else 'auto' }}
   register: compose_result
+  when: vane_enabled | bool
 
-- name: Print post-deploy reminder
-  debug:
-    msg: |
-      {{ stack_name }} stack deployed.
+# Compose's stopped state first runs up --no-start and can recreate the
+# container. Stop only the existing container here to preserve its identity.
+- name: Stop and disable restart for the retained Vane container
+  community.docker.docker_container:
+    name: vane
+    state: stopped
+    restart_policy: "no"
+  no_log: true
+  when:
+    - not vane_enabled | bool
+    - vane_existing_container.exists | default(false)
 
-      If this is the first split deploy:
-        1. Verify Vane mounted the preserved volume:
-             docker inspect vane --format '{{ "{{" }} range .Mounts {{ "}}" }}{{ "{{" }} .Name {{ "}}" }} -> {{ "{{" }} .Destination {{ "}}" }}{{ "{{" }} println {{ "}}" }}{{ "{{" }} end {{ "}}" }}'
-        2. Register a Komodo Stack named "vane" (files_on_host=true,
-           project_src={{ config_base }}) so CI-triggered redeploys target
-           the same compose.
-        3. Set CI variables in the Vane GitLab project:
-             KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET,
-             KOMODO_VANE_STACK=vane
+- name: Restore the retained container restart policy when enabling Vane
+  ansible.builtin.command:
+    argv:
+      - docker
+      - update
+      - "--restart={{ restart_policy }}"
+      - vane
+  changed_when: true
+  when:
+    - vane_enabled | bool
+    - vane_existing_container.exists | default(false)
+    - vane_existing_container.container.HostConfig.RestartPolicy.Name != restart_policy
+
+- name: Print Vane deployment state
+  ansible.builtin.debug:
+    msg: >-
+      Vane is {{ 'enabled' if vane_enabled | bool else 'parked (stopped, restart disabled, data retained)' }}.
+      See roles/vane/README.md for the DNS and Komodo re-enable procedure.
