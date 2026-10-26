@@ -135,12 +135,13 @@ an existing SearXNG database row.
 5. Before retiring the shared SearXNG container, verify every other consumer
    has switched. Open WebUI defaults to Degoog, but persisted settings can
    override deployment defaults. Check n8n and Vane configuration and saved
-   settings too. This Kizuna change does not stop or remove the `roles/ai`
-   SearXNG service on `max`.
+   settings too. The [AI retirement procedure](../ai/README.md#retire-the-shared-searxng-service)
+   removes the shared service on `max` after Kizuna's provider is disabled.
 
-To disable live search, disable the enabled providers in Admin. To restore
-SearXNG as a fallback while its service still exists, re-enable its provider
-there; no homelab environment change or deployment is needed.
+To disable live search, disable the enabled providers in Admin. After
+SearXNG retirement, restoring it as a fallback requires restoring and verifying
+the AI service first, then re-enabling its provider in Admin. Keep the disabled
+provider row for recovery; do not leave it enabled against a retired endpoint.
 
 ## PDF visual understanding
 

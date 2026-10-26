@@ -41,8 +41,9 @@ After the change is merged:
    ```
 
 4. Run a web search in Vane and verify source links. Redeploy and confirm the
-   saved URL still points at Degoog. Test image and video search separately
-   before retiring SearXNG; the media contracts below need application work.
+   saved URL still points at Degoog. Vane is a legacy consumer; image/video
+   compatibility remains separate application work after the shared
+   [SearXNG retirement](../ai/README.md#retire-the-shared-searxng-service).
 
 ### Media compatibility
 
@@ -52,13 +53,13 @@ Degoog's native JSON uses `imageUrl`, and its optional SearXNG-shaped output
 always leaves `iframe_src` empty. Enabling that output alone does not complete
 the media migration. Vane needs an application adapter for Degoog search types,
 media fields, and proxy URLs before image/video parity can be verified.
-Keep the existing backend if those features are required during cutover.
+The legacy media features remain outside this web-search cutover.
 
 Vane's search client has a 10-second deadline. Degoog's slow upstream engines
-can exceed that deadline on uncached queries; cached success is not sufficient
-to declare SearXNG safe to retire. The environment change and saved-setting
-update do not resolve that timeout issue.
+can exceed that deadline on uncached queries. The environment change and
+saved-setting update do not change the client deadline.
 
-To roll back while SearXNG is still running, restore its URL in both
-`vane_searxng_url` and Settings → Search, then redeploy. Preserve the existing
-data volume, OIDC credentials, and session secret.
+To roll back after SearXNG retirement, first restore and verify the AI service,
+then restore its URL in both `vane_searxng_url` and Settings → Search and
+redeploy. Preserve the existing data volume, OIDC credentials, and session
+secret.
