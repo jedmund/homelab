@@ -79,6 +79,12 @@ kaneo_github_app_name: "{{ vault_kaneo_github_app_name | default('') }}"
 kaneo_github_webhook_secret: "{{ vault_kaneo_github_webhook_secret | default('') }}"
 kaneo_github_private_key_base64: "{{ vault_kaneo_github_private_key_base64 | default('') }}"
 
+# GitHub OAuth App for linking a GitHub account to an existing user, so the
+# integration can verify repository admin access. The env template always sets
+# GITHUB_OAUTH_DISABLE_SIGN_UP, so GitHub never creates accounts.
+kaneo_github_oauth_client_id: "{{ vault_kaneo_github_oauth_client_id | default('') }}"
+kaneo_github_oauth_client_secret: "{{ vault_kaneo_github_oauth_client_secret | default('') }}"
+
 # Garage S3 object storage for private image/attachment uploads.
 #
 # Mirrors roles/kizuna; the bucket and credentials are created by
