@@ -42,7 +42,9 @@ SearXNG; changing the Assistant endpoint does not rewrite workflows.
 
 Degoog can exceed a client's deadline on an uncached query if an upstream
 engine is slow. Cached success alone does not establish cold-query reliability.
-Keep SearXNG available until the remaining consumers and timeout issue are
-resolved. To roll back the Assistant endpoint, override
-`n8n_instance_ai_searxng_url` with the still-running SearXNG service URL and
-redeploy; keep database, encryption, and sandbox credentials unchanged.
+The shared SearXNG service is retired by the
+[AI role](../ai/README.md#retire-the-shared-searxng-service). To roll back the
+Assistant endpoint, first restore and verify that service, then override
+`n8n_instance_ai_searxng_url` and redeploy. Keep database, encryption, and
+sandbox credentials unchanged. Workflow nodes with explicit old URLs need
+their own endpoint updates.
