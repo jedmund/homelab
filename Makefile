@@ -305,7 +305,7 @@ deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
 
-deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max; uses default ai_gpu_mode
+deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, Playwright) on max; uses default ai_gpu_mode
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 

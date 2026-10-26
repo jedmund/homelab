@@ -779,7 +779,7 @@ send_alerts = false
 
 [[stack]]
 name = "ai"
-description = "llama-swap, Whisper, Kokoro, TEI, SearXNG, and Playwright"
+description = "llama-swap, Whisper, Kokoro, TEI, and Playwright"
 tags = ["homelab", "ansible", "max", "ai"]
 [stack.config]
 server = "Workstation"

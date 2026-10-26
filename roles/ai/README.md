@@ -1,6 +1,6 @@
 # ai
 
-GPU-bound AI services on `max`. Seven containers in one stack:
+GPU-bound AI services on `max`. Six service definitions in one stack (jina TEI is profile-gated):
 
 | Service | Container | Host port | OpenAI-compatible |
 |---|---|---|---|
@@ -9,10 +9,9 @@ GPU-bound AI services on `max`. Seven containers in one stack:
 | kokoro TTS | `remsky/kokoro-fastapi-gpu` | `8880` | yes (`/v1/audio/speech`) |
 | TEI embeddings (Qwen3) | `huggingface/text-embeddings-inference:cuda-latest` | `11435` | yes (`/v1/embeddings`) |
 | TEI embeddings (jina-v5) | `huggingface/text-embeddings-inference:cuda-latest` | `11436` | not running (profile-gated; see MODELS.md) |
-| SearXNG | `searxng/searxng` | `8889` | n/a (HTML/JSON search) |
 | Playwright | `mcr.microsoft.com/playwright` | `3000` | n/a (WebSocket only) |
 
-OpenWebUI (running on `nuc-mini`) is wired to all of these via env vars in
+OpenWebUI (running on `nuc-mini`) consumes these shared services via env vars in
 `roles/open_webui`. Most env vars take effect on first deploy only —
 OpenWebUI persists them to its database and subsequent restarts use the
 DB value, so changing an env var on an existing install requires either
@@ -33,15 +32,54 @@ tag in `playwright_image`) together when OpenWebUI updates Playwright.
 {{ docker_base_path }}/ai/
 ├── compose.yaml                # rendered from templates/compose.yaml.j2
 ├── config/
-│   ├── llama-swap.yaml         # rendered from templates/config/llama-swap.yaml.j2
-│   └── searxng/settings.yml    # rendered from templates/config/searxng/settings.yml.j2
+│   └── llama-swap.yaml         # rendered from templates/config/llama-swap.yaml.j2
 └── models/                     # GGUF files, populated out of band
 ```
 
-## Secrets in vault
+## Retire the shared SearXNG service
 
-- `searxng_secret_key` — generate with `openssl rand -hex 32`. SearXNG
-  refuses to start with the empty default.
+Web search is provided by [Degoog](../degoog/README.md) on `nuc-mini`.
+The AI role no longer defines SearXNG, publishes port 8889, or renders its
+settings. Its existing Compose deployment uses `remove_orphans: true`, so
+applying this revision removes the old `ai` project's SearXNG container.
+Komodo deployments using the newly rendered file also stop defining it.
+
+Before deploying the retirement:
+
+1. Confirm the n8n/Vane consumer migration is deployed. Verify Open WebUI's
+   saved endpoint and n8n's running environment use Degoog. Vane is a legacy
+   consumer; its image/video compatibility work is outside this retirement.
+   Check separately configured workflow URLs for references to `max:8889`.
+2. Disable the instance SearXNG provider in Kizuna Admin → Agent tools, leaving
+   Degoog enabled. This is required: removing the container does not change
+   Kizuna's database rows. Confirm fresh web and image requests succeed
+   through Degoog from the API and chat worker.
+3. Retain `/opt/docker/ai/config/searxng` and the encrypted
+   `searxng_secret_key` vault entry for recovery. This change does not delete
+   historical settings or rotate credentials.
+
+Deploy only after reviewing the rendered AI configuration against the live
+stack, including GPU assignments and model configuration:
+
+```sh
+ansible-playbook -i inventory/hosts.yml deploy/ai.yml -e docker_pull_policy=never
+```
+
+The pull override keeps cached images for this configuration change; ensure
+those images exist first. The regular role still reconciles the entire AI
+stack and may recreate services if the llama-swap configuration changed.
+Do not use `docker compose down` for retirement.
+
+On `max`, confirm no SearXNG container remains and no listener serves port
+8889. Compare other AI container states and health with the pre-deploy
+snapshot. On `nuc-mini`, repeat Kizuna's Degoog web/image probes and verify
+only Degoog is enabled for the instance. Repeat the AI deployment to check
+that SearXNG does not return.
+
+Rollback requires restoring the removed service definition and settings
+rendering from Git, keeping the retained settings and secret, and deploying
+the AI role. Verify the restored endpoint before re-enabling any consumer's
+SearXNG provider. Re-enabling a provider alone cannot restore the service.
 
 ## Models
 
