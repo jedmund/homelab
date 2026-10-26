@@ -89,38 +89,58 @@ backs up only Garage metadata; it no longer duplicates the unbounded media
 library. The `Files/Kizuna/Garage` directory therefore needs to be included
 in the NAS's own snapshot or offsite-backup policy.
 
-## Web search
+## Web and image search
 
-SearXNG is deployed by `roles/ai` on `max`; Kizuna reuses it and does not run
-a second search container on `nuc-mini`. The endpoint is derived from the
-`max` inventory address plus `kizuna_searxng_port`, not a duplicated IP
-literal. After every healthy Compose deployment, the Kizuna role runs the
-API's idempotent `agent_tools:provision` task. Enabling probes the shared
-JSON search endpoint before changing the database, so a failed probe stops
-the Ansible run while leaving the running stack and prior connection intact.
+Search providers are database rows managed in Kizuna Admin → Agent tools.
+Degoog runs on `nuc-mini` and is reachable from the Kizuna API and workers
+at `http://degoog:4444` through `proxy-network`; do not use the public URL,
+which requires TinyAuth. See the [Degoog runbook](../degoog/README.md).
 
-Verify the non-secret connection state and probe from inside the API:
+The role no longer renders `KIZUNA_SEARXNG_*` or runs
+`agent_tools:provision`. Routine deployments preserve provider URLs,
+priorities, credentials, and enabled states set in Admin. A fresh instance
+needs its first provider added in Admin; no provider is seeded from the
+homelab environment. Removing the environment variables does not disable
+an existing SearXNG database row.
 
-```sh
-docker exec kizuna-api bin/rails runner \
-  'puts AiToolConnection.where(user_id: nil, kind: "searxng").pick(:base_url, :enabled, :last_status).inspect'
+### Cut over from SearXNG
 
-docker exec kizuna-api bin/rails runner \
-  'connection = AiToolConnection.where(user_id: nil, kind: "searxng").sole; result = AiToolConnections::SearxngClient.new(connection).probe; abort(result.error) unless result.ok?; puts "ok"'
-```
+1. Merge and deploy [Kizuna API MR !360](https://git.atelier.house/kizuna/kizuna-api/-/merge_requests/360)
+   before relying on Degoog image search. Earlier API images reject image
+   searches through Degoog.
+2. Deploy this role to remove the legacy SearXNG environment and recurring
+   provisioning. In Admin → Agent tools, add or confirm an enabled Degoog
+   provider at `http://degoog:4444`, ahead of SearXNG in priority.
+3. Verify web and image searches from the API and chat worker. This probe
+   prints only result counts, never API keys or image-proxy signatures:
 
-Do not print `api_key` or dump the container environment. Confirm
-`docker compose -f /opt/docker/kizuna/compose.yaml ps` remains healthy and
-that no Kizuna-owned SearXNG container exists on `nuc-mini`. Then sign in and
-ask chat for current information; the completed run should have at least one
-`AiSource` with `kind: "web"` and a working citation. A second
-`make deploy-kizuna` should report the provisioning task unchanged. Open
-WebUI and Vane continue to use this same shared service.
+   ```sh
+   for container in kizuna-api kizuna-chat-worker; do
+     docker exec "$container" bin/rails runner '
+       connection = AiToolConnection.where(user_id: nil, kind: "degoog", enabled: true).by_priority.first!
+       client = AiToolConnections::DegoogClient.new(connection)
+       web = client.search("Balmy Alley murals", limit: 1, record_status: false)
+       images = client.search("Balmy Alley murals", images: true, limit: 1, record_status: false)
+       abort "web search failed" unless web.ok? && web.results.any?
+       abort "image search failed" unless images.ok? && images.results.any? { |entry| entry[:image_url].present? }
+       puts "web=#{web.results.length} images=#{images.results.length}"
+     '
+   done
+   ```
 
-To roll back, set `kizuna_searxng_enabled: "false"` and redeploy. Provisioning
-skips the probe, disables the instance connection, and Kizuna stops
-advertising `web_search`. This does not change the shared SearXNG deployment
-or its Open WebUI/Vane consumers.
+4. Disable the instance SearXNG provider in Admin. Ask chat for current
+   information and then for pictures; confirm citations and visible images
+   with Degoog as the only enabled provider. Redeploy Kizuna and confirm
+   SearXNG remains disabled.
+5. Before retiring the shared SearXNG container, verify every other consumer
+   has switched. Open WebUI defaults to Degoog, but persisted settings can
+   override deployment defaults. Check n8n and Vane configuration and saved
+   settings too. This Kizuna change does not stop or remove the `roles/ai`
+   SearXNG service on `max`.
+
+To disable live search, disable the enabled providers in Admin. To restore
+SearXNG as a fallback while its service still exists, re-enable its provider
+there; no homelab environment change or deployment is needed.
 
 ## PDF visual understanding
 
