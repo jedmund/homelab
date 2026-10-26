@@ -106,6 +106,16 @@ Admin Panel > Settings > Web Search. To check the path Open WebUI uses:
 docker exec open_webui python3 -c "import json,urllib.request; print(len(json.load(urllib.request.urlopen('http://degoog:4444/api/search?q=test&format=json', timeout=60))['results']))"
 ```
 
+n8n and Vane also use Degoog through their SearXNG clients, with
+`http://degoog:4444/api` as the base URL. Deployment and verification are
+covered in the [n8n runbook](../n8n/README.md) and
+[Vane runbook](../vane/README.md). Vane's saved search URL must be changed
+separately on existing installations. Kizuna uses its native Degoog client;
+see the [Kizuna cutover](../kizuna/README.md#cut-over-from-searxng).
+These defaults take effect after deployment and, for Vane, a saved-setting
+update. Verify saved application settings and cold-query response times before
+stopping SearXNG.
+
 ## Release upgrades
 
 `degoog_image` pins a release by its multi-arch index digest. Routine
@@ -149,8 +159,8 @@ installed. A CAPTCHA tab is left open in Firefox on display `:1` and must be
 solved on the NUC display.
 
 FlareSolverr remains a separate standalone service. Its URL is not configured by
-this migration. Existing Open WebUI, n8n, Vane, and Kizuna integrations continue
-using SearXNG on `max:8889`.
+this migration. Consumer cutovers are independent of the host migration;
+see [Consumers](#consumers) for the current endpoints and verification steps.
 
 ## Maps frontend compatibility
 
