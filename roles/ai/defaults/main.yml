@@ -426,15 +426,6 @@ kokoro_port: 8880
 # af_sky | af_bella | af_nicole | am_adam | am_michael | bf_emma | bf_isabella
 kokoro_default_voice: af_sky
 
-# SearXNG (metasearch for Kizuna and n8n; Open WebUI uses Degoog)
-# https://github.com/searxng/searxng
-searxng_image: docker.io/searxng/searxng:latest
-searxng_port: 8889
-searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
-# Lives in vault as `searxng_secret_key`; empty default lets the first
-# render succeed but SearXNG will refuse to start until populated.
-searxng_secret_key: ""
-
 # Playwright remote-browser server for OpenWebUI's web scraper. Without
 # this, OpenWebUI falls back to the LangChain WebBaseLoader (plain
 # httpx), which most modern sites block: the symptom is "No sources
