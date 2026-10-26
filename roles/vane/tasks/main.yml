@@ -63,17 +63,25 @@
   register: compose_result
   when: vane_enabled | bool
 
-# Compose's stopped state first runs up --no-start and can recreate the
-# container. Stop only the existing container here to preserve its identity.
-- name: Stop and disable restart for the retained Vane container
-  community.docker.docker_container:
-    name: vane
-    state: stopped
-    restart_policy: "no"
-  no_log: true
+# Stop/update only the existing container. Declarative reconciliation can
+# recreate it and replace unspecified container settings.
+- name: Disable restart for the retained Vane container
+  ansible.builtin.command:
+    argv: [docker, update, --restart=no, vane]
+  changed_when: true
   when:
     - not vane_enabled | bool
     - vane_existing_container.exists | default(false)
+    - vane_existing_container.container.HostConfig.RestartPolicy.Name != 'no'
+
+- name: Stop the retained Vane container
+  ansible.builtin.command:
+    argv: [docker, stop, vane]
+  changed_when: true
+  when:
+    - not vane_enabled | bool
+    - vane_existing_container.exists | default(false)
+    - vane_existing_container.container.State.Running | default(false)
 
 - name: Restore the retained container restart policy when enabling Vane
   ansible.builtin.command:
