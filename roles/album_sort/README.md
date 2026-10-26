@@ -15,7 +15,8 @@ commit tag for a deployment freeze or compatible rollback.
 Store credentials in `group_vars/album_sort/vault.yml` as described in
 [Secrets](../../docs/secrets.md#groupvarsalbumsortvaultyml). Required inputs
 include registry access, PocketID credentials, and
-`vault_album_sort_user_secret_encryption_key`.
+`vault_album_sort_user_secret_encryption_key`, and
+`vault_album_sort_postgres_password`.
 
 The encryption key is canonical base64 encoding of 32 random bytes. Provision
 it once and preserve it across deployments. Keep an encrypted recovery copy
@@ -71,6 +72,7 @@ the entire Docker subnet.
 | --- | --- |
 | Application state | `/opt/docker/album-sort/data` |
 | Beets state | `/opt/docker/album-sort/beets-data` |
+| Postgres | `album_sort_postgres` (`postgres:17-alpine`), data in `/opt/docker/album-sort/postgres`. No published port: the app reaches it on the internal `backend` network through `DATABASE_URL`, and borgmatic on `backend-internal`. The cluster is initialised with `--locale=C --encoding=UTF8`, which the app requires. Borgmatic takes a nightly `pg_dump` and excludes the data directory from the raw capture. The SQLite-era app ignores `DATABASE_URL` |
 | Embedder | `album_sort_embedder` on the internal `backend` network at `http://embedder:8340` (`EMBEDDER_URL`); reads `/music` read-only and computes audio embeddings for similarity. Set `album_sort_embedder_enabled: false` to leave it out; the app then stops embedding new tracks |
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
 | slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`album_sort_slskd_download_path`) and never modified |

@@ -43,6 +43,19 @@ album_sort_oidc_client_id: "{{ vault_album_sort_oidc_client_id | default('') }}"
 album_sort_oidc_client_secret: "{{ vault_album_sort_oidc_client_secret | default('') }}"
 album_sort_session_ttl_hours: "12"
 
+# PostgreSQL, staged ahead of the SQLite -> Postgres cutover. The SQLite-era
+# app ignores DATABASE_URL, so the empty database can run beside it. The app
+# refuses a database that is not libc C locale with UTF8 encoding, so initdb
+# must create the cluster that way; changing these args after first start has
+# no effect on an existing data directory.
+album_sort_postgres_image: postgres:17-alpine
+album_sort_postgres_db: album_sort
+album_sort_postgres_user: album_sort
+album_sort_postgres_password: "{{ vault_album_sort_postgres_password | default('') }}"
+album_sort_postgres_initdb_args: "--locale=C --encoding=UTF8"
+# A clean shutdown drains in-flight sorts; the worst case is about 46 s.
+album_sort_stop_grace_period: 60s
+
 # Audio-embedding sidecar for similarity (Sonic Adventure). It reads the music
 # volume only and needs no internet, so it sits on the internal backend network.
 album_sort_embedder_enabled: true
@@ -86,7 +99,8 @@ album_sort_multi_scrobbler_url: "http://multi-scrobbler:9078"
 # vault_album_sort_registry_username, vault_album_sort_registry_password,
 # vault_album_sort_oidc_client_id,
 # vault_album_sort_oidc_client_secret,
-# vault_album_sort_user_secret_encryption_key
+# vault_album_sort_user_secret_encryption_key,
+# vault_album_sort_postgres_password
 
 # Opt-in registry setup for the independent private Storybook catalog.
 # Its Docker config must never replace Kizuna's /etc/komodo/docker login.
