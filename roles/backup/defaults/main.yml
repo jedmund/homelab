@@ -90,6 +90,8 @@ borg_exclude_patterns:
   - /opt/docker/musicbrainz
   - /opt/docker/backup
   - /opt/docker/gitlab/data/postgresql
+  # album-sort: live Postgres files; the nightly pg_dump is the restore artifact.
+  - /opt/docker/album-sort/postgres
   - /opt/docker/gitlab/data/redis
   - /opt/docker/gitlab/data/prometheus
   - /opt/docker/gitlab/logs
@@ -118,7 +120,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, kaneo, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, kaneo, miniflux, romm, album-sort
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -135,6 +137,7 @@ borg_networks:
 #   vault_kaneo_db_password
 #   vault_kizuna_postgres_password
 #   vault_hugginghack_postgres_password
+#   vault_album_sort_postgres_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -169,6 +172,9 @@ kizuna_db_password: "{{ vault_kizuna_postgres_password }}"
 hugginghack_db_name: hugginghack
 hugginghack_db_user: hugginghack
 hugginghack_db_password: "{{ vault_hugginghack_postgres_password }}"
+album_sort_db_name: album_sort
+album_sort_db_user: album_sort
+album_sort_db_password: "{{ vault_album_sort_postgres_password }}"
 obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace

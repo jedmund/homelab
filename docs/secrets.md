@@ -95,6 +95,7 @@ requirements are documented in the [role runbook](../roles/album_sort/README.md)
 | `vault_album_sort_oidc_client_id` | PocketID client ID |
 | `vault_album_sort_oidc_client_secret` | PocketID client secret |
 | `vault_album_sort_user_secret_encryption_key` | Persistent canonical base64 of 32 random bytes; preserve across deployments |
+| `vault_album_sort_postgres_password` | Password for the `album_sort` Postgres role; generate with `openssl rand -hex 32`. Also read by the backup role for the nightly `pg_dump` |
 
 ### group_vars/aurral/vault.yml
 

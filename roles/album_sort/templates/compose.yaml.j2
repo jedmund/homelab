@@ -45,6 +45,10 @@ services:
     depends_on:
       beets:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+    # A clean shutdown drains in-flight sorts before exiting.
+    stop_grace_period: {{ album_sort_stop_grace_period }}
     networks:
       - proxy
       - shared
@@ -115,6 +119,40 @@ services:
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+  # No published port: reachable only by the app on the stack network and by
+  # borgmatic on the shared backend network for nightly pg_dump.
+  postgres:
+    container_name: album_sort_postgres
+    image: "{{ album_sort_postgres_image }}"
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/postgres.env
+    environment:
+      TZ: "{{ timezone }}"
+      # Only read when the data directory is empty. The app requires the libc
+      # C locale and UTF8.
+      POSTGRES_INITDB_ARGS: "{{ album_sort_postgres_initdb_args }}"
+    volumes:
+      # Excluded from the raw Borg capture; the pg_dump is the restore artifact.
+      - ./postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+      - backup
+    shm_size: 256m
+    stop_grace_period: {{ album_sort_stop_grace_period }}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ album_sort_postgres_user }}", "-d", "{{ album_sort_postgres_db }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
 {% if album_sort_embedder_enabled %}
 
   # Audio embeddings for similarity. No depends_on: the app backs off while it is down.
@@ -160,3 +198,7 @@ networks:
     external: true
   backend:
     internal: true
+  # Shared with borgmatic so it can reach album_sort_postgres by name.
+  backup:
+    name: {{ backend_network }}
+    external: true
