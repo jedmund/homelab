@@ -109,7 +109,9 @@ Create a client named `Inbox Zero` with callback
 ID/secret in the Vault. The role seeds the organization (`Atelier`, slug
 `atelier`) and the OIDC provider from these values on every deploy; the
 discovery endpoint, scopes (`openid email profile`), and PKCE are fixed in
-role defaults.
+role defaults. Better Auth rejects OIDC discovery URLs outside its trusted
+origins, so the env template sets `ADDITIONAL_TRUSTED_ORIGINS` to the Pocket
+ID issuer when SSO is enabled.
 
 ### Open WebUI (models)
 
