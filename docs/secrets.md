@@ -232,6 +232,34 @@ PocketID, and optional Hugging Face credentials, callbacks, and storage setup.
 | --- | --- |
 | `immich_db_password` | Immich PostgreSQL password |
 
+### group_vars/inboxzero/vault.yml
+
+Inbox Zero is deployed at `https://mail.atelier.house` with Pocket ID SSO,
+Gmail via Google OAuth and Pub/Sub, and local models through the Open WebUI
+API. See the [role runbook](../roles/inboxzero/README.md) for the external
+setup order (Google Cloud, PocketID, Open WebUI, Resend) and verification
+steps. All generated values use `openssl rand -hex 32` unless noted.
+
+| Variable | Description |
+| --- | --- |
+| `vault_inboxzero_postgres_password` | Password for the `inboxzero` Postgres role; also read by the backup role for the nightly `pg_dump` |
+| `vault_inboxzero_redis_password` | Redis password (hex, required by the entrypoint-free health check and connection URLs) |
+| `vault_inboxzero_redis_http_token` | Bearer token for the serverless-redis-http proxy |
+| `vault_inboxzero_auth_secret` | Better Auth session secret |
+| `vault_inboxzero_email_encrypt_secret` | OAuth token encryption secret; persistent, do not rotate casually |
+| `vault_inboxzero_email_encrypt_salt` | OAuth token encryption salt; persistent, do not rotate casually |
+| `vault_inboxzero_internal_api_key` | Internal API secret |
+| `vault_inboxzero_api_key_salt` | External API key hash salt (required while the external API is enabled) |
+| `vault_inboxzero_cron_secret` | Bearer secret for the scheduled-task endpoints |
+| `vault_inboxzero_google_client_id` | Google Cloud OAuth client ID |
+| `vault_inboxzero_google_client_secret` | Google Cloud OAuth client secret |
+| `vault_inboxzero_google_pubsub_topic_name` | Full Pub/Sub topic name (`projects/<project>/topics/<topic>`) |
+| `vault_inboxzero_google_pubsub_verification_token` | Token the Pub/Sub push subscription sends to `/api/google/webhook` |
+| `vault_inboxzero_openwebui_api_key` | Open WebUI API key (Settings > Account) used as the LLM API key |
+| `vault_inboxzero_resend_api_key` | Resend API key for transactional email (digests, reminders, briefs, sign-in codes) |
+| `vault_inboxzero_oidc_client_id` | PocketID OIDC client ID |
+| `vault_inboxzero_oidc_client_secret` | PocketID OIDC client secret |
+
 ### group_vars/infra_core/vault.yml
 
 | Variable | Description |
