@@ -101,15 +101,19 @@ inboxzero_google_pubsub_verification_token: "{{ vault_inboxzero_google_pubsub_ve
 # directly; the public alternative is https://ai.atelier.house/openai/v1.
 # The API key is the per-user key from Open WebUI Settings > Account.
 inboxzero_openwebui_api_key: "{{ vault_inboxzero_openwebui_api_key | default('') }}"
-inboxzero_llm_base_url: http://open_webui:8080/openai/v1
-# Model ids as exposed by Open WebUI for its llama-swap connection. Verify
-# with: curl -H "Authorization: Bearer $KEY" http://open_webui:8080/openai/v1/models
+# Open WebUI's native OpenAI-compatible endpoint: the app appends
+# /chat/completions to this base. The /openai/v1 passthrough path 404s
+# upstream on the deployed Open WebUI 0.12.4, so /api is the reliable surface.
+inboxzero_llm_base_url: http://open_webui:8080/api
+# Model ids as exposed by Open WebUI's catalog (GET /api/models with the API
+# key) — the llama-swap catalog names, not their aliases. Verify with:
+#   curl -H "Authorization: Bearer $KEY" http://open_webui:8080/api/models
 # The 2.30.0 release uses the legacy provider/model environment style; the
 # DEFAULT_LLMS chain format arrives in later releases (see the runbook when
 # bumping the tag).
 inboxzero_llm_provider: openai-compatible
-inboxzero_llm_default_model: qwen3.8:27b
-inboxzero_llm_nano_model: qwen3:4b
+inboxzero_llm_default_model: qwen3.8
+inboxzero_llm_nano_model: qwen3-small
 # Lock account-level model settings to the deployment values above.
 inboxzero_lock_model_settings: "true"
 

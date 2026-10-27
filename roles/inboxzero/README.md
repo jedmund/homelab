@@ -117,17 +117,22 @@ ID issuer when SSO is enabled.
 
 Create an API key in Open WebUI (`https://ai.atelier.house`, Settings >
 Account) and store it as `vault_inboxzero_openwebui_api_key`. Both stacks
-share `proxy-network`, so the app calls `http://open_webui:8080/openai/v1`
-directly. Model ids are the llama-swap aliases Open WebUI exposes; verify the
-exact ids the key can see before first use:
+share `proxy-network`, so the app calls `http://open_webui:8080/api`
+directly. Model ids are Open WebUI's catalog names; verify the exact ids the
+key can see before first use:
 
 ```bash
 curl -s -H "Authorization: Bearer <key>" \
-  https://ai.atelier.house/openai/v1/models | jq -r '.data[].id'
+  https://ai.atelier.house/api/models | jq -r '.data[].id'
 ```
 
-Defaults: `qwen3.8:27b` as the default model (economy, chat, and drafting
-fall back to it) and `qwen3:4b` for nano classification. Account-level model
+Note: the `/openai/v1` passthrough 404s upstream on the deployed Open WebUI
+0.12.4, so the role uses the native `/api` prefix. llama-swap aliases like
+`qwen3.8:27b` do not resolve through Open WebUI; its catalog exposes the
+llama-swap entry names (`qwen3.8`, `qwen3-small`, `GLM-5.3-Flash`, ...).
+
+Defaults: `qwen3.8` as the default model (economy, chat, and drafting
+fall back to it) and `qwen3-small` for nano classification. Account-level model
 settings are locked (`NEXT_PUBLIC_AI_MODEL_SETTINGS_DISABLED=true`); change
 the models in role defaults, not in the app. The 2.30.0 release configures
 models with the legacy `DEFAULT_LLM_PROVIDER`/`DEFAULT_LLM_MODEL` style and
