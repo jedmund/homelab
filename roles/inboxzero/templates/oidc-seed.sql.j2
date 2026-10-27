@@ -1,0 +1,37 @@
+-- {{ ansible_managed }}
+-- Seeds the organization and the Pocket ID OIDC provider for Better Auth's
+-- SSO plugin. Inbox Zero's admin UI only registers SAML providers; the same
+-- plugin supports OIDC through these rows (verified against
+-- @better-auth/sso@1.7.11). Idempotent: the organization is inserted when its
+-- slug is absent, and the provider row is upserted so vault-side client
+-- rotations propagate on redeploys.
+--
+-- Sign-in flow after seeding: /login/sso with the account email and the
+-- organization slug below. Pocket ID callback:
+--   {{ inboxzero_base_url }}/api/auth/sso/callback/{{ inboxzero_oidc_provider_id }}
+
+INSERT INTO "Organization" ("id", "name", "slug", "createdAt", "updatedAt")
+VALUES (
+  '{{ inboxzero_oidc_org_id }}',
+  '{{ inboxzero_oidc_org_name }}',
+  '{{ inboxzero_oidc_org_slug }}',
+  now(),
+  now()
+)
+ON CONFLICT ("slug") DO NOTHING;
+
+INSERT INTO "ssoProvider"
+  ("id", "issuer", "oidcConfig", "providerId", "organizationId", "domain")
+VALUES (
+  '{{ inboxzero_oidc_provider_row_id }}',
+  '{{ inboxzero_oidc_issuer }}',
+  $json${{ inboxzero_oidc_config_json }}$json$,
+  '{{ inboxzero_oidc_provider_id }}',
+  '{{ inboxzero_oidc_org_id }}',
+  '{{ inboxzero_oidc_domain }}'
+)
+ON CONFLICT ("providerId") DO UPDATE SET
+  "issuer" = EXCLUDED."issuer",
+  "oidcConfig" = EXCLUDED."oidcConfig",
+  "organizationId" = EXCLUDED."organizationId",
+  "domain" = EXCLUDED."domain";

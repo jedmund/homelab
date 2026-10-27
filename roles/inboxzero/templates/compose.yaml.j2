@@ -1,0 +1,157 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  inboxzero-web:
+    container_name: inboxzero_web
+    image: {{ inboxzero_image }}:{{ inboxzero_image_tag }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/inboxzero.env
+    environment:
+      # Next.js standalone binds $HOSTNAME, which Docker sets to the container
+      # ID's interface. With two networks attached that pins the server to one
+      # subnet; 0.0.0.0 binds every interface (Next.js Docker convention).
+      HOSTNAME: 0.0.0.0
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      inboxzero-db:
+        condition: service_healthy
+    healthcheck:
+      # /api/health arrives in a later release; 2.30.0 answers "/" with the
+      # login page. Migrations run at startup, hence the long start period.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:{{ inboxzero_port }}/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 120s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: {{ proxy_network }}
+      traefik.http.routers.inboxzero.rule: "Host(`{{ inboxzero_domain }}`)"
+      traefik.http.routers.inboxzero.entrypoints: "websecure"
+      traefik.http.routers.inboxzero.tls.certresolver: "letsencrypt"
+      traefik.http.services.inboxzero.loadbalancer.server.port: "{{ inboxzero_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  inboxzero-db:
+    container_name: inboxzero_db
+    image: {{ inboxzero_db_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/postgres.env
+    networks:
+      - backend
+    volumes:
+      - inboxzero-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ inboxzero_db_user }} -d {{ inboxzero_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  inboxzero-redis:
+    container_name: inboxzero_redis
+    image: {{ inboxzero_redis_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/redis.env
+    # The official image ignores REDIS_PASSWORD (a Bitnami convention); pass
+    # requirepass explicitly. REDISCLI_AUTH in the env file authenticates the
+    # health check.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    networks:
+      - backend
+    # Ephemeral on purpose: Postgres is the source of truth and the cron
+    # container re-triggers periodic work after a restart.
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+  inboxzero-redis-http:
+    container_name: inboxzero_redis_http
+    image: {{ inboxzero_redis_http_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/redis-http.env
+    networks:
+      - backend
+    depends_on:
+      inboxzero-redis:
+        condition: service_started
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+{% if inboxzero_worker_enabled %}
+  inboxzero-worker:
+    container_name: inboxzero_worker
+    image: {{ inboxzero_image }}:{{ inboxzero_image_tag }}
+    restart: {{ restart_policy }}
+    command: ["/app/docker/scripts/start-worker.sh"]
+    env_file:
+      - ./env/inboxzero.env
+    networks:
+      - backend
+    depends_on:
+      inboxzero-web:
+        condition: service_started
+      inboxzero-redis:
+        condition: service_started
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endif %}
+
+  inboxzero-cron:
+    container_name: inboxzero_cron
+    image: {{ inboxzero_cron_image }}
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/inboxzero.env
+    command: ["sh", "/cron/cron.sh"]
+    networks:
+      - backend
+    volumes:
+      - ./config/cron.sh:/cron/cron.sh:ro
+    depends_on:
+      inboxzero-web:
+        condition: service_started
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  inboxzero-pgdata:
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true
