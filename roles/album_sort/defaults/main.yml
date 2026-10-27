@@ -66,9 +66,11 @@ album_sort_embedder_threads: "2"
 album_sort_embedder_cpus: 2
 album_sort_embedder_mem_limit: 2g
 
-# Keep the outer middleware during native-OIDC rollout. Set false only after
-# login, callback, logout, and unauthenticated rejection are verified.
-album_sort_use_tinyauth: true
+# The app signs people in itself with Pocket ID (OIDC, callback
+# https://music.atelier.house/auth/callback), for the browser and the native
+# apps alike. TinyAuth in front of it blocks the native apps' API and sign-in
+# endpoints, so it stays off.
+album_sort_use_tinyauth: false
 
 # OpenSubsonic REST API (`/rest`). Music clients authenticate per-request with
 # the Subsonic protocol's own credentials, so this path must bypass the outer
