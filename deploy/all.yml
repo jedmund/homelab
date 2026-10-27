@@ -154,6 +154,12 @@
 - import_playbook: karakeep.yml
   tags: [karakeep]
 
+# Inbox Zero AI email assistant (mail.atelier.house). Requires traefik and
+# pocketid from the infrastructure layer and a Google Cloud OAuth client and
+# Pub/Sub topic; see the role README for the external setup order.
+- import_playbook: inboxzero.yml
+  tags: [inboxzero]
+
 - import_playbook: kavita.yml
   tags: [kavita]
 
