@@ -1,7 +1,8 @@
 # Album Sort
 
 Deploys Album Sort with its Beets and embedder services on `nuc-mini` at
-`https://music.sort.atelier.house`. GitLab CI publishes the three images;
+`https://music.atelier.house`, redirecting the old `music.sort.atelier.house`
+address there. GitLab CI publishes the three images;
 Ansible renders the stack under `/opt/docker/album-sort`.
 
 ## Configuration

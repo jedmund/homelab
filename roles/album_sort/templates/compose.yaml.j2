@@ -71,6 +71,16 @@ services:
 {% if album_sort_use_tinyauth %}
       traefik.http.routers.album-sort.middlewares: tinyauth@file
 {% endif %}
+{% if album_sort_legacy_domain %}
+      traefik.http.routers.album-sort-legacy.rule: "Host(`{{ album_sort_legacy_domain }}`)"
+      traefik.http.routers.album-sort-legacy.entrypoints: websecure
+      traefik.http.routers.album-sort-legacy.tls.certresolver: letsencrypt
+      traefik.http.routers.album-sort-legacy.service: album-sort
+      traefik.http.routers.album-sort-legacy.middlewares: album-sort-canonical
+      traefik.http.middlewares.album-sort-canonical.redirectregex.regex: '^https?://[^/]+(.*)'
+      traefik.http.middlewares.album-sort-canonical.redirectregex.replacement: "https://{{ album_sort_domain }}$${1}"
+      traefik.http.middlewares.album-sort-canonical.redirectregex.permanent: "true"
+{% endif %}
 {% if album_sort_expose_rest_api %}
       traefik.http.routers.album-sort-rest.rule: "Host(`{{ album_sort_domain }}`) && PathPrefix(`/rest`)"
       traefik.http.routers.album-sort-rest.entrypoints: websecure

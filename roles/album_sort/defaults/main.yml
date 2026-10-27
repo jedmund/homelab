@@ -15,7 +15,10 @@ album_sort_registry_url: https://registry.atelier.house
 album_sort_registry_username: "{{ vault_album_sort_registry_username | default('') }}"
 album_sort_registry_password: "{{ vault_album_sort_registry_password | default('') }}"
 album_sort_container_port: 3000
-album_sort_domain: music.sort.atelier.house
+album_sort_domain: music.atelier.house
+# The old address, redirected permanently to album_sort_domain so existing
+# bookmarks, OpenSubsonic clients and scrobblers keep working. Empty disables it.
+album_sort_legacy_domain: music.sort.atelier.house
 album_sort_origin: "https://{{ album_sort_domain }}"
 album_sort_unsorted_path: /music/Sort
 album_sort_sorted_path: /music/Sorted
