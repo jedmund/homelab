@@ -6,8 +6,10 @@ This role does not back up every homelab host or every Docker volume.
 
 The Borgmatic image builds when its Dockerfile or build settings change, when
 the local image is missing, or when `backup_force_rebuild` is true. Configuration
-and script changes recreate the stack in the normal deployment without an
-additional build or restart handler. See
+and startup-script changes recreate the stack in the normal deployment without
+an additional build or restart handler. The post-backup mirror hook is read
+fresh on each invocation from the mounted scripts directory; updating it does
+not restart an active backup. See
 [local image builds](../../docs/operations.md#local-image-builds) for the initial
 fingerprint rebuild and retry behavior.
 

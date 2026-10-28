@@ -290,6 +290,18 @@ class BackupStatusTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("core_backup is stale", result.stderr)
 
+    def test_stale_archive_reports_age_without_passing_verification(self):
+        stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=28)).isoformat()
+        for path in [self.local_json, self.nas_json]:
+            document = json.loads(path.read_text())
+            document['archives'][0]['start'] = stamp
+            path.write_text(json.dumps(document))
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('borg_archive is stale', result.stderr)
+        self.assertRegex(result.stdout, r'borg_archive_age_seconds=\d+')
+
+
     def test_missing_core_artifact_fails(self):
         (self.latest / "Stack.gz").unlink()
         result = self._run()
