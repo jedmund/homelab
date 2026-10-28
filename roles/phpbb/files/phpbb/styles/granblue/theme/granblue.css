@@ -118,6 +118,8 @@ a:hover { color: #ffffff; text-decoration: underline; }
 
 #site-description { padding-top: 18px; }
 
+#site-description h1 a { color: inherit; text-decoration: none; text-shadow: inherit; }
+
 #site-description h1 {
 	font-family: var(--gbf-font);
 	font-size: 3.2em;
