@@ -1,0 +1,4 @@
+fireplace_stampreactions_react:
+    path: /stampreactions/react
+    defaults: { _controller: fireplace.stampreactions.controller:react }
+    methods: [POST]

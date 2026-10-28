@@ -1,0 +1,93 @@
+/* Stamp Reactions. Colors fall back to a neutral dark palette and pick up
+   the Granblue style's --gbf-* tokens when that style is active. */
+
+.stamps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	margin: 10px 0 0;
+	clear: both;
+}
+
+.stamps:empty { display: none; }
+
+.stamp-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 12px 2px 4px;
+	background: #17110a;
+	border: 1px solid #6b4c32;
+	border-radius: 14px;
+	color: var(--gbf-gold, #ffd76e);
+	font: inherit;
+	font-weight: bold;
+	line-height: 1;
+}
+
+button.stamp-pill { cursor: pointer; }
+
+button.stamp-pill:hover, button.stamp-pill:focus-visible {
+	border-color: var(--gbf-gold, #ffd76e);
+	filter: brightness(1.2);
+	outline: none;
+}
+
+.stamp-pill.is-mine {
+	background: #3a2d1c;
+	border-color: var(--gbf-gold, #ffd76e);
+	box-shadow: 0 0 6px #ffd76e66;
+}
+
+.stamp-pill img {
+	display: block;
+	width: 48px;
+	height: 48px;
+}
+
+.stamp-count { min-width: 1ch; }
+
+.stamp-picker {
+	position: absolute;
+	z-index: 200;
+	display: grid;
+	grid-template-columns: repeat(6, 56px);
+	gap: 4px;
+	padding: 10px;
+	background: #1a140c;
+	border: 2px solid var(--gbf-gold-edge, #d9a838);
+	border-radius: 8px;
+	box-shadow: 0 6px 16px #000000b0;
+}
+
+.stamp-picker[hidden] { display: none; }
+
+.stamp-picker.is-saving { opacity: 0.6; pointer-events: none; }
+
+.stamp-choice {
+	width: 56px;
+	height: 56px;
+	padding: 0;
+	background: transparent;
+	border: 2px solid transparent;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.stamp-choice img { display: block; width: 100%; height: 100%; }
+
+.stamp-choice:hover, .stamp-choice:focus-visible {
+	background: #3a2d1c;
+	border-color: var(--gbf-gold, #ffd76e);
+	outline: none;
+}
+
+.stamp-choice.is-current {
+	border-color: var(--gbf-gold, #ffd76e);
+	box-shadow: 0 0 8px #ffd76e88;
+}
+
+@media (max-width: 520px) {
+	.stamp-picker { grid-template-columns: repeat(4, 56px); }
+}

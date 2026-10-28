@@ -1,0 +1,122 @@
+[
+	{
+		"key": "awesome",
+		"label": "Awesome!",
+		"file": "awesome.png"
+	},
+	{
+		"key": "so-cool",
+		"label": "So cool!",
+		"file": "so-cool.png"
+	},
+	{
+		"key": "thank-you",
+		"label": "Thank you",
+		"file": "thank-you.png"
+	},
+	{
+		"key": "cheers",
+		"label": "Cheers!",
+		"file": "cheers.png"
+	},
+	{
+		"key": "good-work",
+		"label": "Good work",
+		"file": "good-work.png"
+	},
+	{
+		"key": "that-was-good",
+		"label": "That was good!",
+		"file": "that-was-good.png"
+	},
+	{
+		"key": "style",
+		"label": "I like your style",
+		"file": "style.png"
+	},
+	{
+		"key": "having-fun",
+		"label": "Having fun?",
+		"file": "having-fun.png"
+	},
+	{
+		"key": "wowie",
+		"label": "Wowie",
+		"file": "wowie.png"
+	},
+	{
+		"key": "whoa",
+		"label": "Whoa!",
+		"file": "whoa.png"
+	},
+	{
+		"key": "enlightened",
+		"label": "Enlightened",
+		"file": "enlightened.png"
+	},
+	{
+		"key": "hmm-i-see",
+		"label": "Hmm... I see",
+		"file": "hmm-i-see.png"
+	},
+	{
+		"key": "pffft",
+		"label": "Pffft",
+		"file": "pffft.png"
+	},
+	{
+		"key": "confused",
+		"label": "Confused",
+		"file": "confused.png"
+	},
+	{
+		"key": "dont-get-it",
+		"label": "I don't get it",
+		"file": "dont-get-it.png"
+	},
+	{
+		"key": "but-why",
+		"label": "But why...?",
+		"file": "but-why.png"
+	},
+	{
+		"key": "cant-even",
+		"label": "I can't even...",
+		"file": "cant-even.png"
+	},
+	{
+		"key": "nonsense",
+		"label": "That's nonsense",
+		"file": "nonsense.png"
+	},
+	{
+		"key": "absurd",
+		"label": "That's absurd!",
+		"file": "absurd.png"
+	},
+	{
+		"key": "oh-no",
+		"label": "Oh no...",
+		"file": "oh-no.png"
+	},
+	{
+		"key": "yikes",
+		"label": "Yikes!",
+		"file": "yikes.png"
+	},
+	{
+		"key": "aaaah",
+		"label": "Aaaaaah!",
+		"file": "aaaah.png"
+	},
+	{
+		"key": "evil-eye",
+		"label": "Evil eye approves",
+		"file": "evil-eye.png"
+	},
+	{
+		"key": "call-for-help",
+		"label": "Call for help?",
+		"file": "call-for-help.png"
+	}
+]

@@ -1,0 +1,14 @@
+{% if S_STAMPS %}
+<div class="stamps" data-post-id="{{ postrow.POST_ID }}">
+	{% for stamp in postrow.stamps %}
+		{% if S_STAMP_CAN_REACT %}
+		<button type="button" class="stamp-pill{% if stamp.MINE %} is-mine{% endif %}" data-stamp="{{ stamp.KEY }}" title="{{ stamp.LABEL }}: {{ stamp.USERS }}"><img src="{{ stamp.URL }}" alt="{{ stamp.LABEL }}" width="48" height="48" loading="lazy"><span class="stamp-count">{{ stamp.COUNT }}</span></button>
+		{% else %}
+		<span class="stamp-pill" title="{{ stamp.LABEL }}: {{ stamp.USERS }}"><img src="{{ stamp.URL }}" alt="{{ stamp.LABEL }}" width="48" height="48" loading="lazy"><span class="stamp-count">{{ stamp.COUNT }}</span></span>
+		{% endif %}
+	{% endfor %}
+	{% if S_STAMP_CAN_REACT %}
+	<button type="button" class="button button-icon-only stamp-add" aria-haspopup="dialog" aria-expanded="false" title="{{ lang('STAMP_REACT') }}"><i class="icon fa-smile-o fa-fw" aria-hidden="true"></i><span class="sr-only">{{ lang('STAMP_REACT') }}</span></button>
+	{% endif %}
+</div>
+{% endif %}
