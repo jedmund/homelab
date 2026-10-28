@@ -8,16 +8,15 @@ log:
   level: {{ traefik_log_level }}
 accessLog:
   filePath: /var/log/traefik/access.log
-  bufferingSize: 100
+  format: json
+  bufferingSize: 0
   # Presigned S3 URLs carry bearer credentials in their query string. Keep
   # request paths for diagnostics, but never persist query parameters.
   fields:
     queryParameters:
       defaultMode: drop
-  filters:
-    statusCodes:
-      - "400-499"
-      - "500-599"
+    headers:
+      defaultMode: drop
 # Entry Points
 entryPoints:
   web:

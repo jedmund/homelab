@@ -92,6 +92,16 @@ borg_named_volumes:
 #   Backing it up dominated the repo for no recovery value: a lost image
 #   is rebuilt by re-running the pipeline that produced it.
 borg_exclude_patterns:
+  # Collector buffers are live replay state, not consistent restore artifacts.
+  - /opt/docker/vector/data
+  - /opt/docker/alloy/data
+  # Loki's NAS objects and Garage's consistent snapshots are the recovery
+  # inputs. Do not copy live databases, caches, or the high-volume local WAL.
+  - /opt/docker/logging/loki-state
+  - /opt/docker/logging/grafana-data
+  - /opt/docker/logging/garage-meta/db.sqlite
+  - /opt/docker/logging/garage-meta/db.sqlite-wal
+  - /opt/docker/logging/garage-meta/db.sqlite-shm
   - /opt/docker/musicbrainz
   - /opt/docker/backup
   - /opt/docker/gitlab/data/postgresql
