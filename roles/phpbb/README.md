@@ -81,6 +81,25 @@ subset lacks. The Telop Min file is commercially licensed art from the game,
 like the sprites; confirm the board's use of it is acceptable before making
 the repository or board more widely public.
 
+## Managed extensions
+
+Extensions the deployment owns live in the image under `ext/` and are listed
+in `phpbb_managed_extensions` (`vendor/name`, comma separated). The entrypoint
+copies each into the `phpbb-ext` volume on every start, drops the compiled
+template cache, enables any that are not active, runs `db:migrate` for ones it
+just re-synced, and purges the board cache so the new listeners register. A
+failure to enable is logged and does not stop the board. The Dockerfile lints
+every PHP file in them, so a syntax error fails the build instead of the board.
+
+Currently one: [Stamp Reactions](files/phpbb/ext/fireplace/stampreactions/README.md),
+a fork of SP Post Reactions that lets logged-in members react to a post with
+one of 24 Granblue chat stamps (one reaction per member per post; guests see
+the counts). The stamp list is `stamps.json` in the extension, and the
+bundled images are game assets, in the same category as the style's sprites.
+It owns one table, `phpbb_stamp_reactions`, which the Borg database dump
+covers. Remove it with `extension:disable` and then `extension:purge`, and
+drop it from `phpbb_managed_extensions`.
+
 ## Crawlers
 
 The board is public but not for AI and training-data crawlers. Two layers:

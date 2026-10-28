@@ -83,6 +83,11 @@ phpbb_style_copyright: "© 2026 jedmund — handcrafted 2003-style"
 phpbb_style_set_default: "true"
 phpbb_managed_styles: "{{ phpbb_style_dir }}"
 
+# Managed extensions: shipped inside the image under ext/, re-synced into the
+# ext volume on every start, and enabled when not already active. Comma-
+# separated vendor/name pairs.
+phpbb_managed_extensions: "fireplace/stampreactions"
+
 # PHP runtime tuning, applied on every container start from the environment.
 phpbb_php_upload_max_filesize: 32M
 phpbb_php_post_max_size: 48M
