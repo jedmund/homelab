@@ -2,6 +2,8 @@
    GRANBLUE FANTASY style for phpBB 3.3 (child of prosilver)
    Handcrafted 2003-style: bevels, serif headers, tiled sky,
    ridge borders, zero rounded corners, one (1) marquee.
+   Sizing note: prosilver sets the body to 10px and sizes
+   everything in em — use em here, never rem.
    ============================================================ */
 
 /* ---- global chrome ---------------------------------------- */
@@ -9,24 +11,24 @@
 body {
 	background: #0d2244 url('./images/tile.svg') repeat !important;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
-	font-size: 10px;
+	font-size: 11px;
 	color: #1c355e;
 }
 
 /* No rounded corners. It is 2003. */
 .wrap, .forabg, .forumbg, .post, .panel, .navbar, .headerbar,
 .button, .inputbox, .search-box .inputbox, .pagination span,
-.pagination a, .avatar, img {
+.pagination a {
 	border-radius: 0 !important;
 }
 
 /* The forum-in-a-box: parchment panel with a fat gold ridge border */
 #wrap {
 	border: 3px ridge #b98d2f;
-	border-top: 3px ridge #d9a838;
 	background: #f7f2e2;
 	box-shadow: 0 0 14px #000c38;
 	margin-top: 12px;
+	margin-bottom: 12px;
 }
 
 /* Classic link behaviour */
@@ -42,29 +44,30 @@ a:hover { color: #a5760f; text-decoration: underline; }
 	border-bottom: 3px ridge #d9a838;
 	min-height: 190px;
 	position: relative;
+	overflow: hidden;
 }
 
 .site_logo { display: none; }
 
-#site-description { padding-top: 26px; }
+#site-description { padding-top: 24px; }
 
 #site-description h1 {
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 3.6rem;
+	font-size: 3.4em;
 	font-weight: bold;
-	letter-spacing: 0.1em;
+	letter-spacing: 0.08em;
 	color: #ffd76e;
 	text-shadow: 2px 2px 0 #4a2b10, 3px 3px 4px rgba(0, 0, 0, 0.6);
-	margin: 0 0 4px 12px;
+	margin: 0 0 4px 14px;
 }
 
 #site-description p {
 	color: #f1e6c8;
 	font-style: italic;
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.3rem;
+	font-size: 1.3em;
 	text-shadow: 1px 1px 0 #000c38;
-	margin-left: 14px;
+	margin-left: 16px;
 }
 
 /* the marquee strip, as the prophecy demanded */
@@ -75,12 +78,11 @@ a:hover { color: #a5760f; text-decoration: underline; }
 	right: 0;
 	background: #0a1a3a;
 	border-top: 1px solid #d9a838;
-	border-bottom: 1px solid #d9a838;
 	color: #ffd76e;
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.2rem;
+	font-size: 1.2em;
 	letter-spacing: 0.08em;
-	padding: 3px 0;
+	padding: 4px 0;
 	text-shadow: 1px 1px 0 #000;
 }
 
@@ -107,7 +109,7 @@ a:hover { color: #a5760f; text-decoration: underline; }
 	text-shadow: 1px 1px 0 #000c38;
 }
 
-.navbar a:hover { color: #fff; text-decoration: underline; }
+.navbar a:hover { color: #ffffff; text-decoration: underline; }
 
 .navbar .icon { color: #ffd76e; }
 
@@ -122,7 +124,7 @@ a:hover { color: #a5760f; text-decoration: underline; }
 li.header dt, li.header dd {
 	color: #ffd76e;
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.4rem;
+	font-size: 1.2em;
 	letter-spacing: 0.06em;
 	text-shadow: 1px 1px 0 #00142e;
 }
@@ -139,21 +141,19 @@ li.header::after {
 	color: #e6c169;
 }
 
-/* forum/topic rows: pale alternating blues */
-ul.forums li, ul.topics li { background: transparent !important; }
-
+/* forum/topic rows: pale alternating blues, gold on hover */
 ul.forums li.row, ul.topics li.row {
 	border-bottom: 1px solid #b9c8e2;
 }
 
 ul.forums li.row:hover, ul.topics li.row:hover {
-	background-color: #fdf6e0 !important;
+	background-color: #fdf6e0;
 }
 
-.bg1 { background-color: #eef4fb !important; }
-.bg2 { background-color: #dfeaf8 !important; }
+ul.forums li.bg1, ul.topics li.bg1 { background-color: #eef4fb; }
+ul.forums li.bg2, ul.topics li.bg2 { background-color: #dfeaf8; }
 
-.topics .list-inner a.topictitle, .forums .list-inner a.subforum,
+.topics .list-inner a.topictitle,
 .forums .forumtitle { color: #16408f; font-weight: bold; }
 
 a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
@@ -175,12 +175,20 @@ a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
 	color: #1c355e;
 }
 
-.postprofile dt a { font-family: "Times New Roman", Georgia, serif; font-weight: bold; font-size: 1.4rem; }
+.postprofile dt a {
+	font-family: "Times New Roman", Georgia, serif;
+	font-weight: bold;
+	font-size: 1.3em;
+}
 
-.post .bg1 { background: #fbf7ea !important; }
-.post .bg2 { background: #f5eddb !important; }
+.post .bg1 { background: #fbf7ea; }
+.post .bg2 { background: #f5eddb; }
 
-.postbody .content { font-size: 1.2rem; color: #223a63; }
+.postbody .content {
+	font-size: 1.3em;
+	line-height: 1.55;
+	color: #223a63;
+}
 
 .signature { border-top: 1px dashed #b98d2f; }
 
@@ -192,7 +200,11 @@ blockquote {
 
 /* ---- forms and buttons -------------------------------------- */
 
-.panel { background: #f1ead4; border: 1px solid #c9b06a; color: #1c355e; }
+.panel {
+	background: #f1ead4;
+	border: 1px solid #c9b06a;
+	color: #1c355e;
+}
 
 .panel h2, .panel h3 {
 	font-family: "Times New Roman", Georgia, serif;
@@ -216,7 +228,7 @@ blockquote {
 	border: 2px outset #6d94c8;
 	color: #ffd76e;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
-	font-size: 1.1rem;
+	font-size: 1.1em;
 	font-weight: bold;
 	text-shadow: 1px 1px 0 #000c38;
 }
@@ -225,7 +237,7 @@ blockquote {
 .dropdown .button:hover {
 	background: linear-gradient(#2f6fc2, #4589d8);
 	border-color: #d9a838;
-	color: #fff;
+	color: #ffffff;
 }
 
 .button-search { padding: 2px 6px; }
@@ -265,7 +277,7 @@ blockquote {
 
 .gbf-counter {
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.2rem;
+	font-size: 1.2em;
 	color: #f1e6c8;
 	letter-spacing: 0.06em;
 }
@@ -276,7 +288,7 @@ blockquote {
 	border: 1px solid #d9a838;
 	color: #ffd76e;
 	font-family: "Courier New", monospace;
-	font-size: 1.3rem;
+	font-size: 1.3em;
 	font-weight: bold;
 	letter-spacing: 0.2em;
 	padding: 1px 8px;
@@ -284,7 +296,7 @@ blockquote {
 	text-shadow: 0 0 4px #ffd76e;
 }
 
-.gbf-webring { font-size: 1.1rem; margin-top: 6px; }
+.gbf-webring { font-size: 1.1em; margin-top: 6px; }
 
 .gbf-webring a { color: #ffd76e; }
 
@@ -301,7 +313,8 @@ blockquote {
 	background: #fdf6e0;
 	border: 2px ridge #d9a838;
 	color: #1c355e;
-	font-size: 1.1rem;
+	font-size: 1.1em;
+	line-height: 1.4;
 	margin-left: 10px;
 	padding: 4px 10px;
 }
@@ -310,7 +323,7 @@ blockquote {
 	margin-top: 10px;
 	color: #ffd76e;
 	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.2rem;
+	font-size: 1.2em;
 	letter-spacing: 0.1em;
 }
 
@@ -329,9 +342,6 @@ blockquote {
 
 .jumpbox .title, .jumpbox select { font-family: Verdana, Geneva, Tahoma, sans-serif; }
 
-.copyright {
-	color: #9fb4d8;
-	font-size: 1rem;
-}
+.copyright { color: #9fb4d8; font-size: 1.1em; }
 
 .copyright a { color: #ffd76e; }
