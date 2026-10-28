@@ -74,6 +74,15 @@ phpbb_server_name: "{{ phpbb_domain }}"
 phpbb_server_port: "443"
 phpbb_script_path: /
 
+# Managed style: shipped inside the image, re-synced on every start, and
+# registered as a child of prosilver on first boot. The board default and
+# existing users follow it when phpbb_style_set_default is true.
+phpbb_style_dir: granblue
+phpbb_style_name: "Granblue Fantasy"
+phpbb_style_copyright: "© 2026 jedmund — handcrafted 2003-style"
+phpbb_style_set_default: "true"
+phpbb_managed_styles: "{{ phpbb_style_dir }}"
+
 # PHP runtime tuning, applied on every container start from the environment.
 phpbb_php_upload_max_filesize: 32M
 phpbb_php_post_max_size: 48M

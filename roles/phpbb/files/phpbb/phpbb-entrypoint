@@ -92,6 +92,25 @@ done
 take_owner "$HTML/cache"
 
 # ---------------------------------------------------------------------------
+# Managed styles: deployment-owned themes that ship inside the image and are
+# re-synced on every start, so style updates flow with ordinary deploys.
+# Anything else under styles/ is user data and is never touched.
+# ---------------------------------------------------------------------------
+if [ -n "${PHPBB_MANAGED_STYLES:-}" ]; then
+    for style in $(printf '%s' "$PHPBB_MANAGED_STYLES" | tr ',' ' '); do
+        if [ -d "$PRISTINE/styles/$style" ]; then
+            rm -rf "$HTML/styles/$style"
+            cp -a "$PRISTINE/styles/$style" "$HTML/styles/$style"
+            # The Files export squashes root, so the chown is best-effort:
+            # fall back to world-writable data the FPM user can always read.
+            chown -R root:root "$HTML/styles/$style" 2>/dev/null \
+                || chmod -R a+rwX "$HTML/styles/$style" 2>/dev/null || true
+            echo "phpbb: synced managed style $style"
+        fi
+    done
+fi
+
+# ---------------------------------------------------------------------------
 # One-time install through phpBB's own CLI installer.
 # ---------------------------------------------------------------------------
 yaml_quote() {

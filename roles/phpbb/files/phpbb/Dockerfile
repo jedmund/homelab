@@ -41,12 +41,14 @@ RUN set -eu; \
 
 COPY phpbb-health.php /usr/share/phpbb/health.php
 COPY phpbb-ensure.php /usr/local/bin/phpbb-ensure.php
+COPY styles/granblue /usr/share/phpbb/styles/granblue
 COPY phpbb-update /usr/local/bin/phpbb-update
 COPY phpbb-init /usr/local/bin/phpbb-init
 COPY phpbb-entrypoint /usr/local/bin/phpbb-entrypoint
 
 RUN chmod 0755 /usr/local/bin/phpbb-init /usr/local/bin/phpbb-entrypoint \
         /usr/local/bin/phpbb-update \
+    && chmod -R u=rwX,go=rX /usr/share/phpbb/styles/granblue \
     && chmod 0644 /usr/share/phpbb/health.php /usr/local/bin/phpbb-ensure.php
 
 # FPM master runs as root (the entrypoint installs and repairs ownership);

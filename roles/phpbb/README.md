@@ -37,6 +37,24 @@ directories are created by the role's seed init and the volumes are declared
 centrally in [storage.yml](../../group_vars/compute_servers/storage.yml).
 Record what the NAS side covers in its own backup arrangements.
 
+## Custom style (Granblue Fantasy)
+
+The board ships a handcrafted child style of prosilver in
+[files/phpbb/styles/granblue](files/phpbb/styles/granblue) — ornate navy and
+gold, tiled starfield, serif headers, a marquee, and 88×31 badges. The style
+is **deployment-owned**: the image bakes it into the pristine tree, the
+entrypoint re-syncs it into the mounted styles volume on every start
+(`phpbb_managed_styles`), and `phpbb-ensure.php` registers it in
+`phpbb_styles` as a prosilver child and sets it as the board default
+(`phpbb_style_set_default`), migrating users from the previous default.
+
+To iterate on the theme: edit the files, redeploy, and the managed sync
+replaces the style wholesale; phpBB recompiles its stylesheet asset when the
+source files are newer. User-installed styles are data on the NFS volume and
+are never touched by the sync. Because the managed style is root-owned and
+read-only to the board, template editing through the ACP is unavailable for
+it by design — edit in the repository instead.
+
 ## How the image is built
 
 `roles/phpbb/files/phpbb/` holds the build context:
