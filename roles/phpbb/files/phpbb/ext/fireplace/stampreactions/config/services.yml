@@ -1,3 +1,4 @@
+---
 services:
     fireplace.stampreactions.catalog:
         class: fireplace\stampreactions\service\stamp_catalog
