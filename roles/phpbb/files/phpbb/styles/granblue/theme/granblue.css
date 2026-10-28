@@ -62,10 +62,9 @@ body {
 	color: #1c355e;
 }
 
-/* No rounded corners. It is 2003. */
+/* No rounded corners on the chrome (form fields are the exception). */
 .wrap, .post, .panel, .navbar, .headerbar,
-.inputbox, .search-box .inputbox, .pagination span,
-.pagination a {
+.pagination span, .pagination a {
 	border-radius: 0 !important;
 }
 
@@ -166,16 +165,6 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	padding: 4px 0;
 	text-shadow: 1px 1px 0 #000;
 }
-
-/* search box in the header */
-.headerbar .search-box .inputbox {
-	background: var(--gbf-panel);
-	border: 1px solid var(--gbf-gold-edge);
-	color: var(--gbf-ink);
-	font-family: var(--gbf-font);
-}
-
-.headerbar .search-box .inputbox::placeholder { color: #8fb8cc; }
 
 /* ---- navbar ------------------------------------------------- */
 
@@ -359,14 +348,38 @@ blockquote {
 	letter-spacing: 0.05em;
 }
 
-.inputbox, textarea, select {
-	background: #17110a;
-	border: 1px solid #d9a838;
-	color: #e8dcc0;
+/* text fields: the game's parchment input, cream fill, brown rounded
+   border, soft inset shadow, gray placeholder */
+#wrap .inputbox,
+#wrap input[type="text"], #wrap input[type="password"], #wrap input[type="search"],
+#wrap input[type="email"], #wrap input[type="url"], #wrap input[type="number"],
+#wrap textarea, #wrap select {
+	background: #f1ede1;
+	border: 2px solid #6b4c32;
+	border-radius: 10px !important;
+	box-shadow: inset 0 3px 7px #00000040, inset 0 0 0 1px #ffffff80;
+	color: #3a3226;
 	font-family: var(--gbf-font);
+	padding: 5px 9px;
 }
 
-.inputbox:focus, textarea:focus { border-color: #ffd76e; }
+#wrap input.inputbox, #wrap input[type="text"], #wrap input[type="password"],
+#wrap input[type="search"], #wrap input[type="email"], #wrap select {
+	min-height: 32px;
+	box-sizing: border-box;
+}
+
+#wrap .inputbox::placeholder, #wrap textarea::placeholder { color: #8a857a; opacity: 1; }
+
+#wrap .inputbox:focus, #wrap input:focus, #wrap textarea:focus, #wrap select:focus {
+	border-color: #c98f2a;
+	outline: none;
+	box-shadow: inset 0 3px 7px #00000040, 0 0 0 2px #ffd76e88;
+}
+
+/* the search box in the header keeps the field style but sits flush
+   against its capsule buttons */
+.search-header .inputbox { border-radius: 10px 0 0 10px !important; }
 
 /* ---- buttons: GBF capsules, true 9-slice ---------------------- */
 /* One sprite per button role (cyan default, gold for primary submits).
@@ -433,7 +446,6 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 
 .post-buttons .button .icon, .search-header .button .icon, .button-icon-only .icon { margin: 0; }
 
-.action-bar .search-box .inputbox { color: var(--gbf-ink); }
 
 /* ---- pagination --------------------------------------------- */
 
@@ -545,3 +557,6 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 .copyright { color: #9fb4d8; font-size: 1.1em; }
 
 .copyright a { color: #ffd76e; }
+
+/* prose inside panels (login, register, UCP) */
+#wrap .panel p, #wrap .panel li, #wrap .panel dd, #wrap .panel .content { color: var(--gbf-ink); }
