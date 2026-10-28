@@ -342,83 +342,59 @@ blockquote blockquote { background-color: #100c06; }
 .inputbox:focus, textarea:focus { border-color: #ffd76e; }
 
 /* ---- buttons: GBF capsules, true 9-slice ---------------------- */
-/* The capsule sprites carry no baked text; border-image with fill keeps
-   the ornate caps crisp while the embossed middle stretches to any
-   button width, and the slice cuts the atlas edge away entirely. */
+/* One sprite per button role (cyan default, gold for primary submits).
+   Hover brightens the same sprite instead of swapping art, so a button
+   never changes shape or color family. Sprites are 2x: slice 32/60 maps
+   to the 12px/22px border widths. */
 
 .button,
 .button1, .button2,
 a.button1, a.button2, input.button1, input.button2,
 .dropdown .button, .button-search, .button-search-end {
+	--btn-src: url('./images/game/button-cyan.png');
 	border-style: solid;
-	border-width: 11px 30px;
-	border-image: url('./images/game/button-bronze.png') 22 56 fill / 11px 30px stretch;
-	color: #fff6dc;
+	border-width: 12px 22px;
+	border-image: var(--btn-src) 32 60 fill / 12px 22px stretch;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: #ffffff;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 1.1em;
 	font-weight: bold;
 	text-shadow: 0 1px 2px #000, 0 0 3px #000;
 	display: inline-block;
-	height: 34px;
-	line-height: 10px;
+	height: 36px;
+	line-height: 12px;
 	padding: 0 6px;
 	box-sizing: border-box;
 	vertical-align: middle;
-	background: transparent !important;
-	box-shadow: none !important;
-	filter: none;
+	transition: filter 0.12s;
 }
 
-/* post/topic action buttons carry an icon only: small round-ish caps */
-.post-buttons .button, .action-bar .button.button-icon-only {
-	height: 28px;
-	min-width: 38px;
-	border-width: 9px 14px;
-	border-image: url('./images/game/button-blue.png') 20 32 fill / 9px 14px stretch;
+.button1, a.button1, input.button1 { --btn-src: url('./images/game/button-gold.png'); }
+
+.button:hover, .button1:hover, .button2:hover,
+a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
+.dropdown .button:hover, .button-search:hover, .button-search-end:hover {
+	filter: brightness(1.15) saturate(1.1);
+	color: #ffffff;
+}
+
+.button:active, .button1:active, .button2:active { filter: brightness(0.9); }
+
+/* post/topic action buttons, header search and icon-only buttons:
+   narrow caps, no balloon */
+.post-buttons .button, .action-bar .button.button-icon-only,
+.search-header .button, .button-icon-only {
+	height: 30px;
+	min-width: 40px;
+	border-width: 10px 16px;
+	border-image: var(--btn-src) 32 60 fill / 10px 16px stretch;
 	margin: 0 2px 0 0;
 	padding: 0;
 }
 
-.post-buttons .button .icon { color: #eef4fb; }
-
-.button:hover, .button1:hover, .button2:hover,
-.dropdown .button:hover, a.button1:hover, a.button2:hover,
-.button-search:hover, .button-search-end:hover,
-input.button1:hover, input.button2:hover {
-	border-image-source: url('./images/game/button-blue.png');
-	color: #f1f6fb;
-	text-shadow: 1px 1px 0 #000a;
-}
-
-/* secondary buttons take the blue-glass capsule */
-.button2, input.button2, a.button2,
-.button-search, .button-search-end, .dropdown .button {
-	border-image: url('./images/game/button-blue.png') 20 48 fill / 11px 26px stretch;
-	border-width: 11px 26px;
-	color: #eef4fb;
-	text-shadow: 1px 1px 0 #000a;
-}
-
-.button2:hover, input.button2:hover, a.button2:hover,
-.button-search:hover, .button-search-end:hover, .dropdown .button:hover {
-	border-image-source: url('./images/game/button-bronze.png');
-	color: #fff6dc;
-	text-shadow: 0 1px 2px #000, 0 0 3px #000;
-}
-
-/* header search and icon-only buttons: narrow caps, no balloon */
-.search-header .button, .button-icon-only {
-	border-width: 10px 16px;
-	border-image: url('./images/game/button-blue.png') 20 32 fill / 10px 16px stretch;
-	height: 32px;
-	min-width: 44px;
-	padding: 0;
-	color: #eef4fb;
-}
-
-.search-header .button .icon, .button-icon-only .icon { color: #eef4fb; margin: -4px 0 0; }
-
-#wrap .button .icon, #wrap .button i { color: #fff6dc; }
+#wrap .button .icon, #wrap .button i { color: #ffffff; }
 
 .action-bar .search-box .inputbox { color: var(--gbf-ink); }
 
