@@ -705,14 +705,11 @@ a.button1, a.button2, input.button1, input.button2,
 /* ---- UCP, PM lists, and group colors on the dark scroll ------------ */
 
 /* prosilver's group colors (dark red admins, dark green moderators) were
-   chosen for white pages; lift them so they read on dark panels */
-#wrap .username-coloured[style*="AA0000" i], #wrap a.username-coloured[style*="AA0000" i] {
-	color: #ff8f8f !important;
-}
+   chosen for white pages; lift them so they read on dark panels, in names
+   and in the index legend alike */
+#wrap [style*="AA0000" i] { color: #ff8f8f !important; }
 
-#wrap .username-coloured[style*="00AA00" i], #wrap a.username-coloured[style*="00AA00" i] {
-	color: #7fe07f !important;
-}
+#wrap [style*="00AA00" i] { color: #7fe07f !important; }
 
 /* list rows that still carry prosilver's pale bg1/bg2 stripes */
 #wrap ul.topiclist li.row, #wrap li.row.bg1, #wrap li.row.bg2 {
@@ -747,3 +744,28 @@ a.button1, a.button2, input.button1, input.button2,
 }
 
 #wrap .cp-mini * { color: var(--gbf-ink); }
+
+/* the UCP/MCP content panel carries its own pale background */
+#wrap .cp-main .panel, #wrap .panel .panel { background: transparent; }
+
+/* member list, ACP-style tables: dark rows instead of prosilver's blue stripes */
+#wrap table.table1 thead th {
+	color: var(--gbf-gold);
+	border-color: var(--gbf-gold-edge);
+	font-family: var(--gbf-font);
+	letter-spacing: 0.06em;
+}
+
+#wrap table.table1 tbody tr, #wrap table.table1 tr.bg1, #wrap table.table1 tr.bg2 {
+	background-color: #241c12d9;
+	color: var(--gbf-ink);
+}
+
+#wrap table.table1 tbody tr:hover { background-color: #3a2d1c; }
+
+#wrap table.table1 td, #wrap table.table1 tbody td {
+	color: var(--gbf-ink);
+	border-color: #d9a83840;
+}
+
+#wrap table.table1 td a { color: var(--gbf-gold); }
