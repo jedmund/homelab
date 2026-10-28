@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="80" viewBox="0 0 90 80">
+  <!-- The board dragon: chunky 2004-mascot style, thick outlines -->
+  <defs>
+    <linearGradient id="drbody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8564f"/>
+      <stop offset="1" stop-color="#b93028"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tail -->
+  <path d="M62 58 C76 60 82 52 78 44 C76 40 70 40 70 44 C74 48 70 54 60 52 Z"
+        fill="url(#drbody)" stroke="#5c1210" stroke-width="2.4" stroke-linejoin="round"/>
+
+  <!-- wings -->
+  <path d="M30 34 C18 22 10 24 8 32 C14 32 16 38 22 42 C26 44 30 42 30 42 Z"
+        fill="#d94848" stroke="#5c1210" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M58 34 C70 22 78 24 80 32 C74 32 72 38 66 42 C62 44 58 42 58 42 Z"
+        fill="#d94848" stroke="#5c1210" stroke-width="2.4" stroke-linejoin="round"/>
+
+  <!-- body -->
+  <ellipse cx="44" cy="52" rx="20" ry="17" fill="url(#drbody)" stroke="#5c1210" stroke-width="2.4"/>
+  <!-- belly -->
+  <ellipse cx="44" cy="57" rx="12" ry="10" fill="#f7e6c4" stroke="#c98a2e" stroke-width="1.4"/>
+  <path d="M36 54 L52 54 M35 59 L53 59 M37 64 L51 64" stroke="#d8b06a" stroke-width="1.2"/>
+
+  <!-- head -->
+  <ellipse cx="44" cy="26" rx="19" ry="15" fill="url(#drbody)" stroke="#5c1210" stroke-width="2.4"/>
+  <!-- snout -->
+  <ellipse cx="44" cy="32" rx="9" ry="6" fill="#e8564f" stroke="#5c1210" stroke-width="2"/>
+  <circle cx="40" cy="32" r="1.4" fill="#5c1210"/>
+  <circle cx="48" cy="32" r="1.4" fill="#5c1210"/>
+  <!-- horns -->
+  <path d="M32 14 L28 6 L36 11 Z" fill="#f7e6c4" stroke="#5c1210" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M56 14 L60 6 L52 11 Z" fill="#f7e6c4" stroke="#5c1210" stroke-width="2" stroke-linejoin="round"/>
+  <!-- eyes -->
+  <circle cx="36" cy="22" r="5" fill="#fff" stroke="#5c1210" stroke-width="1.8"/>
+  <circle cx="52" cy="22" r="5" fill="#fff" stroke="#5c1210" stroke-width="1.8"/>
+  <circle cx="37.4" cy="23" r="2.2" fill="#1a1a1a"/>
+  <circle cx="53.4" cy="23" r="2.2" fill="#1a1a1a"/>
+  <circle cx="36.6" cy="21.4" r="0.8" fill="#fff"/>
+  <circle cx="52.6" cy="21.4" r="0.8" fill="#fff"/>
+  <!-- cheek dots -->
+  <circle cx="29" cy="29" r="2.4" fill="#ff9a94" opacity="0.85"/>
+  <circle cx="59" cy="29" r="2.4" fill="#ff9a94" opacity="0.85"/>
+
+  <!-- feet -->
+  <path d="M34 68 L34 72 M40 69 L40 73 M48 69 L48 73 M54 68 L54 72"
+        stroke="#5c1210" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- treasure coin -->
+  <circle cx="20" cy="66" r="6" fill="#ffd76e" stroke="#8a6a1f" stroke-width="2"/>
+  <path d="M20 62 L20 70 M17 64 L23 64" stroke="#8a6a1f" stroke-width="1.4"/>
+</svg>

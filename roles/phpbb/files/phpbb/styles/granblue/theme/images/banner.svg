@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="170" viewBox="0 0 960 170">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1a3a"/>
+      <stop offset="0.55" stop-color="#133567"/>
+      <stop offset="1" stop-color="#1d4d8f"/>
+    </linearGradient>
+    <linearGradient id="goldbar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4d98a"/>
+      <stop offset="0.45" stop-color="#d9a838"/>
+      <stop offset="1" stop-color="#9c751f"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a4d24"/>
+      <stop offset="1" stop-color="#4a2b10"/>
+    </linearGradient>
+    <linearGradient id="balloon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8eef8"/>
+      <stop offset="1" stop-color="#b9c8e2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="170" fill="url(#sky)"/>
+
+  <!-- distant cloud banks -->
+  <g fill="#2a5595" opacity="0.7">
+    <ellipse cx="120" cy="150" rx="130" ry="26"/>
+    <ellipse cx="320" cy="158" rx="160" ry="22"/>
+    <ellipse cx="620" cy="152" rx="150" ry="26"/>
+    <ellipse cx="850" cy="158" rx="170" ry="24"/>
+  </g>
+  <g fill="#3868a8" opacity="0.55">
+    <ellipse cx="220" cy="160" rx="150" ry="20"/>
+    <ellipse cx="760" cy="162" rx="180" ry="18"/>
+  </g>
+
+  <!-- gold sparkles across the sky -->
+  <g fill="#e6c169">
+    <path d="M84 34 L85.6 39 L90.6 40.6 L85.6 42.2 L84 47.2 L82.4 42.2 L77.4 39 L82.4 39 Z" opacity="0.9"/>
+    <path d="M204 22 L205.2 26 L209.2 27.2 L205.2 28.4 L204 32.4 L202.8 27.2 L198.8 27.2 L202.8 26 Z" opacity="0.75"/>
+    <path d="M300 48 L301.4 52 L305.4 53.4 L301.4 54.8 L300 58.8 L298.6 54.8 L294.6 53.4 L298.6 52 Z" opacity="0.8"/>
+    <path d="M560 26 L561.2 30 L565.2 31.2 L561.2 32.4 L560 36.4 L558.8 32.4 L554.8 31.2 L558.8 30 Z" opacity="0.7"/>
+    <path d="M640 60 L641.4 64 L645.4 65.4 L641.4 66.8 L640 70.8 L638.6 66.8 L634.6 65.4 L638.6 64 Z" opacity="0.85"/>
+    <path d="M716 30 L717 33 L720 34 L717 35 L716 38 L715 35 L712 34 L715 33 Z" opacity="0.6"/>
+    <path d="M896 52 L897.4 56 L901.4 57.4 L897.4 58.8 L896 62.8 L894.6 58.8 L890.6 57.4 L894.6 56 Z" opacity="0.8"/>
+    <circle cx="140" cy="60" r="1.6" opacity="0.8"/>
+    <circle cx="420" cy="24" r="1.4" opacity="0.7"/>
+    <circle cx="500" cy="66" r="1.5" opacity="0.75"/>
+    <circle cx="836" cy="24" r="1.4" opacity="0.7"/>
+  </g>
+
+  <!-- the airship: balloon, rigging, galleon hull -->
+  <g transform="translate(640,18)">
+    <!-- balloon envelope -->
+    <path d="M170 44 C150 6 116 -4 96 -4 C76 -4 42 6 22 44 C14 60 14 66 22 78 L170 78 C178 66 178 60 170 44 Z"
+          fill="url(#balloon)" stroke="#6d84ab" stroke-width="2"/>
+    <!-- balloon seams -->
+    <path d="M96 -2 C78 22 78 56 96 76 M96 -2 C114 22 114 56 96 76 M60 8 C52 30 52 56 60 74 M132 8 C140 30 140 56 132 74"
+          fill="none" stroke="#96a9c9" stroke-width="1.4"/>
+    <!-- keel band -->
+    <rect x="20" y="72" width="160" height="7" rx="3" fill="url(#goldbar)" stroke="#7a5a15" stroke-width="1"/>
+    <!-- rigging -->
+    <path d="M30 80 L58 108 M96 80 L96 106 M162 80 L134 108" stroke="#3c2a12" stroke-width="1.6"/>
+    <!-- fin -->
+    <path d="M168 30 L186 18 L182 44 Z" fill="#d9a838" stroke="#7a5a15" stroke-width="1.4"/>
+    <!-- galleon hull -->
+    <path d="M40 112 C42 100 58 94 96 94 C134 94 150 100 152 112 L146 124 C110 130 82 130 46 124 Z"
+          fill="url(#hull)" stroke="#2e1a08" stroke-width="2"/>
+    <!-- hull planks -->
+    <path d="M48 106 L144 106 M50 114 L142 114" stroke="#5c3818" stroke-width="1.4"/>
+    <!-- sails -->
+    <path d="M70 96 L70 78 L104 78 L104 96 Z" fill="#f1e6c8" stroke="#8a6a30" stroke-width="1.4"/>
+    <path d="M112 96 L112 82 L140 82 L140 96 Z" fill="#e8dab6" stroke="#8a6a30" stroke-width="1.2"/>
+    <!-- cabin + flag -->
+    <rect x="106" y="70" width="20" height="12" fill="#5c3818" stroke="#2e1a08" stroke-width="1.2"/>
+    <path d="M126 70 L142 72 L126 76 Z" fill="#d94848"/>
+    <!-- portholes -->
+    <circle cx="66" cy="112" r="2.6" fill="#ffd76e" stroke="#2e1a08" stroke-width="1"/>
+    <circle cx="96" cy="114" r="2.6" fill="#ffd76e" stroke="#2e1a08" stroke-width="1"/>
+    <circle cx="126" cy="112" r="2.6" fill="#ffd76e" stroke="#2e1a08" stroke-width="1"/>
+  </g>
+
+  <!-- ornate double frame -->
+  <rect x="3.5" y="3.5" width="953" height="163" fill="none" stroke="url(#goldbar)" stroke-width="5"/>
+  <rect x="9.5" y="9.5" width="941" height="151" fill="none" stroke="#8a6a1f" stroke-width="1.5"/>
+
+  <!-- corner filigree curls -->
+  <g fill="none" stroke="#e6c169" stroke-width="2.4" stroke-linecap="round">
+    <path d="M14 30 C14 20 20 14 30 14 M14 22 C14 17 17 14 22 14"/>
+    <path d="M946 30 C946 20 940 14 930 14 M946 22 C946 17 943 14 938 14"/>
+    <path d="M14 140 C14 150 20 156 30 156 M14 148 C14 153 17 156 22 156"/>
+    <path d="M946 140 C946 150 940 156 930 156 M946 148 C946 153 943 156 938 156"/>
+  </g>
+  <g fill="#e6c169">
+    <path d="M24 24 L25 27 L28 28 L25 29 L24 32 L23 29 L20 28 L23 27 Z"/>
+    <path d="M936 24 L937 27 L940 28 L937 29 L936 32 L935 29 L932 28 L935 27 Z"/>
+    <path d="M24 146 L25 149 L28 150 L25 151 L24 154 L23 151 L20 150 L23 149 Z"/>
+    <path d="M936 146 L937 149 L940 150 L937 151 L936 154 L935 151 L932 150 L935 149 Z"/>
+  </g>
+
+  <!-- left sparkle cluster for the title area -->
+  <g fill="#f4d98a">
+    <path d="M250 92 L252.4 99 L259.4 101.4 L252.4 103.8 L250 110.8 L247.6 103.8 L240.6 101.4 L247.6 99 Z" opacity="0.95"/>
+    <path d="M282 70 L283.4 74 L287.4 75.4 L283.4 76.8 L282 80.8 L280.6 76.8 L276.6 75.4 L280.6 74 Z" opacity="0.8"/>
+    <path d="M286 116 L287 119 L290 120 L287 121 L286 124 L285 121 L282 120 L285 119 Z" opacity="0.7"/>
+    <path d="M222 108 L222.8 110.4 L225.2 111.2 L222.8 112 L222 114.4 L221.2 112 L218.8 111.2 L221.2 110.4 Z" opacity="0.7"/>
+  </g>
+</svg>

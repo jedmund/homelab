@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31" viewBox="0 0 88 31">
+  <!-- 88x31 web badge: best viewed -->
+  <rect x="0.5" y="0.5" width="87" height="30" fill="#0d2244" stroke="#d9a838" stroke-width="1"/>
+  <rect x="2.5" y="2.5" width="83" height="26" fill="none" stroke="#8a6a1f" stroke-width="0.8"/>
+  <text x="44" y="13" text-anchor="middle" font-family="Verdana, DejaVu Sans, sans-serif" font-size="7" font-weight="bold" fill="#ffd76e">BEST VIEWED AT</text>
+  <text x="44" y="24" text-anchor="middle" font-family="Verdana, DejaVu Sans, sans-serif" font-size="9" font-weight="bold" fill="#f1e6c8">1024 x 768</text>
+</svg>

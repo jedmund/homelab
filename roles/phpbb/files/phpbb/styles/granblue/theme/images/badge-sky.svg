@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31" viewBox="0 0 88 31">
+  <!-- 88x31 web badge: THE SKYFORGE -->
+  <rect x="0.5" y="0.5" width="87" height="30" fill="#0d2244" stroke="#d9a838" stroke-width="1"/>
+  <rect x="2.5" y="2.5" width="83" height="26" fill="none" stroke="#8a6a1f" stroke-width="0.8"/>
+  <text x="44" y="14" text-anchor="middle" font-family="Verdana, DejaVu Sans, sans-serif" font-size="8" font-weight="bold" fill="#ffd76e" letter-spacing="0.5">THE SKYFORGE</text>
+  <text x="44" y="24" text-anchor="middle" font-family="Verdana, DejaVu Sans, sans-serif" font-size="6.5" fill="#9fb4d8">a granblue board</text>
+  <path d="M8 6 L9 9 L12 10 L9 11 L8 14 L7 11 L4 10 L7 9 Z" fill="#e6c169"/>
+  <path d="M80 17 L81 20 L84 21 L81 22 L80 25 L79 22 L76 21 L79 20 Z" fill="#e6c169"/>
+</svg>
