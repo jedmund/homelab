@@ -7,6 +7,7 @@ the Compose plugin:
 ```sh
 python3 tests/test_maintenance.py
 python3 tests/test_compose_task_order.py
+python3 tests/test_ai_access.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
@@ -22,6 +23,12 @@ check mode, and removal of an optional service.
 The maintenance tests cover the staging allowlist, BentoPDF image/health and
 Procedure contracts, backup freshness and required artifacts, NFS archive
 divergence, Prowlarr SQLite integrity failure, and temporary-file cleanup.
+
+The AI access tests render both GPU modes, published bindings, and empty and
+populated firewall allowlists with disposable values. They also check firewall
+ordering before Compose deployment and Docker boot dependencies. They do not
+contact managed hosts. Actual allowed/denied connectivity and reboot persistence
+must be checked separately; see [AI access](../roles/ai/README.md#llama-swap-access).
 
 Integration checks require a local Docker Unix socket. They use a small
 `alpine:3.20` image, pulling it if absent, and create UUID-named Compose projects
