@@ -158,7 +158,7 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	left: 24px;
 	right: 24px;
 	box-sizing: border-box;
-	height: 34px;
+	height: 38px;
 	border-style: solid;
 	border-color: transparent;
 	border-width: 11px 24px 11px 12px;
@@ -167,13 +167,13 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	letter-spacing: 0.08em;
-	line-height: 12px;
+	line-height: 16px;
 	overflow: hidden;
 	text-shadow: 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000;
 	z-index: 1;
 }
 
-.gbf-banner-marquee marquee { display: block; margin-top: -2px; }
+.gbf-banner-marquee marquee { display: block; }
 
 /* ---- tabs (UCP, MCP, posting form) --------------------------- */
 /* Dark pipe tabs, light for the active one. Text-free sprites from
