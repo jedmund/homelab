@@ -1,0 +1,48 @@
+# The Skyforge — board.fireplace.cafe
+# Real search engines may crawl the public board. Everyone else is out.
+
+User-agent: Googlebot
+Disallow: /adm
+Disallow: /config.php
+Disallow: /common.php
+Disallow: /cron.php
+Disallow: /faq.php
+Disallow: /memberlist.php
+Disallow: /posting.php
+Disallow: /report.php
+Disallow: /search.php
+Disallow: /ucp.php
+Disallow: /viewonline.php
+
+User-agent: Bingbot
+Disallow: /adm
+Disallow: /config.php
+Disallow: /common.php
+Disallow: /cron.php
+Disallow: /faq.php
+Disallow: /memberlist.php
+Disallow: /posting.php
+Disallow: /report.php
+Disallow: /search.php
+Disallow: /ucp.php
+Disallow: /viewonline.php
+
+User-agent: DuckDuckBot
+Disallow: /adm
+Disallow: /config.php
+Disallow: /common.php
+Disallow: /cron.php
+Disallow: /faq.php
+Disallow: /memberlist.php
+Disallow: /posting.php
+Disallow: /report.php
+Disallow: /search.php
+Disallow: /ucp.php
+Disallow: /viewonline.php
+
+# Everything else — AI crawlers, training-data harvesters, scrapers — is
+# denied. Compliant ones (GPTBot, ClaudeBot, CCBot, PerplexityBot,
+# Google-Extended, Applebot-Extended) honor this; the ones that ignore
+# robots.txt are blocked at the edge by the web server's user-agent rules.
+User-agent: *
+Disallow: /

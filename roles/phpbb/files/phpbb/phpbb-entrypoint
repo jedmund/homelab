@@ -111,6 +111,16 @@ if [ -n "${PHPBB_MANAGED_STYLES:-}" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Managed board files: deployment-owned files at the web root, force-copied
+# from the image on every start (robots.txt today; styles are handled above).
+# ---------------------------------------------------------------------------
+if [ -e "$PRISTINE/robots.txt" ]; then
+    cp -f "$PRISTINE/robots.txt" "$HTML/robots.txt"
+    chown root:root "$HTML/robots.txt" 2>/dev/null \
+        || chmod a+rw "$HTML/robots.txt" 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------------------
 # One-time install through phpBB's own CLI installer.
 # ---------------------------------------------------------------------------
 yaml_quote() {

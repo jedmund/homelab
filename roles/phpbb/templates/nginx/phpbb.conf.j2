@@ -29,6 +29,14 @@ server {
     real_ip_header X-Forwarded-For;
     real_ip_recursive on;
 
+    # AI and training-data crawlers are refused at the edge. robots.txt
+    # (served from the board root) turns away the ones that honor it; this
+    # user-agent rule stops the ones that do not, so the public board is
+    # readable by search engines and humans only.
+    if ($http_user_agent ~* (GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-Web|Claude-SearchBot|Claude-User|PerplexityBot|Perplexity-User|CCBot|Bytespider|Google-Extended|Applebot-Extended|Meta-ExternalAgent|Meta-ExternalFetcher|Cohere|Diffbot|TikTokSpider|Amazonbot)) {
+        return 403;
+    }
+
     add_header X-Content-Type-Options nosniff always;
 
     location / {

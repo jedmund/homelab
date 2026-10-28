@@ -55,6 +55,23 @@ are never touched by the sync. Because the managed style is root-owned and
 read-only to the board, template editing through the ACP is unavailable for
 it by design — edit in the repository instead.
 
+## Crawlers
+
+The board is public but not for AI and training-data crawlers. Two layers:
+
+- **robots.txt** ([files/phpbb/robots.txt](files/phpbb/robots.txt)) is baked
+  into the image and force-copied to the web root on every start. It allows
+  Googlebot, Bingbot, and DuckDuckBot (with phpBB's recommended private-path
+  disallows) and denies everyone else — compliant AI crawlers stop here.
+- **nginx user-agent rule**: crawlers that ignore robots.txt (Bytespider and
+  friends) get a 403 at the origin. The list lives in
+  [phpbb.conf.j2](templates/nginx/phpbb.conf.j2) and mirrors the ACP's AI
+  Crawlers group; extend it when phpBB ships new catalog entries.
+
+To verify: `curl -A GPTBot https://board.fireplace.cafe/` → 403,
+`curl -A Googlebot/2.1 https://board.fireplace.cafe/` → 200, and
+`curl https://board.fireplace.cafe/robots.txt` → the policy above.
+
 ## How the image is built
 
 `roles/phpbb/files/phpbb/` holds the build context:
