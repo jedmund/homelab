@@ -55,6 +55,13 @@ are never touched by the sync. Because the managed style is root-owned and
 read-only to the board, template editing through the ACP is unavailable for
 it by design — edit in the repository instead.
 
+Game-flavored assets under `theme/images/game/` (SSR banner, scroll
+frame, bronze and steel capsule buttons, filigree ornament, cream
+backdrop) are official Granblue Fantasy UI sprites, downloaded from the
+game CDN for this private board's theme. The sprite atlas source for the
+buttons is `ui/button-sf56ebaca5b.png`; the two capsule crops are
+documented by their coordinates in the granblue.css comments.
+
 ## Crawlers
 
 The board is public but not for AI and training-data crawlers. Two layers:

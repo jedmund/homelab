@@ -9,7 +9,7 @@
 /* ---- global chrome ---------------------------------------- */
 
 body {
-	background: #0d2244 url('./images/tile.svg') repeat !important;
+	background: #f3ecdc url('./images/game/bg-picture-book.jpg') no-repeat center top / cover fixed;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 11px;
 	color: #1c355e;
@@ -22,13 +22,17 @@ body {
 	border-radius: 0 !important;
 }
 
-/* The forum-in-a-box: parchment panel with a fat gold ridge border */
+/* The board inside a GBF scroll: rolled ends as a border-image, dark
+   parchment interior. Panels inside carry their own light backgrounds. */
 #wrap {
-	border: 3px ridge #b98d2f;
-	background: #f7f2e2;
-	box-shadow: 0 0 14px #000c38;
+	border-style: solid;
+	border-color: #1a1408;
+	border-width: 30px 36px;
+	border-image: url('./images/game/scroll-bg.png') 30 36 fill / 30px 36px stretch;
+	box-shadow: 0 0 18px #1a140866;
 	margin-top: 12px;
 	margin-bottom: 12px;
+	color: #e8dcc0;
 }
 
 /* Classic link behaviour */
@@ -70,6 +74,19 @@ a:hover { color: #a5760f; text-decoration: underline; }
 	margin-left: 16px;
 }
 
+/* the filigree ornament from the game UI, top corner of the banner */
+.headerbar::after {
+	content: "";
+	position: absolute;
+	top: 8px;
+	right: 16px;
+	width: 130px;
+	height: 106px;
+	background: url('./images/game/base-ornament.png') center / contain no-repeat;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
 /* the marquee strip, as the prophecy demanded */
 .gbf-banner-marquee {
 	position: absolute;
@@ -97,7 +114,7 @@ a:hover { color: #a5760f; text-decoration: underline; }
 /* ---- navbar ------------------------------------------------- */
 
 .navbar {
-	background: linear-gradient(#16386f, #2c62b8);
+	background: #241c12;
 	border: 1px solid #d9a838;
 	border-width: 1px 1px 2px 1px;
 	color: #f1e6c8;
@@ -113,45 +130,51 @@ a:hover { color: #a5760f; text-decoration: underline; }
 
 .navbar .icon { color: #ffd76e; }
 
-/* ---- forum blocks ------------------------------------------- */
+/* ---- forum blocks: SSR banner headers on the dark scroll ----- */
 
 .forabg, .forumbg {
-	background: linear-gradient(#1c3f7d, #2f66c4);
-	border: 3px ridge #b98d2f;
-	box-shadow: 1px 1px 0 #0a1a3a;
+	background: #241c12;
+	border: 1px solid #8a6a1f;
+	box-shadow: 0 2px 6px #1a140880;
+}
+
+li.header {
+	background: url('./images/game/scroll-title.png') center / 100% 100% no-repeat;
+	padding: 4px 8px;
 }
 
 li.header dt, li.header dd {
-	color: #ffd76e;
+	color: #3a2a10;
 	font-family: "Times New Roman", Georgia, serif;
 	font-size: 1.2em;
+	font-weight: bold;
 	letter-spacing: 0.06em;
-	text-shadow: 1px 1px 0 #00142e;
+	text-shadow: 0 1px 0 #ffedb055;
 }
 
-li.header dt a { color: #ffd76e; }
+li.header dt a { color: #3a2a10; }
 
 li.header::before {
 	content: "✦ ";
-	color: #e6c169;
+	color: #7a5a15;
 }
 
 li.header::after {
 	content: " ✦";
-	color: #e6c169;
+	color: #7a5a15;
 }
 
-/* forum/topic rows: pale alternating blues, gold on hover */
+/* forum/topic rows: parchment tints, gold on hover */
 ul.forums li.row, ul.topics li.row {
-	border-bottom: 1px solid #b9c8e2;
+	border-bottom: 1px solid #c9b06a66;
 }
 
 ul.forums li.row:hover, ul.topics li.row:hover {
-	background-color: #fdf6e0;
+	background-color: #fdf3d8;
 }
 
-ul.forums li.bg1, ul.topics li.bg1 { background-color: #eef4fb; }
-ul.forums li.bg2, ul.topics li.bg2 { background-color: #dfeaf8; }
+ul.forums li.bg1, ul.topics li.bg1 { background-color: #f3ead8; }
+ul.forums li.bg2, ul.topics li.bg2 { background-color: #ebe0c4; }
 
 .topics .list-inner a.topictitle,
 .forums .forumtitle { color: #16408f; font-weight: bold; }
@@ -225,21 +248,23 @@ blockquote {
 
 .button,
 .button1, .button2,
+a.button1, a.button2, input.button1, input.button2,
 .dropdown .button {
-	background: linear-gradient(#1d4c94, #2f6fc2);
-	border: 2px outset #6d94c8;
-	color: #ffd76e;
+	background: url('./images/game/button-gold.png') center / 100% 100% no-repeat;
+	border: none;
+	color: #3a2a10;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 1.1em;
 	font-weight: bold;
-	text-shadow: 1px 1px 0 #000c38;
+	text-shadow: 0 1px 0 #ffedb088;
+	padding: 7px 30px;
 }
 
 .button:hover, .button1:hover, .button2:hover,
-.dropdown .button:hover {
-	background: linear-gradient(#2f6fc2, #4589d8);
-	border-color: #d9a838;
-	color: #ffffff;
+.dropdown .button:hover, a.button1:hover, a.button2:hover {
+	background: url('./images/game/button-steel.png') center / 100% 100% no-repeat;
+	color: #f1e6c8;
+	text-shadow: 1px 1px 0 #000a;
 }
 
 .button-search { padding: 2px 6px; }
