@@ -36,6 +36,7 @@ run_static() {
     python tests/test_maintenance.py
     python tests/test_compose_task_order.py
     python tests/test_flaresolverr.py
+    python tests/test_ai_access.py
     python tests/test_degoog_migration.py
     python tests/test_degoog_maps.py
     python tests/compose_lifecycle.py --static-only --report /results/static-fixtures.json

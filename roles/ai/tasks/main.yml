@@ -3,6 +3,9 @@
 # Models are downloaded out of band into ai_models_dir; see
 # roles/ai/README.md for the model URLs and pull commands.
 
+- name: Configure llama-swap network restrictions
+  ansible.builtin.import_tasks: firewall.yml
+
 - name: Create {{ stack_name }} directories
   file:
     path: "{{ item }}"

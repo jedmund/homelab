@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Restrict the llama-swap published API
+Before=docker.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/ai/llama-swap-firewall.nft
+ExecReload=/usr/sbin/nft -f /etc/ai/llama-swap-firewall.nft
+# Stopping this unit deliberately leaves the rules installed.
+
+[Install]
+WantedBy=multi-user.target
