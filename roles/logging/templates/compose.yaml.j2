@@ -67,6 +67,8 @@ services:
       - ./grafana-data:/var/lib/grafana
       - ./config/grafana.ini:/etc/grafana/grafana.ini:ro
       - ./config/datasources.yaml:/etc/grafana/provisioning/datasources/logging.yaml:ro
+      - ./config/dashboards.yaml:/etc/grafana/provisioning/dashboards/homelab.yaml:ro
+      - ./config/dashboards:/var/lib/grafana/dashboards:ro
     networks: [default, proxy]
     labels:
       traefik.enable: "true"
@@ -81,6 +83,69 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  prometheus:
+    image: {{ logging_prometheus_image }}
+    container_name: logging-prometheus
+    restart: {{ restart_policy }}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ logging_metrics_retention }}
+      - --storage.tsdb.retention.size={{ logging_metrics_max_size }}
+      - --web.enable-admin-api
+    ports:
+      - "127.0.0.1:{{ logging_prometheus_port }}:9090"
+    volumes:
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./prometheus-data:/prometheus
+    networks: [default, ingress]
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+{% if logging_unifi_enabled %}
+  unpoller:
+    image: {{ logging_unpoller_image }}
+    container_name: logging-unpoller
+    restart: {{ restart_policy }}
+    env_file:
+      - path: ./env/unpoller.env
+        format: raw
+    extra_hosts:
+      - "unifi.local:{{ logging_unifi_address }}"
+    volumes:
+      - ./config/unifi-controller.crt:/etc/unpoller/unifi-controller.crt:ro
+    networks: [default, ingress]
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endif %}
+{% if logging_unas_enabled %}
+{% for device in logging_unas_devices %}
+  unas-{{ device.name }}:
+    image: {{ logging_unpoller_image }}
+    container_name: logging-unas-{{ device.name }}
+    restart: {{ restart_policy }}
+    env_file:
+      - path: ./env/unas-{{ device.name }}.env
+        format: raw
+    extra_hosts:
+      - "unifi.local:{{ device.address }}"
+    volumes:
+      - ./config/unas-{{ device.name }}.crt:/etc/unpoller/controller.crt:ro
+    networks: [default, ingress]
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endfor %}
+{% endif %}
+
   checks:
     image: {{ logging_checks_image }}
     container_name: logging-checks
@@ -91,9 +156,11 @@ services:
       HEARTBEAT_MAX_AGE: "{{ logging_heartbeat_max_age }}"
       NAS_SERVER: "{{ nas_server }}"
       NAS_WARNING_PERCENT: "{{ logging_nas_warning_percent }}"
+      EXPECTED_UNAS: '{{ logging_unas_devices | map(attribute="name") | list | to_json if logging_unas_enabled else "[]" }}'
     volumes:
       - ./scripts/checks.py:/app/checks.py:ro
       - ./backup:/backup:ro
+      - /opt/docker/backup/metrics:/backup-metrics:ro
       - type: bind
         source: {{ logging_nas_directory }}
         target: /nas
@@ -116,7 +183,7 @@ networks:
   default:
     internal: true
   # Docker does not publish ports for containers attached only to internal
-  # networks. The gateway and loopback administrative API join it.
+  # networks. The gateway, loopback APIs, and outbound metric collectors join it.
   ingress: {}
   proxy:
     name: {{ proxy_network }}
