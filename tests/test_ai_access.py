@@ -18,7 +18,7 @@ def render(name, **overrides):
     values.update(yaml.safe_load((ROLE / 'defaults/main.yml').read_text()))
     values.update(ansible_managed='test', stack_name='ai', ai_gpu_mode='split',
                   ai_llama_swap_bind_address='192.0.2.100',
-                  ai_llama_swap_allowed_sources=['192.0.2.6/32'])
+                  ai_llama_swap_allowed_sources=['192.0.2.0/24'])
     values.update(overrides)
     env = jinja2.Environment(undefined=jinja2.StrictUndefined)
     env.filters['to_json'] = json.dumps
@@ -54,7 +54,7 @@ class AIAccessTests(unittest.TestCase):
         self.assertIn('hook forward priority -10', rules)
         self.assertIn('ct direction original ct original ip daddr 192.0.2.100', rules)
         self.assertIn('ct original proto-dst 11434', rules)
-        self.assertIn('192.0.2.6/32', rules)
+        self.assertIn('192.0.2.0/24', rules)
         self.assertNotIn('established', rules)
         self.assertEqual(rules.count('ip saddr != @allowed_v4 drop'), 2)
 
@@ -62,7 +62,7 @@ class AIAccessTests(unittest.TestCase):
         for sources in ([], ['192.0.2.7/32', '192.0.2.8/32']):
             with self.subTest(sources=sources):
                 rules = render('firewall.nft.j2', ai_llama_swap_allowed_sources=sources)
-                self.assertNotIn('192.0.2.6/32', rules)
+                self.assertNotIn('192.0.2.0/24', rules)
                 self.assertIn('127.0.0.1/32', rules)
                 for source in sources:
                     self.assertIn(source, rules)
@@ -76,6 +76,11 @@ class AIAccessTests(unittest.TestCase):
         self.assertIn('Before=docker.service', unit)
         self.assertNotIn('ExecStop=', unit)
         self.assertIn('Requires=ai-llama-swap-firewall.service', dropin)
+        firewall_tasks = yaml.safe_load((ROLE / 'tasks/firewall.yml').read_text())
+        apply = next(t['ansible.builtin.systemd_service'] for t in firewall_tasks
+                     if 'ansible.builtin.systemd_service' in t)
+        self.assertIn("'reloaded'", apply['state'])
+        self.assertNotIn("'restarted'", apply['state'])
 
 
 if __name__ == '__main__':

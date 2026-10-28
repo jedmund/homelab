@@ -415,6 +415,6 @@ normal `model_type` and the task adapter merged into the base weights.
 4. Re-run `ansible-playbook deploy/ai.yml`. The llama-swap config template
    re-renders and the handler recreates the stack; llama-swap reloads its
    config on container restart.
-5. Smoke-test through OpenWebUI. From `nuc-mini`,
+5. Smoke-test through OpenWebUI. From a `192.168.1.X` LAN client,
    `curl -fsS http://192.168.1.100:11434/v1/models | jq` should list the
-   active models. Direct access is restricted; see [AI access](README.md#llama-swap-access).
+   active models. See [AI access](README.md#llama-swap-access) for network access.

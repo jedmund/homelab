@@ -13,7 +13,7 @@ http:
     # Port 11434 matches llama_swap_port in roles/ai/defaults/main.yml;
     # kept hardcoded here because the ai role's variables are not in scope
     # from the traefik role. TinyAuth gates this route. The ai role restricts
-    # max:11434 to nuc-mini; remote API users go through Open WebUI.
+    # max:11434 to the LAN; remote API users go through Open WebUI.
     llamaswap:
       rule: "Host(`models.{{ traefik_domain }}`)"
       service: llamaswap

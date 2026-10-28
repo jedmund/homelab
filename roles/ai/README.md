@@ -21,23 +21,27 @@ editing it in Admin -> Settings or a one-shot start with
 ## llama-swap access
 
 Port 11434 is published on IPv4 loopback and `max`'s inventory address.
-The default remote allowlist is `nuc-mini` alone. Open WebUI connects from
-that host, as do Traefik's TinyAuth-protected `models.atelier.house` route
-and Kizuna's PDF OCR worker. Other LAN and internet clients cannot use the
-published API. Remote model users should use Open WebUI's authenticated
-endpoint; do not distribute direct `max:11434` URLs.
+The default allowlist is the `192.168.1.0/24` LAN. Clients on that network
+can use `http://192.168.1.100:11434` directly. Open WebUI connects from
+`nuc-mini`, as do Traefik's TinyAuth-protected `models.atelier.house` route
+and Kizuna's PDF OCR worker. Clients outside the LAN should use Open WebUI's
+authenticated endpoint or an administrative SSH tunnel.
 
 The AI role owns the `inet homelab_llama_swap` nftables table. It filters
 forwarded traffic using the original destination address and port, before
 Docker's accept rules, and covers host listeners on the LAN address too.
 Rules replace only that table atomically and do not exempt existing client
 connections. UFW source restrictions alone do not protect Docker-published
-ports. The allowlist trusts the source host, including workloads on that
-host; it does not authenticate individual users.
+ports. The allowlist trusts hosts and workloads on the LAN; it does not
+authenticate individual users. Source filtering assumes the router preserves
+the original source address for incoming traffic. Keep port forwarding
+disabled so externally sourced traffic is not translated to a trusted LAN
+source address.
 
 The `ai-llama-swap-firewall.service` unit loads the rules before Docker starts.
 A Docker unit drop-in requires it, so failure to load the rules prevents
 Docker startup on `max`. Installing the drop-in does not restart Docker.
+Allowlist updates reload rules without restarting Docker.
 Stopping the firewall unit leaves its rules installed. Remove the published
 port before retiring the rules, unit, and Docker drop-in. Do not flush the
 host ruleset or restart Docker to test this on a live host.
@@ -71,8 +75,8 @@ On `max`, verify `sudo nft list table inet homelab_llama_swap`,
 `systemctl is-active ai-llama-swap-firewall.service`, the IPv4-only published
 bindings, and local `http://127.0.0.1:11434/health`. From `nuc-mini`, verify
 `http://192.168.1.100:11434/v1/models` and an authenticated Open WebUI chat.
-From another LAN host and an external network, verify direct port 11434
-cannot connect. Verify TinyAuth still gates `models.atelier.house` and
+From another `192.168.1.X` client, verify direct port 11434 works; from
+outside the allowed subnet, verify it cannot connect. Verify TinyAuth still gates `models.atelier.house` and
 Kizuna's OCR workflow still works. Repeat deployment to check idempotence.
 Reboot persistence requires a separate authorized maintenance window.
 
