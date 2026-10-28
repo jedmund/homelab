@@ -8,9 +8,17 @@ the Compose plugin:
 python3 tests/test_maintenance.py
 python3 tests/test_compose_task_order.py
 python3 tests/test_ai_access.py
+python3 tests/test_logging.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
+
+`python3 tests/test_logging.py --validate-configs` also checks rendered Loki
+and Linux/macOS Vector configurations using their pinned container
+binaries, including event-time parsing and fallback behavior for Traefik files.
+It uses disposable credentials and does not contact managed hosts. Follow the
+[logging verification procedure](../roles/logging/README.md#verification) for
+end-to-end collection and restart tests.
 
 The static phase follows task includes and imports from each role's main task
 file to check recreation inputs in execution order. It also verifies handler
