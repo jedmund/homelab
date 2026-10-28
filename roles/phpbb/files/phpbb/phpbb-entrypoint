@@ -1,0 +1,207 @@
+#!/bin/sh
+# phpBB application entrypoint.
+#
+# 1. Render PHP and FPM pool configuration from the environment.
+# 2. Seed phpBB's shipped guard files (dotfiles, index.htm) into the mounted
+#    data directories, only where missing.
+# 3. Hand the writable data directories to the FPM user (marker-gated).
+# 4. Run the CLI installer once, when config.php is still empty.
+# 5. Reconcile board email settings against the environment.
+# 6. Exec php-fpm.
+set -eu
+
+HTML=/var/www/html
+PRISTINE=/usr/share/phpbb
+FPM_USER=www-data
+
+[ "$(id -u)" = "0" ] || { echo "phpbb: entrypoint must run as root" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Overlay the board code from the image onto the root volume. Version-gated
+# inside phpbb-init; config.php, cache, and the mounted data directories are
+# excluded there.
+# ---------------------------------------------------------------------------
+/usr/local/bin/phpbb-init
+
+fpm_uid="$(id -u "$FPM_USER")"
+fpm_gid="$(id -g "$FPM_USER")"
+owner_marker=".owner-${fpm_uid}-${fpm_gid}"
+
+# ---------------------------------------------------------------------------
+# PHP configuration, applied on every start.
+# ---------------------------------------------------------------------------
+cat > /usr/local/etc/php/conf.d/zz-phpbb.ini <<EOF
+memory_limit=${PHPBB_PHP_MEMORY_LIMIT:-256M}
+upload_max_filesize=${PHPBB_PHP_UPLOAD_MAX_FILESIZE:-32M}
+post_max_size=${PHPBB_PHP_POST_MAX_SIZE:-48M}
+max_execution_time=${PHPBB_PHP_MAX_EXECUTION_TIME:-60}
+max_input_time=${PHPBB_PHP_MAX_INPUT_TIME:-120}
+expose_php=Off
+date.timezone=${TZ:-UTC}
+EOF
+
+cat > /usr/local/etc/php-fpm.d/zz-phpbb.conf <<EOF
+[www]
+pm.max_children=${PHPBB_PHP_PM_MAX_CHILDREN:-8}
+pm.start_servers=${PHPBB_PHP_PM_START_SERVERS:-2}
+pm.min_spare_servers=${PHPBB_PHP_PM_MIN_SPARE_SERVERS:-1}
+pm.max_spare_servers=${PHPBB_PHP_PM_MAX_SPARE_SERVERS:-4}
+EOF
+
+# ---------------------------------------------------------------------------
+# Seed pristine guard files into mounted data directories. Missing files only,
+# so attachments, stores, styles, and installed extensions are never clobbered.
+# ---------------------------------------------------------------------------
+seed_missing() {
+    src="$PRISTINE/$1"
+    dst="$HTML/$1"
+    [ -d "$src" ] || return 0
+    [ -d "$dst" ] || return 0
+    (cd "$src" && find . -type f) | while IFS= read -r file; do
+        if [ ! -e "$dst/$file" ]; then
+            mkdir -p "$dst/$(dirname "$file")"
+            cp -a "$src/$file" "$dst/$file"
+            chown "$FPM_USER:$FPM_USER" "$dst/$file" 2>/dev/null || true
+        fi
+    done
+}
+
+for mount_dir in files store ext styles images/avatars/upload; do
+    seed_missing "$mount_dir"
+done
+
+# ---------------------------------------------------------------------------
+# Ownership of writable data. Marker-gated so large attachment trees are not
+# re-chowned on every start. A chmod fallback covers NFS exports that squash
+# root: the FPM user can then write world-writable data regardless of owner.
+# ---------------------------------------------------------------------------
+take_owner() {
+    path="$1"
+    [ -d "$path" ] || return 0
+    if [ ! -e "$path/$owner_marker" ]; then
+        chown -R "$FPM_USER:$FPM_USER" "$path" 2>/dev/null \
+            || chmod -R a+rwX "$path" 2>/dev/null || true
+        touch "$path/$owner_marker" 2>/dev/null \
+            && chown "$FPM_USER:$FPM_USER" "$path/$owner_marker" 2>/dev/null || true
+    fi
+}
+
+for mount_dir in files store ext styles images/avatars/upload; do
+    take_owner "$HTML/$mount_dir"
+done
+take_owner "$HTML/cache"
+
+# ---------------------------------------------------------------------------
+# One-time install through phpBB's own CLI installer.
+# ---------------------------------------------------------------------------
+yaml_quote() {
+    # The installer file is rendered inside an unquoted heredoc, so shell
+    # metacharacters in vault-supplied values would be expanded before the
+    # YAML escaping ever runs. Fail loudly instead of misbehaving.
+    case "$1" in
+        *['$`\\']*)
+            echo "phpbb: value contains a shell metacharacter; use a plain value" >&2
+            exit 1
+            ;;
+    esac
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/''/g")"
+}
+
+db_ready() {
+    php -r 'try { $m = @mysqli_connect(getenv("PHPBB_DB_HOST"), getenv("PHPBB_DB_USER"), getenv("PHPBB_DB_PASSWORD"), getenv("PHPBB_DB_NAME"), (int) getenv("PHPBB_DB_PORT")); if (!$m) { exit(1); } mysqli_close($m); exit(0); } catch (Throwable $e) { exit(1); }'
+}
+
+if [ ! -s "$HTML/config.php" ]; then
+    echo "phpbb: config.php is empty; waiting for the database"
+    tries=0
+    until db_ready; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 30 ]; then
+            echo "phpbb: database not reachable after $tries attempts" >&2
+            exit 1
+        fi
+        sleep 2
+    done
+
+    if [ "${PHPBB_EMAIL_ENABLED:-true}" = "true" ]; then
+        email_enabled=true
+    else
+        email_enabled=false
+    fi
+    if [ "${PHPBB_SMTP_DELIVERY:-true}" = "true" ]; then
+        smtp_delivery=true
+    else
+        smtp_delivery=false
+    fi
+    if [ "${PHPBB_COOKIE_SECURE:-true}" = "true" ]; then
+        cookie_secure=true
+    else
+        cookie_secure=false
+    fi
+
+    installer_config=/tmp/phpbb-installer.yaml
+    umask 077
+    cat > "$installer_config" <<EOF
+installer:
+  admin:
+    name: $(yaml_quote "${PHPBB_ADMIN_NAME:-admin}")
+    password: $(yaml_quote "${PHPBB_ADMIN_PASSWORD:-}")
+    email: $(yaml_quote "${PHPBB_ADMIN_EMAIL:-}")
+  board:
+    lang: $(yaml_quote "${PHPBB_DEFAULT_LANG:-en}")
+    name: $(yaml_quote "${PHPBB_BOARD_NAME:-My Board}")
+    description: $(yaml_quote "${PHPBB_BOARD_DESCRIPTION:-}")
+  database:
+    dbms: $(yaml_quote "${PHPBB_DBMS:-mysqli}")
+    dbhost: $(yaml_quote "${PHPBB_DB_HOST:-localhost}")
+    dbport: $(yaml_quote "${PHPBB_DB_PORT:-3306}")
+    dbuser: $(yaml_quote "${PHPBB_DB_USER:-}")
+    dbpasswd: $(yaml_quote "${PHPBB_DB_PASSWORD:-}")
+    dbname: $(yaml_quote "${PHPBB_DB_NAME:-}")
+    table_prefix: $(yaml_quote "${PHPBB_DB_TABLE_PREFIX:-phpbb_}")
+  email:
+    enabled: $email_enabled
+    smtp_delivery: $smtp_delivery
+    smtp_host: $(yaml_quote "${PHPBB_SMTP_HOST:-}")
+    smtp_port: $(yaml_quote "${PHPBB_SMTP_PORT:-587}")
+    smtp_auth: $(yaml_quote "${PHPBB_SMTP_AUTH_METHOD:-LOGIN}")
+    smtp_user: $(yaml_quote "${PHPBB_SMTP_USERNAME:-}")
+    smtp_pass: $(yaml_quote "${PHPBB_SMTP_PASSWORD:-}")
+  server:
+    cookie_secure: $cookie_secure
+    server_protocol: $(yaml_quote "${PHPBB_SERVER_PROTOCOL:-https://}")
+    force_server_vars: false
+    server_name: $(yaml_quote "${PHPBB_SERVER_NAME:-localhost}")
+    server_port: ${PHPBB_SERVER_PORT:-443}
+    script_path: $(yaml_quote "${PHPBB_SCRIPT_PATH:-/}")
+  extensions: []
+EOF
+
+    echo "phpbb: running the CLI installer"
+    php "$HTML/install/phpbbcli.php" install "$installer_config"
+    rm -f "$installer_config"
+
+    chown "$FPM_USER:$FPM_USER" "$HTML/config.php"
+    chmod 0600 "$HTML/config.php"
+    # The installer ran as root and left root-owned files in the cache.
+    rm -f "$HTML/cache/$owner_marker"
+    take_owner "$HTML/cache"
+    if [ -e "$HTML/cache/install_lock" ]; then
+        echo "phpbb: WARNING cache/install_lock remains; the install did not finish cleanly" >&2
+    fi
+fi
+
+# phpBB limits the board to the ACP while install/ exists and asks every
+# visitor to delete it. The web installer is blocked by nginx regardless;
+# remove the directory once the board is installed and let phpbb-update
+# materialize it for CLI database updates.
+if [ -d "$HTML/install" ] && [ -s "$HTML/config.php" ] && [ ! -e "$HTML/cache/install_lock" ]; then
+    rm -rf "$HTML/install"
+fi
+
+# ---------------------------------------------------------------------------
+# Reconcile board email settings with the environment (safe to run always).
+# ---------------------------------------------------------------------------
+php /usr/local/bin/phpbb-ensure.php || echo "phpbb: board email reconcile skipped" >&2
+
+exec "$@"

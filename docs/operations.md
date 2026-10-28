@@ -177,8 +177,8 @@ Compose or establish application health.
 
 ### Local image builds
 
-Line, Backup, Matrix, MusicBrainz, Strudel, and Petlibro's optional catbro
-inspect their local images and effective build inputs before deployment.
+Line, Backup, Matrix, MusicBrainz, Strudel, Petlibro's optional catbro, and
+phpBB inspect their local images and effective build inputs before deployment.
 Ansible builds when an image is missing, build inputs differ from the last
 successful deployment, or the role's force-rebuild variable is true. Runtime
 configuration changes can recreate the stack without rebuilding its images.
@@ -197,6 +197,7 @@ eligible for retry. Check mode does not build or update the record.
 | MusicBrainz | `musicbrainz_force_rebuild` |
 | Strudel | `strudel_force_rebuild` |
 | Petlibro | `petlibro_force_rebuild` (only while catbro is enabled) |
+| phpBB | `phpbb_force_rebuild` |
 
 For example:
 

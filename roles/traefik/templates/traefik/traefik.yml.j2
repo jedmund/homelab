@@ -49,6 +49,12 @@ entryPoints:
           # not covered by the single-label "*.{{ traefik_domain }}" wildcard
           # above, so it needs its own entry, same as *.sort and *.tun.
           - main: "*.kaneo.{{ traefik_domain }}"
+          # The fireplace.cafe zone (phpBB board and future services). The
+          # Cloudflare DNS-challenge token must cover this zone; board's
+          # records are managed by hand (see roles/phpbb/README.md).
+          - main: "fireplace.cafe"
+            sans:
+              - "*.fireplace.cafe"
 # Providers
 providers:
   docker:

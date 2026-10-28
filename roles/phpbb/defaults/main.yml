@@ -1,0 +1,126 @@
+---
+# Stack identity
+stack_name: phpbb
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# phpBB release. The application image is built on the host from the pinned
+# official release tarball (see roles/phpbb/files/phpbb/Dockerfile and the
+# build fingerprint in tasks/build.yml). Bump the version together with the
+# tarball checksum in the Dockerfile; the overlay init reseeds the board code
+# on the next deploy. Rollback: rebuild the previous version and restore the
+# database dump taken before the upgrade (see roles/phpbb/README.md).
+phpbb_version: "3.3.19"
+phpbb_image: phpbb:3.3.19
+
+# Base and support images, pinned. The PHP tag must be at least 8.4.27:
+# earlier releases are vulnerable to PHP2Shell (CVE-2026-109618/109619).
+phpbb_base_image: php:8.4.27-fpm-alpine3.24
+phpbb_nginx_image: nginx:1.30.6-alpine3.24
+phpbb_db_image: mariadb:12.3.2
+phpbb_storage_init_image: alpine:3.20
+
+# Request one cached build even when recorded inputs and local images match.
+phpbb_force_rebuild: false
+
+# Characters rejected in vault-supplied values: they travel through the
+# entrypoint's shell-rendered installer file and cannot be escaped safely
+# there. Mirrored by the preflight assertion in tasks/main.yml.
+phpbb_admin_password_forbidden: ['$', '`', '\']
+
+# Board identity and routing
+phpbb_domain: board.fireplace.cafe
+phpbb_port: "8080"
+
+phpbb_board_name: "Fireplace"
+phpbb_board_description: "A forum by the fire"
+phpbb_default_lang: en
+
+# Founder account created by the CLI installer on first start. The password
+# lives in the vault (vault_phpbb_admin_password).
+phpbb_admin_name: Justin
+phpbb_admin_email: justin@jedmund.com
+phpbb_admin_password: "{{ vault_phpbb_admin_password | default('') }}"
+
+# Board contact address used as the envelope From on outgoing mail. The
+# Resend API key is scoped to the verified domain board.fireplace.cafe, so
+# the sender lives there; Resend rejects senders outside the key's domain
+# with a 550 at DATA time.
+phpbb_board_email: noreply@board.fireplace.cafe
+
+# MariaDB (backend network only)
+phpbb_db_host: phpbb-db
+phpbb_db_port: "3306"
+phpbb_db_name: phpbb
+phpbb_db_user: phpbb
+phpbb_db_table_prefix: phpbb_
+phpbb_db_password: "{{ vault_phpbb_db_password | default('') }}"
+phpbb_db_root_password: "{{ vault_phpbb_db_root_password | default('') }}"
+
+# Resend SMTP. Resend's SMTP interface authenticates with the literal
+# username "resend" and an API key as the password.
+phpbb_email_enabled: "true"
+phpbb_smtp_delivery: "true"
+phpbb_smtp_host: smtp.resend.com
+phpbb_smtp_port: "587"
+phpbb_smtp_auth_method: LOGIN
+phpbb_smtp_username: resend
+phpbb_smtp_password: "{{ vault_resend_api_key | default('') }}"
+
+# Server settings written at install time. The board is only served through
+# Traefik TLS, so cookies are secure and the canonical protocol is https.
+phpbb_cookie_secure: "true"
+phpbb_server_protocol: https://
+phpbb_server_name: "{{ phpbb_domain }}"
+phpbb_server_port: "443"
+phpbb_script_path: /
+
+# PHP runtime tuning, applied on every container start from the environment.
+phpbb_php_upload_max_filesize: 32M
+phpbb_php_post_max_size: 48M
+phpbb_php_memory_limit: 256M
+phpbb_php_max_execution_time: "60"
+phpbb_php_max_input_time: "120"
+phpbb_php_pm_max_children: "8"
+phpbb_php_pm_start_servers: "2"
+phpbb_php_pm_min_spare_servers: "1"
+phpbb_php_pm_max_spare_servers: "4"
+
+# Traefik's fixed address on the proxy network; only this address may supply
+# X-Forwarded-For, and nginx rewrites the real client address for phpBB rate
+# limits and logs. Repeated from inventory (traefik_proxy_ipv4_address)
+# because cross-role variables are not in scope here.
+phpbb_trusted_proxy_ip: "{{ hostvars['nuc-mini'].traefik_proxy_ipv4_address }}"
+
+# Mutable board data on the Files NAS share (attachments, upgrade stores,
+# extensions, styles, avatars). Code, config.php, and cache stay in
+# NUC-local volumes. Mirrors roles/kaneo; the directories are created by a
+# seed init before the dedicated volumes are mounted.
+phpbb_storage_nas_enabled: true
+phpbb_data_nas_share: Files
+phpbb_data_nas_subdirectory: PhpBB
+phpbb_data_nas_seed_volume: phpbb-files-nas-root
+phpbb_data_nfs_root_device: ":{{ nfs_base_path }}/{{ phpbb_data_nas_share }}/.data"
+phpbb_data_nfs_device: "{{ phpbb_data_nfs_root_device }}/{{ phpbb_data_nas_subdirectory }}"
+phpbb_data_nfs_options: "{{ nfs_base_opts }}"
+phpbb_nas_mounts:
+  - volume: phpbb-files
+    path: files
+    nas_path: files
+    nginx: false
+  - volume: phpbb-store
+    path: store
+    nas_path: store
+    nginx: false
+  - volume: phpbb-ext
+    path: ext
+    nas_path: ext
+    nginx: true
+  - volume: phpbb-styles
+    path: styles
+    nas_path: styles
+    nginx: true
+  - volume: phpbb-avatars
+    # Container path differs from the NAS subdirectory here.
+    path: images/avatars/upload
+    nas_path: avatars
+    nginx: true

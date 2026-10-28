@@ -382,6 +382,18 @@ runner, and n8n receive matching configuration.
 | --- | --- |
 | `plex_claim` | Plex claim token (optional, usually only needed for first bootstrap) |
 
+### group_vars/phpbb/vault.yml
+
+Setup, DNS, Resend verification, and the upgrade procedure are in the
+[phpBB runbook](../roles/phpbb/README.md).
+
+| Variable | Description |
+| --- | --- |
+| `vault_phpbb_db_password` | MariaDB application password |
+| `vault_phpbb_db_root_password` | MariaDB root password; also read by the backup role's dump hook |
+| `vault_phpbb_admin_password` | Founder account password; phpBB allows 8–30 characters |
+| `vault_resend_api_key` | Resend SMTP API key; required while board email is enabled |
+
 ### group_vars/pocketid/vault.yml
 
 | Variable | Description |

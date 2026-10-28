@@ -83,6 +83,7 @@ Existing host builds are supported exceptions:
 | `line` | Line source checkout |
 | `hugginghack` | Fork fetched through a Compose Git build context |
 | `strudel` | Repository-managed Dockerfile |
+| `phpbb` | Repository-managed Dockerfile wrapping the official pinned phpBB release tarball |
 | `musicbrainz` | Upstream checkout and merged Compose configuration |
 
 Album Sort pulls CI-built application and Beets images. It no longer builds

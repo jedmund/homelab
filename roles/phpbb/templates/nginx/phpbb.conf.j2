@@ -1,0 +1,66 @@
+# {{ ansible_managed }}
+# Board origin behind Traefik. Follows phpBB's docs/nginx.sample.conf with
+# this deployment's additions: only Traefik's fixed proxy-network address may
+# supply X-Forwarded-For, and the console, developer docs, and the web
+# installer/updater stay closed (install and update run through the CLI).
+
+upstream phpbb_fpm {
+    server phpbb:9000;
+}
+
+server {
+    listen 8080 default_server;
+    server_name _;
+
+    root /var/www/html;
+    index index.php index.html index.htm;
+
+    # TLS terminates at Traefik; nginx must not expose its internal port or
+    # scheme in generated redirects (directory redirects like /adm -> /adm/
+    # would otherwise point browsers at http://...:8080).
+    absolute_redirect off;
+
+    client_max_body_size {{ phpbb_php_post_max_size }};
+
+    # phpBB only sees Traefik's headers through this container, so trust the
+    # gateway's fixed proxy-network address exclusively; recursive resolution
+    # keeps spoofed chains from clients out of logs and rate limits.
+    set_real_ip_from {{ phpbb_trusted_proxy_ip }};
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+
+    add_header X-Content-Type-Options nosniff always;
+
+    location / {
+        try_files $uri $uri/ @rewriteapp;
+
+        # phpBB's protected paths (docs/nginx.sample.conf), extended with the
+        # console (bin/), the developer docs, and the installer/updater. The
+        # adm/ front controller and its style and image assets stay public.
+        # Declared before the FastCGI handler so denied PHP files answer 403
+        # instead of executing (a bare config.php runs to an empty 200 in the
+        # upstream sample's order; this deployment closes that).
+        location ~ /(config|common\.php|composer\.(json|lock)|cache|files|images/avatars/upload|includes|(?<!ext/)phpbb(?!\w+)|store|vendor|bin|docs|install) {
+            deny all;
+        }
+
+        location ~ \.php(/|$) {
+            include fastcgi_params;
+            fastcgi_split_path_info ^(.+\.php)(/.*)$;
+            fastcgi_param PATH_INFO $fastcgi_path_info;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            fastcgi_param DOCUMENT_ROOT $realpath_root;
+            fastcgi_param HTTPS on;
+            try_files $uri $uri/ /app.php$is_args$args;
+            fastcgi_pass phpbb_fpm;
+        }
+    }
+
+    location @rewriteapp {
+        rewrite ^(.*)$ /app.php/$1 last;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}
