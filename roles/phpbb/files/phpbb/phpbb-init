@@ -1,0 +1,70 @@
+#!/bin/sh
+# One-shot board code overlay. Runs before the application container and
+# refreshes /var/www/html from the image's pristine phpBB copy whenever the
+# requested version differs from the marker on the volume. config.php, cache,
+# and the separately mounted data directories are left untouched.
+set -eu
+
+HTML=/var/www/html
+PRISTINE=/usr/share/phpbb
+PHPBB_VERSION="${PHPBB_VERSION:-unknown}"
+
+[ "$(id -u)" = "0" ] || { echo "phpbb-init: must run as root" >&2; exit 1; }
+[ -d "$HTML" ] || { echo "phpbb-init: $HTML is not mounted" >&2; exit 1; }
+
+version_file="$HTML/.phpbb-version"
+current=""
+if [ -r "$version_file" ]; then
+    current="$(cat "$version_file" 2>/dev/null || true)"
+fi
+
+if [ "$current" = "$PHPBB_VERSION" ] && [ -e "$HTML/index.php" ]; then
+    echo "phpbb-init: board code already at $current"
+    exit 0
+fi
+
+echo "phpbb-init: overlaying board code (${current:-none} -> $PHPBB_VERSION)"
+
+# Preserve config.php across the overlay; the installer or a previous version
+# wrote it and it is not part of the pristine tree.
+config_backup="$HTML/config.php.phpbb-init-backup"
+if [ -e "$HTML/config.php" ]; then
+    cp -a "$HTML/config.php" "$config_backup"
+fi
+
+tar -C "$PRISTINE" -cf - \
+    --exclude='./config.php' \
+    --exclude='./cache' \
+    --exclude='./files' \
+    --exclude='./store' \
+    --exclude='./ext' \
+    --exclude='./styles' \
+    --exclude='./images/avatars/upload' \
+    . | tar -C "$HTML" -xf -
+
+if [ -e "$config_backup" ]; then
+    mv "$config_backup" "$HTML/config.php"
+fi
+printf '%s\n' "$PHPBB_VERSION" > "$version_file"
+
+# The overlay excludes the separately mounted data directories. When a
+# deployment runs without those mounts (phpbb_storage_nas_enabled: false)
+# the board still needs the directories to exist for the installer and the
+# cache driver.
+mkdir -p "$HTML/files" "$HTML/store" "$HTML/ext" "$HTML/styles" \
+    "$HTML/images/avatars/upload" "$HTML/cache"
+
+# phpBB's code stays root-owned: a compromised board cannot rewrite it.
+# The FPM user needs ownership only of the directories it writes at runtime:
+# images/ (rank and board image uploads; subdirectories it creates land
+# there). The shipped avatar gallery stays read-only, and the mounted data
+# directories (files, store, ext, styles, images/avatars/upload) get their
+# ownership from the entrypoint, not from the overlay.
+chown -R root:root "$HTML"
+chown www-data:www-data "$HTML/images"
+if [ -e "$HTML/config.php" ]; then
+    chown www-data:www-data "$HTML/config.php"
+    chmod 0600 "$HTML/config.php"
+fi
+
+echo "phpbb-init: board code is at $PHPBB_VERSION"

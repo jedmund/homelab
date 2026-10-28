@@ -1,0 +1,149 @@
+---
+# phpBB product stack: board application (host-built image), nginx origin
+# behind Traefik, and MariaDB on the backend network.
+
+- name: Validate phpBB vault configuration
+  ansible.builtin.assert:
+    that:
+      - (phpbb_db_password | default('') | length) > 0
+      - (phpbb_db_root_password | default('') | length) > 0
+      - (phpbb_admin_password | default('') | length) >= 8
+      - (phpbb_admin_password | default('') | length) <= 30
+      - phpbb_admin_password is not search(phpbb_admin_password_forbidden | map('regex_escape') | join('|'))
+      - (phpbb_admin_email | default('') | length) > 0
+      - (phpbb_board_email | default('') | length) > 0
+      - (phpbb_domain | default('') | length) > 0
+      - phpbb_board_name | length > 0
+      - '"\"" not in phpbb_board_name and "\n" not in phpbb_board_name'
+      - '"\"" not in phpbb_board_description and "\n" not in phpbb_board_description'
+      - phpbb_smtp_auth_method in ['PLAIN', 'LOGIN', 'CRAM-MD5', 'DIGEST-MD5']
+      - phpbb_smtp_port | string is match('^[0-9]+$')
+      - not (phpbb_email_enabled | bool and phpbb_smtp_delivery | bool) or (phpbb_smtp_password | default('') | length) > 0
+    fail_msg: >-
+      phpBB requires the vault inputs documented in roles/phpbb/README.md:
+      vault_phpbb_db_password, vault_phpbb_db_root_password, and
+      vault_phpbb_admin_password, plus vault_resend_api_key while email is
+      enabled. phpBB limits admin passwords to 30 characters, and $,
+      backtick, and backslash are rejected everywhere in it.
+  no_log: true
+  tags:
+    - preflight
+
+- name: Create phpBB stack directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/config/phpbb"
+    - "{{ config_base }}/config/nginx"
+    - "{{ config_base }}/env"
+
+- name: Deploy phpBB build context
+  ansible.builtin.copy:
+    src: phpbb/
+    dest: "{{ config_base }}/config/phpbb/"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: phpbb_deploy_build_files
+
+- name: Deploy phpBB nginx configuration
+  ansible.builtin.template:
+    src: nginx/phpbb.conf.j2
+    dest: "{{ config_base }}/config/nginx/phpbb.conf"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: phpbb_deploy_nginx_config
+
+- name: Deploy phpBB compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy phpBB environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - phpbb
+    - mariadb
+  no_log: true
+  register: phpbb_deploy_phpbb_environment_files
+
+- name: Inspect phpBB build requirements
+  ansible.builtin.import_tasks: build.yml
+
+# The NAS share subdirectories must exist before the dedicated NFS volumes
+# are mounted; the seed volume points at the share root so a one-shot init
+# container can create them. Mirrors roles/kaneo.
+- name: Prepare NAS-backed phpBB data storage
+  when: phpbb_storage_nas_enabled
+  block:
+    - name: Create Files-root NFS bootstrap volume
+      community.docker.docker_volume:
+        name: "{{ phpbb_data_nas_seed_volume }}"
+        driver: local
+        driver_options:
+          type: nfs
+          o: "{{ phpbb_data_nfs_options }}"
+          device: "{{ phpbb_data_nfs_root_device }}"
+        state: present
+
+    - name: Create phpBB data directories on the NAS
+      community.docker.docker_container:
+        name: phpbb-nas-init
+        image: "{{ phpbb_storage_init_image }}"
+        command:
+          - mkdir
+          - -p
+          - "/nas/{{ phpbb_data_nas_subdirectory }}/{{ item.nas_path }}"
+        volumes:
+          - "{{ phpbb_data_nas_seed_volume }}:/nas"
+        network_mode: none
+        detach: false
+        cleanup: true
+        state: started
+      loop: "{{ phpbb_nas_mounts }}"
+      changed_when: false
+
+- name: Deploy phpBB stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    build: "{{ 'always' if (phpbb_build_required | default(true)) else 'never' }}"
+    pull: policy
+    recreate: >-
+      {{ 'always' if
+         (phpbb_deploy_build_files.changed | default(false)) or
+         (phpbb_deploy_nginx_config.changed | default(false)) or
+         (phpbb_deploy_phpbb_environment_files.changed | default(false))
+         else 'auto' }}
+  register: phpbb_compose_result
+
+- name: Record successful phpbb build inputs
+  ansible.builtin.copy:
+    content: "{{ {'fingerprint': phpbb_build_fingerprint} | to_json }}\n"
+    dest: "{{ config_base }}/.ansible-build-inputs.json"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - phpbb_build_services | default([]) | length > 0
+
+- name: Wait for the board to report installed and healthy
+  ansible.builtin.command:
+    argv: [docker, exec, phpbb-nginx, wget, -q, -O, -, "http://127.0.0.1:{{ phpbb_port }}/health.php"]
+  register: phpbb_health
+  until: "'db ok' in phpbb_health.stdout"
+  retries: 30
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
