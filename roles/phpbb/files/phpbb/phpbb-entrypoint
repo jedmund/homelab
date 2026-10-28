@@ -191,6 +191,14 @@ EOF
     fi
 fi
 
+# phpBB limits the board to the ACP while install/ exists and asks every
+# visitor to delete it. The web installer is blocked by nginx regardless;
+# remove the directory once the board is installed and let phpbb-update
+# materialize it for CLI database updates.
+if [ -d "$HTML/install" ] && [ -s "$HTML/config.php" ] && [ ! -e "$HTML/cache/install_lock" ]; then
+    rm -rf "$HTML/install"
+fi
+
 # ---------------------------------------------------------------------------
 # Reconcile board email settings with the environment (safe to run always).
 # ---------------------------------------------------------------------------

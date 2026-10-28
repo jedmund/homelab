@@ -58,6 +58,10 @@ Record what the NAS side covers in its own backup arrangements.
 - `phpbb-ensure.php`, `phpbb-health.php` — config reconciliation and the
   `/health.php` liveness endpoint (reports `ok` and, once installed,
   `db ok`).
+- `phpbb-update` — one-shot maintenance command for version upgrades:
+  materializes phpBB's `install/` directory from the pristine copy, runs the
+  CLI database updater in `db_only` mode, then removes `install/` again so
+  the board never serves with it present.
 
 Build decisions use the repository fingerprint pattern: rebuilds happen when
 the recorded fingerprint differs, the image is missing, or
@@ -140,12 +144,12 @@ runs by hand afterwards.
    Verify the new tarball's SHA-256 before recording it.
 3. `make -C deploy phpbb` — the fingerprint change rebuilds the image and the
    init overlay reseeds the code on the next start.
-4. Run the database updater from inside the container:
+4. Run the bundled updater command from inside the container; it
+   materializes `install/`, runs the CLI database updater in `db_only`
+   mode, and removes `install/` again:
 
    ```sh
-   docker compose -f /opt/docker/phpbb/compose.yaml exec phpbb sh -c \
-     "printf 'updater:\n  type: db_only\n  extensions: []\n' > /tmp/updater.yaml \
-      && php install/phpbbcli.php update /tmp/updater.yaml && rm /tmp/updater.yaml"
+   docker compose -f /opt/docker/phpbb/compose.yaml exec phpbb phpbb-update
    ```
 
 5. Confirm the new version in the ACP and the board's health. If the updater
@@ -162,6 +166,7 @@ but always converges to the image's version.
 | Symptom | Check |
 | --- | --- |
 | `phpbb` container restart-looping | `docker logs phpbb`; installer errors print there. Missing vault inputs fail the deploy before anything starts. |
+| "Delete, move or rename the install directory" banner | `install/` should never persist: the entrypoint removes it after install and `phpbb-update` removes it after updates. If it reappears after a version bump, run `phpbb-update`. |
 | 403 on every route | `/install/` is closed by design; a fresh board redirects there until the CLI installer finishes. Check `docker logs phpbb`. |
 | Certificate issuance fails | The `traefik` vault's Cloudflare token must cover the `fireplace.cafe` zone. |
 | Uploads or avatars fail to write | NFS export squashing root: the entrypoint's chmod fallback should cover it; check `docker exec phpbb ls -ln /var/www/html/files`. |
