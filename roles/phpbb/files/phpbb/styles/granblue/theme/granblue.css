@@ -140,7 +140,8 @@ a:hover { color: #a5760f; text-decoration: underline; }
 
 li.header {
 	background: url('./images/game/scroll-title.png') center / 100% 100% no-repeat;
-	padding: 4px 8px;
+	padding: 6px 46px 6px 8px;
+	min-height: 58px;
 }
 
 li.header dt, li.header dd {
@@ -151,6 +152,14 @@ li.header dt, li.header dd {
 	letter-spacing: 0.06em;
 	text-shadow: 0 1px 0 #ffedb055;
 }
+
+/* the SSR medallion occupies the banner's left ~110px */
+li.header dt {
+	padding-left: 112px;
+	line-height: 46px;
+}
+
+li.header dd { line-height: 46px; }
 
 li.header dt a { color: #3a2a10; }
 
@@ -246,28 +255,41 @@ blockquote {
 
 .inputbox:focus, textarea:focus { border-color: #d9a838; }
 
+/* Primary: the bronze GBF capsule. Uniform metrics across every button
+   (anchors and inputs alike) so the capsules read at one height. */
 .button,
 .button1, .button2,
 a.button1, a.button2, input.button1, input.button2,
-.dropdown .button {
+.dropdown .button, .button-search, .button-search-end {
 	background: url('./images/game/button-gold.png') center / 100% 100% no-repeat;
-	border: none;
+	border: none !important;
 	color: #3a2a10;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 1.1em;
 	font-weight: bold;
 	text-shadow: 0 1px 0 #ffedb088;
-	padding: 7px 30px;
+	display: inline-block;
+	height: 34px;
+	line-height: 32px;
+	padding: 0 32px;
+	box-sizing: border-box;
+	vertical-align: middle;
 }
 
 .button:hover, .button1:hover, .button2:hover,
-.dropdown .button:hover, a.button1:hover, a.button2:hover {
+.dropdown .button:hover, a.button1:hover, a.button2:hover,
+.button-search:hover, .button-search-end:hover {
 	background: url('./images/game/button-steel.png') center / 100% 100% no-repeat;
 	color: #f1e6c8;
 	text-shadow: 1px 1px 0 #000a;
 }
 
-.button-search { padding: 2px 6px; }
+/* the icon-only header search buttons keep the capsule but slim */
+.headerbar .button-search, .headerbar .button-search-end,
+.button-search, .button-search-end {
+	padding: 0 20px;
+	min-width: 34px;
+}
 
 /* ---- pagination --------------------------------------------- */
 
