@@ -31,6 +31,11 @@ ai_gpu_devices:
 # https://github.com/mostlygeek/llama-swap
 llama_swap_image: ghcr.io/mostlygeek/llama-swap:cuda
 llama_swap_port: 11434
+# Publish IPv4 only and filter Docker's forwarded traffic before its accept
+# rules. Direct clients on the local network retain access.
+ai_llama_swap_bind_address: "{{ ansible_host }}"
+ai_llama_swap_allowed_sources:
+  - "192.168.1.0/24"
 llama_swap_log_level: debug
 # Seconds llama-swap waits for a newly spawned llama-server to pass its
 # health check before killing it. Cold-loading an ~80GB model from
