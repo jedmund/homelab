@@ -15,6 +15,11 @@ server {
     root /var/www/html;
     index index.php index.html index.htm;
 
+    # TLS terminates at Traefik; nginx must not expose its internal port or
+    # scheme in generated redirects (directory redirects like /adm -> /adm/
+    # would otherwise point browsers at http://...:8080).
+    absolute_redirect off;
+
     client_max_body_size {{ phpbb_php_post_max_size }};
 
     # phpBB only sees Traefik's headers through this container, so trust the
