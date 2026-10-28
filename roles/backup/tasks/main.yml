@@ -24,6 +24,7 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config/borgmatic"
     - "{{ docker_base_path }}/{{ stack_name }}/env"
     - "{{ docker_base_path }}/{{ stack_name }}/restore-tests"
+    - "{{ docker_base_path }}/{{ stack_name }}/metrics"
     - "{{ docker_base_path }}/{{ stack_name }}/scripts"
 
 - name: Mount the Borg repo filesystem
@@ -183,6 +184,26 @@
     dest: "{{ docker_base_path }}/{{ stack_name }}/scripts/verify-prowlarr-restore.sh"
     owner: "{{ ansible_user }}"
     mode: '0755'
+
+- name: Install backup metrics collector
+  ansible.builtin.copy:
+    src: metrics.py
+    dest: "{{ config_base }}/scripts/metrics.py"
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Collect initial backup metrics
+  ansible.builtin.command: "python3 {{ config_base }}/scripts/metrics.py {{ config_base }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Schedule backup metrics collection
+  ansible.builtin.cron:
+    name: Backup verification metrics
+    user: root
+    minute: '*/5'
+    job: "python3 {{ config_base }}/scripts/metrics.py {{ config_base }}"
 
 - name: Deploy compose file
   ansible.builtin.template:

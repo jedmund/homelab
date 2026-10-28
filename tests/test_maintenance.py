@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime
 import gzip
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -301,7 +302,6 @@ class BackupStatusTests(unittest.TestCase):
         self.assertIn('borg_archive is stale', result.stderr)
         self.assertRegex(result.stdout, r'borg_archive_age_seconds=\d+')
 
-
     def test_missing_core_artifact_fails(self):
         (self.latest / "Stack.gz").unlink()
         result = self._run()
@@ -346,6 +346,29 @@ class ImageDigestReportTests(unittest.TestCase):
         self.assertIn("komodo.write('CheckStackForUpdate'", contents)
         self.assertNotIn("komodo.execute('CheckStackForUpdate'", contents)
         self.assertIn("skip_auto_update: true", contents)
+
+
+class BackupMetricsTests(unittest.TestCase):
+    def test_backup_lock_preserves_last_verified_archive_without_claiming_success(self):
+        spec = importlib.util.spec_from_file_location('backup_metrics', ROOT / 'roles/backup/files/metrics.py')
+        metrics = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(metrics)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / 'scripts').mkdir()
+            script = root / 'scripts/verify-backup-status.sh'
+            script.write_text('#!/bin/sh\necho borg_archive_age_seconds=120\n')
+            script.chmod(0o755)
+            good = metrics.collect(root, {}, 1000)
+            self.assertEqual(good['borg_archive_timestamp_seconds'], 880)
+            self.assertEqual(good['verification_ok'], 1)
+            script.write_text('#!/bin/sh\necho "Failed to create/acquire the lock" >&2\nexit 1\n')
+            locked = metrics.collect(root, good, 1100)
+            self.assertEqual(locked['borg_archive_timestamp_seconds'], 880)
+            self.assertEqual(locked['verified_timestamp_seconds'], 1000)
+            self.assertEqual(locked['verification_ok'], 0)
+            self.assertEqual(locked['repository_busy'], 1)
+
 
 
 class ProwlarrRestoreTests(unittest.TestCase):
@@ -417,13 +440,16 @@ class ProwlarrRestoreTests(unittest.TestCase):
                 check=False,
             )
             remaining = list(restore_root.iterdir())
+            marker = restore_root / 'prowlarr-last-success'
+            if marker.exists():
+                self.assertLess(abs(time.time() - int(marker.read_text())), 10)
             return result, remaining
 
     def test_valid_restore_passes_and_cleans_temporary_files(self):
         result, remaining = self._run(corrupt=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("integrity=ok", result.stdout)
-        self.assertEqual(remaining, [])
+        self.assertEqual([p.name for p in remaining], ['prowlarr-last-success'])
 
     def test_corrupt_restore_fails_and_cleans_temporary_files(self):
         result, remaining = self._run(corrupt=True)
