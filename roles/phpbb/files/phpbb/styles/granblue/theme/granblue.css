@@ -453,14 +453,31 @@ a.button1, a.button2, input.button1, input.button2,
 
 .button1, a.button1, input.button1 { --btn-src: url('./images/game/button-gold.png'); }
 
-.button:hover, .button1:hover, .button2:hover,
-a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
-.dropdown .button:hover, .button-search:hover, .button-search-end:hover {
-	filter: brightness(1.15) saturate(1.1);
+/* Prosilver's :hover/:focus rules use the `border` shorthand, which resets
+   border-image and the border widths, so a hovered button would drop its
+   sprite and change size. Re-assert the sprite for every interactive state;
+   the state itself only brightens it. */
+#wrap :is(.button, .button1, .button2, a.button1, a.button2, input.button1, input.button2,
+		.dropdown .button, .button-search, .button-search-end):is(:hover, :focus, :active, :focus-visible) {
+	border-style: solid;
+	border-color: transparent;
+	border-width: 12px 22px;
+	border-image: var(--btn-src) 32 60 fill / 12px 22px stretch;
+	background: transparent !important;
+	box-shadow: none !important;
+	outline: none;
 	color: #ffffff;
 }
 
-.button:active, .button1:active, .button2:active { filter: brightness(0.9); }
+#wrap :is(.post-buttons .button, .action-bar .button.button-icon-only, .search-header .button,
+		.button-icon-only, .pagination li a.button):is(:hover, :focus, :active, :focus-visible) {
+	border-width: 10px 16px;
+	border-image: var(--btn-src) 32 60 fill / 10px 16px stretch;
+}
+
+#wrap :is(.button, .button1, .button2):is(:hover, :focus-visible) { filter: brightness(1.15) saturate(1.1); }
+
+#wrap :is(.button, .button1, .button2):active { filter: brightness(0.9); }
 
 /* post/topic action buttons, header search and icon-only buttons:
    narrow caps, no balloon */
