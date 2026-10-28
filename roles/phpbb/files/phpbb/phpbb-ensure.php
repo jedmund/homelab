@@ -24,6 +24,10 @@ $emailEnabled = (getenv('PHPBB_EMAIL_ENABLED') ?: 'true') === 'true';
 
 $desired = [
     'board_email' => getenv('PHPBB_BOARD_EMAIL') ?: '',
+    // The visible From header on outgoing mail. phpBB keeps this separate
+    // from board_email (the envelope); Resend rejects From domains outside
+    // the API key's scope, so both must track PHPBB_BOARD_EMAIL.
+    'board_contact' => getenv('PHPBB_BOARD_EMAIL') ?: '',
 ];
 
 if ($emailEnabled) {
