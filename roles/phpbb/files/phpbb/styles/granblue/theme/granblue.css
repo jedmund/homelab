@@ -150,21 +150,61 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	pointer-events: none;
 }
 
-/* the marquee strip, as the prophecy demanded */
+/* the ticker: the game's dark arrow bar, text clipped inside the body so
+   it never runs under the arrow tip */
 .gbf-banner-marquee {
 	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	background: #0a1a3a;
-	border-top: 1px solid #d9a838;
-	color: #ffd76e;
+	bottom: 14px;
+	left: 24px;
+	right: 24px;
+	box-sizing: border-box;
+	height: 34px;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 11px 24px 11px 12px;
+	border-image: url('./images/game/ticker.png') 22 48 22 24 fill / 11px 24px 11px 12px stretch;
+	color: var(--gbf-gold);
 	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	letter-spacing: 0.08em;
-	padding: 4px 0;
-	text-shadow: 1px 1px 0 #000;
+	line-height: 12px;
+	overflow: hidden;
+	text-shadow: 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000;
+	z-index: 1;
 }
+
+.gbf-banner-marquee marquee { display: block; margin-top: -2px; }
+
+/* ---- tabs (UCP, MCP, posting form) --------------------------- */
+/* Dark pipe tabs, light for the active one. Text-free sprites from
+   ui/tabs, sliced like the buttons: 2x art, so slice = 2 * border. */
+
+#wrap .tabs .tab > a, #wrap .tabs li.tab a, #wrap .tabs .activetab > a {
+	--tab-src: url('./images/game/tab-dark.png');
+	background: transparent !important;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 9px 20px 9px;
+	border-image: var(--tab-src) 18 40 18 fill / 9px 20px 9px stretch;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	color: var(--gbf-ink);
+	font-weight: bold;
+	text-shadow: 1px 1px 0 #000;
+	padding: 0 4px;
+	line-height: 18px;
+}
+
+#wrap .tabs .tab > a:hover { filter: brightness(1.25); color: #ffffff; }
+
+#wrap .tabs .activetab > a, #wrap .tabs li.activetab a {
+	--tab-src: url('./images/game/tab-light.png');
+	border-image: var(--tab-src) 18 40 18 fill / 9px 20px 9px stretch;
+	color: #12304a;
+	text-shadow: 0 1px 0 #ffffffb0;
+}
+
+#wrap .tabs .tab > a span { color: inherit; }
 
 /* ---- navbar ------------------------------------------------- */
 
@@ -448,17 +488,43 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 
 
 /* ---- pagination --------------------------------------------- */
+/* Numbered links are .button capsules already; the current page is a gold
+   capsule of the same size, and gaps are plain text. */
 
-.pagination span a, .pagination span strong, .pagination a {
-	background: #17110a;
-	border: 1px solid #d9a838;
-	color: #ffd76e;
-	font-weight: bold;
+.pagination li a.button, .pagination li.active span {
+	box-sizing: border-box;
+	height: 30px;
+	min-width: 38px;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 10px 16px;
+	border-image: url('./images/game/button-cyan.png') 32 60 fill / 10px 16px stretch;
+	line-height: 1;
+	padding: 0 0 3px;
+	margin: 0 2px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
-.pagination span strong { background: #d9a838; color: #1a1408; }
+#wrap .pagination li a.button {
+	color: #ffffff;
+	font-weight: bold;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
 
-.pagination span a:hover { background: #3a2d1c; }
+#wrap .pagination li a.button:hover { filter: brightness(1.15) saturate(1.1); }
+
+.pagination li.active span {
+	border-image-source: url('./images/game/button-gold.png');
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: #ffffff;
+	font-weight: bold;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+.pagination li.ellipsis span { background: transparent; color: var(--gbf-ink-dim); border: none; }
 
 /* ---- footer relics ------------------------------------------ */
 
