@@ -1,0 +1,7 @@
+/* Granblue Fantasy child style entry point.
+   phpBB links {T_THEME_PATH}/stylesheet.css for the active style, so this
+   file must pull in the parent's compiled bundle first, then our overrides.
+   Two levels up from styles/granblue/theme/ is styles/. */
+
+@import url("../../prosilver/theme/stylesheet.css");
+@import url("granblue.css");
