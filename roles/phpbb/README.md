@@ -61,7 +61,9 @@ Fantasy UI sprites from the game CDN, all text-free crops: `frame-bg.png`
 9-slices cleanly) frames the header, posts, and panels; `header-bar.png` (a
 crop of `present/parts`) is the forum title bar; `button-cyan.png` (default)
 and `button-gold.png` (primary submit) are text-free crops of `ui/button`, and hover
-brightens the same sprite rather than swapping art; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
+brightens the same sprite rather than swapping art; `tab-dark.png` and `tab-light.png` (from `ui/tabs`) are the inactive and
+active tabs, `ticker.png` (from `archive/parts`) backs the header marquee,
+and pagination reuses the button sprites; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
 `sp/detail/archive/bg_picture_book.jpg`, and the ornament
 `frame_flexible/base_ornament_01.png`. Frames, title bars, and buttons use
 `border-image` with `fill`; framed elements draw their sprite on a `::before`
