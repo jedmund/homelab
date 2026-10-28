@@ -252,6 +252,11 @@ gatus_endpoints:
     # get redirected to PocketID), like the other TinyAuth-protected apps.
     status: 401
     description: "Degoog search is not answering with TinyAuth's 401 — Traefik, TinyAuth, or the search route is down."
+  - name: phpBB board
+    group: apps
+    url: "https://board.fireplace.cafe/"
+    status: 200
+    description: "The phpBB board is not answering — Traefik, the board containers, or their database is down."
 
 # Certificate expiry on the wildcard. Traefik renews via the Cloudflare DNS
 # challenge; this catches a renewal that quietly stopped working, with

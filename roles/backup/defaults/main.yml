@@ -72,6 +72,11 @@ borg_named_volumes:
   # metadata volume is captured here.
   - volume: kaneo_kaneo-garage-meta
     path: /kaneo-garage-meta
+  # phpBB board code, config.php, and the template cache. The MariaDB dump
+  # below covers the board database; attachment files live on the Files NAS
+  # share and are outside Borg coverage (see roles/phpbb/README.md).
+  - volume: phpbb-root
+    path: /phpbb-root
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
@@ -138,6 +143,7 @@ borg_networks:
 #   vault_kizuna_postgres_password
 #   vault_hugginghack_postgres_password
 #   vault_album_sort_postgres_password
+#   vault_phpbb_db_root_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -166,6 +172,7 @@ dawarich_db_username: dawarich
 kaneo_db_name: kaneo
 kaneo_db_user: kaneo
 kaneo_db_password: "{{ vault_kaneo_db_password }}"
+phpbb_db_root_password: "{{ vault_phpbb_db_root_password }}"
 kizuna_db_name: kizuna_api_production
 kizuna_db_user: kizuna
 kizuna_db_password: "{{ vault_kizuna_postgres_password }}"

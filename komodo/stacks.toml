@@ -743,6 +743,22 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "phpbb"
+description = "phpBB forum at board.fireplace.cafe, built from the pinned official release"
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/phpbb"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+# The board image is built by Ansible from the pinned phpBB release tarball;
+# pulling would fail on the local tag, so the stack builds instead.
+auto_pull = false
+run_build = true
+
+[[stack]]
 name = "backup"
 description = "Borgmatic and Borg-UI"
 tags = ["homelab", "ansible", "nuc-mini", "backup"]
