@@ -70,6 +70,13 @@ tokens at the top of `granblue.css`. The sprites are 2x art, so each slice is
 twice its border width. `stylesheet.css` imports `granblue.css` with a `?v=`
 suffix; change it alongside any edit so browsers refetch the sheet.
 
+Typography uses the game UI face: `theme/fonts/gbf-telop-min.woff` is the
+game's own `basic.woff` (an ASCII-only subset of Fontworks Telop Min), with
+Average Sans (`average-sans-latin.woff2`, SIL OFL) behind it for glyphs the
+subset lacks. The Telop Min file is commercially licensed art from the game,
+like the sprites; confirm the board's use of it is acceptable before making
+the repository or board more widely public.
+
 ## Crawlers
 
 The board is public but not for AI and training-data crawlers. Two layers:
