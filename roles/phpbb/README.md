@@ -56,17 +56,19 @@ read-only to the board, template editing through the ACP is unavailable for
 it by design — edit in the repository instead.
 
 Game-flavored assets under `theme/images/game/` are official Granblue
-Fantasy UI sprites from the game CDN, all text-free crops: the header
-band is a tab panel from `ui/tabs-sa6493bb780.png`, section title bars
-and the button capsules come from `ui/button-sf56ebaca5b.png` and
-`archive/parts-sfab8cdabc0.png` (sprites with baked-in labels are
-rejected — buttons render through border-image with fill, so the ornate
-caps stay crisp and the middle stretches), the board scroll is
-`scroll_brown/bg_detail.png`, the backdrop
+Fantasy UI sprites from the game CDN, all text-free crops: `frame-bg.png`
+(`sp/ui/frame/bg.png`, flourishes at the edge midpoints painted out so it
+9-slices cleanly) frames the header, posts, and panels; `header-bar.png` (a
+crop of `present/parts`) is the forum title bar; `button-bronze.png` and
+`button-blue.png` (from `ui/button` and `archive/parts`) are the button
+capsules; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
 `sp/detail/archive/bg_picture_book.jpg`, and the ornament
-`frame_flexible/base_ornament_01.png`. When iterating on the theme,
-bump `assets_version` (ACP or config) alongside the edit so browsers
-refetch the stylesheet.
+`frame_flexible/base_ornament_01.png`. Frames, title bars, and buttons use
+`border-image` with `fill`; framed elements draw their sprite on a `::before`
+so prosilver's float layout is untouched, and colors come from the `--gbf-*`
+tokens at the top of `granblue.css`. The sprites are 2x art, so each slice is
+twice its border width. `stylesheet.css` imports `granblue.css` with a `?v=`
+suffix; change it alongside any edit so browsers refetch the sheet.
 
 ## Crawlers
 
