@@ -66,6 +66,13 @@ Native PocketID login requires `vault_logging_oidc_client_id` and
 `vault_logging_oidc_client_secret`. Register the callback
 `https://logs.atelier.house/login/generic_oauth` and restrict the client to
 the `sysadmins` group before deployment.
+UniFi metrics reuse `vault_unifi_password` from
+`group_vars/agents_linux/vault.yml` for the existing read-only controller
+account; do not create a second copy in the logging vault.
+UNAS consoles use their own local monitoring accounts. For the shared account,
+set `vault_logging_unas_username` and `vault_logging_unas_password` in the
+logging vault, then enable `logging_unas_enabled`.
+
 The logging CA and collector TLS keys are generated once on the logging host,
 stored with private permissions, and included in encrypted host backups.
 

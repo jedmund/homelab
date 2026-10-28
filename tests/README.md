@@ -13,8 +13,8 @@ python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
 
-`python3 tests/test_logging.py --validate-configs` also checks rendered Loki
-and Linux/macOS Vector configurations using their pinned container
+`python3 tests/test_logging.py --validate-configs` also checks rendered Loki,
+Prometheus, and Linux/macOS Vector configurations using their pinned container
 binaries, including event-time parsing and fallback behavior for Traefik files.
 It uses disposable credentials and does not contact managed hosts. Follow the
 [logging verification procedure](../roles/logging/README.md#verification) for
