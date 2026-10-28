@@ -268,6 +268,13 @@
 - import_playbook: minecraft.yml
   tags: [minecraft]
 
+# Retained logging backend before collectors.
+- import_playbook: logging.yml
+  tags: [logging]
+
+- import_playbook: vector.yml
+  tags: [vector]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]

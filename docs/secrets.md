@@ -56,6 +56,19 @@ encrypted `vault.yml`, never in a plaintext local file.
 
 ## Service inputs
 
+### group_vars/logging/vault.yml
+
+The [logging runbook](../roles/logging/README.md#inputs-and-deployment) lists
+the persistent Grafana and dedicated S3 credentials. Use
+`vault_logging_admin_password`, `vault_logging_garage_rpc_secret`,
+`vault_logging_s3_access_key`, and `vault_logging_s3_secret_key`.
+Native PocketID login requires `vault_logging_oidc_client_id` and
+`vault_logging_oidc_client_secret`. Register the callback
+`https://logs.atelier.house/login/generic_oauth` and restrict the client to
+the `sysadmins` group before deployment.
+The logging CA and collector TLS keys are generated once on the logging host,
+stored with private permissions, and included in encrypted host backups.
+
 The tables below cover common deployment inputs. The role's defaults,
 assertions, and templates define the complete set and whether each value is
 required. A `default('')` expression does not by itself make a value optional.

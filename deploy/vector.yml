@@ -1,0 +1,7 @@
+---
+- name: Deploy homelab log collectors
+  hosts: vector
+  environment:
+    PATH: /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+  roles:
+    - vector

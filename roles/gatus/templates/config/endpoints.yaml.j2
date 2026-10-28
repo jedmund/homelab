@@ -7,6 +7,20 @@
 {% if gatus_discord_webhook_url | length > 0 %}{% set _ = alert_types.append('custom') %}{% endif %}
 
 endpoints:
+  - name: Retained log collection
+    group: Infrastructure
+    url: http://logging-checks:8080/health
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+{% if alert_types %}
+    alerts:
+{% for alert_type in alert_types %}
+      - type: {{ alert_type }}
+        description: "Log collection, NAS storage, or metadata snapshots need attention. See roles/logging/README.md."
+        send-on-resolved: {{ gatus_alert_send_on_resolved | string | lower }}
+{% endfor %}
+{% endif %}
 {% for runner in gatus_gitlab_runners %}
   # GitLab runner {{ runner.id }} ({{ runner.name }}). Checks that the runner
   # is still talking to GitLab, which plain uptime monitoring cannot see: a
