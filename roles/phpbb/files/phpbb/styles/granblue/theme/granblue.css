@@ -163,10 +163,15 @@ a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
 /* ---- posts -------------------------------------------------- */
 
 .post {
-	background: #fbf7ea;
 	border: 1px solid #c9b06a;
 	box-shadow: 1px 1px 0 #b9c8e2;
 }
+
+/* Use background-color only: the .online class layers a background-image
+   ribbon on the post, and a shorthand here would reset its repeat and
+   position into an infinite diagonal badge tile. */
+.post.bg1 { background-color: #fbf7ea; }
+.post.bg2 { background-color: #f5eddb; }
 
 .postprofile {
 	border-color: #c9b06a;
@@ -181,9 +186,6 @@ a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
 	font-size: 1.3em;
 }
 
-.post .bg1 { background: #fbf7ea; }
-.post .bg2 { background: #f5eddb; }
-
 .postbody .content {
 	font-size: 1.3em;
 	line-height: 1.55;
@@ -193,7 +195,7 @@ a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
 .signature { border-top: 1px dashed #b98d2f; }
 
 blockquote {
-	background: #fdf6e0;
+	background-color: #fdf6e0;
 	border: 1px solid #b9c8e2;
 	border-left: 4px solid #d9a838;
 }
@@ -201,7 +203,7 @@ blockquote {
 /* ---- forms and buttons -------------------------------------- */
 
 .panel {
-	background: #f1ead4;
+	background-color: #f1ead4;
 	border: 1px solid #c9b06a;
 	color: #1c355e;
 }
