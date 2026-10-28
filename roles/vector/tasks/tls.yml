@@ -1,0 +1,49 @@
+---
+- name: Provision each persistent collector identity on the logging host
+  delegate_to: "{{ vector_backend_host }}"
+  become: true
+  block:
+    - name: Create collector private key
+      community.crypto.openssl_privatekey:
+        path: "{{ vector_backend_config }}/tls/clients/{{ inventory_hostname }}.key"
+        type: ECC
+        curve: secp256r1
+        mode: '0600'
+      no_log: true
+    - name: Create collector certificate request
+      community.crypto.openssl_csr:
+        path: "{{ vector_backend_config }}/tls/clients/{{ inventory_hostname }}.csr"
+        privatekey_path: "{{ vector_backend_config }}/tls/clients/{{ inventory_hostname }}.key"
+        common_name: "{{ inventory_hostname }}"
+        extended_key_usage: [clientAuth]
+        key_usage: [digitalSignature]
+    - name: Sign collector certificate
+      community.crypto.x509_certificate:
+        path: "{{ vector_backend_config }}/tls/clients/{{ inventory_hostname }}.crt"
+        csr_path: "{{ vector_backend_config }}/tls/clients/{{ inventory_hostname }}.csr"
+        ownca_path: "{{ vector_backend_config }}/tls/ca.crt"
+        ownca_privatekey_path: "{{ vector_backend_config }}/tls/ca.key"
+        provider: ownca
+        ownca_not_after: '+825d'
+        mode: '0644'
+    - name: Read collector certificate material privately
+      ansible.builtin.slurp:
+        src: "{{ vector_backend_config }}/tls/{{ item }}"
+      loop:
+        - ca.crt
+        - "clients/{{ inventory_hostname }}.crt"
+        - "clients/{{ inventory_hostname }}.key"
+      register: vector_tls_material
+      no_log: true
+
+- name: Install collector certificate material privately
+  ansible.builtin.copy:
+    content: "{{ item.content | b64decode }}"
+    dest: "{{ vector_config_base }}/tls/{{ ['ca.crt', 'client.crt', 'client.key'][vector_certificate_index] }}"
+    mode: '0600'
+  loop: "{{ vector_tls_material.results }}"
+  loop_control:
+    index_var: vector_certificate_index
+  become: "{{ ansible_facts['os_family'] != 'Darwin' }}"
+  no_log: true
+  register: vector_tls_files

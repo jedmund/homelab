@@ -1,0 +1,60 @@
+---
+- name: Render Linux collector deployment
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ vector_config_base }}/compose.yaml"
+    mode: '0644'
+  become: true
+
+- name: Deploy Vector stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ vector_config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if vector_collection_config.changed | default(false) or
+         vector_tls_files.changed | default(false) else 'auto' }}
+  become: true
+
+- name: Install Linux logging heartbeat units
+  ansible.builtin.template:
+    src: "heartbeat.{{ item }}.j2"
+    dest: "/etc/systemd/system/homelab-log-heartbeat.{{ item }}"
+    mode: '0644'
+  loop: [service, timer]
+  become: true
+  register: vector_heartbeat_units
+
+- name: Enable Linux logging heartbeat
+  ansible.builtin.systemd_service:
+    name: homelab-log-heartbeat.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ vector_heartbeat_units.changed }}"
+  become: true
+
+- name: Emit the first Linux logging heartbeat
+  ansible.builtin.command: /usr/bin/logger -t homelab-log-heartbeat homelab-log-heartbeat
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Configure bounded local Traefik access logs on the NUC
+  when: inventory_hostname == 'nuc-mini'
+  become: true
+  block:
+    - name: Inspect the existing Traefik log volume
+      community.docker.docker_volume_info:
+        name: traefik_traefik-logs
+      register: vector_traefik_volume
+    - name: Install Traefik log rotation
+      ansible.builtin.template:
+        src: traefik.logrotate.j2
+        dest: /etc/logrotate.d/homelab-traefik
+        mode: '0644'
+    - name: Check Traefik access log size every fifteen minutes
+      ansible.builtin.cron:
+        name: Rotate Traefik access logs
+        user: root
+        minute: '*/15'
+        job: /usr/sbin/logrotate --wait-for-state-lock /etc/logrotate.d/homelab-traefik

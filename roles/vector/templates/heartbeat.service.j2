@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Emit the homelab logging collection heartbeat
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger -t homelab-log-heartbeat homelab-log-heartbeat host={{ inventory_hostname }}
