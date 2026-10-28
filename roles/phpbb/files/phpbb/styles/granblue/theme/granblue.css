@@ -263,25 +263,27 @@ blockquote blockquote { background-color: #100c06; }
 
 .inputbox:focus, textarea:focus { border-color: #ffd76e; }
 
-/* ---- buttons: GBF capsules, baked labels sliced away ---------- */
+/* ---- buttons: GBF capsules, true 9-slice ---------------------- */
+/* The capsule sprites carry no baked text; border-image with fill keeps
+   the ornate caps crisp while the embossed middle stretches to any
+   button width, and the slice cuts the atlas edge away entirely. */
 
 .button,
 .button1, .button2,
 a.button1, a.button2, input.button1, input.button2,
 .dropdown .button, .button-search, .button-search-end {
 	border-style: solid;
-	border-width: 10px 32px;
-	border-image: url('./images/game/button-feather.png') 12 70 12 62 stretch;
-	background: linear-gradient(#f2cf6e, #d59a24);
-	color: #4a2c05;
+	border-width: 11px 30px;
+	border-image: url('./images/game/button-bronze.png') 22 56 fill / 11px 30px stretch;
+	color: #3a2410;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 1.1em;
 	font-weight: bold;
-	text-shadow: 0 1px 0 #ffe9a0aa;
+	text-shadow: 0 1px 0 #ffe9a066;
 	display: inline-block;
 	height: 34px;
-	line-height: 12px;
-	padding: 0 10px;
+	line-height: 10px;
+	padding: 0 6px;
 	box-sizing: border-box;
 	vertical-align: middle;
 }
@@ -290,25 +292,25 @@ a.button1, a.button2, input.button1, input.button2,
 .dropdown .button:hover, a.button1:hover, a.button2:hover,
 .button-search:hover, .button-search-end:hover,
 input.button1:hover, input.button2:hover {
-	border-image-source: url('./images/game/button-feather-active.png');
-	color: #2a1802;
+	border-image-source: url('./images/game/button-blue.png');
+	color: #f1f6fb;
+	text-shadow: 1px 1px 0 #000a;
 }
 
-/* secondary buttons take the cyan capsule */
+/* secondary buttons take the blue-glass capsule */
 .button2, input.button2, a.button2,
 .button-search, .button-search-end, .dropdown .button {
-	border-image: url('./images/game/button-cyan.png') 12 44 12 40 stretch;
-	background: linear-gradient(#8fd6e8, #3fa8cc);
-	color: #0c2a34;
-	text-shadow: 0 1px 0 #d8f4fc88;
+	border-image: url('./images/game/button-blue.png') 20 48 fill / 11px 26px stretch;
+	border-width: 11px 26px;
+	color: #eef4fb;
+	text-shadow: 1px 1px 0 #000a;
 }
 
 .button2:hover, input.button2:hover, a.button2:hover,
 .button-search:hover, .button-search-end:hover, .dropdown .button:hover {
-	border-image-source: url('./images/game/button-feather.png');
-	background: linear-gradient(#f2cf6e, #d59a24);
-	color: #4a2c05;
-	text-shadow: 0 1px 0 #ffe9a0aa;
+	border-image-source: url('./images/game/button-bronze.png');
+	color: #3a2410;
+	text-shadow: 0 1px 0 #ffe9a066;
 }
 
 /* ---- pagination --------------------------------------------- */
