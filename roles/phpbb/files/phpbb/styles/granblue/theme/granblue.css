@@ -769,3 +769,66 @@ a.button1, a.button2, input.button1, input.button2,
 }
 
 #wrap table.table1 td a { color: var(--gbf-gold); }
+
+/* ---- linked and flagged posts ---------------------------------- */
+/* Prosilver forces black text on the post a #pNN link targets, and tints
+   reported/unapproved posts pale. Keep the dark frame and light text and
+   mark the target with a gold glow instead. */
+
+#wrap .post:target {
+	box-shadow: 0 0 0 2px #ffd76e88, 0 0 14px #ffd76e66, 0 2px 8px #000000aa;
+}
+
+#wrap .post:target h3, #wrap .post:target h3 a, #wrap .post:target .content,
+#wrap .post:target .postbody, #wrap .post:target .author, #wrap .post:target .author a {
+	color: var(--gbf-ink);
+}
+
+#wrap .post:target h3, #wrap .post:target h3 a { color: var(--gbf-gold); }
+
+#wrap .post.reported, #wrap .post.unapproved, #wrap .post.bg3 { background: transparent; }
+
+/* ---- polls: dark inset gauge with a cyan glass fill ---------------- */
+
+#wrap .polls dl { border-color: #d9a83840; }
+
+#wrap .polls dt, #wrap .polls dt label { color: var(--gbf-ink); }
+
+#wrap .polls dd.resultbar {
+	background: #0f0b06;
+	border: 1px solid #6b4c32;
+	border-radius: 9px;
+	box-shadow: inset 0 2px 5px #000000b0;
+	height: 18px;
+	overflow: hidden;
+	padding: 0;
+}
+
+#wrap .polls .pollbar1, #wrap .polls .pollbar2, #wrap .polls .pollbar3,
+#wrap .polls .pollbar4, #wrap .polls .pollbar5 {
+	background: linear-gradient(#c8f6ff, #4ec8e8 48%, #1f86ad);
+	border: 0;
+	border-radius: 8px;
+	box-shadow: inset 0 0 0 1px #ffffff55;
+	color: #ffffff;
+	height: 16px;
+	line-height: 16px;
+	min-width: 0;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+#wrap .polls .pollbar1 span, #wrap .polls .pollbar2 span, #wrap .polls .pollbar3 span,
+#wrap .polls .pollbar4 span, #wrap .polls .pollbar5 span { color: #ffffff; }
+
+#wrap .polls dd.poll_option_percent { color: var(--gbf-ink); }
+
+#wrap .polls dd.poll_total_votes, #wrap .polls dd:last-child { color: var(--gbf-ink-dim); }
+
+/* the "Total votes" row shares the resultbar class but has no gauge */
+#wrap .polls dd.resultbar:not(:has(> [class^="pollbar"])) {
+	background: none;
+	border: 0;
+	box-shadow: none;
+	height: auto;
+	overflow: visible;
+}
