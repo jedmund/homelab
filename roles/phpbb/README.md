@@ -53,7 +53,9 @@ replaces the style wholesale; phpBB recompiles its stylesheet asset when the
 source files are newer. User-installed styles are data on the NFS volume and
 are never touched by the sync. Because the managed style is root-owned and
 read-only to the board, template editing through the ACP is unavailable for
-it by design — edit in the repository instead.
+it by design — edit in the repository instead. The entrypoint also deletes the compiled template cache
+(`cache/production/twig`) after every managed-style sync, because phpBB never
+rechecks template sources once compiled.
 
 Game-flavored assets under `theme/images/game/` are official Granblue
 Fantasy UI sprites from the game CDN, all text-free crops: `frame-bg.png`
