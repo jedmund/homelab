@@ -1,0 +1,25 @@
+{% if postrow.S_TFPR_CAN_REACT %}
+<li class="tfpr-action-wrap tfpr-desktop-action tfpr-dynamic-set tfpr-set-{postrow.TFPR_ICON_SET}"
+    style="{postrow.TFPR_ICON_STYLE}"
+    data-post-id="{postrow.POST_ID}"
+    data-current="{postrow.TFPR_CURRENT}"
+    data-url="{postrow.U_TFPR_REACT}"
+    data-hash="{postrow.TFPR_HASH}"
+    data-error="{LA_TFPR_SAVE_ERROR}"
+    data-icon-base="{postrow.TFPR_ICON_BASE}" data-default-icon="{postrow.TFPR_DESKTOP_DEFAULT_ICON}">
+    <button type="button" class="button button-icon-only tfpr-toolbar-button" aria-expanded="false" aria-haspopup="true" title="{L_TFPR_THANK_REACT}">
+        <img class="tfpr-toolbar-symbol tfpr-icon{% if postrow.TFPR_CURRENT %} tfpr-icon-{{ postrow.TFPR_CURRENT }} is-current{% else %} tfpr-icon-like{% endif %}" src="{% if postrow.TFPR_CURRENT %}{postrow.TFPR_CURRENT_ICON}{% else %}{postrow.TFPR_DESKTOP_DEFAULT_ICON}{% endif %}" alt="" aria-hidden="true">
+        <span class="sr-only">{L_TFPR_THANK_REACT}</span>
+    </button>
+    <div class="tfpr-picker" role="menu" aria-label="{L_TFPR_CHOOSE}" hidden>
+        <button type="button" data-reaction="thanks" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'thanks' %} is-current{% endif %}" title="{L_TFPR_THANKS}" aria-label="{L_TFPR_THANKS}"><img class="tfpr-icon tfpr-icon-thanks" src="{postrow.TFPR_ICON_BASE}thanks.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_THANKS}</span></button>
+        <button type="button" data-reaction="like" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'like' %} is-current{% endif %}" title="{L_TFPR_LIKE}" aria-label="{L_TFPR_LIKE}"><img class="tfpr-icon tfpr-icon-like" src="{postrow.TFPR_ICON_BASE}like.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_LIKE}</span></button>
+        <button type="button" data-reaction="dislike" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'dislike' %} is-current{% endif %}" title="{L_TFPR_DISLIKE}" aria-label="{L_TFPR_DISLIKE}"><img class="tfpr-icon tfpr-icon-dislike" src="{postrow.TFPR_ICON_BASE}dislike.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_DISLIKE}</span></button>
+        <button type="button" data-reaction="laugh" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'laugh' %} is-current{% endif %}" title="{L_TFPR_LAUGH}" aria-label="{L_TFPR_LAUGH}"><img class="tfpr-icon tfpr-icon-laugh" src="{postrow.TFPR_ICON_BASE}laugh.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_LAUGH}</span></button>
+        <button type="button" data-reaction="smile" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'smile' %} is-current{% endif %}" title="{L_TFPR_SMILE}" aria-label="{L_TFPR_SMILE}"><img class="tfpr-icon tfpr-icon-smile" src="{postrow.TFPR_ICON_BASE}smile.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_SMILE}</span></button>
+        <button type="button" data-reaction="surprise" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'surprise' %} is-current{% endif %}" title="{L_TFPR_SURPRISE}" aria-label="{L_TFPR_SURPRISE}"><img class="tfpr-icon tfpr-icon-surprise" src="{postrow.TFPR_ICON_BASE}surprise.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_SURPRISE}</span></button>
+        <button type="button" data-reaction="doubt" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'doubt' %} is-current{% endif %}" title="{L_TFPR_DOUBT}" aria-label="{L_TFPR_DOUBT}"><img class="tfpr-icon tfpr-icon-doubt" src="{postrow.TFPR_ICON_BASE}doubt.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_DOUBT}</span></button>
+        <button type="button" data-reaction="hug" class="tfpr-choice{% if postrow.TFPR_CURRENT == 'hug' %} is-current{% endif %}" title="{L_TFPR_HUG}" aria-label="{L_TFPR_HUG}"><img class="tfpr-icon tfpr-icon-hug" src="{postrow.TFPR_ICON_BASE}hug.png" alt="" aria-hidden="true"><span class="tfpr-choice-label">{L_TFPR_HUG}</span></button>
+    </div>
+</li>
+{% endif %}

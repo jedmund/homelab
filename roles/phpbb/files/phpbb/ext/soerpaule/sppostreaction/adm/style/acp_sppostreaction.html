@@ -1,0 +1,60 @@
+{% INCLUDE 'overall_header.html' %}
+
+<h1>{L_ACP_TFPR_SYMBOLSETS}</h1>
+<p>{L_ACP_TFPR_EXPLAIN}</p>
+
+<form id="tfpr_acp_settings" method="post" action="{U_ACTION}" enctype="multipart/form-data">
+    <fieldset>
+        <legend>{L_ACP_TFPR_AVAILABLE_SETS}</legend>
+        <table class="table1 zebra-table fixed-width-table">
+            <thead><tr>
+                <th style="width:70px;text-align:center">{L_ACP_TFPR_ACTIVE}</th>
+                <th style="width:70px;text-align:center">{L_ACP_TFPR_DEFAULT}</th>
+                <th style="width:285px">{L_ACP_TFPR_PREVIEW}</th>
+                <th>{L_ACP_TFPR_SET_NAME}</th>
+                <th style="width:120px">{L_ACP_TFPR_TYPE}</th>
+                <th style="width:90px;text-align:center">{L_ACP_TFPR_ACTIONS}</th>
+            </tr></thead>
+            <tbody>
+            {% for tfpr_set in tfpr_sets %}
+                <tr>
+                    <td style="text-align:center;vertical-align:middle">
+                        <input type="checkbox" id="tfpr_set_{{ tfpr_set.VALUE }}" name="tfpr_enabled_sets[{{ tfpr_set.VALUE }}]" value="1"{% if tfpr_set.ENABLED %} checked="checked"{% endif %}{% if tfpr_set.LOCKED %} disabled="disabled"{% endif %}>
+                        {% if tfpr_set.LOCKED %}<input type="hidden" name="tfpr_enabled_sets[tf-chrom]" value="1">{% endif %}
+                    </td>
+                    <td style="text-align:center;vertical-align:middle"><input type="radio" name="tfpr_default_icon_set" value="{{ tfpr_set.VALUE }}"{% if tfpr_set.DEFAULT %} checked="checked"{% endif %}></td>
+                    <td style="white-space:nowrap;vertical-align:middle">
+                        {% for icon in tfpr_set.PREVIEW %}<img src="{{ icon }}" alt="" style="width:32px;height:32px;object-fit:contain;margin-right:3px;vertical-align:middle">{% endfor %}
+                    </td>
+                    <td style="vertical-align:middle">
+                        <label for="tfpr_set_{{ tfpr_set.VALUE }}"><strong>{{ tfpr_set.NAME }}</strong></label><br>
+                        <span>{{ tfpr_set.DESCRIPTION }}</span>
+                        {% if tfpr_set.AUTHOR %}<br><small>{L_ACP_TFPR_AUTHOR}: {{ tfpr_set.AUTHOR }} · {L_ACP_TFPR_VERSION}: {{ tfpr_set.VERSION }}</small>{% endif %}
+                        {% if tfpr_set.LOCKED %}<br><em>{L_ACP_TFPR_STANDARD_ALWAYS}</em>{% endif %}
+                    </td>
+                    <td style="vertical-align:middle">{% if tfpr_set.SYSTEM %}{L_ACP_TFPR_SYSTEM_SET}{% else %}{L_ACP_TFPR_CUSTOM_SET}{% endif %}</td>
+                    <td style="text-align:center;vertical-align:middle">
+                        {% if not tfpr_set.SYSTEM %}<button class="button2" type="submit" name="delete_set" value="1" onclick="this.form.delete_slug.value='{{ tfpr_set.VALUE }}';">{L_ACP_TFPR_DELETE}</button>{% else %}&mdash;{% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <input type="hidden" name="delete_slug" value="">
+        <p class="quick"><em>{L_ACP_TFPR_DEFAULT_EXPLAIN}</em></p>
+    </fieldset>
+
+    <fieldset class="submit-buttons">
+        <input class="button1" type="submit" name="submit" value="{L_SUBMIT}">
+    </fieldset>
+
+    <fieldset>
+        <legend>{L_ACP_TFPR_UPLOAD_TITLE}</legend>
+        <p>{L_ACP_TFPR_UPLOAD_EXPLAIN}</p>
+        <dl><dt><label for="tfpr_symbolset_zip">ZIP-Datei</label></dt><dd><input type="file" id="tfpr_symbolset_zip" name="tfpr_symbolset_zip" accept=".zip,application/zip"></dd></dl>
+        <p class="submit-buttons"><input class="button1" type="submit" name="upload_set" value="{L_ACP_TFPR_UPLOAD_BUTTON}"></p>
+    </fieldset>
+    {S_FORM_TOKEN}
+</form>
+
+{% INCLUDE 'overall_footer.html' %}

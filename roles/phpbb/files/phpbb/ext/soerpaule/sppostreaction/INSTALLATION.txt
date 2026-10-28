@@ -1,0 +1,17 @@
+SP Post Reactions 1.0.3
+=======================
+
+New installation
+----------------
+1. Copy soerpaule/sppostreaction to ext/soerpaule/sppostreaction.
+2. Open ACP > Customise > Manage extensions.
+3. Enable SP Post Reactions.
+4. Configure the available icon sets in the ACP.
+
+Update from SP Post Reactions
+-----------------------------
+1. Back up the database and extension files.
+2. Disable SP Post Reactions. Do not delete its data.
+3. Replace the files in ext/soerpaule/sppostreaction.
+4. Enable SP Post Reactions again.
+5. Purge the phpBB cache and test ACP, UCP, reactions and notifications.

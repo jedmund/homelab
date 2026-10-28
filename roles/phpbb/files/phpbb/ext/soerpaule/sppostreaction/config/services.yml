@@ -1,0 +1,45 @@
+services:
+    soerpaule.sppostreaction.repository:
+        class: soerpaule\sppostreaction\service\reaction_repository
+        arguments:
+            - '@dbal.conn'
+            - '%core.table_prefix%post_reactions'
+            - '%core.table_prefix%users'
+
+    soerpaule.sppostreaction.manager:
+        class: soerpaule\sppostreaction\service\reaction_manager
+        arguments:
+            - '@soerpaule.sppostreaction.repository'
+
+    soerpaule.sppostreaction.listener:
+        class: soerpaule\sppostreaction\event\listener
+        arguments:
+            - '@soerpaule.sppostreaction.repository'
+            - '@user'
+            - '@controller.helper'
+            - '@config'
+            - '%core.root_path%'
+        tags:
+            - { name: event.listener }
+
+    soerpaule.sppostreaction.controller:
+        class: soerpaule\sppostreaction\controller\reaction_controller
+        arguments:
+            - '@soerpaule.sppostreaction.manager'
+            - '@dbal.conn'
+            - '@user'
+            - '@request'
+            - '@auth'
+            - '%core.table_prefix%posts'
+            - '%core.table_prefix%topics'
+            - '@notification_manager'
+
+
+    soerpaule.sppostreaction.notification.type.reaction:
+        class: soerpaule\sppostreaction\notification\type\reaction
+        parent: notification.type.base
+        shared: false
+        calls:
+            - [set_user_loader, ['@user_loader']]
+        tags:
+            - { name: notification.type }

@@ -1,0 +1,4 @@
+soerpaule_sppostreaction_react:
+    path: /sppostreaction/react
+    defaults: { _controller: soerpaule.sppostreaction.controller:react }
+    methods: [POST]

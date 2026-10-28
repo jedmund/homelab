@@ -1,0 +1,35 @@
+{% INCLUDE 'ucp_header.html' %}
+
+<form id="tfpr_ucp_settings" method="post" action="{U_ACTION}">
+    <h2>{L_UCP_TFPR_SETTINGS}</h2>
+    <div class="panel">
+        <div class="inner">
+            <p>{L_TFPR_SET_EXPLAIN}</p>
+            <fieldset>
+                {% for tfpr_set in tfpr_sets %}
+                <label class="tfpr-set-option {{ tfpr_set.CSS_CLASS }}" style="{{ tfpr_set.STYLE }}">
+                    <input type="radio" name="tfpr_icon_set" value="{{ tfpr_set.VALUE }}"{% if tfpr_set.CHECKED %} checked="checked"{% endif %}>
+                    <strong>{{ tfpr_set.NAME }}</strong>
+                    <span class="tfpr-set-preview" aria-hidden="true">
+                        <img class="tfpr-icon tfpr-icon-thanks" src="{{ tfpr_set.BASE }}thanks.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-like" src="{{ tfpr_set.BASE }}like.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-dislike" src="{{ tfpr_set.BASE }}dislike.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-laugh" src="{{ tfpr_set.BASE }}laugh.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-smile" src="{{ tfpr_set.BASE }}smile.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-surprise" src="{{ tfpr_set.BASE }}surprise.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-doubt" src="{{ tfpr_set.BASE }}doubt.png" alt="">
+                        <img class="tfpr-icon tfpr-icon-hug" src="{{ tfpr_set.BASE }}hug.png" alt="">
+                    </span>
+                </label>
+                {% endfor %}
+            </fieldset>
+        </div>
+    </div>
+
+    <fieldset class="submit-buttons">
+        <input type="submit" name="submit" value="{L_SUBMIT}" class="button1">
+        {S_FORM_TOKEN}
+    </fieldset>
+</form>
+
+{% INCLUDE 'ucp_footer.html' %}

@@ -1,0 +1,40 @@
+Upgrade von TF Post Reactions auf SP Post Reactions 1.0.0
+=========================================================
+
+Diese Anleitung gilt für bestehende Installationen von:
+
+    soerpaule/tfpostreactions
+
+Ziel ist:
+
+    soerpaule/sppostreaction
+
+Die vorhandene Tabelle post_reactions, die tfpr_-Konfiguration und die persönliche
+Symbolset-Auswahl der Benutzer werden weiterverwendet. Dadurch bleiben vorhandene
+Reaktionen erhalten.
+
+Vorbereitung
+------------
+1. Eine vollständige Sicherung der Datenbank und der Forendateien erstellen.
+2. Prüfen, dass TF Post Reactions vor dem Wechsel fehlerfrei funktioniert.
+
+Durchführung
+------------
+1. TF Post Reactions im ACP deaktivieren.
+2. Bei TF Post Reactions NICHT "Daten löschen" anklicken.
+3. Den Ordner soerpaule/sppostreaction nach ext/soerpaule/sppostreaction hochladen.
+4. Den phpBB-Cache leeren.
+5. SP Post Reactions 1.0.0 im ACP aktivieren.
+6. Prüfen, ob die bisherigen Reaktionen weiterhin angezeigt werden.
+7. Eine Reaktion hinzufügen, ändern und entfernen.
+8. ACP-Einstellungen, UCP-Symbolauswahl und Benachrichtigungen prüfen.
+
+Nach erfolgreichem Test
+-----------------------
+Der alte Ordner ext/soerpaule/tfpostreactions kann entfernt werden, sobald die neue
+Erweiterung vollständig geprüft wurde. Die alte Erweiterung darf dabei weiterhin nicht
+über "Daten löschen" bereinigt werden, weil beide Fassungen gemeinsame Daten verwenden.
+
+Hinweis
+-------
+Die alte und die neue Erweiterung dürfen nicht gleichzeitig aktiviert sein.
