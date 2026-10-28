@@ -1,0 +1,5 @@
+/* Granblue Fantasy child style, English language variant.
+   prosilver ships language-specific theme tweaks here; import them and
+   nothing else — granblue.css has no language-specific rules. */
+
+@import url("../../../prosilver/theme/en/stylesheet.css");
