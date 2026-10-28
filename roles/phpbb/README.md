@@ -59,9 +59,9 @@ Game-flavored assets under `theme/images/game/` are official Granblue
 Fantasy UI sprites from the game CDN, all text-free crops: `frame-bg.png`
 (`sp/ui/frame/bg.png`, flourishes at the edge midpoints painted out so it
 9-slices cleanly) frames the header, posts, and panels; `header-bar.png` (a
-crop of `present/parts`) is the forum title bar; `button-bronze.png` and
-`button-blue.png` (from `ui/button` and `archive/parts`) are the button
-capsules; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
+crop of `present/parts`) is the forum title bar; `button-cyan.png` (default)
+and `button-gold.png` (primary submit) are text-free crops of `ui/button`, and hover
+brightens the same sprite rather than swapping art; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
 `sp/detail/archive/bg_picture_book.jpg`, and the ornament
 `frame_flexible/base_ornament_01.png`. Frames, title bars, and buttons use
 `border-image` with `fill`; framed elements draw their sprite on a `::before`
