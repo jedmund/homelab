@@ -71,6 +71,7 @@ body {
 /* The board inside a GBF scroll: rolled ends as a border-image, dark
    parchment interior. The dark GBF dialog palette lives inside. */
 #wrap {
+	background: transparent; /* prosilver's white shows through the scroll's transparent edge rows */
 	border-style: solid;
 	border-color: #1a1408;
 	border-width: 30px 36px;
