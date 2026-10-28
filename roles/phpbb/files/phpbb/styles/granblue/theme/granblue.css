@@ -7,6 +7,20 @@
    fill so baked-in labels are discarded and ours render instead.
    ============================================================ */
 
+/* The game UI face: a 95-glyph ASCII subset of Telop Min from the game
+   CDN, with Average Sans (OFL, Latin) behind it for everything else. */
+@font-face {
+	font-family: "GBF Telop Min";
+	src: url('./fonts/gbf-telop-min.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Average Sans";
+	src: url('./fonts/average-sans-latin.woff2') format('woff2');
+	font-display: swap;
+}
+
 /* ---- tokens ------------------------------------------------- */
 
 :root {
@@ -15,7 +29,7 @@
 	--gbf-gold: #ffd76e;       /* links and titles */
 	--gbf-gold-edge: #d9a838;  /* hairlines */
 	--gbf-panel: #17110a;      /* inputs and wells */
-	--gbf-serif: "Times New Roman", Georgia, serif;
+	--gbf-font: "GBF Telop Min", "Average Sans", Verdana, sans-serif;
 }
 
 /* 9-slice primitive: the sprite lives on ::before so the element keeps
@@ -35,12 +49,16 @@
 	z-index: 0;
 }
 
+#wrap, #wrap :is(h1, h2, h3, h4, p, a, li, dt, dd, span, div, label, legend, input, textarea, select, button, td, th, cite) {
+	font-family: var(--gbf-font);
+}
+
 /* ---- global chrome ---------------------------------------- */
 
 body {
 	background: #f3ecdc url('./images/game/bg-picture-book.jpg') no-repeat center top / cover fixed;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
-	font-size: 11px;
+	font-family: var(--gbf-font);
+	font-size: 12px;
 	color: #1c355e;
 }
 
@@ -102,7 +120,7 @@ a:hover { color: #ffffff; text-decoration: underline; }
 #site-description { padding-top: 18px; }
 
 #site-description h1 {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 3.2em;
 	font-weight: bold;
 	letter-spacing: 0.08em;
@@ -114,7 +132,7 @@ a:hover { color: #ffffff; text-decoration: underline; }
 #site-description p {
 	color: var(--gbf-ink-dim);
 	font-style: italic;
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.3em;
 	text-shadow: 1px 1px 0 #000;
 	margin-left: 16px;
@@ -142,7 +160,7 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	background: #0a1a3a;
 	border-top: 1px solid #d9a838;
 	color: #ffd76e;
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	letter-spacing: 0.08em;
 	padding: 4px 0;
@@ -154,7 +172,7 @@ a:hover { color: #ffffff; text-decoration: underline; }
 	background: var(--gbf-panel);
 	border: 1px solid var(--gbf-gold-edge);
 	color: var(--gbf-ink);
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+	font-family: var(--gbf-font);
 }
 
 .headerbar .search-box .inputbox::placeholder { color: #8fb8cc; }
@@ -199,7 +217,7 @@ li.header dl.row-item, li.header dt, li.header dd {
 	position: relative;
 	z-index: 1;
 	color: #f5edda;
-	font-family: var(--gbf-serif);
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	font-weight: bold;
 	letter-spacing: 0.06em;
@@ -269,7 +287,7 @@ ul.forums, ul.topics, .forumbg .topiclist, .forabg .topiclist { color: #cfc3a8; 
 }
 
 .postprofile dt a {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-weight: bold;
 	font-size: 1.3em;
 	color: #ffd76e;
@@ -290,7 +308,16 @@ blockquote {
 	color: #e8dcc0;
 }
 
-blockquote blockquote { background-color: #100c06; }
+#wrap blockquote, #wrap blockquote blockquote blockquote {
+	background-color: #17110a;
+	color: var(--gbf-ink);
+}
+
+#wrap blockquote blockquote, #wrap blockquote blockquote blockquote blockquote {
+	background-color: #0f0b06;
+}
+
+#wrap blockquote cite, #wrap blockquote cite a { color: var(--gbf-gold); }
 
 /* prosilver paints headings, labels and detail lists dark navy; remap
    everything inside the board to the dark-panel ink tokens. */
@@ -303,7 +330,7 @@ blockquote blockquote { background-color: #100c06; }
 }
 
 #wrap h3, #wrap .stat-block h3, #wrap .login-box h3, #wrap .forabg + h3 {
-	font-family: var(--gbf-serif);
+	font-family: var(--gbf-font);
 	letter-spacing: 0.08em;
 	color: var(--gbf-gold);
 	border-bottom: 1px solid var(--gbf-gold-edge);
@@ -327,7 +354,7 @@ blockquote blockquote { background-color: #100c06; }
 .panel { padding: 22px 26px; }
 
 .panel h2, .panel h3 {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	color: #ffd76e;
 	letter-spacing: 0.05em;
 }
@@ -336,7 +363,7 @@ blockquote blockquote { background-color: #100c06; }
 	background: #17110a;
 	border: 1px solid #d9a838;
 	color: #e8dcc0;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+	font-family: var(--gbf-font);
 }
 
 .inputbox:focus, textarea:focus { border-color: #ffd76e; }
@@ -358,7 +385,7 @@ a.button1, a.button2, input.button1, input.button2,
 	background: transparent !important;
 	box-shadow: none !important;
 	color: #ffffff;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+	font-family: var(--gbf-font);
 	font-size: 1.1em;
 	font-weight: bold;
 	text-shadow: 0 1px 2px #000, 0 0 3px #000;
@@ -396,6 +423,16 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 
 #wrap .button .icon, #wrap .button i { color: #ffffff; }
 
+.post-buttons .button, .search-header .button, .button-icon-only {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	padding-bottom: 3px;
+}
+
+.post-buttons .button .icon, .search-header .button .icon, .button-icon-only .icon { margin: 0; }
+
 .action-bar .search-box .inputbox { color: var(--gbf-ink); }
 
 /* ---- pagination --------------------------------------------- */
@@ -432,7 +469,7 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 }
 
 .gbf-counter {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	color: #f1e6c8;
 	letter-spacing: 0.06em;
@@ -478,7 +515,7 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 .gbf-under-construction {
 	margin-top: 10px;
 	color: #ffd76e;
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	letter-spacing: 0.1em;
 }
@@ -503,7 +540,7 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 	color: #e8dcc0;
 }
 
-.jumpbox .title, .jumpbox select { font-family: Verdana, Geneva, Tahoma, sans-serif; }
+.jumpbox .title, .jumpbox select { font-family: var(--gbf-font); }
 
 .copyright { color: #9fb4d8; font-size: 1.1em; }
 
