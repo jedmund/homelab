@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+events {}
+http {
+  access_log /dev/stdout;
+  error_log /dev/stderr warn;
+  server {
+    listen 8443 ssl;
+    ssl_certificate /etc/nginx/tls/server.crt;
+    ssl_certificate_key /etc/nginx/tls/server.key;
+    ssl_client_certificate /etc/nginx/tls/ca.crt;
+    ssl_verify_client on;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 16m;
+    location = /loki/api/v1/push {
+      limit_except POST { deny all; }
+      proxy_pass http://logging-loki:3100;
+      proxy_read_timeout 60s;
+    }
+    location / { return 404; }
+  }
+}

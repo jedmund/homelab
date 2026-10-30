@@ -9,6 +9,7 @@
                                     | list %}
 healthCheckTimeout: {{ llama_swap_health_check_timeout }}
 logLevel: {{ llama_swap_log_level }}
+logToStdout: "both"
 
 models:
 {% for model in ai_models_active %}

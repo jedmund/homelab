@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>house.atelier.log-heartbeat</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/sh</string><string>-c</string>
+    <string>/bin/date -u '+%Y-%m-%dT%H:%M:%SZ homelab-log-heartbeat host={{ inventory_hostname }}' &gt;&gt; '{{ vector_config_base }}/heartbeat.log'</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>60</integer>
+</dict></plist>

@@ -1,0 +1,29 @@
+---
+stack_name: logging
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+logging_loki_image: grafana/loki:3.7.9
+logging_grafana_image: grafana/grafana:13.3.0
+logging_gateway_image: nginx:1.30.6-alpine
+logging_garage_image: dxflrs/garage:v2.3.0
+logging_checks_image: python:3.12.16-alpine
+logging_domain: logs.atelier.house
+logging_bind_address: "{{ ansible_host }}"
+logging_ingest_port: 13443
+logging_query_port: 13100
+logging_retention_days: 90
+logging_nas_mount: /mnt/nas/logging
+logging_nas_export: "{{ nfs_base_path }}/Homelab/.data"
+logging_nas_directory: "{{ logging_nas_mount }}/Logs"
+logging_bucket: homelab-logs
+logging_region: garage
+logging_expected_hosts: [nuc-mini, max, mac-mini]
+logging_heartbeat_max_age: 15m
+logging_nas_warning_percent: 85
+logging_oidc_issuer: https://id.atelier.house
+logging_oidc_allowed_group: sysadmins
+logging_oidc_client_id: "{{ vault_logging_oidc_client_id | default('') }}"
+logging_oidc_client_secret: "{{ vault_logging_oidc_client_secret | default('') }}"
+logging_admin_password: "{{ vault_logging_admin_password | default('') }}"
+logging_garage_rpc_secret: "{{ vault_logging_garage_rpc_secret | default('') }}"
+logging_s3_access_key: "{{ vault_logging_s3_access_key | default('') }}"
+logging_s3_secret_key: "{{ vault_logging_s3_secret_key | default('') }}"

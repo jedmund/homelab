@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+metadata_auto_snapshot_interval = "6h"
+replication_factor = 1
+consistency_mode = "consistent"
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "logging-garage:3901"
+rpc_secret = "{{ logging_garage_rpc_secret }}"
+[s3_api]
+s3_region = "{{ logging_region }}"
+api_bind_addr = "[::]:3900"

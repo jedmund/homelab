@@ -66,6 +66,12 @@ deploy-minecraft: ## Deploy Minecraft while preserving sleeping backends
 
 ##@ Deployment - Infrastructure
 
+deploy-logging: ## Deploy the retained logging backend
+	@$(ANSIBLE) -i $(INVENTORY) deploy/logging.yml $(VAULT_FLAG)
+
+deploy-vector: ## Deploy host log collectors
+	@$(ANSIBLE) -i $(INVENTORY) deploy/vector.yml $(VAULT_FLAG)
+
 deploy-infra: ## Deploy all infrastructure (core + gateway)
 	@echo "$(BLUE)Deploying infrastructure stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags infra

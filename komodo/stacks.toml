@@ -29,6 +29,45 @@ type = "Custom"
 url = "http://gatus-relay:8080/komodo"
 
 [[stack]]
+name = "logging"
+description = "Retained logs, private ingestion, and Grafana"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "logging"
+files_on_host = true
+run_directory = "/opt/docker/logging"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-nuc"
+description = "NUC container and host log collection"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-max"
+description = "Workstation container and host log collection"
+tags = ["homelab", "ansible", "max", "infrastructure"]
+[stack.config]
+server = "Workstation"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
