@@ -53,7 +53,33 @@ replaces the style wholesale; phpBB recompiles its stylesheet asset when the
 source files are newer. User-installed styles are data on the NFS volume and
 are never touched by the sync. Because the managed style is root-owned and
 read-only to the board, template editing through the ACP is unavailable for
-it by design — edit in the repository instead.
+it by design — edit in the repository instead. The entrypoint also deletes the compiled template cache
+(`cache/production/twig`) after every managed-style sync, because phpBB never
+rechecks template sources once compiled.
+
+Game-flavored assets under `theme/images/game/` are official Granblue
+Fantasy UI sprites from the game CDN, all text-free crops: `frame-bg.png`
+(`sp/ui/frame/bg.png`, flourishes at the edge midpoints painted out so it
+9-slices cleanly) frames the header, posts, and panels; `header-bar.png` (a
+crop of `present/parts`) is the forum title bar; `button-cyan.png` (default)
+and `button-gold.png` (primary submit) are text-free crops of `ui/button`, and hover
+brightens the same sprite rather than swapping art; `tab-dark.png` and `tab-light.png` (from `ui/tabs`) are the inactive and
+active tabs, `ticker.png` (from `archive/parts`) backs the header marquee,
+and pagination reuses the button sprites; the board scroll is `scroll_brown/bg_detail.png`, the backdrop
+`sp/detail/archive/bg_picture_book.jpg`, and the ornament
+`frame_flexible/base_ornament_01.png`. Frames, title bars, and buttons use
+`border-image` with `fill`; framed elements draw their sprite on a `::before`
+so prosilver's float layout is untouched, and colors come from the `--gbf-*`
+tokens at the top of `granblue.css`. The sprites are 2x art, so each slice is
+twice its border width. `stylesheet.css` imports `granblue.css` with a `?v=`
+suffix; change it alongside any edit so browsers refetch the sheet.
+
+Typography uses the game UI face: `theme/fonts/gbf-telop-min.woff` is the
+game's own `basic.woff` (an ASCII-only subset of Fontworks Telop Min), with
+Average Sans (`average-sans-latin.woff2`, SIL OFL) behind it for glyphs the
+subset lacks. The Telop Min file is commercially licensed art from the game,
+like the sprites; confirm the board's use of it is acceptable before making
+the repository or board more widely public.
 
 ## Crawlers
 

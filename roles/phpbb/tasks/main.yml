@@ -43,11 +43,16 @@
     - "{{ config_base }}/env"
 
 - name: Deploy phpBB build context
-  ansible.builtin.copy:
+  # synchronize with delete: the host context must mirror the repository
+  # exactly — plain directory copy never removes files the repo deleted,
+  # which left stale sprites in the built image.
+  ansible.posix.synchronize:
     src: phpbb/
     dest: "{{ config_base }}/config/phpbb/"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+    delete: true
+    recursive: true
+    perms: true
+    times: true
   register: phpbb_deploy_build_files
 
 - name: Deploy phpBB nginx configuration

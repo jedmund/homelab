@@ -106,8 +106,17 @@ if [ -n "${PHPBB_MANAGED_STYLES:-}" ]; then
             chown -R root:root "$HTML/styles/$style" 2>/dev/null \
                 || chmod -R a+rwX "$HTML/styles/$style" 2>/dev/null || true
             echo "phpbb: synced managed style $style"
+            synced_styles=1
         fi
     done
+
+    # phpBB compiles templates into cache/production/twig and never checks
+    # the source again, so edited style templates would keep rendering the
+    # old markup. Drop the compiled files; they rebuild on the next request.
+    if [ -n "${synced_styles:-}" ] && [ -d "$HTML/cache/production/twig" ]; then
+        find "$HTML/cache/production/twig" -type f -name '*.php' -delete
+        echo "phpbb: purged compiled templates after style sync"
+    fi
 fi
 
 # ---------------------------------------------------------------------------

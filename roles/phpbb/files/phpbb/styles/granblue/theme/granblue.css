@@ -1,103 +1,215 @@
 /* ============================================================
    GRANBLUE FANTASY style for phpBB 3.3 (child of prosilver)
-   Handcrafted 2003-style: bevels, serif headers, tiled sky,
-   ridge borders, zero rounded corners, one (1) marquee.
-   Sizing note: prosilver sets the body to 10px and sizes
-   everything in em — use em here, never rem.
+   Game UI assets + a dark GBF dialog palette inside the scroll.
+   Sizing note: prosilver sets the body to 10px and sizes in em.
+   9-slice rules use border-image with fill only where the middle
+   of the art is meant to stretch; button sprites slice WITHOUT
+   fill so baked-in labels are discarded and ours render instead.
    ============================================================ */
+
+/* The game UI face: a 95-glyph ASCII subset of Telop Min from the game
+   CDN, with Average Sans (OFL, Latin) behind it for everything else. */
+@font-face {
+	font-family: "GBF Telop Min";
+	src: url('./fonts/gbf-telop-min.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Average Sans";
+	src: url('./fonts/average-sans-latin.woff2') format('woff2');
+	font-display: swap;
+}
+
+/* ---- tokens ------------------------------------------------- */
+
+:root {
+	--gbf-ink: #e8dcc0;        /* body text on dark panels */
+	--gbf-ink-dim: #b9ab8c;    /* secondary text, still AA on #241c12 */
+	--gbf-gold: #ffd76e;       /* links and titles */
+	--gbf-gold-edge: #d9a838;  /* hairlines */
+	--gbf-panel: #17110a;      /* inputs and wells */
+	--gbf-font: "GBF Telop Min", "Average Sans", Verdana, sans-serif;
+}
+
+/* 9-slice primitive: the sprite lives on ::before so the element keeps
+   prosilver's content box and float layout. Set --slice-src, --slice,
+   --slice-w on the element. Sprites are 2x art, so slice = 2 * width. */
+.gbf-slice, li.header, .post, .panel { position: relative; }
+
+.gbf-slice::before, li.header::before, .post::before, .panel::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-style: solid;
+	border-color: transparent;
+	border-width: var(--slice-w);
+	border-image: var(--slice-src) var(--slice) fill / var(--slice-w) stretch;
+	pointer-events: none;
+	z-index: 0;
+}
+
+#wrap, #wrap :is(h1, h2, h3, h4, p, a, li, dt, dd, span, div, label, legend, input, textarea, select, button, td, th, cite) {
+	font-family: var(--gbf-font);
+}
 
 /* ---- global chrome ---------------------------------------- */
 
 body {
-	background: #0d2244 url('./images/tile.svg') repeat !important;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
-	font-size: 11px;
+	background: #f3ecdc url('./images/game/bg-picture-book.jpg') no-repeat center top / cover fixed;
+	font-family: var(--gbf-font);
+	font-size: 12px;
 	color: #1c355e;
 }
 
-/* No rounded corners. It is 2003. */
-.wrap, .forabg, .forumbg, .post, .panel, .navbar, .headerbar,
-.button, .inputbox, .search-box .inputbox, .pagination span,
-.pagination a {
+/* No rounded corners on the chrome (form fields are the exception). */
+.wrap, .post, .panel, .navbar, .headerbar,
+.pagination span, .pagination a {
 	border-radius: 0 !important;
 }
 
-/* The forum-in-a-box: parchment panel with a fat gold ridge border */
+/* The board inside a GBF scroll: rolled ends as a border-image, dark
+   parchment interior. The dark GBF dialog palette lives inside. */
 #wrap {
-	border: 3px ridge #b98d2f;
-	background: #f7f2e2;
-	box-shadow: 0 0 14px #000c38;
+	border-style: solid;
+	border-color: #1a1408;
+	border-width: 30px 36px;
+	border-image: url('./images/game/scroll-bg.png') 30 36 fill / 30px 36px stretch;
+	box-shadow: 0 0 18px #1a140866;
 	margin-top: 12px;
 	margin-bottom: 12px;
+	color: #e8dcc0;
 }
 
-/* Classic link behaviour */
-a { color: #16408f; }
-a:hover { color: #a5760f; text-decoration: underline; }
+/* Classic link behaviour: gold reads on the dark interior. */
+a { color: #ffd76e; }
+a:hover { color: #ffffff; text-decoration: underline; }
 
-/* ---- the banner -------------------------------------------- */
+/* ---- the header: a stretched game tab panel ------------------ */
 
 .headerbar {
-	background: #0d2244 url('./images/banner.svg') no-repeat center top;
-	background-size: cover;
+	--slice-src: url('./images/game/frame-bg.png');
+	--slice: 44;
+	--slice-w: 22px;
+	background: transparent;
 	border: none;
-	border-bottom: 3px ridge #d9a838;
-	min-height: 190px;
+	box-shadow: none;
+	box-sizing: border-box;
+	min-height: 150px;
 	position: relative;
 	overflow: hidden;
+	color: #ffffff;
 }
+
+.headerbar::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-style: solid;
+	border-color: transparent;
+	border-width: var(--slice-w);
+	border-image: var(--slice-src) var(--slice) fill / var(--slice-w) stretch;
+	pointer-events: none;
+}
+
+.headerbar > .inner { position: relative; z-index: 1; }
 
 .site_logo { display: none; }
 
-#site-description { padding-top: 24px; }
+#site-description { padding-top: 18px; }
 
 #site-description h1 {
-	font-family: "Times New Roman", Georgia, serif;
-	font-size: 3.4em;
+	font-family: var(--gbf-font);
+	font-size: 3.2em;
 	font-weight: bold;
 	letter-spacing: 0.08em;
-	color: #ffd76e;
-	text-shadow: 2px 2px 0 #4a2b10, 3px 3px 4px rgba(0, 0, 0, 0.6);
+	color: var(--gbf-gold);
+	text-shadow: 0 2px 3px #000, 0 0 12px #d9a83888;
 	margin: 0 0 4px 14px;
 }
 
 #site-description p {
-	color: #f1e6c8;
+	color: var(--gbf-ink-dim);
 	font-style: italic;
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.3em;
-	text-shadow: 1px 1px 0 #000c38;
+	text-shadow: 1px 1px 0 #000;
 	margin-left: 16px;
 }
 
-/* the marquee strip, as the prophecy demanded */
-.gbf-banner-marquee {
+/* the filigree ornament from the game UI, top corner of the banner */
+.headerbar::after {
+	content: "";
 	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	background: #0a1a3a;
-	border-top: 1px solid #d9a838;
-	color: #ffd76e;
-	font-family: "Times New Roman", Georgia, serif;
-	font-size: 1.2em;
-	letter-spacing: 0.08em;
-	padding: 4px 0;
-	text-shadow: 1px 1px 0 #000;
+	top: 6px;
+	right: 18px;
+	width: 130px;
+	height: 106px;
+	background: url('./images/game/base-ornament.png') center / contain no-repeat;
+	opacity: 0.55;
+	pointer-events: none;
 }
 
-/* search box in the banner */
-.headerbar .search-box .inputbox {
-	background: #fdf6e0;
-	border: 1px solid #d9a838;
-	color: #1c355e;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+/* the ticker: the game's dark arrow bar, text clipped inside the body so
+   it never runs under the arrow tip */
+.gbf-banner-marquee {
+	position: absolute;
+	bottom: 14px;
+	left: 24px;
+	right: 24px;
+	box-sizing: border-box;
+	height: 38px;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 11px 24px 11px 12px;
+	border-image: url('./images/game/ticker.png') 22 48 22 24 fill / 11px 24px 11px 12px stretch;
+	color: var(--gbf-gold);
+	font-family: var(--gbf-font);
+	font-size: 1.2em;
+	letter-spacing: 0.08em;
+	line-height: 16px;
+	overflow: hidden;
+	text-shadow: 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000;
+	z-index: 1;
 }
+
+.gbf-banner-marquee marquee { display: block; }
+
+/* ---- tabs (UCP, MCP, posting form) --------------------------- */
+/* Dark pipe tabs, light for the active one. Text-free sprites from
+   ui/tabs, sliced like the buttons: 2x art, so slice = 2 * border. */
+
+#wrap .tabs .tab > a, #wrap .tabs li.tab a, #wrap .tabs .activetab > a {
+	--tab-src: url('./images/game/tab-dark.png');
+	background: transparent !important;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 9px 20px 9px;
+	border-image: var(--tab-src) 18 40 18 fill / 9px 20px 9px stretch;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	color: var(--gbf-ink);
+	font-weight: bold;
+	text-shadow: 1px 1px 0 #000;
+	padding: 0 4px;
+	line-height: 18px;
+}
+
+#wrap .tabs .tab > a:hover { filter: brightness(1.25); color: #ffffff; }
+
+#wrap .tabs .activetab > a, #wrap .tabs li.activetab a {
+	--tab-src: url('./images/game/tab-light.png');
+	border-image: var(--tab-src) 18 40 18 fill / 9px 20px 9px stretch;
+	color: #12304a;
+	text-shadow: 0 1px 0 #ffffffb0;
+}
+
+#wrap .tabs .tab > a span { color: inherit; }
 
 /* ---- navbar ------------------------------------------------- */
 
 .navbar {
-	background: linear-gradient(#16386f, #2c62b8);
+	background: #1a1408;
 	border: 1px solid #d9a838;
 	border-width: 1px 1px 2px 1px;
 	color: #f1e6c8;
@@ -106,162 +218,319 @@ a:hover { color: #a5760f; text-decoration: underline; }
 .navbar a {
 	color: #ffd76e;
 	font-weight: bold;
-	text-shadow: 1px 1px 0 #000c38;
+	text-shadow: 1px 1px 0 #000;
 }
 
 .navbar a:hover { color: #ffffff; text-decoration: underline; }
 
 .navbar .icon { color: #ffd76e; }
 
-/* ---- forum blocks ------------------------------------------- */
+/* ---- forum blocks: teal title bars on the scroll interior ---- */
 
 .forabg, .forumbg {
-	background: linear-gradient(#1c3f7d, #2f66c4);
-	border: 3px ridge #b98d2f;
-	box-shadow: 1px 1px 0 #0a1a3a;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	margin-bottom: 14px;
 }
 
-li.header dt, li.header dd {
-	color: #ffd76e;
-	font-family: "Times New Roman", Georgia, serif;
+li.header {
+	--slice-src: url('./images/game/header-bar.png');
+	--slice: 22 34 0 34;
+	--slice-w: 11px 17px 0 17px;
+	padding: 10px 0 0;
+}
+
+
+li.header dl.row-item, li.header dt, li.header dd {
+	position: relative;
+	z-index: 1;
+	color: #f5edda;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
+	font-weight: bold;
 	letter-spacing: 0.06em;
-	text-shadow: 1px 1px 0 #00142e;
+	text-shadow: 1px 1px 0 #000;
+	white-space: nowrap;
 }
 
-li.header dt a { color: #ffd76e; }
+li.header dt { text-indent: 22px; }
 
-li.header::before {
-	content: "✦ ";
-	color: #e6c169;
-}
+#wrap ul.topiclist li.header dd { color: #f5edda; }
 
-li.header::after {
-	content: " ✦";
-	color: #e6c169;
-}
+li.header dt a { color: #f5edda; }
 
-/* forum/topic rows: pale alternating blues, gold on hover */
+/* forum/topic rows: translucent dark strips, gold titles */
 ul.forums li.row, ul.topics li.row {
-	border-bottom: 1px solid #b9c8e2;
+	background-color: #241c12d9;
+	border-bottom: 1px solid #d9a83840;
 }
 
 ul.forums li.row:hover, ul.topics li.row:hover {
-	background-color: #fdf6e0;
+	background-color: #3a2d1c;
 }
-
-ul.forums li.bg1, ul.topics li.bg1 { background-color: #eef4fb; }
-ul.forums li.bg2, ul.topics li.bg2 { background-color: #dfeaf8; }
 
 .topics .list-inner a.topictitle,
-.forums .forumtitle { color: #16408f; font-weight: bold; }
+.forums .forumtitle { color: #ffd76e; font-weight: bold; }
 
-a.topictitle:hover, .forumtitle:hover { color: #a5760f; }
+a.topictitle:hover, .forumtitle:hover { color: #ffffff; }
 
-.unread .list-inner a.topictitle { color: #b03030; }
+.unread .list-inner a.topictitle { color: #ffe28a; }
 
-/* ---- posts -------------------------------------------------- */
+ul.forums, ul.topics, .forumbg .topiclist, .forabg .topiclist { color: #cfc3a8; }
 
-.post {
-	border: 1px solid #c9b06a;
-	box-shadow: 1px 1px 0 #b9c8e2;
+/* ---- posts: GBF dialog frames -------------------------------- */
+
+.post, .panel {
+	--slice-src: url('./images/game/frame-bg.png');
+	--slice: 44;
+	--slice-w: 22px;
+	background: transparent;
+	border: none;
+	box-shadow: 0 2px 8px #00000088;
+	color: var(--gbf-ink);
 }
 
-/* Use background-color only: the .online class layers a background-image
-   ribbon on the post, and a shorthand here would reset its repeat and
-   position into an infinite diagonal badge tile. */
-.post.bg1 { background-color: #fbf7ea; }
-.post.bg2 { background-color: #f5eddb; }
+@@
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 22px;
+	border-image: var(--slice-src) var(--slice) fill / 22px stretch;
+	pointer-events: none;
+}
+
+.post { padding: 22px 26px; }
+
+.post > *, .panel > * { position: relative; z-index: 1; }
+
+.post.bg1, .post.bg2 { background: transparent; }
 
 .postprofile {
-	border-color: #c9b06a;
+	border-color: #d9a838;
 	border-style: dotted;
 	border-width: 0 1px 0 0;
-	color: #1c355e;
+	color: #cfc3a8;
 }
 
 .postprofile dt a {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-weight: bold;
 	font-size: 1.3em;
+	color: #ffd76e;
 }
 
 .postbody .content {
 	font-size: 1.3em;
 	line-height: 1.55;
-	color: #223a63;
+	color: #e8dcc0;
 }
 
-.signature { border-top: 1px dashed #b98d2f; }
+.signature { border-top: 1px dashed #d9a838; color: #a89a7c; }
 
 blockquote {
-	background-color: #fdf6e0;
-	border: 1px solid #b9c8e2;
+	background-color: #17110a;
+	border: 1px solid #d9a838;
 	border-left: 4px solid #d9a838;
+	color: #e8dcc0;
 }
 
-/* ---- forms and buttons -------------------------------------- */
-
-.panel {
-	background-color: #f1ead4;
-	border: 1px solid #c9b06a;
-	color: #1c355e;
+#wrap blockquote, #wrap blockquote blockquote blockquote {
+	background-color: #17110a;
+	color: var(--gbf-ink);
 }
+
+#wrap blockquote blockquote, #wrap blockquote blockquote blockquote blockquote {
+	background-color: #0f0b06;
+}
+
+#wrap blockquote cite, #wrap blockquote cite a { color: var(--gbf-gold); }
+
+/* prosilver paints headings, labels and detail lists dark navy; remap
+   everything inside the board to the dark-panel ink tokens. */
+#wrap h2, #wrap h3, #wrap h4, #wrap legend, #wrap label,
+#wrap dt, #wrap .stat-block, #wrap .details dt,
+#wrap p.author, #wrap .postbody .author, #wrap .rules, #wrap .rules .inner,
+#wrap .copyright, #wrap fieldset, #wrap .notice {
+	color: var(--gbf-ink);
+	border-color: var(--gbf-gold-edge);
+}
+
+#wrap h3, #wrap .stat-block h3, #wrap .login-box h3, #wrap .forabg + h3 {
+	font-family: var(--gbf-font);
+	letter-spacing: 0.08em;
+	color: var(--gbf-gold);
+	border-bottom: 1px solid var(--gbf-gold-edge);
+}
+
+#wrap ul.topiclist dd, #wrap ul.topiclist dd.posts,
+#wrap ul.topiclist dd.topics, #wrap ul.topiclist dd.views {
+	color: var(--gbf-ink-dim);
+}
+
+#wrap .lastpost span, #wrap .lastpost, #wrap ul.forums dd.lastpost {
+	color: var(--gbf-ink);
+}
+
+#wrap .list-inner > div, #wrap .forum-description { color: var(--gbf-ink-dim); }
+
+#wrap a.username-coloured[style*="AA0000"] { color: #ff8f8f !important; }
+
+/* ---- forms and panels ---------------------------------------- */
+
+.panel { padding: 22px 26px; }
 
 .panel h2, .panel h3 {
-	font-family: "Times New Roman", Georgia, serif;
-	color: #1c355e;
+	font-family: var(--gbf-font);
+	color: #ffd76e;
 	letter-spacing: 0.05em;
 }
 
-.inputbox, textarea, select {
-	background: #fffdf4;
-	border: 1px solid #7a9cc4;
-	color: #1c355e;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+/* text fields: the game's parchment input, cream fill, brown rounded
+   border, soft inset shadow, gray placeholder */
+#wrap .inputbox,
+#wrap input[type="text"], #wrap input[type="password"], #wrap input[type="search"],
+#wrap input[type="email"], #wrap input[type="url"], #wrap input[type="number"],
+#wrap textarea, #wrap select {
+	background: #f1ede1;
+	border: 2px solid #6b4c32;
+	border-radius: 10px !important;
+	box-shadow: inset 0 3px 7px #00000040, inset 0 0 0 1px #ffffff80;
+	color: #3a3226;
+	font-family: var(--gbf-font);
+	padding: 5px 9px;
 }
 
-.inputbox:focus, textarea:focus { border-color: #d9a838; }
+#wrap input.inputbox, #wrap input[type="text"], #wrap input[type="password"],
+#wrap input[type="search"], #wrap input[type="email"], #wrap select {
+	min-height: 32px;
+	box-sizing: border-box;
+}
+
+#wrap .inputbox::placeholder, #wrap textarea::placeholder { color: #8a857a; opacity: 1; }
+
+#wrap .inputbox:focus, #wrap input:focus, #wrap textarea:focus, #wrap select:focus {
+	border-color: #c98f2a;
+	outline: none;
+	box-shadow: inset 0 3px 7px #00000040, 0 0 0 2px #ffd76e88;
+}
+
+/* the search box in the header keeps the field style but sits flush
+   against its capsule buttons */
+.search-header .inputbox { border-radius: 10px 0 0 10px !important; }
+
+/* ---- buttons: GBF capsules, true 9-slice ---------------------- */
+/* One sprite per button role (cyan default, gold for primary submits).
+   Hover brightens the same sprite instead of swapping art, so a button
+   never changes shape or color family. Sprites are 2x: slice 32/60 maps
+   to the 12px/22px border widths. */
 
 .button,
 .button1, .button2,
-.dropdown .button {
-	background: linear-gradient(#1d4c94, #2f6fc2);
-	border: 2px outset #6d94c8;
-	color: #ffd76e;
-	font-family: Verdana, Geneva, Tahoma, sans-serif;
+a.button1, a.button2, input.button1, input.button2,
+.dropdown .button, .button-search, .button-search-end {
+	--btn-src: url('./images/game/button-cyan.png');
+	border-style: solid;
+	border-width: 12px 22px;
+	border-image: var(--btn-src) 32 60 fill / 12px 22px stretch;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: #ffffff;
+	font-family: var(--gbf-font);
 	font-size: 1.1em;
 	font-weight: bold;
-	text-shadow: 1px 1px 0 #000c38;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+	display: inline-block;
+	height: 36px;
+	line-height: 12px;
+	padding: 0 6px;
+	box-sizing: border-box;
+	vertical-align: middle;
+	transition: filter 0.12s;
 }
 
+.button1, a.button1, input.button1 { --btn-src: url('./images/game/button-gold.png'); }
+
 .button:hover, .button1:hover, .button2:hover,
-.dropdown .button:hover {
-	background: linear-gradient(#2f6fc2, #4589d8);
-	border-color: #d9a838;
+a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
+.dropdown .button:hover, .button-search:hover, .button-search-end:hover {
+	filter: brightness(1.15) saturate(1.1);
 	color: #ffffff;
 }
 
-.button-search { padding: 2px 6px; }
+.button:active, .button1:active, .button2:active { filter: brightness(0.9); }
 
-/* ---- pagination --------------------------------------------- */
-
-.pagination span a, .pagination span strong, .pagination a {
-	background: #fdf6e0;
-	border: 1px solid #b98d2f;
-	color: #16408f;
-	font-weight: bold;
+/* post/topic action buttons, header search and icon-only buttons:
+   narrow caps, no balloon */
+.post-buttons .button, .action-bar .button.button-icon-only,
+.search-header .button, .button-icon-only {
+	height: 30px;
+	min-width: 40px;
+	border-width: 10px 16px;
+	border-image: var(--btn-src) 32 60 fill / 10px 16px stretch;
+	margin: 0 2px 0 0;
+	padding: 0;
 }
 
-.pagination span strong { background: #1d4c94; color: #ffd76e; }
+#wrap .button .icon, #wrap .button i { color: #ffffff; }
 
-.pagination span a:hover { background: #f5e9c8; }
+.post-buttons .button, .search-header .button, .button-icon-only {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	padding-bottom: 3px;
+}
+
+.post-buttons .button .icon, .search-header .button .icon, .button-icon-only .icon { margin: 0; }
+
+
+/* ---- pagination --------------------------------------------- */
+/* Numbered links are .button capsules already; the current page is a gold
+   capsule of the same size, and gaps are plain text. */
+
+.pagination li a.button, .pagination li.active span {
+	box-sizing: border-box;
+	height: 30px;
+	min-width: 38px;
+	border-style: solid;
+	border-color: transparent;
+	border-width: 10px 16px;
+	border-image: url('./images/game/button-cyan.png') 32 60 fill / 10px 16px stretch;
+	line-height: 1;
+	padding: 0 0 3px;
+	margin: 0 2px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#wrap .pagination li a.button {
+	color: #ffffff;
+	font-weight: bold;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+#wrap .pagination li a.button:hover { filter: brightness(1.15) saturate(1.1); }
+
+.pagination li.active span {
+	border-image-source: url('./images/game/button-gold.png');
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: #ffffff;
+	font-weight: bold;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+.pagination li.ellipsis span { background: transparent; color: var(--gbf-ink-dim); border: none; }
 
 /* ---- footer relics ------------------------------------------ */
 
 .gbf-footer-relics {
 	text-align: center;
-	background: #0a1a3a url('./images/tile.svg') repeat;
+	background: #0a1a3a;
 	border-top: 3px ridge #d9a838;
 	margin-top: 10px;
 	padding: 10px 6px 14px;
@@ -278,7 +547,7 @@ blockquote {
 }
 
 .gbf-counter {
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	color: #f1e6c8;
 	letter-spacing: 0.06em;
@@ -324,7 +593,7 @@ blockquote {
 .gbf-under-construction {
 	margin-top: 10px;
 	color: #ffd76e;
-	font-family: "Times New Roman", Georgia, serif;
+	font-family: var(--gbf-font);
 	font-size: 1.2em;
 	letter-spacing: 0.1em;
 }
@@ -335,15 +604,25 @@ blockquote {
 	to { visibility: hidden; }
 }
 
+/* profile column labels (Posts / Joined / Contact) */
+.postprofile, .postprofile dd, .postprofile dt, .postprofile strong,
+.postprofile .profile-contact { color: var(--gbf-ink); }
+
+.postprofile dd strong { color: var(--gbf-ink-dim); font-weight: normal; }
+
 /* ---- misc ---------------------------------------------------- */
 
 .dropdown-extended, .dropdown {
-	background: #fdf6e0;
+	background: #17110a;
 	border: 1px solid #d9a838;
+	color: #e8dcc0;
 }
 
-.jumpbox .title, .jumpbox select { font-family: Verdana, Geneva, Tahoma, sans-serif; }
+.jumpbox .title, .jumpbox select { font-family: var(--gbf-font); }
 
 .copyright { color: #9fb4d8; font-size: 1.1em; }
 
 .copyright a { color: #ffd76e; }
+
+/* prose inside panels (login, register, UCP) */
+#wrap .panel p, #wrap .panel li, #wrap .panel dd, #wrap .panel .content { color: var(--gbf-ink); }
