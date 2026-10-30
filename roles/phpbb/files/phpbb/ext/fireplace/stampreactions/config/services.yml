@@ -1,0 +1,52 @@
+---
+services:
+    fireplace.stampreactions.catalog:
+        class: fireplace\stampreactions\service\stamp_catalog
+        arguments:
+            - '%core.root_path%ext/fireplace/stampreactions/'
+
+    fireplace.stampreactions.repository:
+        class: fireplace\stampreactions\service\reaction_repository
+        arguments:
+            - '@dbal.conn'
+            - '%core.table_prefix%stamp_reactions'
+            - '%core.table_prefix%users'
+
+    fireplace.stampreactions.manager:
+        class: fireplace\stampreactions\service\reaction_manager
+        arguments:
+            - '@fireplace.stampreactions.repository'
+            - '@fireplace.stampreactions.catalog'
+
+    fireplace.stampreactions.listener:
+        class: fireplace\stampreactions\event\listener
+        arguments:
+            - '@fireplace.stampreactions.repository'
+            - '@fireplace.stampreactions.catalog'
+            - '@user'
+            - '@template'
+            - '@controller.helper'
+        tags:
+            - { name: event.listener }
+
+    fireplace.stampreactions.controller:
+        class: fireplace\stampreactions\controller\reaction_controller
+        arguments:
+            - '@fireplace.stampreactions.manager'
+            - '@fireplace.stampreactions.catalog'
+            - '@dbal.conn'
+            - '@user'
+            - '@request'
+            - '@auth'
+            - '%core.table_prefix%posts'
+            - '%core.table_prefix%topics'
+            - '@notification_manager'
+
+    fireplace.stampreactions.notification.type.reaction:
+        class: fireplace\stampreactions\notification\type\reaction
+        parent: notification.type.base
+        shared: false
+        calls:
+            - [set_user_loader, ['@user_loader']]
+        tags:
+            - { name: notification.type }

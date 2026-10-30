@@ -1,0 +1,17 @@
+{
+	"name": "fireplace/stampreactions",
+	"type": "phpbb-extension",
+	"description": "Lets members react to posts with a set of image stamps defined in stamps.json.",
+	"version": "1.0.0",
+	"license": "GPL-2.0-only",
+	"authors": [
+		{ "name": "Fireplace", "role": "Maintainer" },
+		{ "name": "soerpaule", "role": "Original author (SP Post Reactions)" }
+	],
+	"support": { "source": "https://github.com/soerpaule/sp-post-reactions" },
+	"require": { "php": ">=7.2.0", "composer/installers": "~1.0" },
+	"extra": {
+		"display-name": "Stamp Reactions",
+		"soft-require": { "phpbb/phpbb": ">=3.3.0,<3.4.0@dev" }
+	}
+}

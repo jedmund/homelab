@@ -42,6 +42,7 @@ RUN set -eu; \
 COPY phpbb-health.php /usr/share/phpbb/health.php
 COPY phpbb-ensure.php /usr/local/bin/phpbb-ensure.php
 COPY styles/granblue /usr/share/phpbb/styles/granblue
+COPY ext/fireplace /usr/share/phpbb/ext/fireplace
 COPY robots.txt /usr/share/phpbb/robots.txt
 COPY phpbb-update /usr/local/bin/phpbb-update
 COPY phpbb-init /usr/local/bin/phpbb-init
@@ -49,8 +50,11 @@ COPY phpbb-entrypoint /usr/local/bin/phpbb-entrypoint
 
 RUN chmod 0755 /usr/local/bin/phpbb-init /usr/local/bin/phpbb-entrypoint \
         /usr/local/bin/phpbb-update \
-    && chmod -R u=rwX,go=rX /usr/share/phpbb/styles/granblue \
+    && chmod -R u=rwX,go=rX /usr/share/phpbb/styles/granblue /usr/share/phpbb/ext/fireplace \
     && chmod 0644 /usr/share/phpbb/health.php /usr/local/bin/phpbb-ensure.php
+
+# A syntax error in a managed extension must fail the build, not the board.
+RUN find /usr/share/phpbb/ext/fireplace -name '*.php' -exec php -l {} \; > /dev/null
 
 # FPM master runs as root (the entrypoint installs and repairs ownership);
 # workers run as www-data through the base image pool.

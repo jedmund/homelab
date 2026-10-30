@@ -1,0 +1,7 @@
+{% if S_STAMPS and S_STAMP_CAN_REACT %}
+<div id="stamp-picker" class="stamp-picker" role="dialog" aria-label="{{ lang('STAMP_CHOOSE') }}" data-url="{{ U_STAMP_REACT }}" data-hash="{{ STAMP_HASH }}" data-error="{{ lang('STAMP_SAVE_ERROR') }}" hidden>
+	{% for stamp in stamp_catalog %}
+	<button type="button" class="stamp-choice" data-stamp="{{ stamp.KEY }}" data-label="{{ stamp.LABEL }}" data-url="{{ stamp.URL }}" title="{{ stamp.LABEL }}" aria-label="{{ stamp.LABEL }}"><img src="{{ stamp.URL }}" alt="" width="56" height="56" loading="lazy"></button>
+	{% endfor %}
+</div>
+{% endif %}

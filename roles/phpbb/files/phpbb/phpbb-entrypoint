@@ -7,7 +7,8 @@
 # 3. Hand the writable data directories to the FPM user (marker-gated).
 # 4. Run the CLI installer once, when config.php is still empty.
 # 5. Reconcile board email settings against the environment.
-# 6. Exec php-fpm.
+# 6. Enable managed extensions and run their migrations.
+# 7. Exec php-fpm.
 set -eu
 
 HTML=/var/www/html
@@ -116,6 +117,33 @@ if [ -n "${PHPBB_MANAGED_STYLES:-}" ]; then
     if [ -n "${synced_styles:-}" ] && [ -d "$HTML/cache/production/twig" ]; then
         find "$HTML/cache/production/twig" -type f -name '*.php' -delete
         echo "phpbb: purged compiled templates after style sync"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Managed extensions: deployment-owned extensions shipped inside the image,
+# re-synced into the ext volume on every start (the volume is NAS data, so
+# nothing else would put them there). Enabling happens after the board is
+# installed, near the end of this script.
+# ---------------------------------------------------------------------------
+synced_extensions=""
+if [ -n "${PHPBB_MANAGED_EXTENSIONS:-}" ]; then
+    for ext in $(printf '%s' "$PHPBB_MANAGED_EXTENSIONS" | tr ',' ' '); do
+        if [ -d "$PRISTINE/ext/$ext" ]; then
+            mkdir -p "$HTML/ext/${ext%/*}"
+            rm -rf "$HTML/ext/$ext"
+            cp -a "$PRISTINE/ext/$ext" "$HTML/ext/$ext"
+            chown -R root:root "$HTML/ext/$ext" 2>/dev/null \
+                || chmod -R a+rwX "$HTML/ext/$ext" 2>/dev/null || true
+            echo "phpbb: synced managed extension $ext"
+            synced_extensions="$synced_extensions $ext"
+        fi
+    done
+
+    # Extension templates compile into the same cache as style templates.
+    if [ -n "$synced_extensions" ] && [ -d "$HTML/cache/production/twig" ]; then
+        find "$HTML/cache/production/twig" -type f -name '*.php' -delete
+        echo "phpbb: purged compiled templates after extension sync"
     fi
 fi
 
@@ -241,5 +269,51 @@ fi
 # Reconcile board email settings with the environment (safe to run always).
 # ---------------------------------------------------------------------------
 php /usr/local/bin/phpbb-ensure.php || echo "phpbb: board email reconcile skipped" >&2
+
+# ---------------------------------------------------------------------------
+# Enable managed extensions that are not active yet, and run pending
+# migrations for ones that were just re-synced. Failures are reported but
+# never stop the board from starting.
+# ---------------------------------------------------------------------------
+ext_active() {
+    EXT_NAME="$1" php -r '
+        $m = @mysqli_connect(getenv("PHPBB_DB_HOST"), getenv("PHPBB_DB_USER"), getenv("PHPBB_DB_PASSWORD"), getenv("PHPBB_DB_NAME"), (int) getenv("PHPBB_DB_PORT"));
+        if (!$m) { exit(2); }
+        $prefix = getenv("PHPBB_DB_TABLE_PREFIX") ?: "phpbb_";
+        $name = mysqli_real_escape_string($m, getenv("EXT_NAME"));
+        $r = mysqli_query($m, "SELECT 1 FROM {$prefix}ext WHERE ext_name = \"{$name}\" AND ext_active = 1");
+        exit($r && mysqli_num_rows($r) ? 0 : 1);
+    '
+}
+
+if [ -n "${PHPBB_MANAGED_EXTENSIONS:-}" ] && [ -s "$HTML/config.php" ]; then
+    ext_changed=""
+    for ext in $(printf '%s' "$PHPBB_MANAGED_EXTENSIONS" | tr ',' ' '); do
+        [ -d "$HTML/ext/$ext" ] || continue
+        if ext_active "$ext"; then
+            case " $synced_extensions " in
+                *" $ext "*)
+                    echo "phpbb: running migrations for $ext"
+                    php "$HTML/bin/phpbbcli.php" db:migrate || echo "phpbb: WARNING db:migrate failed" >&2
+                    ext_changed=1
+                    ;;
+            esac
+        else
+            echo "phpbb: enabling extension $ext"
+            php "$HTML/bin/phpbbcli.php" extension:enable "$ext" \
+                || echo "phpbb: WARNING could not enable $ext" >&2
+            ext_changed=1
+        fi
+    done
+
+    if [ -n "$ext_changed" ]; then
+        # The web container cache is compiled from the enabled extensions, so a
+        # stale one never registers the new extension's listeners.
+        php "$HTML/bin/phpbbcli.php" cache:purge || echo "phpbb: WARNING cache:purge failed" >&2
+        # The CLI ran as root and left root-owned files in the cache.
+        rm -f "$HTML/cache/$owner_marker"
+        take_owner "$HTML/cache"
+    fi
+fi
 
 exec "$@"
