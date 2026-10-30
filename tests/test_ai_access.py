@@ -46,6 +46,27 @@ class AIAccessTests(unittest.TestCase):
                     self.assertEqual(command[command.index('--host') + 1], '127.0.0.1')
                     self.assertEqual(command[command.index('--cors-origins') + 1], 'localhost')
 
+    def test_openjev_has_vision_without_sharing_the_chat_swap_slot(self):
+        for mode in ('split', 'shared'):
+            with self.subTest(mode=mode):
+                document = yaml.safe_load(render('config/llama-swap.yaml.j2', ai_gpu_mode=mode))
+                model = document['models']['openjev']
+                command = shlex.split(model['cmd'])
+                self.assertEqual(command[command.index('--model') + 1],
+                                 '/models/OpenJev/OpenJev-Q8_0.gguf')
+                self.assertEqual(command[command.index('--mmproj') + 1],
+                                 '/models/OpenJev/mmproj-OpenJev-BF16.gguf')
+                self.assertIn('--jinja', command)
+                self.assertEqual(command[command.index('-c') + 1], '16384')
+                self.assertEqual(command[command.index('--parallel') + 1], '1')
+                self.assertEqual(model['ttl'], 300)
+                group = document['groups']['decision']
+                self.assertIn('openjev', group['members'])
+                self.assertTrue(group['swap'])
+                self.assertFalse(group['exclusive'])
+                self.assertFalse(group.get('persistent', False))
+                self.assertNotIn('openjev', document['groups']['chat']['members'])
+
     def test_firewall_matches_published_destination_after_dnat(self):
         rules = render('firewall.nft.j2')
         self.assertNotIn('flush ruleset', rules)
