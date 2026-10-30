@@ -64,6 +64,16 @@ server {
         }
     }
 
+    # The managed style's stylesheets change with every deploy but keep one
+    # URL (phpBB's assets_version rarely moves), so browsers must revalidate
+    # them or they keep rendering the previous theme. ETag keeps it cheap.
+    # add_header in a location replaces the inherited server-level headers,
+    # so nosniff is repeated here.
+    location ~* ^/styles/[^/]+/theme/(?:[^/]+/)?[^/]+\.css$ {
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
     location @rewriteapp {
         rewrite ^(.*)$ /app.php/$1 last;
     }

@@ -71,6 +71,7 @@ body {
 /* The board inside a GBF scroll: rolled ends as a border-image, dark
    parchment interior. The dark GBF dialog palette lives inside. */
 #wrap {
+	background: transparent; /* prosilver's white shows through the scroll's transparent edge rows */
 	border-style: solid;
 	border-color: #1a1408;
 	border-width: 30px 36px;
@@ -117,6 +118,8 @@ a:hover { color: #ffffff; text-decoration: underline; }
 .site_logo { display: none; }
 
 #site-description { padding-top: 18px; }
+
+#site-description h1 a { color: inherit; text-decoration: none; text-shadow: inherit; }
 
 #site-description h1 {
 	font-family: var(--gbf-font);
@@ -209,6 +212,8 @@ a:hover { color: #ffffff; text-decoration: underline; }
 /* ---- navbar ------------------------------------------------- */
 
 .navbar {
+	position: relative;
+	z-index: 50; /* popovers must sit above the sliced header bars */
 	background: #1a1408;
 	border: 1px solid #d9a838;
 	border-width: 1px 1px 2px 1px;
@@ -453,14 +458,31 @@ a.button1, a.button2, input.button1, input.button2,
 
 .button1, a.button1, input.button1 { --btn-src: url('./images/game/button-gold.png'); }
 
-.button:hover, .button1:hover, .button2:hover,
-a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
-.dropdown .button:hover, .button-search:hover, .button-search-end:hover {
-	filter: brightness(1.15) saturate(1.1);
+/* Prosilver's :hover/:focus rules use the `border` shorthand, which resets
+   border-image and the border widths, so a hovered button would drop its
+   sprite and change size. Re-assert the sprite for every interactive state;
+   the state itself only brightens it. */
+#wrap :is(.button, .button1, .button2, a.button1, a.button2, input.button1, input.button2,
+		.dropdown .button, .button-search, .button-search-end):is(:hover, :focus, :active, :focus-visible) {
+	border-style: solid;
+	border-color: transparent;
+	border-width: 12px 22px;
+	border-image: var(--btn-src) 32 60 fill / 12px 22px stretch;
+	background: transparent !important;
+	box-shadow: none !important;
+	outline: none;
 	color: #ffffff;
 }
 
-.button:active, .button1:active, .button2:active { filter: brightness(0.9); }
+#wrap :is(.post-buttons .button, .action-bar .button.button-icon-only, .search-header .button,
+		.button-icon-only, .pagination li a.button):is(:hover, :focus, :active, :focus-visible) {
+	border-width: 10px 16px;
+	border-image: var(--btn-src) 32 60 fill / 10px 16px stretch;
+}
+
+#wrap :is(.button, .button1, .button2):is(:hover, :focus-visible) { filter: brightness(1.15) saturate(1.1); }
+
+#wrap :is(.button, .button1, .button2):active { filter: brightness(0.9); }
 
 /* post/topic action buttons, header search and icon-only buttons:
    narrow caps, no balloon */
@@ -612,11 +634,65 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 
 /* ---- misc ---------------------------------------------------- */
 
-.dropdown-extended, .dropdown {
-	background: #17110a;
-	border: 1px solid #d9a838;
-	color: #e8dcc0;
+/* ---- popovers: quick links, notifications, user menu ---------- */
+/* Dark parchment panel with a gold edge. Prosilver paints these white and
+   the navbar link styling (bold, text shadow) leaks in, so reset both. */
+
+#wrap .dropdown-contents, #wrap .dropdown-extended .dropdown-contents {
+	background: #1a140c;
+	border: 2px solid var(--gbf-gold-edge);
+	border-radius: 8px;
+	box-shadow: 0 6px 16px #000000b0;
+	color: var(--gbf-ink);
 }
+
+#wrap .dropdown .pointer { border-color: var(--gbf-gold-edge) transparent; }
+#wrap .dropdown .pointer-inner { border-color: #1a140c transparent; }
+
+#wrap .dropdown-contents *, #wrap .dropdown-extended * { text-shadow: none; }
+
+#wrap .dropdown-contents a, #wrap .dropdown-contents li {
+	color: var(--gbf-gold);
+	font-weight: normal;
+}
+
+#wrap .dropdown-contents a:hover { color: #ffffff; }
+
+#wrap .dropdown-contents .icon, #wrap .dropdown-contents li > a .icon { color: var(--gbf-gold-edge); }
+
+#wrap .dropdown li, #wrap .dropdown-extended li {
+	background: transparent;
+	border-color: #d9a83833;
+	color: var(--gbf-ink);
+}
+
+#wrap .dropdown li.separator { border-color: var(--gbf-gold-edge); }
+
+#wrap .dropdown-extended ul li:hover, #wrap .dropdown li:hover { background: #3a2d1c; }
+
+#wrap .dropdown-extended .notification_text, #wrap .dropdown-extended .notification_text * {
+	color: var(--gbf-ink);
+}
+
+#wrap .dropdown-extended .notification_text strong,
+#wrap .dropdown-extended .notification_text .username { color: var(--gbf-gold); }
+
+#wrap .dropdown-extended .notification-time, #wrap .dropdown-extended .notification-reference {
+	color: var(--gbf-ink-dim);
+}
+
+#wrap .dropdown-extended .header, #wrap .dropdown-extended .footer {
+	background: linear-gradient(#3a2d1c, #241c12);
+	border-color: var(--gbf-gold-edge);
+	color: var(--gbf-gold);
+	font-family: var(--gbf-font);
+	font-weight: bold;
+	letter-spacing: 0.06em;
+}
+
+#wrap .dropdown-extended .header a, #wrap .dropdown-extended .footer a { color: var(--gbf-gold); }
+
+#wrap .dropdown-extended .header .header_settings a { font-weight: normal; }
 
 .jumpbox .title, .jumpbox select { font-family: var(--gbf-font); }
 
@@ -626,3 +702,134 @@ a.button1:hover, a.button2:hover, input.button1:hover, input.button2:hover,
 
 /* prose inside panels (login, register, UCP) */
 #wrap .panel p, #wrap .panel li, #wrap .panel dd, #wrap .panel .content { color: var(--gbf-ink); }
+
+/* ---- UCP, PM lists, and group colors on the dark scroll ------------ */
+
+/* prosilver's group colors (dark red admins, dark green moderators) were
+   chosen for white pages; lift them so they read on dark panels, in names
+   and in the index legend alike */
+#wrap [style*="AA0000" i] { color: #ff8f8f !important; }
+
+#wrap [style*="00AA00" i] { color: #7fe07f !important; }
+
+/* list rows that still carry prosilver's pale bg1/bg2 stripes */
+#wrap ul.topiclist li.row, #wrap li.row.bg1, #wrap li.row.bg2 {
+	background-color: #241c12d9;
+	color: var(--gbf-ink);
+}
+
+#wrap ul.topiclist li.row:hover { background-color: #3a2d1c; }
+
+#wrap li.row dt, #wrap li.row dd { color: var(--gbf-ink); }
+
+/* UCP/MCP side menu and the PM color legend */
+#wrap .cp-menu #navigation li a, #wrap .cp-menu #navigation li.active-subsection a {
+	background: linear-gradient(#3a2d1c, #241c12);
+	border: 1px solid #d9a83855;
+	color: var(--gbf-gold);
+	text-shadow: none;
+}
+
+#wrap .cp-menu #navigation li.active-subsection a {
+	background: linear-gradient(#6b4c32, #3a2d1c);
+	border-color: var(--gbf-gold-edge);
+	color: #ffffff;
+}
+
+#wrap .cp-menu #navigation li a:hover { color: #ffffff; filter: brightness(1.2); }
+
+#wrap .cp-mini, #wrap .cp-main .panel .inner {
+	background: #1a140c;
+	border-color: var(--gbf-gold-edge);
+	color: var(--gbf-ink);
+}
+
+#wrap .cp-mini * { color: var(--gbf-ink); }
+
+/* the UCP/MCP content panel carries its own pale background */
+#wrap .cp-main .panel, #wrap .panel .panel { background: transparent; }
+
+/* member list, ACP-style tables: dark rows instead of prosilver's blue stripes */
+#wrap table.table1 thead th {
+	color: var(--gbf-gold);
+	border-color: var(--gbf-gold-edge);
+	font-family: var(--gbf-font);
+	letter-spacing: 0.06em;
+}
+
+#wrap table.table1 tbody tr, #wrap table.table1 tr.bg1, #wrap table.table1 tr.bg2 {
+	background-color: #241c12d9;
+	color: var(--gbf-ink);
+}
+
+#wrap table.table1 tbody tr:hover { background-color: #3a2d1c; }
+
+#wrap table.table1 td, #wrap table.table1 tbody td {
+	color: var(--gbf-ink);
+	border-color: #d9a83840;
+}
+
+#wrap table.table1 td a { color: var(--gbf-gold); }
+
+/* ---- linked and flagged posts ---------------------------------- */
+/* Prosilver forces black text on the post a #pNN link targets, and tints
+   reported/unapproved posts pale. Keep the dark frame and light text and
+   mark the target with a gold glow instead. */
+
+#wrap .post:target {
+	box-shadow: 0 0 0 2px #ffd76e88, 0 0 14px #ffd76e66, 0 2px 8px #000000aa;
+}
+
+#wrap .post:target h3, #wrap .post:target h3 a, #wrap .post:target .content,
+#wrap .post:target .postbody, #wrap .post:target .author, #wrap .post:target .author a {
+	color: var(--gbf-ink);
+}
+
+#wrap .post:target h3, #wrap .post:target h3 a { color: var(--gbf-gold); }
+
+#wrap .post.reported, #wrap .post.unapproved, #wrap .post.bg3 { background: transparent; }
+
+/* ---- polls: dark inset gauge with a cyan glass fill ---------------- */
+
+#wrap .polls dl { border-color: #d9a83840; }
+
+#wrap .polls dt, #wrap .polls dt label { color: var(--gbf-ink); }
+
+#wrap .polls dd.resultbar {
+	background: #0f0b06;
+	border: 1px solid #6b4c32;
+	border-radius: 9px;
+	box-shadow: inset 0 2px 5px #000000b0;
+	height: 18px;
+	overflow: hidden;
+	padding: 0;
+}
+
+#wrap .polls .pollbar1, #wrap .polls .pollbar2, #wrap .polls .pollbar3,
+#wrap .polls .pollbar4, #wrap .polls .pollbar5 {
+	background: linear-gradient(#c8f6ff, #4ec8e8 48%, #1f86ad);
+	border: 0;
+	border-radius: 8px;
+	box-shadow: inset 0 0 0 1px #ffffff55;
+	color: #ffffff;
+	height: 16px;
+	line-height: 16px;
+	min-width: 0;
+	text-shadow: 0 1px 2px #000, 0 0 3px #000;
+}
+
+#wrap .polls .pollbar1 span, #wrap .polls .pollbar2 span, #wrap .polls .pollbar3 span,
+#wrap .polls .pollbar4 span, #wrap .polls .pollbar5 span { color: #ffffff; }
+
+#wrap .polls dd.poll_option_percent { color: var(--gbf-ink); }
+
+#wrap .polls dd.poll_total_votes, #wrap .polls dd:last-child { color: var(--gbf-ink-dim); }
+
+/* the "Total votes" row shares the resultbar class but has no gauge */
+#wrap .polls dd.resultbar:not(:has(> [class^="pollbar"])) {
+	background: none;
+	border: 0;
+	box-shadow: none;
+	height: auto;
+	overflow: visible;
+}
