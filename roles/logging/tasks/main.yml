@@ -11,6 +11,9 @@
       - logging_oidc_client_id | length > 0
       - logging_oidc_client_secret | length >= 16
       - logging_oidc_allowed_group | length > 0
+      - not logging_unifi_enabled or logging_unifi_password | length > 0
+      - not logging_unas_enabled or logging_unas_username | length > 0
+      - not logging_unas_enabled or logging_unas_password | length > 0
     quiet: true
   no_log: true
 
@@ -41,7 +44,7 @@
     owner: root
     group: root
     mode: '0755'
-  loop: ['', config, env, scripts, backup]
+  loop: ['', config, config/dashboards, env, scripts, backup]
 
 - name: Create private logging certificate directories
   ansible.builtin.file:
@@ -62,6 +65,7 @@
   loop:
     - {path: "{{ config_base }}/loki-state", uid: 10001, gid: 10001}
     - {path: "{{ config_base }}/grafana-data", uid: 472, gid: 0}
+    - {path: "{{ config_base }}/prometheus-data", uid: 65534, gid: 65534}
     - {path: "{{ config_base }}/garage-meta", uid: "{{ puid }}", gid: "{{ pgid }}"}
     - {path: "{{ logging_nas_directory }}", uid: "{{ puid }}", gid: "{{ pgid }}"}
     - {path: "{{ logging_nas_directory }}/garage", uid: "{{ puid }}", gid: "{{ pgid }}"}
@@ -81,7 +85,52 @@
     - {src: nginx.conf.j2, dest: nginx.conf}
     - {src: grafana.ini.j2, dest: grafana.ini}
     - {src: datasources.yaml.j2, dest: datasources.yaml}
+    - {src: prometheus.yaml.j2, dest: prometheus.yaml}
+    - {src: dashboards.yaml.j2, dest: dashboards.yaml}
   register: logging_public_config
+
+- name: Install managed Grafana dashboards
+  ansible.builtin.copy:
+    src: "dashboards/{{ item }}.json"
+    dest: "{{ config_base }}/config/dashboards/{{ item }}.json"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: [homelab-logs, web-traffic, ai-performance, unifi-network, host-capacity, storage-backups]
+  register: logging_dashboards
+
+- name: Install the pinned UniFi controller trust certificate
+  ansible.builtin.copy:
+    src: unifi-controller.crt
+    dest: "{{ config_base }}/config/unifi-controller.crt"
+    owner: root
+    group: root
+    mode: '0644'
+  when: logging_unifi_enabled
+  register: logging_unifi_certificate
+
+- name: Install pinned UNAS trust certificates
+  ansible.builtin.copy:
+    src: "unas-{{ item.name }}.crt"
+    dest: "{{ config_base }}/config/unas-{{ item.name }}.crt"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ logging_unas_devices }}"
+  when: logging_unas_enabled
+  register: logging_unas_certificates
+
+- name: Render private UNAS collector environments
+  ansible.builtin.template:
+    src: unas.env.j2
+    dest: "{{ config_base }}/env/unas-{{ item.name }}.env"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ logging_unas_devices }}"
+  when: logging_unas_enabled
+  no_log: true
+  register: logging_unas_environments
 
 - name: Render Garage private configuration
   ansible.builtin.template:
@@ -100,7 +149,7 @@
     owner: root
     group: root
     mode: '0600'
-  loop: [storage, grafana]
+  loop: "{{ ['storage', 'grafana'] + (['unpoller'] if logging_unifi_enabled else []) }}"
   no_log: true
   register: logging_environment
 
@@ -133,6 +182,10 @@
          logging_garage_config.changed | default(false) or
          logging_environment.changed | default(false) or
          logging_scripts.changed | default(false) or
+         logging_dashboards.changed | default(false) or
+         logging_unifi_certificate.changed | default(false) or
+         logging_unas_certificates.changed | default(false) or
+         logging_unas_environments.changed | default(false) or
          logging_server_certificate.changed | default(false)
          else 'auto' }}
 
@@ -153,8 +206,18 @@
   delay: 2
   when: not ansible_check_mode
 
+- name: Verify Prometheus readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ logging_prometheus_port }}/-/ready"
+    status_code: 200
+  register: logging_prometheus_ready
+  until: logging_prometheus_ready.status == 200
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
 - name: Snapshot logging metadata for the existing backup service
-  ansible.builtin.command: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }}"
+  ansible.builtin.command: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }} {{ logging_prometheus_port }}"
   changed_when: false
   when: not ansible_check_mode
 
@@ -164,4 +227,4 @@
     user: root
     minute: '30'
     hour: '1'
-    job: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }}"
+    job: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }} {{ logging_prometheus_port }}"

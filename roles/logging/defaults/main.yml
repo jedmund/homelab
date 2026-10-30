@@ -6,6 +6,26 @@ logging_grafana_image: grafana/grafana:13.3.0
 logging_gateway_image: nginx:1.30.6-alpine
 logging_garage_image: dxflrs/garage:v2.3.0
 logging_checks_image: python:3.12.16-alpine
+logging_prometheus_image: prom/prometheus:v3.15.1
+logging_prometheus_port: 19090
+logging_metrics_retention: 90d
+logging_metrics_max_size: 20GB
+logging_netdata_gpu_guid: 8e689c4c-5f32-4f1f-96f5-c1a1fe63f215
+logging_netdata_hosts:
+  - {name: nuc-mini, guid: 654631e2-15a9-48ad-bc78-d438c49122db}
+  - {name: max, guid: 8e689c4c-5f32-4f1f-96f5-c1a1fe63f215}
+  - {name: mac-mini, guid: 80355945-8f97-4bc8-bfe4-7eff679c52c4}
+logging_unas_enabled: false
+logging_unas_username: "{{ vault_logging_unas_username | default('') }}"
+logging_unas_password: "{{ vault_logging_unas_password | default('') }}"
+logging_unas_devices:
+  - {name: files, address: '{{ nas_server }}'}
+  - {name: games, address: '{{ nas_server_games }}'}
+logging_unifi_enabled: false
+logging_unpoller_image: ghcr.io/unpoller/unpoller:v5.8.3
+logging_unifi_address: 192.168.1.1
+logging_unifi_username: unifimcp
+logging_unifi_password: "{{ vault_unifi_password | default('') }}"
 logging_domain: logs.atelier.house
 logging_bind_address: "{{ ansible_host }}"
 logging_ingest_port: 13443

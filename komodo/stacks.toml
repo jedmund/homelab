@@ -30,7 +30,7 @@ url = "http://gatus-relay:8080/komodo"
 
 [[stack]]
 name = "logging"
-description = "Retained logs, private ingestion, and Grafana"
+description = "Retained logs, Prometheus metrics, private ingestion, and Grafana"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
 [stack.config]
 server = "NUC"

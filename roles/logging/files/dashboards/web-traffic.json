@@ -1,0 +1,614 @@
+{
+  "uid": "homelab-web-traffic",
+  "title": "Web traffic and performance",
+  "description": "HTTP request volume, response status, and latency from Traefik JSON access logs.",
+  "tags": [
+    "homelab",
+    "managed"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "type": "link",
+      "title": "Log browser",
+      "url": "/d/homelab-log-browser",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Web traffic",
+      "url": "/d/homelab-web-traffic",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "AI performance",
+      "url": "/d/homelab-ai-performance",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Network",
+      "url": "/d/homelab-unifi-network",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Hosts",
+      "url": "/d/homelab-host-capacity",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Storage & backups",
+      "url": "/d/homelab-storage-backups",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "domain",
+        "label": "Hostname regex",
+        "type": "textbox",
+        "query": ".+",
+        "current": {
+          "text": ".+",
+          "value": ".+"
+        },
+        "description": "Match a request hostname, such as ai[.]atelier[.]house; .+ includes all hostnames.",
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP requests",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum(count_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus[$__range])) or vector(0)",
+          "editorMode": "code",
+          "queryType": "instant"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "title": "5xx responses",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum(count_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus | DownstreamStatus >= 500 [$__range])) or vector(0)",
+          "editorMode": "code",
+          "queryType": "instant"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "title": "401 / 403 responses",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum(count_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus | DownstreamStatus=~\"401|403\" [$__range])) or vector(0)",
+          "editorMode": "code",
+          "queryType": "instant"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Requests slower than 1 second",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum(count_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | Duration > 1000000000 | keep RequestHost [$__range])) or vector(0)",
+          "editorMode": "code",
+          "queryType": "instant"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Requests per second by application",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum by (RequestHost)(rate({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus[5m]))",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Most requested applications",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "topk(12,sum by (RequestHost)(count_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus[$__range])))",
+          "editorMode": "code",
+          "queryType": "instant"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false,
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Response statuses",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum by (DownstreamStatus)(rate({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus[5m]))",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "95th percentile request duration",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "quantile_over_time(0.95,{host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,Duration | unwrap Duration | __error__=\"\" [5m]) by (RequestHost) / 1e9",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "HTTP response bytes per second",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum by (RequestHost)(sum_over_time({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamContentSize | unwrap DownstreamContentSize | __error__=\"\" [5m])) / 300",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Server errors by application",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "sum by (RequestHost)(rate({host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | keep RequestHost,DownstreamStatus | DownstreamStatus >= 500 [5m]))",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Recent slow requests",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 11
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "homelab-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "homelab-loki"
+          },
+          "expr": "{host=\"nuc-mini\",collector=\"vector\",job=\"files\",filename=\"/host/traefik/access.log\"} | json | __error__=\"\" | RequestHost=~`${domain:raw}` | Duration > 1000000000 | line_format `{{.RequestMethod}} {{.RequestHost}}{{.RequestPath}} status={{.DownstreamStatus}} duration_ns={{.Duration}}`",
+          "editorMode": "code",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "enableLogDetails": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 12,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Durations are Traefik end-to-end HTTP request durations, including streaming responses. Long-lived streams can be expected. HTTP byte counts exclude transport overhead. Historical proxy logs before October 28, 2026 00:52 PDT omit successful responses; older common-format entries are excluded from these JSON-based charts."
+      }
+    }
+  ]
+}

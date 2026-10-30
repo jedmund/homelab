@@ -1,8 +1,9 @@
-# Retained homelab logs
+# Homelab logs and metrics
 
 The `logging` stack on `nuc-mini` owns Loki, Grafana, a dedicated Garage
 object store, the certificate-authenticated ingestion gateway, and collection
-health checks. [Vector](../vector/README.md) collects container output, Linux
+health checks. Prometheus stores time series, and Unpoller collects read-only
+UniFi Network statistics from the UDM Pro. [Vector](../vector/README.md) collects container output, Linux
 journals, and configured application log files. Logs remain available after
 the source container is removed or recreated.
 
@@ -35,6 +36,7 @@ quota. Monitor NAS usage and ingestion volume before changing the limit.
 | Compressed chunks and uploaded indexes | NAS Homelab share, `Logs/garage` | Preserve these objects and Garage metadata together |
 | Garage metadata and automatic snapshots | `/opt/docker/logging/garage-meta` | Local SSD; consistent snapshots included in Borg |
 | Loki write-ahead log, active index, compactor markers and caches | `/opt/docker/logging/loki-state` | Persistent local SSD; never put the WAL on NFS |
+| Prometheus time series | `/opt/docker/logging/prometheus-data` | Local SSD; consistent daily TSDB snapshot under `backup/prometheus/` |
 | Grafana state | `/opt/docker/logging/grafana-data` | Consistent daily SQLite backup under `backup/` |
 | CA, server and collector identities | `/opt/docker/logging/tls` | Private keys are persistent and covered by encrypted Borg backups |
 
@@ -43,6 +45,76 @@ creating data directories. Garage's bind mount disallows automatic path
 creation. A missing NAS mount must not redirect log data onto the NUC root
 filesystem. The NAS share remains a single storage failure domain; this is
 not an immutable or geographically separate audit archive.
+
+## Dashboards and metrics
+
+Grafana opens the managed **Homelab log browser** by default. The **Homelab**
+folder also contains **Web traffic and performance**, **AI workload
+performance**, **UniFi network health**, **Host health and capacity**, and
+**Storage and backup health**. Dashboards are provisioned from this role; edit their JSON
+source rather than making UI changes that provisioning will overwrite.
+
+The web dashboard parses Traefik JSON access records, including successful
+requests. Its domain field accepts a regular expression. Duration includes
+streaming responses; response-body bytes are not total network traffic.
+Vector uses Traefik `StartUTC` for newly collected records. Older backfilled
+file records used collection time. Historical error-only access records do
+not establish request totals before full access logging began.
+
+Prometheus scrapes Loki, llama-swap, vLLM, GPU metrics from the existing
+Netdata parent, and Unpoller. The AI dashboard shows all three physical GPU
+indices from Netdata. Per-model token counts, queue depth, and latency
+histograms currently cover the vLLM-served GLM model; llama-swap access logs
+provide separate request and latency panels. These metrics do not reconstruct
+history from before enrollment or token counts for other inference servers.
+
+Metrics remain on the NUC SSD for up to 90 days or 20 GB of retained blocks,
+whichever limit expires first. WAL, current head, and backup snapshots consume
+additional disk space. Prometheus is accessible only on its Docker networks
+and NUC loopback `127.0.0.1:19090`; Grafana queries it internally. Its admin
+API is enabled for snapshots and has no public or LAN listener.
+
+UniFi collection uses the existing `unifimcp` account with read-only Network
+permissions and `vault_unifi_password` in the encrypted
+`group_vars/agents_linux/vault.yml`. The NUC already belongs to that group.
+No new administrator or persistent key is created. Unpoller resolves
+`unifi.local` to `192.168.1.1` and verifies the controller hostname against
+`files/unifi-controller.crt`. When the controller certificate changes, verify
+its fingerprint through a trusted path, replace the pinned public certificate,
+and redeploy. Do not disable TLS verification to repair collection. UniFi
+metrics are available in **Homelab metrics** and the network dashboard.
+WAN counters describe Internet traffic; client counters can also include LAN
+traffic. Client retry rates are event rates, not retry percentages.
+
+The host dashboard scrapes normalized Netdata interval averages through the
+existing parent for `nuc-mini`, `max`, and `mac-mini`. Negative I/O directions
+are displayed as positive rates. RAM categories differ by operating system;
+shared APFS pools and layered block devices must not be summed.
+
+UNAS collection is enabled with `logging_unas_enabled` after local monitoring
+accounts are configured on both consoles. Store the shared credentials as
+`vault_logging_unas_username` and `vault_logging_unas_password` in the logging
+vault. The pinned Unpoller input supports username/password sessions. Each
+NAS has an isolated collector because its certificate identifies the same
+`unifi.local` hostname. Each container resolves that hostname to its assigned
+NAS and verifies the matching pinned public certificate, `unas-files.crt` or
+`unas-games.crt`. No collector has a published port or an agent on the NAS.
+
+Storage panels show pool usage and RAID redundancy, physical disk health,
+temperatures, SSD cache utilization/hit rate/endurance, rebuild progress, and
+short-term growth forecasts. Forecasts require at least 60 samples; a NAS
+without SSD cache has no cache metrics. Missing NAS metrics are unknown,
+not healthy. Health checks require pool-capacity telemetry from each configured
+console, in addition to healthy scrape endpoints. UniFi Drive cloud-backup job
+success and snapshot age are not collected.
+
+The backup role publishes cached verification metrics every five minutes. The
+logging checks service exposes those files privately to Prometheus; it has no
+Docker socket and does not execute backup commands during HTTP requests. The
+dashboard reports collection age, repository contention, last observed local Borg
+archive age, complete verification and mirror freshness, and the last recorded Prowlarr restore proof.
+Previously verified timestamps remain visible during collection failures;
+check their age. Restore proof covers that SQLite dump only.
 
 ## Inputs and deployment
 
@@ -98,12 +170,15 @@ On the NUC:
 
 ```sh
 curl -fsS http://127.0.0.1:13100/ready
+curl -fsS http://127.0.0.1:19090/-/ready
+curl -fsS http://127.0.0.1:19090/api/v1/targets
 docker compose -f /opt/docker/logging/compose.yaml ps
 docker exec logging-checks python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/health').read().decode())"
 ```
 
 Gatus checks recent heartbeats from `logging_expected_hosts`, NAS NFS
-reachability and capacity, and metadata snapshot freshness. A missing host
+reachability and capacity, metadata snapshot freshness, and Prometheus scrape
+target health. A missing host
 heartbeat is a failure even if its collector process is still running.
 Add a host to the expected set only after its collector is enrolled. The
 gaming PC can be intentionally offline; do not require a continuous heartbeat
@@ -161,11 +236,22 @@ stage removes common Authorization credential values; it is not a guarantee
 that every application log is free of secrets. Keep the NAS data private.
 
 The snapshot job creates a consistent Grafana SQLite copy and requests a
-Garage metadata snapshot daily before the existing Borg job. The high-volume
-Loki working directory and live application databases are excluded from Borg.
+Garage metadata snapshot daily before the existing Borg job. It also requests
+a Prometheus TSDB snapshot, including the current head, and atomically publishes
+its immutable blocks under `backup/prometheus/`. A file lock serializes cron
+and deployment snapshots. Hard links keep one additional snapshot view without
+copying unchanged blocks; retained backup blocks can outlive active retention.
+The high-volume Loki working directory, live Prometheus data directory, and
+live application databases are excluded from Borg.
 NAS objects need the NAS's separate protection and snapshot policy. Restore
 Garage metadata matching its object blocks before starting Loki against a
 recovered store; restore Grafana from `backup/grafana.db` with Grafana stopped.
+To restore metrics, stop Prometheus, preserve its existing data directory, copy
+`backup/prometheus/` into an empty `prometheus-data/` directory with UID/GID
+65534, then start Prometheus and query a metric from the snapshot time range.
+Do not merge snapshot blocks into a running TSDB or delete the previous data
+until recovery is verified.
+
 ## Removal
 
 Stop collectors before retiring ingestion. Preserve NAS objects, Garage

@@ -41,6 +41,25 @@ def check():
             errors.append('Metadata snapshots are older than 27 hours')
     except OSError:
         errors.append('Metadata snapshot missing')
+    try:
+        with urllib.request.urlopen('http://logging-prometheus:9090/api/v1/targets', timeout=10) as response:
+            targets = json.load(response)['data']['activeTargets']
+        if not targets:
+            errors.append('Prometheus has no scrape targets')
+        for target in targets:
+            if target['health'] != 'up':
+                errors.append('Metrics unavailable for ' + target['labels']['job'])
+        expected_unas = json.loads(os.environ.get('EXPECTED_UNAS', '[]'))
+        if expected_unas:
+            query = urllib.parse.urlencode({'query': 'count by(host)(unpoller_unas_pool_capacity_bytes)'})
+            with urllib.request.urlopen('http://logging-prometheus:9090/api/v1/query?' + query, timeout=10) as response:
+                results = json.load(response)['data']['result']
+            reporting = {entry['metric']['host'] for entry in results}
+            for name in expected_unas:
+                if 'unas-' + name not in reporting:
+                    errors.append('Storage telemetry unavailable for UNAS ' + name)
+    except Exception:
+        errors.append('Unable to query Prometheus scrape health')
     return errors
 
 
@@ -53,6 +72,17 @@ def monitor():
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == '/metrics':
+            try:
+                data = Path('/backup-metrics/backup.prom').read_text()
+                data += 'homelab_backup_exporter_available 1\n'
+            except OSError:
+                data = 'homelab_backup_exporter_available 0\n'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; version=0.0.4')
+            self.end_headers()
+            self.wfile.write(data.encode())
+            return
         if self.path == '/live':
             errors = []
         elif self.path == '/health':

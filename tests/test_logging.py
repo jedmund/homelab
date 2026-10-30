@@ -45,7 +45,37 @@ def render(role, name, **overrides):
 
 
 class LoggingTests(unittest.TestCase):
+    def test_nas_collectors_verify_distinct_certificates_without_published_ports(self):
+        devices = [{'name': 'files', 'address': '192.0.2.3'},
+                   {'name': 'games', 'address': '192.0.2.4'}]
+        services = yaml.safe_load(render('logging', 'compose.yaml.j2', logging_unas_enabled=True,
+                                         logging_unas_devices=devices))['services']
+        for device in devices:
+            collector = services['unas-' + device['name']]
+            self.assertNotIn('ports', collector)
+            self.assertEqual(collector['extra_hosts'], ['unifi.local:' + device['address']])
+            self.assertIn('./config/unas-' + device['name'] + '.crt:/etc/unpoller/controller.crt:ro',
+                          collector['volumes'])
+        environment = render('logging', 'unas.env.j2', logging_unas_username='fixture',
+                             logging_unas_password='placeholder')
+        self.assertIn('UP_UNIFI_DISABLE=true', environment)
+        self.assertIn('UP_UNAS_DEVICE_0_VERIFY_SSL=true', environment)
 
+    def test_metrics_are_private_and_optional_unifi_is_scraped(self):
+        for enabled in [False, True]:
+            document = yaml.safe_load(render('logging', 'compose.yaml.j2', logging_unifi_enabled=enabled))
+            services = document['services']
+            self.assertEqual(services['prometheus']['ports'], ['127.0.0.1:19090:9090'])
+            self.assertNotIn('labels', services['prometheus'])
+            self.assertEqual('unpoller' in services, enabled)
+            config = yaml.safe_load(render('logging', 'prometheus.yaml.j2', logging_unifi_enabled=enabled))
+            jobs = {job['job_name']: job for job in config['scrape_configs']}
+            self.assertEqual('unifi' in jobs, enabled)
+            self.assertEqual(jobs['vllm']['static_configs'][0]['targets'], ['192.0.2.100:11438'])
+            if enabled:
+                self.assertNotIn('ports', services['unpoller'])
+                self.assertIn('UP_UNIFI_CONTROLLER_0_VERIFY_SSL=true',
+                              render('logging', 'unpoller.env.j2', logging_unifi_password='placeholder'))
 
     def test_query_audit_records_cannot_satisfy_host_heartbeat(self):
         spec = importlib.util.spec_from_file_location('logging_checks', ROOT / 'roles/logging/files/checks.py')
@@ -144,6 +174,11 @@ def validate_configs():
                         '-e', 'LOKI_S3_ACCESS_KEY=placeholder', '-e', 'LOKI_S3_SECRET_KEY=placeholder',
                         'grafana/loki:3.7.9', '-config.file=/etc/loki/config.yaml',
                         '-config.expand-env=true', '-verify-config=true'], check=True)
+        prometheus = root / 'prometheus.yaml'
+        prometheus.write_text(render('logging', 'prometheus.yaml.j2', logging_unifi_enabled=True))
+        subprocess.run(['docker', 'run', '--rm', '--entrypoint', '/bin/promtool',
+                        '-v', f'{prometheus}:/etc/prometheus/config.yaml:ro',
+                        'prom/prometheus:v3.15.1', 'check', 'config', '/etc/prometheus/config.yaml'], check=True)
         for family in ['Debian', 'Darwin']:
             file = root / (family + '.yaml')
             document = yaml.safe_load(render('vector', 'vector.yaml.j2', ansible_facts={'os_family': family}))
@@ -173,7 +208,7 @@ def validate_configs():
                             '/etc/vector/vector.yaml'], check=True)
             subprocess.run(['docker', 'run', '--rm', '-v', f'{file}:/etc/vector/vector.yaml:ro',
                             'timberio/vector:0.60.0-debian', 'test', '/etc/vector/vector.yaml'], check=True)
-    print('PASS: Loki and both Vector configurations validated by pinned binaries')
+    print('PASS: Loki, Prometheus and both Vector configurations validated by pinned binaries')
 
 
 if __name__ == '__main__':

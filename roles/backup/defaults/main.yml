@@ -98,6 +98,8 @@ borg_exclude_patterns:
   # Loki's NAS objects and Garage's consistent snapshots are the recovery
   # inputs. Do not copy live databases, caches, or the high-volume local WAL.
   - /opt/docker/logging/loki-state
+  # Consistent Prometheus snapshots live in logging/backup/prometheus instead.
+  - /opt/docker/logging/prometheus-data
   - /opt/docker/logging/grafana-data
   - /opt/docker/logging/garage-meta/db.sqlite
   - /opt/docker/logging/garage-meta/db.sqlite-wal
