@@ -162,6 +162,11 @@ or swap one) lives in [MODELS.md](MODELS.md). The `ai_models` list in
 `defaults/main.yml` is the source of truth for what llama-swap serves;
 MODELS.md is the human-readable companion.
 
+OpenJev Q8 adds text and image judgments through `/v1/systemone`. Download
+its weights and matching vision projector before deployment; see the
+[OpenJev catalogue entry](MODELS.md#openjev-text-and-vision-decisions) for
+the command, runtime prerequisites, license, and text/image verification.
+
 Embeddings split across two surfaces:
 
 - **Always-on (TEI)** for OpenWebUI RAG and any other "no cold-load tax"

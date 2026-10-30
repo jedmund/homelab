@@ -1,0 +1,77 @@
+# {{ ansible_managed }}
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
+        labels: {host: '{{ inventory_hostname }}'}
+  - job_name: loki
+    static_configs:
+      - targets: [logging-loki:3100]
+        labels: {host: '{{ inventory_hostname }}'}
+  - job_name: llama-swap
+    static_configs:
+      - targets: ['{{ hostvars["max"].ansible_host }}:11434']
+        labels: {host: max}
+  - job_name: vllm
+    static_configs:
+      - targets: ['{{ hostvars["max"].ansible_host }}:11438']
+        labels: {host: max}
+  - job_name: netdata-gpu
+    metrics_path: /host/{{ logging_netdata_gpu_guid }}/api/v1/allmetrics
+    honor_timestamps: false
+    params:
+      format: [prometheus]
+      help: ['no']
+      types: ['no']
+      source: [as-collected]
+    static_configs:
+      - targets: ['{{ ansible_host }}:19999']
+        labels: {host: max}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: netdata_nvidia_smi_gpu_.*
+        action: keep
+{% for host in logging_netdata_hosts %}
+  - job_name: netdata-{{ host.name }}
+    metrics_path: /host/{{ host.guid }}/api/v1/allmetrics
+    honor_timestamps: true
+    params:
+      format: [prometheus]
+      help: ['no']
+      types: ['no']
+      source: [average]
+      server: [homelab-capacity]
+    static_configs:
+      - targets: ['{{ ansible_host }}:19999']
+        labels: {host: '{{ host.name }}'}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: netdata_(system_(cpu|ram|load)|mem_(swap|swapio|available)|disk_(space|io|iotime)|net_net)_.*
+        action: keep
+{% endfor %}
+  - job_name: backup
+    scrape_interval: 60s
+    static_configs:
+      - targets: [logging-checks:8080]
+        labels: {host: '{{ inventory_hostname }}'}
+{% if logging_unas_enabled %}
+  - job_name: unas
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+{% for device in logging_unas_devices %}
+      - targets: [logging-unas-{{ device.name }}:9130]
+        labels: {host: 'unas-{{ device.name }}'}
+{% endfor %}
+{% endif %}
+{% if logging_unifi_enabled %}
+  - job_name: unifi
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+      - targets: [logging-unpoller:9130]
+        labels: {host: udm-pro}
+{% endif %}

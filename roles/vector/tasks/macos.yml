@@ -1,0 +1,68 @@
+---
+- name: Download the pinned native macOS collector
+  ansible.builtin.get_url:
+    url: "{{ vector_macos_url }}"
+    checksum: "{{ vector_macos_checksum }}"
+    dest: "{{ vector_config_base }}/bin/vector-{{ vector_version }}.tar.gz"
+    mode: '0600'
+  register: vector_macos_archive
+
+- name: Inspect the native macOS collector
+  ansible.builtin.stat:
+    path: "{{ vector_config_base }}/bin/vector"
+  register: vector_macos_binary
+
+- name: Extract the native macOS collector with BSD tar
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/tar
+      - -xzf
+      - "{{ vector_config_base }}/bin/vector-{{ vector_version }}.tar.gz"
+      - --strip-components=3
+      - -C
+      - "{{ vector_config_base }}/bin"
+      - ./vector-arm64-apple-darwin/bin/vector
+  when: vector_macos_archive.changed or not vector_macos_binary.stat.exists
+
+- name: Make the native collector executable
+  ansible.builtin.file:
+    path: "{{ vector_config_base }}/bin/vector"
+    mode: '0755'
+
+- name: Render macOS collector launch agents
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ ansible_user_dir }}/Library/LaunchAgents/{{ item.label }}.plist"
+    mode: '0600'
+  loop:
+    - {src: launchd.plist.j2, label: "{{ vector_macos_label }}"}
+    - {src: heartbeat.plist.j2, label: house.atelier.log-heartbeat}
+  register: vector_macos_plists
+
+- name: Load macOS collector launch agents
+  ansible.builtin.shell: |
+    domain="gui/$(id -u)"
+    label='{{ item }}'
+    if [ '{{ vector_macos_plists.changed or vector_collection_config.changed or vector_tls_files.changed or vector_macos_archive.changed }}' = 'True' ]; then
+      launchctl bootout "$domain/$label" 2>/dev/null || true
+      # bootout can return while the old process is still draining its WAL.
+      # Do not mistake that exiting registration for a running replacement.
+      elapsed=0
+      while launchctl print "$domain/$label" >/dev/null 2>&1; do
+        if [ "$elapsed" -ge 45 ]; then
+          echo "Collector job did not unload within 45 seconds" >&2
+          exit 1
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+      done
+    fi
+    if ! launchctl print "$domain/$label" >/dev/null 2>&1; then
+      launchctl bootstrap "$domain" '{{ ansible_user_dir }}/Library/LaunchAgents/'"$label.plist"
+      echo loaded
+    fi
+  loop:
+    - "{{ vector_macos_label }}"
+    - house.atelier.log-heartbeat
+  register: vector_launchd_load
+  changed_when: "'loaded' in vector_launchd_load.stdout"

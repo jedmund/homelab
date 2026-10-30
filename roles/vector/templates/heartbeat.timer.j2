@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Verify the log collection path every minute
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=homelab-log-heartbeat.service
+[Install]
+WantedBy=timers.target

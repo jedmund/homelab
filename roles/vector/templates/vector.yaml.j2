@@ -1,0 +1,101 @@
+# {{ ansible_managed }}
+data_dir: {{ vector_state_path }}
+api:
+  enabled: true
+  address: 127.0.0.1:18686
+sources:
+{% if ansible_facts['os_family'] != 'Darwin' %}
+  containers:
+    type: docker_logs
+    docker_host: unix:///var/run/docker.sock
+    exclude_containers: [vector, alloy]
+  journal:
+    type: journald
+    since_now: true
+{% endif %}
+  files:
+    type: file
+    read_from: beginning
+    ignore_older_secs: {{ vector_source_max_age_seconds }}
+    max_line_bytes: 262144
+    fingerprint:
+      strategy: device_and_inode
+    include:
+{% if ansible_facts['os_family'] == 'Darwin' %}
+      - {{ ansible_user_dir }}/Library/Logs/*.log
+      - /opt/homebrew/var/log/netdata/*.log
+      - /var/log/system.log
+      - {{ vector_config_base }}/heartbeat.log
+{% else %}
+      - /host/var/log/*.log
+{% endif %}
+{% for path in vector_extra_files %}
+      - {{ path }}
+{% endfor %}
+  internal:
+    type: internal_logs
+  metrics:
+    type: internal_metrics
+transforms:
+  normalize:
+    type: remap
+    inputs: [{% if ansible_facts['os_family'] != 'Darwin' %}containers, journal, {% endif %}files, internal]
+    source: |
+      .host = "{{ inventory_hostname }}"
+      .collector = "vector"
+      .filename = to_string(.file) ?? ""
+      .container = to_string(.container_name) ?? ""
+      .compose_project = to_string(.label."com.docker.compose.project") ?? ""
+      .unit = to_string(._SYSTEMD_UNIT) ?? ""
+      .syslog_identifier = to_string(.SYSLOG_IDENTIFIER) ?? ""
+      .job = if exists(.container_id) { "docker" } else if exists(.SYSLOG_IDENTIFIER) { "system" } else { "files" }
+      if ends_with(.filename, "/heartbeat.log") { .job = "heartbeat" }
+      .service_name = to_string(.label."com.docker.compose.service") ?? .job
+      .timestamp = timestamp(.timestamp) ?? now()
+      if .filename == "/host/traefik/access.log" {
+        access = object(parse_json(.message) ?? {}) ?? {}
+        .timestamp = parse_timestamp(to_string(access.StartUTC) ?? "", format: "%+") ?? .timestamp
+      }
+      .message = replace(to_string(.message) ?? "", r'(?i)authorization["\x27 :=]+(?:bearer |basic )?[A-Za-z0-9._~+/=-]{12,}', "Authorization: [REDACTED]")
+  recent:
+    type: filter
+    inputs: [normalize]
+    condition: 'to_unix_timestamp(timestamp!(.timestamp)) >= to_unix_timestamp(now()) - {{ vector_source_max_age_seconds }}'
+sinks:
+  archive:
+    type: loki
+    inputs: [recent]
+    endpoint: {{ vector_ingest_url }}
+    healthcheck:
+      enabled: false # The push-only gateway intentionally has no query/readiness routes.
+    encoding:
+      codec: text
+    tls:
+      ca_file: {{ vector_config_tls }}/ca.crt
+      crt_file: {{ vector_config_tls }}/client.crt
+      key_file: {{ vector_config_tls }}/client.key
+      verify_certificate: true
+      verify_hostname: true
+    buffer:
+      type: disk
+      max_size: {{ vector_buffer_bytes }}
+      when_full: block
+    request:
+      retry_attempts: 4294967295
+      retry_max_duration_secs: 30
+    labels:
+{% raw %}
+      host: '{{ host }}'
+      collector: '{{ collector }}'
+      job: '{{ job }}'
+      container: '{{ container }}'
+      compose_project: '{{ compose_project }}'
+      service_name: '{{ service_name }}'
+      filename: '{{ filename }}'
+      unit: '{{ unit }}'
+      syslog_identifier: '{{ syslog_identifier }}'
+{% endraw %}
+  exporter:
+    type: prometheus_exporter
+    inputs: [metrics]
+    address: 127.0.0.1:19598

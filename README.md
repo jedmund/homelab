@@ -87,6 +87,9 @@ merged Compose file.
 ## Service runbooks
 
 [FlareSolverr](roles/flaresolverr/README.md) provides the private challenge-solving API.
+[Logs and metrics](roles/logging/README.md) covers the NAS-backed log store,
+Prometheus, Grafana dashboards, UniFi collection, and
+[host collectors](roles/vector/README.md).
 
 Use `make -C deploy list` for the current playbook list. The following roles
 have additional operating instructions:

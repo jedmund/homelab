@@ -1,7 +1,7 @@
 # Models
 
 Reference for the GGUFs installed on `max` under `/mnt/storage/models/ai/`
-([model storage](../model_storage/README.md)) and served by `llama-swap` (chat / reranking) and TEI (embeddings). The `ai_models`
+([model storage](../model_storage/README.md)) and served by `llama-swap` (chat / reranking / decisions) and TEI (embeddings). The `ai_models`
 list in `roles/ai/defaults/main.yml` references each file by name; keep this
 document and that list in sync when adding or removing a model.
 
@@ -61,7 +61,10 @@ The other chat-tier entries (`gemma4`, `gemma4-uncensored`,
 larger contexts because they're picked manually; in shared mode loading
 one while a code-group model is resident may OOM (unload the code slot first).
 In split mode the chat group has the WS card to itself, so all of them
-fit individually.
+fit individually. The separate `decision` group makes OpenJev available in
+both GPU modes. It can coexist with chat, but its weights, vision projector,
+and context also consume VRAM; check combined usage before loading a larger
+chat model. Exclusive `code-heavy` requests may evict OpenJev.
 
 ## Installed models
 
@@ -238,6 +241,83 @@ second costs disk only.
 - **Why**: Reranks retrieval hits for OpenWebUI's RAG. Low volume, so it stays
   in llama-swap rather than getting its own container.
 - **VRAM**: ~600 MB. Short TTL (300s) so it unloads quickly between bursts.
+
+### openjev: text and vision decisions
+
+- **Files**: `OpenJev/OpenJev-Q8_0.gguf` (28.6 GB) and
+  `OpenJev/mmproj-OpenJev-BF16.gguf` (931 MB).
+- **Source**: [ggml-org/OpenJev-GGUF](https://huggingface.co/ggml-org/OpenJev-GGUF),
+  converted from [openjev/openjev](https://huggingface.co/openjev/openjev).
+  Use this conversion with its matching vision projector; the original
+  author's separate `openjev/openjev-GGUF` release is text-only.
+- **Pull on `max`** before deploying the catalogue change:
+
+  ```sh
+  hf download ggml-org/OpenJev-GGUF \
+    OpenJev-Q8_0.gguf mmproj-OpenJev-BF16.gguf \
+    --local-dir /mnt/storage/models/ai/OpenJev
+  ```
+
+- **Runtime**: Native `/v1/systemone` support was merged into llama.cpp on
+  [2026-10-02](https://github.com/ggml-org/llama.cpp/pull/29818), including
+  OpenJev vision. The inspected `max` runtime on 2026-10-30 was llama-swap
+  v267 (`5fd9b70`) with llama.cpp build 11889 (`d854d98ba`); both support
+  this endpoint. This checkpoint does not need the AutoTrust JEV patch.
+- **Serving**: Select `openjev` (alias `openjev:27b-q8`). One 16,384-token
+  slot, GPU offload, and the BF16 projector are configured in both GPU
+  allocation modes. The `decision` group is non-exclusive and has a
+  five-minute idle TTL. Live VRAM and inference quality remain unmeasured
+  on `max`; the 29.5 GB download size is not a live VRAM estimate.
+- **License**: Weights are CC BY-NC 4.0, with attribution required. The
+  [author's model card](https://huggingface.co/openjev/openjev#licence)
+  describes the separate commercial licensing option.
+
+After an authorized deployment, confirm `openjev` appears in
+`http://192.168.1.100:11434/v1/models`, then exercise the decision endpoint
+from a permitted LAN client. It returns typed answers, not chat text:
+
+```sh
+curl --fail-with-body http://192.168.1.100:11434/v1/systemone \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"openjev","state":"Please refund the duplicate charge.",
+       "questions":{"refund":{"type":"noul",
+       "instructions":"Does the customer request a refund?"}}}'
+```
+
+For vision, this probe sends a local PNG as a data URL and asks a yes/no
+question. Replace `/path/to/screenshot.png` with an image whose contents
+you can verify. Keep requests to one image and at most 52 choice options;
+these are the original model's documented per-request and single-pass
+limits. The full prompt, including image tokens, must fit the configured
+context.
+
+```sh
+python3 - /path/to/screenshot.png <<'PY' | \
+  curl --fail-with-body http://192.168.1.100:11434/v1/systemone \
+    -H 'Content-Type: application/json' --data-binary @-
+import base64
+import json
+from pathlib import Path
+import sys
+
+image = base64.b64encode(Path(sys.argv[1]).read_bytes()).decode('ascii')
+print(json.dumps({
+    'model': 'openjev',
+    'state': 'Inspect the supplied screenshot.',
+    'images': ['data:image/png;base64,' + image],
+    'questions': {'has_error': {
+        'type': 'noul',
+        'instructions': 'Does the screenshot show an error message?',
+    }},
+}))
+PY
+```
+
+Verify that `answers.has_error.noul` is a number between 0 and 1 and check
+it against the image. Repeat with a contrasting image. Confirm chat still
+works with OpenJev loaded, and check GPU usage and unloading after five
+idle minutes. A successful response verifies serving, not calibration on
+Kizuna's tasks.
 
 ### embedding models (swap group): for project experimentation
 

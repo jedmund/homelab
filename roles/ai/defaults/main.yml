@@ -243,6 +243,19 @@ ai_models:
     aliases:
       - "bge-reranker-v2-m3"
 
+  # Native typed decisions over text and images via /v1/systemone.
+  # The separate group coexists with chat; heavy coding can evict it.
+  - name: openjev
+    file: OpenJev/OpenJev-Q8_0.gguf
+    group: decision
+    args: >-
+      -ngl 999 -c 16384 --parallel 1 --flash-attn on
+      --mmproj /models/OpenJev/mmproj-OpenJev-BF16.gguf
+      --jinja
+    ttl: 300
+    aliases:
+      - "openjev:27b-q8"
+
   # Embedding models, swap-loaded via llama-swap so only one is resident
   # at a time. The `embed` group below is swap: true, so requesting any
   # of these unloads whichever was previously active. RAG-style flows
@@ -388,6 +401,10 @@ ai_model_groups:
     swap: false
     exclusive: false
     persistent: true
+  # Decisions can run alongside chat and release VRAM after their idle TTL.
+  decision:
+    swap: true
+    exclusive: false
   # CPU-only models. swap: false + persistent: true keeps the llama-server
   # process loaded across chat-model swaps so opencode compaction never
   # pays the cold-load tax on top of slow CPU prompt processing.
