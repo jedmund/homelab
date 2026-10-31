@@ -19,10 +19,10 @@ granblue_vpn_free_only: false
 # Gacha rates: fetches the game's current banner rates after each banner ends
 # and sends them to the granblue.team API
 granblue_gacha_rates_image: ruby:3.4.4-slim
-granblue_gacha_rates_script_commit: 6aae231e4b76a57e810ec4a7693b8e341a0c88f0
+granblue_gacha_rates_script_commit: 04a8b24e69bc5255a2935c5632e34853ed24f7c6
 granblue_gacha_rates_script_url: >-
   https://raw.githubusercontent.com/jedmund/hensei-api/{{ granblue_gacha_rates_script_commit }}/script/fetch_gacha_rates.rb
-granblue_gacha_rates_script_checksum: sha256:803e383de9c08cb2321fd752c98bb32e41de9438e00185136aebf982a7f9a3ce
+granblue_gacha_rates_script_checksum: sha256:b287d6f62f46a073a11b962c552ebc07a610d7fe9f9153763a5bece69171aef3
 granblue_gacha_rates_api_url: https://api.granblue.team/v1/gacha/banners
 granblue_gacha_rates_api_token: "{{ vault_granblue_gacha_rates_api_token | default('') }}"
 granblue_gacha_rates_game_uid: "{{ vault_granblue_gacha_rates_game_uid | default('') }}"
