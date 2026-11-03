@@ -21,6 +21,10 @@ The public project registry supports anonymous pulls.
 The fork enables self-hosted OIDC/SAML with `dokploy_enable_sso: true`.
 `dokploy_sso_primary: true` opens SSO first while retaining password fallback.
 Configure the PocketID provider in Dokploy's SSO settings after bootstrap.
+The provider ID defaults to `pocketid` and its display name to `PocketID`, using
+`dokploy_sso_provider_id` and `dokploy_sso_provider_name`. The fork uses these
+public values to show a direct **Sign in with PocketID** button. The ID must
+match the configured SSO provider; clear it to use email-based selection.
 
 ## Deployment
 

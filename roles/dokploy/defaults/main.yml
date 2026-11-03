@@ -34,6 +34,8 @@ dokploy_config_dir: /etc/dokploy
 # locked out.
 dokploy_enable_sso: true
 dokploy_sso_primary: true
+dokploy_sso_provider_id: pocketid
+dokploy_sso_provider_name: PocketID
 
 # Traefik (Dokploy's bundled instance). The install script pins
 # traefik:v3.6.7; keep this matched so we don't accidentally bump

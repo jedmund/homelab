@@ -68,6 +68,8 @@
       --image {{ dokploy_image }} \
       --env-add DOKPLOY_ENABLE_SELF_HOSTED_SSO={{ dokploy_enable_sso | string | lower }} \
       --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }} \
+      --env-add {{ ('DOKPLOY_SSO_PROVIDER_ID=' ~ dokploy_sso_provider_id) | quote }} \
+      --env-add {{ ('DOKPLOY_SSO_PROVIDER_NAME=' ~ dokploy_sso_provider_name) | quote }} \
       --quiet \
       dokploy
     after=$(docker service inspect dokploy --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
