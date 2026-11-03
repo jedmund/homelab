@@ -18,6 +18,11 @@
 dokploy_version: canary
 dokploy_image: registry.atelier.house/jedmund/dokploy:canary
 
+# The registry and OIDC provider use homelab DNS records.
+dokploy_dns_servers:
+  - 192.168.1.1
+dokploy_dns_routing_domain: atelier.house
+
 # Install script
 dokploy_install_url: https://dokploy.com/install.sh
 dokploy_install_script_path: /root/dokploy-install.sh

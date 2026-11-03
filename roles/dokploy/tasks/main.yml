@@ -5,6 +5,33 @@
 # container's CF_DNS_API_TOKEN env. Idempotent: re-runs skip the
 # install step and re-apply the rest.
 
+- name: Create systemd-resolved drop-in directory
+  file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure homelab DNS for Dokploy
+  copy:
+    dest: /etc/systemd/resolved.conf.d/dokploy-homelab-dns.conf
+    content: |
+      # Managed by Ansible
+      [Resolve]
+      DNS={{ dokploy_dns_servers | join(' ') }}
+      Domains=~{{ dokploy_dns_routing_domain }}
+    owner: root
+    group: root
+    mode: '0644'
+  register: dokploy_dns_config
+
+- name: Apply Dokploy DNS configuration
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  when: dokploy_dns_config.changed
+
 - name: Check whether Dokploy is already installed
   stat:
     path: "{{ dokploy_config_dir }}"
