@@ -21,7 +21,7 @@ pocketid_aasa_path: /.well-known/apple-app-site-association
 pocketid_aasa:
   webcredentials:
     apps:
-      - CYR4HNM5W3.house.atelier.album-sort # Album Sort desktop app
+      - CYR4HNM5W3.com.attractor.stereo # Stereo native apps (no Associated Domains yet)
 
 # Secrets defined in vault:
 # pocketid_encryption_key - rotating it invalidates stored OIDC client secrets
