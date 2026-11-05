@@ -713,6 +713,23 @@ file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# Kaneo inspection adapter, Paseo daemon, and egress proxies. Deploy images only
+# through deploy/kaneo-inspection.yml during an idle inspection window: the
+# adapter follows the floating `inspection` tag, so a pulling redeploy here can
+# switch versions under active runs. Use Komodo for visibility, logs, and
+# restarts. Not update-monitor: private fork registry without a shared credential.
+[[stack]]
+name = "kaneo-inspection"
+description = "Kaneo agent inspections (adapter, Paseo daemon, egress proxies)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house", "ai"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo-inspection"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
 [[stack]]
 name = "photon"
 description = "Shared worldwide Photon geocoder for Kizuna and Dawarich"
