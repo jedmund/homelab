@@ -697,6 +697,22 @@ file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# Kaneo is pinned to a locally loaded image and upgraded only through
+# deploy/kaneo-upgrade.yml (backup, preflight, image rollback). Use Komodo for
+# visibility, logs, and restarts, not image changes. Not update-monitor: the
+# private fork registry has no shared Komodo credential.
+[[stack]]
+name = "kaneo"
+description = "Kaneo project management (fork)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
 [[stack]]
 name = "photon"
 description = "Shared worldwide Photon geocoder for Kizuna and Dawarich"
