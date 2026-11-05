@@ -1,0 +1,195 @@
+---
+# Stereo product stack. GitLab CI builds both images and asks Komodo to
+# redeploy after successful main builds; this role renders deployment state.
+#
+# Bootstrap ordering:
+#   1. Populate the registry and PocketID vault entries.
+#   2. Run the Stereo playbook to render and start the stack.
+#   3. Keep the Komodo Stack resource named `stereo` pointed at
+#      /opt/docker/stereo with files_on_host=true.
+#   4. Set KOMODO_URL, KOMODO_API_KEY, KOMODO_API_SECRET, and
+#      KOMODO_STEREO_STACK=stereo in the GitLab project.
+
+- name: Validate Stereo tag preparation limits
+  ansible.builtin.assert:
+    that:
+      - stereo_tag_preflight_concurrency | string in ['1', '2', '4']
+      - stereo_tag_staging_concurrency | string in ['1', '2', '4']
+      - stereo_tag_copy_concurrency | string in ['1', '2', '4']
+      - stereo_tag_copy_concurrency | int <= stereo_tag_staging_concurrency | int
+    fail_msg: Tag preparation limits must be 1, 2, or 4 and copies cannot exceed staging workers.
+
+- name: Validate Stereo native OIDC configuration
+  ansible.builtin.assert:
+    that:
+      - stereo_oidc_client_id | length > 0
+      - stereo_oidc_client_secret | length > 0
+    fail_msg: >-
+      Populate the PocketID client ID and secret before deploying Stereo.
+
+- name: Validate the Stereo Postgres password
+  ansible.builtin.assert:
+    that:
+      - stereo_postgres_password | length > 0
+    fail_msg: >-
+      Set vault_stereo_postgres_password in group_vars/stereo/vault.yml
+      before deploying Stereo.
+  no_log: true
+
+- name: Validate the persistent M4 credential encryption key
+  ansible.builtin.assert:
+    that:
+      - stereo_user_secret_encryption_key | length == 44
+      - stereo_user_secret_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
+      - stereo_user_secret_encryption_key[-2] in 'AEIMQUYcgkosw048'
+    fail_msg: Provision canonical base64 of 32 random bytes in the encrypted Stereo vault.
+  no_log: true
+
+- name: Inspect the actual immediate proxy peer
+  community.docker.docker_container_info:
+    name: traefik
+  register: stereo_proxy
+
+- name: Require the proxy on the shared proxy network
+  ansible.builtin.assert:
+    that:
+      - stereo_proxy.exists
+      - proxy_network in stereo_proxy.container.NetworkSettings.Networks
+      - stereo_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress | length > 0
+      - stereo_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress == traefik_proxy_ipv4_address
+    fail_msg: Deploy Traefik first; never fall back to trusting a Docker subnet.
+
+- name: Trust only the actual proxy host
+  ansible.builtin.set_fact:
+    stereo_trusted_proxy_cidrs: >-
+      {{ stereo_proxy.container.NetworkSettings.Networks[proxy_network].IPAddress }}/32
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/env"
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/beets-data"
+
+- name: Ensure non-root containers own existing state
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: true
+  loop:
+    - "{{ config_base }}/data"
+    - "{{ config_base }}/beets-data"
+
+- name: Create the Stereo quarantine on the downloads volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - downloads:/downloads
+      - alpine:3.20
+      - mkdir
+      - -p
+      - "{{ stereo_quarantine_path }}"
+  changed_when: false
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy environment file
+  ansible.builtin.template:
+    src: env/stereo.env.j2
+    dest: "{{ config_base }}/env/stereo.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: stereo_deploy_environment_file
+
+- name: Deploy Postgres environment file
+  ansible.builtin.template:
+    src: env/postgres.env.j2
+    dest: "{{ config_base }}/env/postgres.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: stereo_deploy_postgres_environment_file
+
+- name: Authenticate with Stereo image registry
+  community.docker.docker_login:
+    registry_url: "{{ stereo_registry_url }}"
+    username: "{{ stereo_registry_username }}"
+    password: "{{ stereo_registry_password }}"
+  when: stereo_registry_username | length > 0 and stereo_registry_password | length > 0
+  no_log: true
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    # CI republishes latest; every deploy must resolve the current image.
+    pull: always
+    recreate: >-
+      {{ 'always' if
+         (stereo_deploy_environment_file.changed | default(false))
+         or (stereo_deploy_postgres_environment_file.changed | default(false))
+         else 'auto' }}
+  register: compose_result
+
+- name: Wait for Stereo container health
+  community.docker.docker_container_info:
+    name: stereo
+  register: stereo_container
+  retries: 20
+  delay: 3
+  until:
+    - stereo_container.exists
+    - stereo_container.container.State.Health.Status == 'healthy'
+  changed_when: false
+
+- name: Print native OIDC rollout state
+  ansible.builtin.debug:
+    msg: >-
+      Stereo {{ stereo_image_tag }} is healthy. TinyAuth transition
+      middleware is {{ 'enabled' if stereo_use_tinyauth else 'disabled' }};
+      filesystem mutations are {{ 'enabled' if stereo_mutations_enabled == 'true' else 'disabled' }}.
+
+- name: Provision isolated Storybook registry access
+  when: stereo_storybook_registry_enabled | bool
+  tags: [storybook-registry]
+  block:
+    - name: Require dedicated read-registry credentials
+      ansible.builtin.assert:
+        that:
+          - stereo_storybook_registry_username | length > 0
+          - stereo_storybook_registry_password | length > 0
+      no_log: true
+
+    - name: Create isolated Storybook Docker configuration directory
+      ansible.builtin.file:
+        path: /etc/komodo/stereo-storybook
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Authenticate Storybook without changing shared registry credentials
+      community.docker.docker_login:
+        registry_url: https://registry.atelier.house
+        username: "{{ stereo_storybook_registry_username }}"
+        password: "{{ stereo_storybook_registry_password }}"
+        config_path: /etc/komodo/stereo-storybook/config.json
+        reauthorize: true
+      no_log: true

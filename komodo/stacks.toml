@@ -486,13 +486,13 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "album-sort"
-description = "Album Sort"
+name = "stereo"
+description = "Stereo"
 tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
 [stack.config]
 server = "NUC"
 files_on_host = true
-run_directory = "/opt/docker/album-sort"
+run_directory = "/opt/docker/stereo"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
@@ -1308,9 +1308,9 @@ permissions = [
 ]
 
 [[action]]
-name = "album-sort-storybook"
-description = "Manage private Album Sort main and merge-request Storybook catalogs"
-tags = ["homelab", "album-sort", "ci", "review-app"]
+name = "stereo-storybook"
+description = "Manage private Stereo main and merge-request Storybook catalogs"
+tags = ["homelab", "stereo", "ci", "review-app"]
 [action.config]
 failure_alert = true
 file_contents = '''
@@ -1351,8 +1351,10 @@ if (operation === 'destroy') {
     console.log(`${stackName} is already absent`)
   } else {
     const { config: current } = await komodo.read('GetStack', { stack: existing.id })
+    // Built from IMAGE_REPOSITORY so a repository rename can't leave catalog images behind.
+    const imagePattern = new RegExp(`${IMAGE_REPOSITORY.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}:[a-f0-9]{40}`, 'g')
     const images = [
-      ...new Set(String(current.file_contents ?? '').match(/registry\.atelier\.house\/jedmund\/album-sort\/storybook:[a-f0-9]{40}/g) ?? []),
+      ...new Set(String(current.file_contents ?? '').match(imagePattern) ?? []),
     ]
     // A merged MR's preview can be destroyed by storybook:stop and storybook:merged at
     // the same time. The losing run fails with "Resource is busy" while the other is
@@ -1429,7 +1431,7 @@ if (operation === 'destroy') {
     // Never let Komodo's shared docker login replace Kizuna credentials.
     registry_provider: '',
     registry_account: '',
-    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]',
+    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/stereo-storybook [[COMPOSE_COMMAND]]',
     compose_cmd_wrapper_include: ['config', 'pull', 'up', 'run'],
     project_name: stackName,
     auto_pull: true,
@@ -1456,8 +1458,9 @@ if (operation === 'destroy') {
 
 
 [[user_group]]
-name = "album-sort-storybook-ci"
+name = "stereo-storybook-ci"
+# A Komodo user account (it holds the CI API key), so it keeps its pre-Stereo name.
 users = ["album-sort-storybook-ci"]
 permissions = [
-  { target.type = "Action", target.id = "album-sort-storybook", level = "Execute" },
+  { target.type = "Action", target.id = "stereo-storybook", level = "Execute" },
 ]

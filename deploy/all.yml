@@ -139,8 +139,8 @@
 - import_playbook: granblue.yml
   tags: [granblue]
 
-- import_playbook: album_sort.yml
-  tags: [album_sort]
+- import_playbook: stereo.yml
+  tags: [stereo]
 
 - import_playbook: photon.yml
   tags: [photon, geo]

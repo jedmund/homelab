@@ -1,0 +1,214 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  stereo:
+    container_name: stereo
+    image: "{{ stereo_image }}:{{ stereo_image_tag }}"
+    pull_policy: always
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/stereo.env
+    environment:
+      TZ: "{{ timezone }}"
+      NODE_ENV: production
+      APP_BASE_URL: "{{ stereo_origin }}"
+      ORIGIN: "{{ stereo_origin }}"
+      AUTH_REQUIRED: "{{ stereo_auth_required }}"
+      SORT_MUTATIONS_ENABLED: "{{ stereo_mutations_enabled }}"
+      OIDC_ISSUER_URL: "{{ stereo_oidc_issuer_url }}"
+      SESSION_TTL_HOURS: "{{ stereo_session_ttl_hours }}"
+      UNSORTED_PATH: "{{ stereo_unsorted_path }}"
+      SORTED_PATH: "{{ stereo_sorted_path }}"
+      DATA_PATH: "{{ stereo_data_path }}"
+      SLSKD_DOWNLOAD_DIR: "{{ stereo_slskd_download_path }}"
+      DOWNLOADS_PATH: "{{ stereo_qbittorrent_download_path }}"
+      QUARANTINE_PATH: "{{ stereo_quarantine_path }}"
+      WATCH_INTERVAL: "{{ stereo_watch_interval }}"
+      SCAN_CONCURRENCY: "{{ stereo_scan_concurrency }}"
+      TAG_PREFLIGHT_CONCURRENCY: "{{ stereo_tag_preflight_concurrency }}"
+      TAG_STAGING_CONCURRENCY: "{{ stereo_tag_staging_concurrency }}"
+      TAG_COPY_CONCURRENCY: "{{ stereo_tag_copy_concurrency }}"
+      MUSICBRAINZ_BASE_URL: "{{ stereo_musicbrainz_base_url }}"
+      COVER_ART_ARCHIVE_BASE_URL: "{{ stereo_cover_art_archive_base_url }}"
+      BEETS_WEB_URL: http://beets:8337
+      BEETS_API_URL: http://beets:8338
+{% if stereo_embedder_enabled %}
+      EMBEDDER_URL: http://embedder:8340
+{% endif %}
+      TRUSTED_PROXY_CIDRS: "{{ stereo_trusted_proxy_cidrs }}"
+    volumes:
+      - music:/music
+      # Read-write for the quarantine; the download clients' folders are only read.
+      - downloads:/downloads
+      - ./data:/data
+    depends_on:
+      beets:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    # A clean shutdown drains in-flight sorts before exiting.
+    stop_grace_period: {{ stereo_stop_grace_period }}
+    networks:
+      - proxy
+      - shared
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.stereo.rule: "Host(`{{ stereo_domain }}`)"
+      traefik.http.routers.stereo.entrypoints: websecure
+      traefik.http.routers.stereo.tls.certresolver: letsencrypt
+{% if stereo_use_tinyauth %}
+      traefik.http.routers.stereo.middlewares: tinyauth@file
+{% endif %}
+{% if stereo_legacy_domain %}
+      traefik.http.routers.stereo-legacy.rule: "Host(`{{ stereo_legacy_domain }}`)"
+      traefik.http.routers.stereo-legacy.entrypoints: websecure
+      traefik.http.routers.stereo-legacy.tls.certresolver: letsencrypt
+      traefik.http.routers.stereo-legacy.service: stereo
+      traefik.http.routers.stereo-legacy.middlewares: stereo-canonical
+      traefik.http.middlewares.stereo-canonical.redirectregex.regex: '^https?://[^/]+(.*)'
+      traefik.http.middlewares.stereo-canonical.redirectregex.replacement: "https://{{ stereo_domain }}$${1}"
+      traefik.http.middlewares.stereo-canonical.redirectregex.permanent: "true"
+{% endif %}
+{% if stereo_expose_rest_api %}
+      traefik.http.routers.stereo-rest.rule: "Host(`{{ stereo_domain }}`) && PathPrefix(`/rest`)"
+      traefik.http.routers.stereo-rest.entrypoints: websecure
+      traefik.http.routers.stereo-rest.tls.certresolver: letsencrypt
+      traefik.http.routers.stereo-rest.priority: "100"
+      traefik.http.routers.stereo-rest.service: stereo
+      traefik.http.routers.stereo-rest.middlewares: stereo-rest-tls
+      traefik.http.middlewares.stereo-rest-tls.headers.customrequestheaders.X-Forwarded-Proto: https
+      # Higher than the catch-all HTTP redirect; the app rejects HTTP before auth.
+      traefik.http.routers.stereo-rest-http.rule: "Host(`{{ stereo_domain }}`) && PathPrefix(`/rest`)"
+      traefik.http.routers.stereo-rest-http.entrypoints: web
+      traefik.http.routers.stereo-rest-http.priority: "2147482647"
+      traefik.http.routers.stereo-rest-http.service: stereo
+      traefik.http.routers.stereo-rest-http.middlewares: stereo-rest-plain
+      traefik.http.middlewares.stereo-rest-plain.headers.customrequestheaders.X-Forwarded-Proto: http
+{% endif %}
+      traefik.http.services.stereo.loadbalancer.server.port: "{{ stereo_container_port }}"
+      traefik.http.services.stereo.loadbalancer.healthcheck.path: /healthz
+      traefik.http.services.stereo.loadbalancer.healthcheck.interval: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  beets:
+    container_name: stereo_beets
+    image: "{{ stereo_beets_image }}:{{ stereo_image_tag }}"
+    pull_policy: always
+    restart: {{ restart_policy }}
+    environment:
+      TZ: "{{ timezone }}"
+      MUSIC_SORTED_PATH: "{{ stereo_sorted_path }}"
+    volumes:
+      - music:/music:ro
+      - ./beets-data:/data/beets
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  # No published port: reachable only by the app on the stack network and by
+  # borgmatic on the shared backend network for nightly pg_dump.
+  postgres:
+    container_name: stereo_postgres
+    image: "{{ stereo_postgres_image }}"
+    restart: {{ restart_policy }}
+    env_file:
+      - ./env/postgres.env
+    environment:
+      TZ: "{{ timezone }}"
+      # Only read when the data directory is empty. The app requires the libc
+      # C locale and UTF8.
+      POSTGRES_INITDB_ARGS: "{{ stereo_postgres_initdb_args }}"
+    volumes:
+      # Excluded from the raw Borg capture; the pg_dump is the restore artifact.
+      - ./postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+      - backup
+    shm_size: 256m
+    stop_grace_period: {{ stereo_stop_grace_period }}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "{{ stereo_postgres_user }}", "-d", "{{ stereo_postgres_db }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% if stereo_embedder_enabled %}
+
+  # Audio embeddings for similarity. No depends_on: the app backs off while it is down.
+  embedder:
+    container_name: stereo_embedder
+    image: "{{ stereo_embedder_image }}:{{ stereo_image_tag }}"
+    pull_policy: always
+    restart: {{ restart_policy }}
+    environment:
+      TZ: "{{ timezone }}"
+      EMBEDDER_ROOTS: /music
+      EMBEDDER_THREADS: "{{ stereo_embedder_threads }}"
+    volumes:
+      - music:/music:ro
+    networks:
+      - backend
+    cpus: {{ stereo_embedder_cpus }}
+    mem_limit: {{ stereo_embedder_mem_limit }}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+{% endif %}
+
+volumes:
+  music:
+    external: true
+  downloads:
+    external: true
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true
+  backend:
+    internal: true
+  # Shared with borgmatic so it can reach stereo_postgres by name.
+  backup:
+    name: {{ backend_network }}
+    external: true

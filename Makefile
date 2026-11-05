@@ -187,9 +187,9 @@ deploy-homebox: ## Deploy Homebox
 	@echo "$(BLUE)Deploying Homebox...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/homebox.yml $(VAULT_FLAG)
 
-deploy-album-sort: ## Deploy Album Sort
-	@echo "$(BLUE)Deploying Album Sort...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+deploy-stereo: ## Deploy Stereo
+	@echo "$(BLUE)Deploying Stereo...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/stereo.yml $(VAULT_FLAG)
 
 deploy-romm: ## Deploy RomM
 	@echo "$(BLUE)Deploying RomM...$(NC)"
