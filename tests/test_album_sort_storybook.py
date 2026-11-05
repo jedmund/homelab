@@ -40,7 +40,7 @@ const komodo = {{
             config = result['calls'][0]['params']['config']
             compose = json.loads(config['file_contents'])
             service = compose['services']['storybook']
-            self.assertEqual(service['image'], 'registry.atelier.house/jedmund/album-sort/storybook:' + 'a' * 40)
+            self.assertEqual(service['image'], 'registry.atelier.house/jedmund/stereo-app/storybook:' + 'a' * 40)
             self.assertEqual(service['networks'], ['proxy-network'])
             self.assertNotIn('ports', service)
             self.assertIn('tinyauth@file', service['labels'].values())
