@@ -30,6 +30,9 @@ stereo_data_path: /data
 # them, on the same volume so handoff can hardlink.
 stereo_slskd_download_path: /downloads/music
 stereo_qbittorrent_download_path: /downloads/stereo
+# Category Stereo adds torrents under. Its save path is set in qBittorrent and
+# must be stereo_qbittorrent_download_path as qBittorrent sees it (MUSIC-167).
+stereo_qbittorrent_category: stereo
 stereo_quarantine_path: /downloads/stereo-quarantine
 stereo_watch_interval: "30000"
 stereo_scan_concurrency: "4"

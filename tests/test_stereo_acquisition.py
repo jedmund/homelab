@@ -24,6 +24,7 @@ class AcquisitionHandoffTests(unittest.TestCase):
         self.assertEqual(self.rendered['volumes']['downloads'], {'external': True})
         self.assertEqual(self.service['environment']['SLSKD_DOWNLOAD_DIR'], '/downloads/music')
         self.assertEqual(self.service['environment']['DOWNLOADS_PATH'], '/downloads/stereo')
+        self.assertEqual(self.service['environment']['QBITTORRENT_CATEGORY'], 'stereo')
         self.assertEqual(self.service['environment']['QUARANTINE_PATH'], '/downloads/stereo-quarantine')
 
     def test_quarantine_does_not_overlap_download_or_library_roots(self):
