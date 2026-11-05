@@ -108,13 +108,13 @@ gitlab_cache_s3_client_image: amazon/aws-cli:2.37.4
 # intended.
 gitlab_registry_cleanup_enabled: true
 gitlab_registry_cleanup_name_regex: '([0-9a-f]{8}|[0-9a-f]{64})'
-# Per-project replacements for the regex above. album-sort tags every
+# Per-project replacements for the regex above. stereo-app tags every
 # Storybook build with a full 40-character SHA, and nothing in that project
 # deploys a pinned full SHA (the app uses short SHAs and `latest`), so those
 # tags expire too. keep_n and older_than below still protect the current main
 # catalog and recent merge-request previews.
 gitlab_registry_cleanup_project_name_regex:
-  jedmund/album-sort: '([0-9a-f]{8}|[0-9a-f]{40}|[0-9a-f]{64})'
+  jedmund/stereo-app: '([0-9a-f]{8}|[0-9a-f]{40}|[0-9a-f]{64})'
 # Keep this many of the most recent matching tags per repository, regardless
 # of age, so a rollback target always survives.
 gitlab_registry_cleanup_keep_n: 10

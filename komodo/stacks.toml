@@ -1288,7 +1288,7 @@ const REVIEW_DOMAIN = 'review.atelier.house'
 const PROXY_NETWORK = 'proxy-network'
 const AUTH_MIDDLEWARE = 'tinyauth@file'
 const CERTIFICATE_RESOLVER = 'letsencrypt'
-const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/album-sort/storybook'
+const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/stereo-app/storybook'
 
 const required = (name: string): string => {
   const value = String(ARGS[name] ?? '').trim()
