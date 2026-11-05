@@ -99,7 +99,7 @@ gitlab_cache_s3_client_image: amazon/aws-cli:2.37.4
 # Everything else is spared without needing a keep-list: `latest` and `main`,
 # branch-name tags (feat-*, chore-*, b0-*), the ci-* builder images CI itself
 # depends on, the mr-* storybook review tags, and the 40-character full SHAs
-# that album-sort and kaneo publish. That last one matters: roles/kaneo pins
+# that Stereo and kaneo publish. That last one matters: roles/kaneo pins
 # an immutable full-SHA tag, so a pattern that expired it would break that
 # deploy on the next run.
 #

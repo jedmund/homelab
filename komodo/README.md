@@ -177,7 +177,7 @@ both changed service images and lookup failures. It sends one Custom alert to
 `homelab-operations` only when either list is nonempty. A no-change run remains
 visible only in Komodo execution history.
 
-The excluded stacks are `line`, `musicbrainz`, `album-sort`, `strudel`, `gitlab`,
+The excluded stacks are `line`, `musicbrainz`, `stereo`, `strudel`, `gitlab`,
 `vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, `sglang`, `kaneo`, and `kaneo-inspection`.
 They use local builds, private registry paths without the shared Komodo
 credential, externally merged Compose files, or inactive profiles that make a
@@ -356,9 +356,9 @@ The resource name is `kizuna-storybook-mr-<iid>`. GitLab CI supplies deployment
 and stop events. The stop operation removes the review containers and Stack
 resource. Review containers have no published host port.
 
-## Album Sort Storybook catalogs
+## Stereo Storybook catalogs
 
-The separate `album-sort-storybook` Action accepts `operation` (`deploy` or
+The separate `stereo-storybook` Action accepts `operation` (`deploy` or
 `destroy`), `target` (`main` or a positive MR IID), and a full lowercase 40-character
 `revision` for deployment. CI cannot destroy main. Registry, host, network, router,
 authentication and image repository are derived inside the Action, never from CI
@@ -370,19 +370,19 @@ persistent volumes. Deletion is idempotent and preserves Kizuna resources.
 Activation is a separate requested operation:
 
 1. Verify existing wildcard DNS/TLS and TinyAuth/PocketID access on the gateway.
-2. Create a GitLab deploy token scoped to read the Album Sort registry. Store
-   `vault_album_sort_storybook_registry_username` and
-   `vault_album_sort_storybook_registry_password` in the encrypted Album Sort
-   vault. After authorization, run the Album Sort playbook with
-   `--tags storybook-registry -e album_sort_storybook_registry_enabled=true`.
-   This writes `/etc/komodo/album-sort-storybook/config.json`, visible through
+2. Create a GitLab deploy token scoped to read the Stereo registry. Store
+   `vault_stereo_storybook_registry_username` and
+   `vault_stereo_storybook_registry_password` in the encrypted Stereo
+   vault. After authorization, run the Stereo playbook with
+   `--tags storybook-registry -e stereo_storybook_registry_enabled=true`.
+   This writes `/etc/komodo/stereo-storybook/config.json`, visible through
    Periphery's existing writable `/etc/komodo` mount. The Action wraps Compose
    config/pull/up/run with that dedicated `DOCKER_CONFIG`. Komodo registry login
    fields stay empty because its shared login would replace Kizuna credentials.
-3. Create dedicated user `album-sort-storybook-ci`. Preview Resource Sync with
+3. Create dedicated user `album-sort-storybook-ci` (it keeps its pre-Stereo name). Preview Resource Sync with
    resources and user groups included; apply only the new Action/group. Verify
    execute-only permission on this Action, without generic Stack write access.
-4. Set Album Sort's dedicated masked `KOMODO_STORYBOOK_API_KEY` and
+4. Set Stereo's dedicated masked `KOMODO_STORYBOOK_API_KEY` and
    `KOMODO_STORYBOOK_API_SECRET`, plus `KOMODO_URL`. Review jobs require these
    on trusted same-project MR branches. Fork pipelines must not receive them.
 5. Enable GitLab **Prevent outdated deployment jobs** and disable retries of
@@ -401,11 +401,11 @@ health does not prove private access or revision correctness. Diagnose image pul
 failures in the dedicated registry account, router failures in Traefik, and action
 failures in Komodo's update logs.
 
-### Album Sort activation — 2026-09-17
+### Stereo activation — 2026-09-17
 
-The `album-sort-storybook` Action and execute-only `album-sort-storybook-ci` group
+The `stereo-storybook` Action and execute-only `stereo-storybook-ci` group
 are applied. The dedicated registry credential is installed on `nuc-mini` in
-`/etc/komodo/album-sort-storybook/config.json`. The application CI identity sees
+`/etc/komodo/stereo-storybook/config.json`. The application CI identity sees
 only this Action and has no generic Stack access. Masked credentials support
 trusted same-project MR jobs; parent-project fork pipelines and outdated
 deployment retries are disabled.
@@ -421,7 +421,7 @@ GitLab pipeline 3785 validated and published the image. Docker Hub rate-limited
 the deployment job's Node image, so initial activation used the exact CI script
 from the control machine with the dedicated identity. The CI mirror correction
 and application activation record are tracked in
-[Album Sort MR 349](https://git.atelier.house/jedmund/album-sort/-/merge_requests/349).
+[Stereo MR 349](https://git.atelier.house/jedmund/stereo-app/-/merge_requests/349).
 
 ## Retired resources
 

@@ -147,7 +147,7 @@ is defined in the AI role.
 
 The shared `docker_pull_policy` is `always`. Redeploying a floating tag can
 therefore install a newer image without a repository change. Some roles have
-an explicit pull or build policy; Album Sort, for example, always pulls.
+an explicit pull or build policy; Stereo, for example, always pulls.
 
 To request cached images for a role that uses the shared setting:
 

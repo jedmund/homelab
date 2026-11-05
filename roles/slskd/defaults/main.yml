@@ -9,7 +9,7 @@ slskd_domain: sl.atelier.house
 slskd_web_port: 5030
 slskd_listen_port: 50300
 
-# API key for service integrations such as Album Sort, set in the slskd vault.
+# API key for service integrations such as Stereo, set in the slskd vault.
 # Empty disables it. slskd reads it from SLSKD_API_KEY as role;cidr;key.
 slskd_api_key: ""
 slskd_api_key_role: ReadWrite

@@ -98,24 +98,24 @@ Shared secrets used by multiple stacks.
 | `vault_degoog_settings_password` | Degoog settings password; required to manage engines and extensions |
 | `vault_degoog_4play_password` | Password embedded in the private 4play transport WebSocket path |
 
-### group_vars/album_sort/vault.yml
+### group_vars/stereo/vault.yml
 
-Album Sort pulls CI-built images. Deployment, proxy trust, and encryption-key
-requirements are documented in the [role runbook](../roles/album_sort/README.md).
+Stereo pulls CI-built images. Deployment, proxy trust, and encryption-key
+requirements are documented in the [role runbook](../roles/stereo/README.md).
 
 | Variable | Description |
 | --- | --- |
-| `album_sort_apple_music_team_id` | Apple Music API team ID |
-| `album_sort_apple_music_key_id` | Apple Music API key ID |
-| `album_sort_apple_music_private_key` | Apple Music API private key |
-| `album_sort_discogs_token` | Discogs API token |
-| `album_sort_lastfm_api_key` | Last.fm API key for track popularity; optional, popularity lookups stay idle while it is unset |
-| `vault_album_sort_registry_username` | GitLab deploy-token username with `read_registry` access |
-| `vault_album_sort_registry_password` | GitLab deploy-token password |
-| `vault_album_sort_oidc_client_id` | PocketID client ID |
-| `vault_album_sort_oidc_client_secret` | PocketID client secret |
-| `vault_album_sort_user_secret_encryption_key` | Persistent canonical base64 of 32 random bytes; preserve across deployments |
-| `vault_album_sort_postgres_password` | Password for the `album_sort` Postgres role; generate with `openssl rand -hex 32`. Also read by the backup role for the nightly `pg_dump` |
+| `stereo_apple_music_team_id` | Apple Music API team ID |
+| `stereo_apple_music_key_id` | Apple Music API key ID |
+| `stereo_apple_music_private_key` | Apple Music API private key |
+| `stereo_discogs_token` | Discogs API token |
+| `stereo_lastfm_api_key` | Last.fm API key for track popularity; optional, popularity lookups stay idle while it is unset |
+| `vault_stereo_registry_username` | GitLab deploy-token username with `read_registry` access |
+| `vault_stereo_registry_password` | GitLab deploy-token password |
+| `vault_stereo_oidc_client_id` | PocketID client ID |
+| `vault_stereo_oidc_client_secret` | PocketID client secret |
+| `vault_stereo_user_secret_encryption_key` | Persistent canonical base64 of 32 random bytes; preserve across deployments |
+| `vault_stereo_postgres_password` | Password for the `stereo` Postgres role; generate with `openssl rand -hex 32`. Also read by the backup role for the nightly `pg_dump` |
 
 ### group_vars/aurral/vault.yml
 
@@ -352,7 +352,7 @@ See the [MusicBrainz runbook](../roles/musicbrainz/README.md).
 
 | Variable | Description |
 | --- | --- |
-| `multi_scrobbler_lze_token` | Local ListenBrainz-compatible ingress token for Album Sort |
+| `multi_scrobbler_lze_token` | Local ListenBrainz-compatible ingress token for Stereo |
 | `multi_scrobbler_plex_token` | Plex token |
 | `multi_scrobbler_lastfm_api_key` | Last.fm API key |
 | `multi_scrobbler_lastfm_api_secret` | Last.fm API secret |
@@ -453,11 +453,11 @@ Setup, DNS, Resend verification, and the upgrade procedure are in the
 | `slskd_slsk_password` | Soulseek password |
 | `slskd_web_username` | slskd web UI username |
 | `slskd_web_password` | slskd web UI password |
-| `slskd_api_key` | Optional API key shared by integrations such as Aurral and Album Sort; 16 to 255 characters without semicolons. Generate with `openssl rand -hex 32`. Leave unset to disable |
+| `slskd_api_key` | Optional API key shared by integrations such as Aurral and Stereo; 16 to 255 characters without semicolons. Generate with `openssl rand -hex 32`. Leave unset to disable |
 
 The API key uses role `slskd_api_key_role` (default `ReadWrite`) and is accepted
 from `slskd_api_key_cidr` (default any address). Every integration using it gets
-the same role and is revoked together. Aurral and Album Sort share the Docker
+the same role and is revoked together. Aurral and Stereo share the Docker
 network with slskd and connect to `http://slskd:5030`; the `sl.atelier.house`
 route sits behind tinyauth.
 

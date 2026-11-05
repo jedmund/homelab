@@ -99,10 +99,10 @@ postgresql_databases:
       hostname: hugginghack-postgres
       username: {{ hugginghack_db_user }}
       password: "{{ hugginghack_db_password }}"
-    - name: {{ album_sort_db_name }}
-      hostname: album_sort_postgres
-      username: {{ album_sort_db_user }}
-      password: "{{ album_sort_db_password }}"
+    - name: {{ stereo_db_name }}
+      hostname: stereo_postgres
+      username: {{ stereo_db_user }}
+      password: "{{ stereo_db_password }}"
 
 # Native MariaDB hooks for RomM and the phpBB board. Using root since
 # MARIADB_ROOT_PASSWORD is what's set on the containers; mysqldump needs
