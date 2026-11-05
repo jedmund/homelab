@@ -178,7 +178,7 @@ both changed service images and lookup failures. It sends one Custom alert to
 visible only in Komodo execution history.
 
 The excluded stacks are `line`, `musicbrainz`, `album-sort`, `strudel`, `gitlab`,
-`vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, and `sglang`.
+`vane`, `kibble`, `petlibro`, `matrix`, `backup`, `ai`, `vllm`, `sglang`, and `kaneo`.
 They use local builds, private registry paths without the shared Komodo
 credential, externally merged Compose files, or inactive profiles that make a
 whole-stack registry check unreliable. `infra-periphery-gaming-pc` and
