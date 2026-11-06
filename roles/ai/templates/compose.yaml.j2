@@ -7,7 +7,8 @@ services:
     container_name: llama-swap
     restart: {{ restart_policy }}
     ports:
-      - {{ llama_swap_port }}:8080
+      - "127.0.0.1:{{ llama_swap_port }}:8080"
+      - "{{ ai_llama_swap_bind_address }}:{{ llama_swap_port }}:8080"
     volumes:
       - ./config/llama-swap.yaml:/app/config.yaml
       - type: bind

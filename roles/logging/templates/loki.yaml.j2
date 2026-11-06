@@ -1,0 +1,56 @@
+# {{ ansible_managed }}
+auth_enabled: false
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+common:
+  path_prefix: /var/lib/loki
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+schema_config:
+  configs:
+    - from: '2026-01-01'
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+storage_config:
+  aws:
+    endpoint: logging-garage:3900
+    bucketnames: {{ logging_bucket }}
+    region: {{ logging_region }}
+    access_key_id: ${LOKI_S3_ACCESS_KEY}
+    secret_access_key: ${LOKI_S3_SECRET_KEY}
+    insecure: true
+    s3forcepathstyle: true
+  tsdb_shipper:
+    active_index_directory: /var/lib/loki/index
+    cache_location: /var/lib/loki/index-cache
+ingester:
+  wal:
+    enabled: true
+    dir: /var/lib/loki/wal
+  chunk_encoding: snappy
+compactor:
+  working_directory: /var/lib/loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: s3
+limits_config:
+  retention_period: {{ logging_retention_days | int * 24 }}h
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  per_stream_rate_limit: 8MB
+  per_stream_rate_limit_burst: 16MB
+  max_global_streams_per_user: 20000
+  allow_structured_metadata: true
+analytics:
+  reporting_enabled: false

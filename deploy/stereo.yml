@@ -1,0 +1,6 @@
+---
+- name: Deploy stereo stack
+  hosts: stereo
+  become: true
+  roles:
+    - stereo

@@ -1,0 +1,6 @@
+---
+- name: Deploy phpBB board stack
+  hosts: phpbb
+  become: true
+  roles:
+    - phpbb

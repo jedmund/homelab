@@ -1,0 +1,39 @@
+#!/bin/sh
+# Runs phpBB's CLI database updater against the deployed board.
+#
+# The code overlay already replaced the board files with the image's phpBB
+# version, so the updater only needs to run in db_only mode. phpBB's
+# updater lives inside the install/ directory, which the entrypoint removes
+# after install: this script materializes it from the pristine copy for the
+# duration of the update and removes it again, so the board never serves
+# with install/ present.
+#
+#   docker compose -f /opt/docker/phpbb/compose.yaml exec phpbb phpbb-update
+set -eu
+
+HTML=/var/www/html
+PRISTINE=/usr/share/phpbb
+
+if [ "$(id -u)" != "0" ]; then
+    echo "phpbb-update: must run as root; the container already does" >&2
+    exit 1
+fi
+if [ ! -s "$HTML/config.php" ]; then
+    echo "phpbb-update: board is not installed" >&2
+    exit 1
+fi
+if [ -e "$HTML/cache/install_lock" ]; then
+    echo "phpbb-update: cache/install_lock exists; resolve the unfinished install first" >&2
+    exit 1
+fi
+
+if [ ! -d "$HTML/install" ]; then
+    cp -a "$PRISTINE/install" "$HTML/install"
+fi
+
+printf 'updater:\n  type: db_only\n  extensions: []\n' > /tmp/phpbb-updater.yaml
+php "$HTML/install/phpbbcli.php" update /tmp/phpbb-updater.yaml
+rm -f /tmp/phpbb-updater.yaml
+rm -rf "$HTML/install"
+rm -f "$HTML/cache"/data_*.php
+echo "phpbb-update: board updated"

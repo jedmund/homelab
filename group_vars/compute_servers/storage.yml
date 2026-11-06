@@ -110,4 +110,44 @@ nfs_volumes:
       device: ":{{ nfs_base_path }}/Files/.data/HuggingHack"
       o: "{{ nfs_base_opts }}"
 
+  # phpBB board (board.fireplace.cafe): mutable board data. Attachments,
+  # upgrade stores, extensions, styles, and avatars grow without bound and do
+  # not belong on the NUC root filesystem. The board code, config.php, and
+  # cache stay in NUC-local volumes (phpbb-root, phpbb-cache). The
+  # Files/.data/PhpBB subdirectories are created by roles/phpbb's seed init.
+  - name: phpbb-files
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/PhpBB/files"
+      o: "{{ nfs_base_opts }}"
+
+  - name: phpbb-store
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/PhpBB/store"
+      o: "{{ nfs_base_opts }}"
+
+  - name: phpbb-ext
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/PhpBB/ext"
+      o: "{{ nfs_base_opts }}"
+
+  - name: phpbb-styles
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/PhpBB/styles"
+      o: "{{ nfs_base_opts }}"
+
+  - name: phpbb-avatars
+    driver: local
+    driver_opts:
+      type: nfs
+      device: ":{{ nfs_base_path }}/Files/.data/PhpBB/avatars"
+      o: "{{ nfs_base_opts }}"
+
 # Note: docker_base_path is defined in docker.yml to avoid duplication

@@ -6,8 +6,10 @@ This role does not back up every homelab host or every Docker volume.
 
 The Borgmatic image builds when its Dockerfile or build settings change, when
 the local image is missing, or when `backup_force_rebuild` is true. Configuration
-and script changes recreate the stack in the normal deployment without an
-additional build or restart handler. See
+and startup-script changes recreate the stack in the normal deployment without
+an additional build or restart handler. The post-backup mirror hook is read
+fresh on each invocation from the mounted scripts directory; updating it does
+not restart an active backup. See
 [local image builds](../../docs/operations.md#local-image-builds) for the initial
 fingerprint rebuild and retry behavior.
 
@@ -241,3 +243,29 @@ With Minecraft enabled, Borgmatic's [local executable setting](https://torsion.o
 selects `borg-locked.sh`, which holds a shared transfer lock for each Borg
 operation. The pull hook takes the same lock exclusively through publication.
 Use this wrapper for manual archive creation to avoid racing a snapshot pull.
+
+## Grafana verification metrics
+
+The role runs `scripts/metrics.py` at deployment and every five minutes as root.
+It reuses the read-only `verify-backup-status.sh` checks and publishes numeric
+results under `/opt/docker/backup/metrics/backup.prom`. The logging stack mounts
+that directory read-only and serves it privately to Prometheus. No archive
+contents, credentials, or archive names are exported. Borg metadata reads use
+`TZ=UTC` because Borg 1.x JSON timestamps omit their local UTC offset.
+
+Metrics include collection time, verification success, repository contention,
+last observed local archive/Core/snapshot timestamps and complete verification time, and the last successful
+Prowlarr restore proof. Failed checks preserve previously verified timestamps;
+their age and collection freshness must be evaluated together. Repository locks
+are respected. A held lock makes verification unavailable until the active
+operation completes; it is not proof that the backup failed.
+
+Successful `verify-prowlarr-restore.sh` runs record an epoch in
+`restore-tests/prowlarr-last-success`. Missing proof remains unknown; deploying
+the metrics collector does not manufacture historical evidence. The test proves
+one SQLite dump can be extracted and checked, not whole-system recoverability.
+
+The NAS mirror excludes `lock.exclusive` and `lock.roster` while copying under
+the local Borg lock. These live coordination files must not become persistent
+locks in the mirror. Clear a stale lock only after confirming its owner has
+exited and no Borg or rsync operation is running against that repository.

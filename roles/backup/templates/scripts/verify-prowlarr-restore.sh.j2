@@ -58,3 +58,5 @@ integrity="$(borg_exec sqlite3 "$container_database" 'PRAGMA integrity_check;')"
 
 schema_bytes="$(printf '%s' "$schema" | wc -c | tr -d ' ')"
 printf 'Prowlarr restore verification passed: schema_bytes=%s integrity=%s\n' "$schema_bytes" "$integrity"
+date +%s > "$RESTORE_TMP_ROOT/prowlarr-last-success.tmp"
+mv "$RESTORE_TMP_ROOT/prowlarr-last-success.tmp" "$RESTORE_TMP_ROOT/prowlarr-last-success"

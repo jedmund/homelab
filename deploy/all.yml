@@ -139,8 +139,8 @@
 - import_playbook: granblue.yml
   tags: [granblue]
 
-- import_playbook: album_sort.yml
-  tags: [album_sort]
+- import_playbook: stereo.yml
+  tags: [stereo]
 
 - import_playbook: photon.yml
   tags: [photon, geo]
@@ -242,6 +242,10 @@
 - import_playbook: matrix.yml
   tags: [matrix]
 
+# phpBB forum stack (board.fireplace.cafe)
+- import_playbook: phpbb.yml
+  tags: [phpbb]
+
 # AI stack (targets the `ai` group — currently `max` only)
 # Includes gpu_tools role (hwsummary, gpu-burn helpers in /usr/local/bin)
 - import_playbook: ai.yml
@@ -269,6 +273,13 @@
 
 - import_playbook: minecraft.yml
   tags: [minecraft]
+
+# Retained logging backend before collectors.
+- import_playbook: logging.yml
+  tags: [logging]
+
+- import_playbook: vector.yml
+  tags: [vector]
 
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml

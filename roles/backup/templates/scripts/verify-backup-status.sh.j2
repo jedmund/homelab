@@ -34,10 +34,10 @@ require_fresh() {
     epoch="$2"
     now="$(date +%s)"
     age=$((now - epoch))
+    printf '%s_age_seconds=%s\n' "$label" "$age"
     if [ "$age" -lt 0 ] || [ "$age" -gt "$MAX_AGE_SECONDS" ]; then
         fail "$label is stale: age_seconds=$age threshold_seconds=$MAX_AGE_SECONDS"
     fi
-    printf '%s_age_seconds=%s\n' "$label" "$age"
 }
 
 archive_record() {
@@ -54,6 +54,9 @@ archive_record() {
             "BORG_SECURITY_DIR=$LOCAL_BORG_SECURITY_DIR"
         )
     fi
+    # Borg 1.x serializes local timestamps without offsets. Request UTC so
+    # the JSON timestamp has the same interpretation on host and container.
+    borg_env+=(TZ=UTC)
     if [ "$BORG_DIRECT" = "true" ]; then
         env "${borg_env[@]}" borg list --json --last 1 "$repository"
     else
@@ -134,12 +137,12 @@ gzip -t "$CORE_BACKUP_ROOT/Stats.gz" || fail "Stats.gz is not valid gzip"
 printf 'core_backup=%s required_artifacts=%s\n' "$core_backup_name" "{{ komodo_core_required_artifacts | length }}+Stats.gz"
 
 local_record="$(archive_record "$LOCAL_REPOSITORY")" || fail "cannot read newest local Borg archive"
-nas_record="$(archive_record "$NAS_REPOSITORY")" || fail "cannot read newest NAS Borg archive"
 IFS=$'\t' read -r local_id local_epoch local_name <<<"$local_record"
+require_fresh borg_archive "$local_epoch"
+nas_record="$(archive_record "$NAS_REPOSITORY")" || fail "cannot read newest NAS Borg archive"
 IFS=$'\t' read -r nas_id nas_epoch nas_name <<<"$nas_record"
 [ "$local_id" = "$nas_id" ] || fail "NAS divergence: local_archive_id=$local_id nas_archive_id=$nas_id"
 [ "$local_epoch" = "$nas_epoch" ] || fail "NAS archive timestamp differs for matching archive ID $local_id"
-require_fresh borg_archive "$local_epoch"
 printf 'borg_archive=%s archive_id=%s nas_archive=%s\n' "$local_name" "$local_id" "$nas_name"
 
 {% if backup_minecraft_enabled %}

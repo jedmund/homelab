@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+apiVersion: 1
+datasources:
+  - name: Homelab logs
+    uid: homelab-loki
+    type: loki
+    access: proxy
+    url: http://logging-loki:3100
+    isDefault: true
+    editable: false
+    jsonData:
+      maxLines: 1000
+  - name: Homelab metrics
+    uid: homelab-prometheus
+    type: prometheus
+    access: proxy
+    url: http://logging-prometheus:9090
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s

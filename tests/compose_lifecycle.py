@@ -21,7 +21,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = 'community.docker.docker_compose_v2'
-BUILD_ROLES = ('line', 'backup', 'matrix', 'strudel', 'petlibro', 'musicbrainz')
+BUILD_ROLES = ('line', 'backup', 'matrix', 'strudel', 'petlibro', 'musicbrainz', 'phpbb')
 DEFAULT_ROLES = ('prowlarr', 'aurral', 'stash', 'flaresolverr', *BUILD_ROLES)
 
 

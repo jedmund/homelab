@@ -7,9 +7,18 @@ the Compose plugin:
 ```sh
 python3 tests/test_maintenance.py
 python3 tests/test_compose_task_order.py
+python3 tests/test_ai_access.py
+python3 tests/test_logging.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
+
+`python3 tests/test_logging.py --validate-configs` also checks rendered Loki,
+Prometheus, and Linux/macOS Vector configurations using their pinned container
+binaries, including event-time parsing and fallback behavior for Traefik files.
+It uses disposable credentials and does not contact managed hosts. Follow the
+[logging verification procedure](../roles/logging/README.md#verification) for
+end-to-end collection and restart tests.
 
 The static phase follows task includes and imports from each role's main task
 file to check recreation inputs in execution order. It also verifies handler
@@ -22,6 +31,12 @@ check mode, and removal of an optional service.
 The maintenance tests cover the staging allowlist, BentoPDF image/health and
 Procedure contracts, backup freshness and required artifacts, NFS archive
 divergence, Prowlarr SQLite integrity failure, and temporary-file cleanup.
+
+The AI access tests render both GPU modes, published bindings, and empty and
+populated firewall allowlists with disposable values. They also check firewall
+ordering before Compose deployment and Docker boot dependencies. They do not
+contact managed hosts. Actual allowed/denied connectivity and reboot persistence
+must be checked separately; see [AI access](../roles/ai/README.md#llama-swap-access).
 
 Integration checks require a local Docker Unix socket. They use a small
 `alpine:3.20` image, pulling it if absent, and create UUID-named Compose projects

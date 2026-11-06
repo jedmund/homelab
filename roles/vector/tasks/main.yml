@@ -1,0 +1,37 @@
+---
+- name: Create Vector directories
+  ansible.builtin.file:
+    path: "{{ vector_config_base }}/{{ item }}"
+    state: directory
+    mode: '0700'
+  loop: ['', data, tls, bin]
+  become: "{{ ansible_facts['os_family'] != 'Darwin' }}"
+
+- name: Configure the collector identity
+  ansible.builtin.import_tasks: tls.yml
+
+- name: Render Vector collection configuration
+  ansible.builtin.template:
+    src: vector.yaml.j2
+    dest: "{{ vector_config_base }}/vector.yaml"
+    mode: '0600'
+  become: "{{ ansible_facts['os_family'] != 'Darwin' }}"
+  register: vector_collection_config
+
+- name: Configure Linux Vector
+  ansible.builtin.include_tasks: linux.yml
+  when: ansible_facts['os_family'] != 'Darwin'
+
+- name: Configure macOS Vector
+  ansible.builtin.include_tasks: macos.yml
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: Verify collector readiness
+  ansible.builtin.uri:
+    url: http://127.0.0.1:18686/health
+    status_code: 200
+  register: vector_ready
+  until: vector_ready.status == 200
+  retries: 20
+  delay: 2
+  when: not ansible_check_mode

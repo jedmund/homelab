@@ -38,7 +38,7 @@
 
 - name: Configure passwordless sudo for ansible user
   copy:
-    content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL"
+    content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL\n"
     dest: "/etc/sudoers.d/{{ ansible_user }}"
     mode: "0440"
     validate: "visudo -cf %s"

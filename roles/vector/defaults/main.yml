@@ -1,0 +1,15 @@
+---
+vector_version: 0.60.0
+vector_image: "timberio/vector:{{ vector_version }}-debian"
+vector_backend_host: nuc-mini
+vector_backend_config: /opt/docker/logging
+vector_ingest_url: "https://{{ hostvars[vector_backend_host].ansible_host }}:13443"
+vector_config_base: "{{ (ansible_user_dir ~ '/.local/share/homelab-vector') if ansible_facts['os_family'] == 'Darwin' else '/opt/docker/vector' }}"
+vector_config_tls: "{{ vector_config_base ~ '/tls' if ansible_facts['os_family'] == 'Darwin' else '/etc/vector/tls' }}"
+vector_state_path: "{{ vector_config_base ~ '/data' if ansible_facts['os_family'] == 'Darwin' else '/var/lib/vector' }}"
+vector_macos_url: "https://github.com/vectordotdev/vector/releases/download/v{{ vector_version }}/vector-{{ vector_version }}-arm64-apple-darwin.tar.gz"
+vector_macos_checksum: sha256:aa5c9d89416b39f1a90a7f1a088a9ecbb8c8c3a5669fb86609c9d4a958fe1a28
+vector_macos_label: house.atelier.vector
+vector_buffer_bytes: 10737418240
+vector_source_max_age_seconds: 601200
+vector_extra_files: []

@@ -66,6 +66,12 @@ deploy-minecraft: ## Deploy Minecraft while preserving sleeping backends
 
 ##@ Deployment - Infrastructure
 
+deploy-logging: ## Deploy the retained logging backend
+	@$(ANSIBLE) -i $(INVENTORY) deploy/logging.yml $(VAULT_FLAG)
+
+deploy-vector: ## Deploy host log collectors
+	@$(ANSIBLE) -i $(INVENTORY) deploy/vector.yml $(VAULT_FLAG)
+
 deploy-infra: ## Deploy all infrastructure (core + gateway)
 	@echo "$(BLUE)Deploying infrastructure stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/all.yml $(VAULT_FLAG) --tags infra
@@ -181,9 +187,9 @@ deploy-homebox: ## Deploy Homebox
 	@echo "$(BLUE)Deploying Homebox...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/homebox.yml $(VAULT_FLAG)
 
-deploy-album-sort: ## Deploy Album Sort
-	@echo "$(BLUE)Deploying Album Sort...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+deploy-stereo: ## Deploy Stereo
+	@echo "$(BLUE)Deploying Stereo...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/stereo.yml $(VAULT_FLAG)
 
 deploy-romm: ## Deploy RomM
 	@echo "$(BLUE)Deploying RomM...$(NC)"

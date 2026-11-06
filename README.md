@@ -87,17 +87,20 @@ merged Compose file.
 ## Service runbooks
 
 [FlareSolverr](roles/flaresolverr/README.md) provides the private challenge-solving API.
+[Logs and metrics](roles/logging/README.md) covers the NAS-backed log store,
+Prometheus, Grafana dashboards, UniFi collection, and
+[host collectors](roles/vector/README.md).
 
 Use `make -C deploy list` for the current playbook list. The following roles
 have additional operating instructions:
 
 | Area | Runbooks |
 | --- | --- |
-| Applications | [Album Sort](roles/album_sort/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Dawarich](roles/dawarich/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [Granblue](roles/granblue/README.md), [HuggingHack](roles/hugginghack/README.md), [Inbox Zero](roles/inboxzero/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md), [n8n](roles/n8n/README.md), [Protomaps](roles/protomaps/README.md), [Vane](roles/vane/README.md) |
+| Applications | [Stereo](roles/stereo/README.md), [Aurral](roles/aurral/README.md), [BentoPDF](roles/bentopdf/README.md), [Dawarich](roles/dawarich/README.md), [Degoog](roles/degoog/README.md), [Degoog 4play](roles/degoog_4play/README.md), [Granblue](roles/granblue/README.md), [HuggingHack](roles/hugginghack/README.md), [Inbox Zero](roles/inboxzero/README.md), [Kaneo](roles/kaneo/README.md), [Kaneo inspections](roles/kaneo_inspection/README.md), [Karakeep](roles/karakeep/README.md), [Kizuna](roles/kizuna/README.md), [Mastodon](roles/social/README.md), [n8n](roles/n8n/README.md), [phpBB](roles/phpbb/README.md), [Protomaps](roles/protomaps/README.md), [Vane](roles/vane/README.md) |
 | Media | [Multi-Scrobbler](roles/multi_scrobbler/README.md), [MusicBrainz](roles/musicbrainz/README.md), [RomM](roles/romm/README.md) |
 | Geospatial | [Photon](roles/photon/README.md), [Valhalla](roles/valhalla/README.md) |
 | Feeders | [Kibble](roles/kibble/README.md), [Petlibro](roles/petlibro/README.md) |
-| Infrastructure | [Backup](roles/backup/README.md), [Crash capture on max](roles/crash_capture/README.md), [Docker boot recovery](roles/docker/NOTES.md), [fastfetch](roles/fastfetch/README.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md), [GitLab Runner on max](roles/development_linux/README.md), [GitLab Runner on mac-mini](roles/development_macos/README.md) |
+| Infrastructure | [Backup](roles/backup/README.md), [Dokploy](roles/dokploy/README.md), [Crash capture on max](roles/crash_capture/README.md), [Docker boot recovery](roles/docker/NOTES.md), [fastfetch](roles/fastfetch/README.md), [Gatus](roles/gatus/README.md), [Periphery](roles/infra_periphery/README.md), [GitLab upgrades](roles/gitlab/GITLAB_UPGRADE.md), [GitLab Runner on max](roles/development_linux/README.md), [GitLab Runner on mac-mini](roles/development_macos/README.md) |
 | GPU inference | [AI](roles/ai/README.md), [Model catalogue](roles/ai/MODELS.md), [vLLM](roles/vllm/README.md), [SGLang experiments](roles/sglang/README.md), [GPU host tools](roles/gpu_tools/README.md), [Model storage](roles/model_storage/README.md) |
 | Agent tooling | [Linux agent tooling](roles/agents_linux/README.md) |
 

@@ -29,6 +29,45 @@ type = "Custom"
 url = "http://gatus-relay:8080/komodo"
 
 [[stack]]
+name = "logging"
+description = "Retained logs, Prometheus metrics, private ingestion, and Grafana"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "logging"
+files_on_host = true
+run_directory = "/opt/docker/logging"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-nuc"
+description = "NUC container and host log collection"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-max"
+description = "Workstation container and host log collection"
+tags = ["homelab", "ansible", "max", "infrastructure"]
+[stack.config]
+server = "Workstation"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
 tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
@@ -447,13 +486,13 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "album-sort"
-description = "Album Sort"
+name = "stereo"
+description = "Stereo"
 tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
 [stack.config]
 server = "NUC"
 files_on_host = true
-run_directory = "/opt/docker/album-sort"
+run_directory = "/opt/docker/stereo"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
@@ -670,6 +709,39 @@ file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# Kaneo is pinned to a locally loaded image and upgraded only through
+# deploy/kaneo-upgrade.yml (backup, preflight, image rollback). Use Komodo for
+# visibility, logs, and restarts, not image changes. Not update-monitor: the
+# private fork registry has no shared Komodo credential.
+[[stack]]
+name = "kaneo"
+description = "Kaneo project management (fork)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+# Kaneo inspection adapter, Paseo daemon, and egress proxies. Deploy images only
+# through deploy/kaneo-inspection.yml during an idle inspection window: the
+# adapter follows the floating `inspection` tag, so a pulling redeploy here can
+# switch versions under active runs. Use Komodo for visibility, logs, and
+# restarts. Not update-monitor: private fork registry without a shared credential.
+[[stack]]
+name = "kaneo-inspection"
+description = "Kaneo agent inspections (adapter, Paseo daemon, egress proxies)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house", "ai"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo-inspection"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
 [[stack]]
 name = "photon"
 description = "Shared worldwide Photon geocoder for Kizuna and Dawarich"
@@ -753,6 +825,22 @@ run_directory = "/opt/docker/matrix"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+[[stack]]
+name = "phpbb"
+description = "phpBB forum at board.fireplace.cafe, built from the pinned official release"
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/phpbb"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+# The board image is built by Ansible from the pinned phpBB release tarball;
+# pulling would fail on the local tag, so the stack builds instead.
+auto_pull = false
+run_build = true
 
 [[stack]]
 name = "backup"
@@ -1232,9 +1320,9 @@ permissions = [
 ]
 
 [[action]]
-name = "album-sort-storybook"
-description = "Manage private Album Sort main and merge-request Storybook catalogs"
-tags = ["homelab", "album-sort", "ci", "review-app"]
+name = "stereo-storybook"
+description = "Manage private Stereo main and merge-request Storybook catalogs"
+tags = ["homelab", "stereo", "ci", "review-app"]
 [action.config]
 failure_alert = true
 file_contents = '''
@@ -1245,7 +1333,7 @@ const REVIEW_DOMAIN = 'review.atelier.house'
 const PROXY_NETWORK = 'proxy-network'
 const AUTH_MIDDLEWARE = 'tinyauth@file'
 const CERTIFICATE_RESOLVER = 'letsencrypt'
-const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/album-sort/storybook'
+const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/stereo-app/storybook'
 
 const required = (name: string): string => {
   const value = String(ARGS[name] ?? '').trim()
@@ -1275,8 +1363,10 @@ if (operation === 'destroy') {
     console.log(`${stackName} is already absent`)
   } else {
     const { config: current } = await komodo.read('GetStack', { stack: existing.id })
+    // Built from IMAGE_REPOSITORY so a repository rename can't leave catalog images behind.
+    const imagePattern = new RegExp(`${IMAGE_REPOSITORY.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}:[a-f0-9]{40}`, 'g')
     const images = [
-      ...new Set(String(current.file_contents ?? '').match(/registry\.atelier\.house\/jedmund\/album-sort\/storybook:[a-f0-9]{40}/g) ?? []),
+      ...new Set(String(current.file_contents ?? '').match(imagePattern) ?? []),
     ]
     // A merged MR's preview can be destroyed by storybook:stop and storybook:merged at
     // the same time. The losing run fails with "Resource is busy" while the other is
@@ -1353,7 +1443,7 @@ if (operation === 'destroy') {
     // Never let Komodo's shared docker login replace Kizuna credentials.
     registry_provider: '',
     registry_account: '',
-    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]',
+    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/stereo-storybook [[COMPOSE_COMMAND]]',
     compose_cmd_wrapper_include: ['config', 'pull', 'up', 'run'],
     project_name: stackName,
     auto_pull: true,
@@ -1380,8 +1470,9 @@ if (operation === 'destroy') {
 
 
 [[user_group]]
-name = "album-sort-storybook-ci"
+name = "stereo-storybook-ci"
+# A Komodo user account (it holds the CI API key), so it keeps its pre-Stereo name.
 users = ["album-sort-storybook-ci"]
 permissions = [
-  { target.type = "Action", target.id = "album-sort-storybook", level = "Execute" },
+  { target.type = "Action", target.id = "stereo-storybook", level = "Execute" },
 ]
