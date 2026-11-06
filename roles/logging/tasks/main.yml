@@ -1,0 +1,230 @@
+---
+- name: Validate logging inputs
+  ansible.builtin.assert:
+    that:
+      - logging_retention_days | int >= 30
+      - logging_retention_days | int <= 90
+      - logging_admin_password | length >= 32
+      - logging_garage_rpc_secret | length == 64
+      - logging_s3_access_key | length > 0
+      - logging_s3_secret_key | length >= 32
+      - logging_oidc_client_id | length > 0
+      - logging_oidc_client_secret | length >= 16
+      - logging_oidc_allowed_group | length > 0
+      - not logging_unifi_enabled or logging_unifi_password | length > 0
+      - not logging_unas_enabled or logging_unas_username | length > 0
+      - not logging_unas_enabled or logging_unas_password | length > 0
+    quiet: true
+  no_log: true
+
+- name: Install logging host dependencies
+  ansible.builtin.apt:
+    name: [nfs-common, python3-cryptography]
+    state: present
+
+- name: Mount the dedicated logging NAS path
+  ansible.posix.mount:
+    path: "{{ logging_nas_mount }}"
+    src: "{{ nas_server }}:{{ logging_nas_export }}"
+    fstype: nfs
+    opts: "rw,hard,nfsvers={{ nfs_version }},_netdev,nofail"
+    state: mounted
+
+- name: Verify logging storage is an NFS filesystem
+  ansible.builtin.command: "findmnt --noheadings --output FSTYPE --target {{ logging_nas_mount }}"
+  register: logging_mount_type
+  changed_when: false
+  failed_when: logging_mount_type.stdout | trim not in ['nfs', 'nfs4']
+  when: not ansible_check_mode
+
+- name: Create logging configuration directories
+  ansible.builtin.file:
+    path: "{{ config_base }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: ['', config, config/dashboards, env, scripts, backup]
+
+- name: Create private logging certificate directories
+  ansible.builtin.file:
+    path: "{{ config_base }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop: [tls, tls/clients]
+
+- name: Create logging data directories with application ownership
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: '0700'
+  loop:
+    - {path: "{{ config_base }}/loki-state", uid: 10001, gid: 10001}
+    - {path: "{{ config_base }}/grafana-data", uid: 472, gid: 0}
+    - {path: "{{ config_base }}/prometheus-data", uid: 65534, gid: 65534}
+    - {path: "{{ config_base }}/garage-meta", uid: "{{ puid }}", gid: "{{ pgid }}"}
+    - {path: "{{ logging_nas_directory }}", uid: "{{ puid }}", gid: "{{ pgid }}"}
+    - {path: "{{ logging_nas_directory }}/garage", uid: "{{ puid }}", gid: "{{ pgid }}"}
+
+- name: Configure logging server certificates
+  ansible.builtin.import_tasks: tls.yml
+
+- name: Render logging public configuration
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ config_base }}/config/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - {src: loki.yaml.j2, dest: loki.yaml}
+    - {src: nginx.conf.j2, dest: nginx.conf}
+    - {src: grafana.ini.j2, dest: grafana.ini}
+    - {src: datasources.yaml.j2, dest: datasources.yaml}
+    - {src: prometheus.yaml.j2, dest: prometheus.yaml}
+    - {src: dashboards.yaml.j2, dest: dashboards.yaml}
+  register: logging_public_config
+
+- name: Install managed Grafana dashboards
+  ansible.builtin.copy:
+    src: "dashboards/{{ item }}.json"
+    dest: "{{ config_base }}/config/dashboards/{{ item }}.json"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: [homelab-logs, web-traffic, ai-performance, unifi-network, host-capacity, storage-backups]
+  register: logging_dashboards
+
+- name: Install the pinned UniFi controller trust certificate
+  ansible.builtin.copy:
+    src: unifi-controller.crt
+    dest: "{{ config_base }}/config/unifi-controller.crt"
+    owner: root
+    group: root
+    mode: '0644'
+  when: logging_unifi_enabled
+  register: logging_unifi_certificate
+
+- name: Install pinned UNAS trust certificates
+  ansible.builtin.copy:
+    src: "unas-{{ item.name }}.crt"
+    dest: "{{ config_base }}/config/unas-{{ item.name }}.crt"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ logging_unas_devices }}"
+  when: logging_unas_enabled
+  register: logging_unas_certificates
+
+- name: Render private UNAS collector environments
+  ansible.builtin.template:
+    src: unas.env.j2
+    dest: "{{ config_base }}/env/unas-{{ item.name }}.env"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ logging_unas_devices }}"
+  when: logging_unas_enabled
+  no_log: true
+  register: logging_unas_environments
+
+- name: Render Garage private configuration
+  ansible.builtin.template:
+    src: garage.toml.j2
+    dest: "{{ config_base }}/config/garage.toml"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0600'
+  no_log: true
+  register: logging_garage_config
+
+- name: Render logging environment files
+  ansible.builtin.template:
+    src: "{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ ['storage', 'grafana'] + (['unpoller'] if logging_unifi_enabled else []) }}"
+  no_log: true
+  register: logging_environment
+
+- name: Install logging operational scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ config_base }}/scripts/{{ item }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop: [bootstrap.py, checks.py, snapshot.py]
+  register: logging_scripts
+
+- name: Render logging Compose configuration
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if logging_public_config.changed | default(false) or
+         logging_garage_config.changed | default(false) or
+         logging_environment.changed | default(false) or
+         logging_scripts.changed | default(false) or
+         logging_dashboards.changed | default(false) or
+         logging_unifi_certificate.changed | default(false) or
+         logging_unas_certificates.changed | default(false) or
+         logging_unas_environments.changed | default(false) or
+         logging_server_certificate.changed | default(false)
+         else 'auto' }}
+
+- name: Provision the logging object store
+  ansible.builtin.command: "python3 {{ config_base }}/scripts/bootstrap.py {{ config_base }}/env/storage.env"
+  register: logging_bootstrap
+  changed_when: "'changed=true' in logging_bootstrap.stdout"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify Loki readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ logging_query_port }}/ready"
+    status_code: 200
+  register: logging_loki_ready
+  until: logging_loki_ready.status == 200
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
+- name: Verify Prometheus readiness
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ logging_prometheus_port }}/-/ready"
+    status_code: 200
+  register: logging_prometheus_ready
+  until: logging_prometheus_ready.status == 200
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
+- name: Snapshot logging metadata for the existing backup service
+  ansible.builtin.command: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }} {{ logging_prometheus_port }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Schedule consistent logging metadata snapshots before backups
+  ansible.builtin.cron:
+    name: Logging metadata snapshots
+    user: root
+    minute: '30'
+    hour: '1'
+    job: "python3 {{ config_base }}/scripts/snapshot.py {{ config_base }} {{ logging_prometheus_port }}"

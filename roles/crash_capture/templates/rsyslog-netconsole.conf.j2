@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Netconsole receiver. Kernel messages arrive as raw UDP lines rather than
+# syslog frames, so they bypass the default ruleset and are written as
+# received, prefixed with the arrival time.
+module(load="imudp")
+
+template(name="netconsole_file" type="string"
+         string="{{ crash_capture_netconsole_log_dir }}/%fromhost-ip%.log")
+template(name="netconsole_line" type="string"
+         string="%timegenerated:::date-rfc3339% %rawmsg:::drop-last-lf%\n")
+
+ruleset(name="netconsole") {
+  action(type="omfile" dynaFile="netconsole_file" template="netconsole_line"
+         fileOwner="syslog" fileGroup="adm" fileCreateMode="0640")
+  stop
+}
+
+input(type="imudp" address="{{ ansible_host }}"
+      port="{{ crash_capture_netconsole_port }}" ruleset="netconsole")

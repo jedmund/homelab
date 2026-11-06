@@ -5,7 +5,7 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Aurral settings. Keep the stable release pinned so upgrades are deliberate.
 aurral_image: ghcr.io/lklynet/aurral
-aurral_image_tag: "2.8.0"
+aurral_image_tag: "2.10.0"
 aurral_port: 3001
 aurral_domain: aurral.atelier.house
 aurral_public_url: "https://{{ aurral_domain }}"

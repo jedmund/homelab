@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Log Corsair PSU readings every {{ crash_capture_psu_log_interval }}
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ crash_capture_psu_log_interval }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

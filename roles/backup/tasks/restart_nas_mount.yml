@@ -1,0 +1,69 @@
+---
+- name: Inspect Borgmatic before changing its NAS mount
+  community.docker.docker_container_info:
+    name: borgmatic
+  register: backup_borg_before_mount
+
+- name: Require idle backup processes before changing the NAS mount
+  community.docker.docker_container_exec:
+    container: borgmatic
+    argv:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+        names = {'borg', 'borgmatic', 'borgmatic.bin', 'rsync', 'pull-minecraft.sh'}
+        for path in Path('/proc').glob('[0-9]*/cmdline'):
+            try:
+                args = path.read_bytes().decode(errors="replace").split('\0')[:2]
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+            if any(Path(arg).name in names for arg in args):
+                raise SystemExit('Backup operation active; retry mount changes after it finishes')
+  register: backup_mount_idle
+  changed_when: false
+  failed_when: backup_mount_idle.rc | default(1) != 0
+  when:
+    - not ansible_check_mode
+    - backup_borg_before_mount.exists
+    - backup_borg_before_mount.container.State.Running
+
+- name: Recycle NAS mount with Borgmatic recovery
+  block:
+    # A running container pins the old NFS superblock and its timeout options.
+    - name: Release Borgmatic NAS bind before recycling the host mount
+      ansible.builtin.command: docker stop borgmatic
+      when:
+        - not ansible_check_mode
+        - backup_borg_before_mount.exists
+        - backup_borg_before_mount.container.State.Running
+      changed_when: true
+
+    - name: Stop NAS automount before restarting it
+      ansible.builtin.systemd_service:
+        name: "{{ nas_systemd_unit_basename }}.automount"
+        state: stopped
+
+    - name: Stop NAS mount before restarting automount
+      ansible.builtin.systemd_service:
+        name: "{{ nas_systemd_unit_basename }}.mount"
+        state: stopped
+
+    - name: Start NAS automount after restart
+      ansible.builtin.systemd_service:
+        name: "{{ nas_systemd_unit_basename }}.automount"
+        state: started
+        enabled: true
+
+    - name: Activate the new NAS mount before restoring Borgmatic
+      ansible.builtin.stat:
+        path: "{{ nas_mount_host_path }}/."
+        get_checksum: false
+  always:
+    - name: Restore previously running Borgmatic after mount maintenance
+      ansible.builtin.command: docker start borgmatic
+      when:
+        - not ansible_check_mode
+        - backup_borg_before_mount.exists
+        - backup_borg_before_mount.container.State.Running
+      changed_when: true

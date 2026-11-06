@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Weekly Docker cleanup. Each step runs even if an earlier one fails, and only
+# removes things nothing uses: named volumes other than CI runner caches are
+# never touched, because a stopped stack may still own its data.
+set -u
+log() { printf '%s %s\n' "$(date -Is)" "$*"; }
+run() { log "$*"; "$@" || log "failed ($?): $*"; }
+
+log "docker prune started"
+# Successfully exited containers only; failed ones stay for debugging.
+docker ps -aq --filter exited=0 | xargs -r docker rm
+# Unused images (tagged or not) created more than {{ docker_prune_unused_for }} ago.
+run docker image prune --all --force --filter "until={{ docker_prune_unused_for }}"
+run docker builder prune --force --filter "until={{ docker_prune_unused_for }}"
+# Anonymous volumes; named volumes need --all, which this deliberately avoids.
+run docker volume prune --force
+# GitLab Runner cache volumes are named but regenerable.
+docker volume ls --quiet --filter dangling=true | grep -E '^runner-.+-cache-' | xargs -r docker volume rm
+log "docker prune finished"

@@ -1,0 +1,17 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Apply per-model GPU power limits. nvidia-smi limits do not survive a
+# reboot or driver reload, so gpu-power-limits.service runs this at boot.
+set -eu
+
+nvidia-smi --query-gpu=pci.bus_id,name --format=csv,noheader |
+while IFS=, read -r bus name; do
+  name=$(printf '%s' "$name" | sed 's/^ *//')
+  case "$name" in
+{% for model, watts in gpu_tools_power_limits.items() %}
+    "{{ model }}")
+      nvidia-smi -i "$bus" -pl {{ watts }}
+      ;;
+{% endfor %}
+  esac
+done

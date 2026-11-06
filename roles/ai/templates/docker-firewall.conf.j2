@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Load the restriction before Docker restores published ports on boot.
+# Installing this drop-in does not restart Docker.
+[Unit]
+Requires=ai-llama-swap-firewall.service
+After=ai-llama-swap-firewall.service

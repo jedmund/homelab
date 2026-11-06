@@ -134,15 +134,6 @@ http:
       tls:
         certResolver: letsencrypt
 
-    # Plex - watch.{{ traefik_domain }}
-    plex:
-      rule: "Host(`watch.{{ traefik_domain }}`)"
-      service: plex
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: letsencrypt
-
     # Multi-scrobbler - scrobble.{{ traefik_domain }}
     multi-scrobbler:
       rule: "Host(`scrobble.{{ traefik_domain }}`)"
@@ -422,11 +413,6 @@ http:
         servers:
           - url: "http://{{ mini_server_ip }}:9999"
 
-    plex:
-      loadBalancer:
-        servers:
-          - url: "http://{{ mini_server_ip }}:32400"
-
     multi-scrobbler:
       loadBalancer:
         servers:
@@ -578,7 +564,7 @@ tcp:
       # catch-all). HostSNIRegexp uses Go regex, so we match any
       # subdomain depth under apps.atelier.house. This covers both
       # flat (test.apps.atelier.house) and Vercel-style
-      # (pr-42.album-sort.apps.atelier.house) preview hostnames.
+      # (pr-42.stereo.apps.atelier.house) preview hostnames.
       rule: "HostSNI(`dokploy.{{ traefik_domain }}`) || HostSNIRegexp(`^.+\\.apps\\.atelier\\.house$`)"
       tls:
         passthrough: true

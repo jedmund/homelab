@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Log Corsair PSU readings
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/host-health-report psu
+SyslogIdentifier=host-health
+TimeoutStartSec=1min

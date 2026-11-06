@@ -1,0 +1,6 @@
+---
+- name: Deploy protomaps stack
+  hosts: protomaps
+  become: true
+  roles:
+    - protomaps

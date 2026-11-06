@@ -80,9 +80,26 @@
 
 - name: Ensure Opencode config directory exists
   ansible.builtin.file:
-    path: "{{ opencode_config_dir }}"
+    path: "{{ item }}"
     state: directory
     mode: '0700'
+  loop:
+    - "{{ opencode_config_dir }}"
+    - "{{ opencode_config_dir }}/mcp"
+
+- name: Render Komodo MCP credential files
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+    content: "{{ item.content }}"
+  no_log: true
+  loop:
+    - dest: "{{ opencode_config_dir }}/mcp/komodo-api-key"
+      content: "{{ komodo_mcp_api_key }}"
+    - dest: "{{ opencode_config_dir }}/mcp/komodo-api-secret"
+      content: "{{ komodo_mcp_api_secret }}"
+  register: agents_linux_komodo_credentials
 
 - name: Deploy opencode.jsonc (atelier key from vault, host-local paths)
   ansible.builtin.template:

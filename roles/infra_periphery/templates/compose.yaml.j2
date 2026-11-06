@@ -13,7 +13,17 @@ services:
       # Core (on nuc-mini) connects inbound; the firewall scopes this to
       # the core host's IP.
       - {{ periphery_port }}:8120
+    # Registry update checks run inside this container and need the LAN
+    # resolver for registry.atelier.house.
+    dns: {{ docker_internal_dns_servers | to_json }}
     env_file: ./env/periphery.env
+    # Periphery reads every host process's /proc entries for system stats,
+    # which Docker's default AppArmor profile treats as ptrace and denies,
+    # about once a second, flooding the kernel log and netconsole. The
+    # profile is not a real boundary here: the container already holds the
+    # Docker socket, which is root-equivalent on the host.
+    security_opt:
+      - apparmor:unconfined
     volumes:
       - komodo-periphery-keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock

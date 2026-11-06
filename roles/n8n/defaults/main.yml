@@ -50,13 +50,11 @@ n8n_db_user: n8n
 n8n_instance_ai_model: qwen3.8
 n8n_instance_ai_model_url: "http://open_webui:8080/api"
 
-# Web search, optional. Reuses the SearXNG already running in the ai stack on
-# max (roles/ai), which has the JSON output format enabled for Open WebUI:
-# that same JSON API is what n8n's web search needs. Keep the port in sync
-# with searxng_port in roles/ai/defaults/main.yml.
-max_server_ip: "{{ hostvars['max'].ansible_host }}"
-n8n_instance_ai_searxng_port: 8889
-n8n_instance_ai_searxng_url: "http://{{ max_server_ip }}:{{ n8n_instance_ai_searxng_port }}"
+# Web search, optional. n8n's SearXNG client requests <url>/search?format=json
+# and reads url, title, and content, so pointing it at Degoog's /api prefix
+# reaches Degoog's JSON search (roles/degoog). Both containers share
+# proxy-network on nuc-mini.
+n8n_instance_ai_searxng_url: "http://degoog:4444/api"
 
 # n8n Sandbox Service: the isolated environment the Assistant writes and runs
 # code in, so generated code never executes on the n8n container itself.

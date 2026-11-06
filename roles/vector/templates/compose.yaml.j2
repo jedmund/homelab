@@ -1,0 +1,38 @@
+# {{ ansible_managed }}
+name: vector
+services:
+  vector:
+    image: {{ vector_image }}
+    container_name: vector
+    user: "0:0"
+    stop_grace_period: 30s
+    restart: {{ restart_policy | default('unless-stopped') }}
+    command: ["--config", "/etc/vector/vector.yaml"]
+    network_mode: host
+    volumes:
+      - ./vector.yaml:/etc/vector/vector.yaml:ro
+      - ./tls:/etc/vector/tls:ro
+      - ./data:/var/lib/vector
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - /var/log:/host/var/log:ro
+      - /run/log:/run/log:ro
+      - /etc/machine-id:/etc/machine-id:ro
+{% if inventory_hostname == 'nuc-mini' %}
+      - /opt/docker/gitlab/logs:/host/gitlab:ro
+      - traefik-logs:/host/traefik:ro
+{% endif %}
+{% if inventory_hostname == 'dokploy-vm' %}
+      - /etc/dokploy/traefik/dynamic:/host/dokploy-traefik:ro
+{% endif %}
+    logging:
+      driver: {{ logging_driver | default('json-file') }}
+      options:
+        max-size: "{{ logging_max_size | default('10m') }}"
+        max-file: "{{ logging_max_file | default('3') }}"
+{% if inventory_hostname == 'nuc-mini' %}
+volumes:
+  traefik-logs:
+    external: true
+    name: traefik_traefik-logs
+{% endif %}

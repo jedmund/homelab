@@ -1,0 +1,7 @@
+---
+- name: Deploy Minecraft on max
+  hosts: minecraft
+  become: true
+  roles:
+    - networks
+    - minecraft

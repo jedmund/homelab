@@ -1,0 +1,67 @@
+---
+- name: Inspect legacy application-owned Photon containers
+  community.docker.docker_container_info:
+    name: "{{ item }}"
+  loop:
+    - kizuna-geocoder
+    - dawarich_photon
+  register: photon_legacy_containers
+
+- name: Require the legacy geocoder cutovers before starting shared Photon
+  ansible.builtin.assert:
+    that:
+      - not item.exists
+    fail_msg: Follow roles/photon/README.md to retire application-owned Photon containers before sharing the index.
+  loop: "{{ photon_legacy_containers.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect the existing worldwide Photon volume
+  community.docker.docker_volume_info:
+    name: "{{ photon_data_volume }}"
+  register: photon_volume
+
+- name: Require the existing worldwide Photon volume
+  ansible.builtin.assert:
+    that:
+      - photon_volume.exists
+    fail_msg: "Prepare {{ photon_data_volume }} with a compatible worldwide index before deployment; see roles/photon/README.md."
+
+- name: Check for the Photon database
+  ansible.builtin.stat:
+    path: "{{ photon_volume.volume.Mountpoint }}/photon_data"
+    get_checksum: false
+  register: photon_database
+
+- name: Require the existing Photon database
+  ansible.builtin.assert:
+    that:
+      - photon_database.stat.isdir | default(false)
+      - photon_database.stat.uid | default(-1) == photon_uid
+      - photon_database.stat.gid | default(-1) == photon_gid
+    fail_msg: "Prepare the index in {{ photon_data_volume }} with the Photon UID/GID before deployment; see roles/photon/README.md."
+
+- name: Create Photon deployment directory
+  ansible.builtin.file:
+    path: "{{ config_base }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy Photon stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: auto
+    wait: true
+    wait_timeout: 180
+  register: compose_result

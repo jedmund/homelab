@@ -1,0 +1,10 @@
+---
+# fastfetch prints a system summary (OS, CPU, GPU, memory, disks) on every
+# managed machine. Ubuntu 24.04 has no package, so Debian hosts install the
+# upstream release .deb at this version; Arch and macOS hosts use their
+# package managers and follow those versions.
+fastfetch_version: "2.70.0"
+fastfetch_deb_arch: >-
+  {{ 'aarch64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else 'amd64' }}
+fastfetch_deb_url: >-
+  https://github.com/fastfetch-cli/fastfetch/releases/download/{{ fastfetch_version }}/fastfetch-linux-{{ fastfetch_deb_arch }}.deb

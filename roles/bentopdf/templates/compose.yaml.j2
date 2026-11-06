@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  bentopdf:
+    container_name: bentopdf
+    image: "{{ bentopdf_image_reference }}"
+    restart: {{ restart_policy }}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:{{ bentopdf_port }}/ || exit 1"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 20s
+    networks:
+      - proxy
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.bentopdf.rule: "Host(`{{ bentopdf_domain }}`)"
+      traefik.http.routers.bentopdf.entrypoints: "websecure"
+      traefik.http.routers.bentopdf.tls.certresolver: "letsencrypt"
+      traefik.http.routers.bentopdf.middlewares: "tinyauth@file"
+      traefik.http.services.bentopdf.loadbalancer.server.port: "{{ bentopdf_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

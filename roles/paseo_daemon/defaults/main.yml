@@ -8,8 +8,7 @@
 
 stack_name: paseo_daemon
 
-# Node runtime. Reuse the same brew formula openclaw pins so a single
-# node@24 install services both daemons.
+# Node runtime for the daemon and npm-installed agent tools.
 paseo_node_formula: node@24
 
 # Coding-agent CLIs the daemon brokers that ship as npm packages (Claude

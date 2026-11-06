@@ -1,7 +1,8 @@
 {
   "sources": [
     {
-      "type": "listenbrainz",
+      "type": "endpointlz",
+      "id": "album-sort",
       "name": "album-sort",
       "data": {
         "token": "{{ multi_scrobbler_lze_token }}"
@@ -9,6 +10,7 @@
     },
     {
       "type": "plex",
+      "id": "plex",
       "name": "plex",
       "data": {
         "token": "{{ multi_scrobbler_plex_token }}",
@@ -30,6 +32,7 @@
   "clients": [
     {
       "type": "lastfm",
+      "id": "lastfm",
       "name": "lastfm",
       "data": {
         "apiKey": "{{ multi_scrobbler_lastfm_api_key }}",

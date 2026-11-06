@@ -1,0 +1,95 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+x-logging: &logging
+  driver: {{ logging_driver }}
+  options:
+    max-size: {{ logging_max_size }}
+    max-file: "{{ logging_max_file }}"
+
+services:
+  socket-proxy:
+    image: {{ minecraft_socket_image }}
+    container_name: minecraft-socket-proxy
+    restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    environment:
+      CONTAINERS: "1"
+      NETWORKS: "1"
+      EVENTS: "1"
+      PING: "1"
+      VERSION: "1"
+      POST: "0"
+      ALLOW_START: "1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [control]
+    read_only: true
+    tmpfs: [/run]
+    logging: *logging
+
+  router:
+    image: {{ minecraft_router_image }}
+    container_name: minecraft-router
+    restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    depends_on: [socket-proxy]
+    environment:
+      IN_DOCKER: "true"
+      DOCKER_SOCKET: tcp://socket-proxy:2375
+      AUTO_SCALE_UP: "true"
+      AUTO_SCALE_DOWN: "false"
+      AUTO_SCALE_ASLEEP_MOTD: "Sleeping. Join to wake this world, then reconnect."
+      AUTO_SCALE_LOADING_MOTD: "Loading world. Please wait and reconnect."
+    ports:
+      - "{{ minecraft_port }}:25565/tcp"
+    networks: [minecraft, control]
+    logging: *logging
+
+{% for server in minecraft_servers %}
+  {{ server.name }}:
+    image: {{ minecraft_server_image }}
+    container_name: minecraft-{{ server.name }}
+    profiles: [backends]
+    restart: "no"
+    stop_grace_period: 360s
+    mem_limit: {{ server.limit }}
+    env_file:
+      - path: ./env/managed-{{ server.name }}.env
+        format: raw
+    environment:
+      EULA: "TRUE"
+      TYPE: NEOFORGE
+      VERSION: "1.21.1"
+      NEOFORGE_VERSION: "{{ server.neoforge }}"
+      INIT_MEMORY: 1G
+      MAX_MEMORY: {{ server.heap }}
+      OVERRIDE_SERVER_PROPERTIES: "false"
+      SKIP_SERVER_PROPERTIES: "true"
+      REPLACE_ENV_IN_PLACE: "false"
+      ENABLE_AUTOSTOP: "true"
+      AUTOSTOP_TIMEOUT_INIT: "{{ minecraft_idle_seconds }}"
+      AUTOSTOP_TIMEOUT_EST: "{{ minecraft_idle_seconds }}"
+      STOP_DURATION: "300"
+    volumes:
+      - ./{{ server.name }}/data:/data
+    networks: [minecraft]
+    labels:
+      mc-router.host: {{ server.hostname }}
+      mc-router.network: {{ minecraft_network }}
+      mc-router.auto-scale-up: "true"
+      mc-router.auto-scale-down: "false"
+      mc-router.auto-scale-wait-timeout: 25s
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *logging
+
+{% endfor %}
+networks:
+  minecraft:
+    external: true
+    name: {{ minecraft_network }}
+  control:
+    external: true
+    name: {{ minecraft_control_network }}

@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+# {{ ansible_managed }}
+"""Publish stopped-server copies; never stop or start a backend."""
+import contextlib
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path({{ minecraft_snapshot_root | to_json }})
+SOURCE = Path({{ config_base | to_json }})
+LOCK = Path('/run/minecraft-maintenance.lock')
+SERVERS = {{ minecraft_servers | map(attribute='name') | list | to_json }}
+ROUTER = 'minecraft-router'
+
+
+def run(*args, **kwargs):
+    return subprocess.run(args, check=True, **kwargs)
+
+
+def state(name):
+    result = subprocess.run(['docker', 'container', 'inspect', name], capture_output=True, text=True)
+    if result.returncode:
+        # Only a confirmed missing container is safe. Daemon errors fail closed.
+        if 'No such container' in result.stderr or 'No such object' in result.stderr:
+            return 'missing'
+        raise RuntimeError('Cannot inspect ' + name)
+    return json.loads(result.stdout)[0]['State']['Status']
+
+
+def stopped():
+    return all(state('minecraft-' + name) in ('missing', 'created', 'exited') for name in SERVERS)
+
+
+@contextlib.contextmanager
+def lock():
+    LOCK.mkdir()
+    owner = LOCK / 'owner'
+    owner.write_text(str(os.getpid()))
+    try:
+        yield
+    finally:
+        owner.unlink()
+        LOCK.rmdir()
+
+
+def recover():
+    marker = ROOT / 'router-recovery'
+    if marker.exists():
+        run('docker', 'start', ROUTER, stdout=subprocess.DEVNULL)
+        marker.unlink()
+    # systemd ExecStopPost can recover a lock left by SIGKILL. Never remove
+    # an Ansible lock (no owner file) or a lock owned by a live process.
+    owner = LOCK / 'owner'
+    if owner.exists():
+        pid = int(owner.read_text())
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            owner.unlink()
+            LOCK.rmdir()
+
+
+def snapshot(baseline=False, force=False):
+    ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with lock():
+        recover()
+        current = ROOT / 'current'
+        if not baseline and not force and current.exists():
+            stamp = int((current / 'snapshot-time').read_text())
+            if time.time() - stamp < 86400:
+                return
+        if not stopped():
+            print('Deferred: a backend is awake')
+            return
+        stage = ROOT / ('.partial-' + str(os.getpid()))
+        try:
+            if state(ROUTER) == 'running':
+                (ROOT / 'router-recovery').touch()
+                run('docker', 'stop', '-t', '30', ROUTER, stdout=subprocess.DEVNULL, timeout=45)
+            if not stopped():
+                print('Deferred: a backend woke before router stopped')
+                return
+            stage.mkdir(mode=0o700)
+            for name in SERVERS:
+                args = ['rsync', '-a']
+                if not baseline:
+                    args += ['--exclude=backups/', '--exclude=backup/', '--exclude=simplebackups/',
+                             '--exclude=world.bck*', '--exclude=logs/', '--exclude=bluemap/web/']
+                run(*args, str(SOURCE / name), str(stage) + '/', timeout=3600)
+            run('rsync', '-a', str(SOURCE / 'compose.yaml'), str(SOURCE / 'env'), str(stage) + '/', timeout=60)
+            (stage / 'snapshot-time').write_text(str(int(time.time())) + '\n')
+            destination = ROOT / (('baseline-' if baseline else 'snapshot-') + str(time.time_ns()))
+            stage.rename(destination)
+            link = ROOT / '.next'
+            link.unlink(missing_ok=True)
+            link.symlink_to(destination.name)
+            link.replace(ROOT / ('baseline' if baseline else 'current'))
+            if not baseline:
+                for old in ROOT.glob('snapshot-*'):
+                    if old != destination:
+                        shutil.rmtree(old)
+            print('Published ' + destination.name)
+        finally:
+            if stage.exists():
+                shutil.rmtree(stage)
+            recover()
+
+
+def export():
+    # Forced SSH command: no user-supplied path or shell arguments.
+    with lock():
+        current = ROOT / 'current'
+        assert current.is_dir(), 'No completed snapshot'
+        run('tar', '-C', str(current.resolve()), '-cf', '-', '.')
+
+
+def interrupted(signum, frame):
+    raise RuntimeError('Snapshot interrupted')
+
+
+if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, interrupted)
+    mode = sys.argv[1] if len(sys.argv) == 2 else 'snapshot'
+    if mode == 'recover':
+        recover()
+    elif mode == 'export':
+        export()
+    elif mode in ('snapshot', 'baseline', 'refresh'):
+        snapshot(mode == 'baseline', force=mode == 'refresh')
+    else:
+        raise SystemExit('Unsupported operation')

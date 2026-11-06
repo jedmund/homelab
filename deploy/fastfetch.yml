@@ -1,0 +1,9 @@
+---
+# Homebrew is not on PATH in macOS SSH sessions, so pin it for the play.
+- name: Install fastfetch
+  hosts: compute_servers
+  gather_facts: true
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  roles:
+    - fastfetch

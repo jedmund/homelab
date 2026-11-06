@@ -1,0 +1,15 @@
+---
+# Protomaps deployment overrides. See roles/protomaps/defaults/main.yml for
+# the full variable list.
+
+# Kizuna production plus local development servers. The basemap and assets
+# are public, so a localhost origin grants a browser on a developer machine
+# nothing it could not already fetch without CORS.
+#   5176: kizuna-app web dev server
+#   6006: Storybook default port
+#   6106: Storybook in the OpenUI widgets worktree
+protomaps_cors_origins:
+  - https://kizuna.fm
+  - http://localhost:5176
+  - http://localhost:6006
+  - http://localhost:6106

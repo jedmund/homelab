@@ -1,0 +1,1300 @@
+{
+  "uid": "homelab-storage-backups",
+  "title": "Storage and backup health",
+  "description": "UNAS pool/disk health and verified Borg backup, NAS mirror and restore freshness.",
+  "tags": [
+    "homelab",
+    "managed"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "type": "link",
+      "title": "Log browser",
+      "url": "/d/homelab-log-browser",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Web traffic",
+      "url": "/d/homelab-web-traffic",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "AI performance",
+      "url": "/d/homelab-ai-performance",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Network",
+      "url": "/d/homelab-unifi-network",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Hosts",
+      "url": "/d/homelab-host-capacity",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Storage & backups",
+      "url": "/d/homelab-storage-backups",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "nas",
+        "label": "NAS",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "homelab-prometheus"
+        },
+        "query": "label_values(unpoller_unas_device_present, host)",
+        "definition": "label_values(unpoller_unas_device_present, host)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Reporting NAS consoles",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "count(unpoller_unas_device_present{job=\"unas\",host=~\"$nas\"}) or vector(0)",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}} \u00b7 {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Backup verification passed",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "homelab_backup_verification_ok unless homelab_backup_repository_busy == 1",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}} \u00b7 {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Failed",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Passed",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Verifies archive freshness, matching local/NAS archive IDs, Core artifacts and Minecraft snapshot freshness. Check repository-busy state before interpreting a failure."
+    },
+    {
+      "id": 3,
+      "title": "Newest local Borg archive age",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "time() - homelab_backup_borg_archive_timestamp_seconds",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}} \u00b7 {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Newest local archive successfully read by Borg. Matching NAS mirror and complete backup verification are reported separately."
+    },
+    {
+      "id": 4,
+      "title": "Last successful Prowlarr restore proof",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "time() - homelab_backup_restore_timestamp_seconds",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}} \u00b7 {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Proof covers one restored Prowlarr SQLite dump; it does not prove every service can be restored. Missing means no recorded proof."
+    },
+    {
+      "id": 5,
+      "title": "Storage pool utilization",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "100 * unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"} / unpoller_unas_pool_capacity_bytes{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}} \u00b7 {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Pool capacity / used bytes",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}} used"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_pool_capacity_bytes{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}} capacity"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "RAID redundancy shortfall",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "clamp_min(unpoller_unas_raid_group_expected_protection{job=\"unas\",host=~\"$nas\"} - unpoller_unas_raid_group_current_protection{job=\"unas\",host=~\"$nas\"},0)",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}} \u00b7 {{raid_group_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Zero means reported redundancy meets the configured expectation. Missing metrics mean unknown, not healthy."
+    },
+    {
+      "id": 8,
+      "title": "Drive temperatures",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_temperature_celsius{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 slot {{slot_id}} \u00b7 {{disk_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Bad / uncorrectable sectors",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_bad_sectors{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 slot {{slot_id}} {{disk_type}} bad"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_uncorrectable_sectors{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 slot {{slot_id}} {{disk_type}} uncorrectable"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Drive health score",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_health_score{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 slot {{slot_id}} {{disk_type}} \u00b7 {{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Raw vendor score; consult UniFi Drive for its meaning. The state label carries the reported condition."
+    },
+    {
+      "id": 11,
+      "title": "NAS network throughput",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_receive_kbps{job=\"unas\",host=~\"$nas\"} * 1024",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} receive"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_transmit_kbps{job=\"unas\",host=~\"$nas\"} * 1024",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} transmit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Pool growth per day (6-hour trend)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "deriv(unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"}[6h]) * 86400",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "A short-term linear trend; deletions and maintenance can make it negative. More history improves interpretation."
+    },
+    {
+      "id": 13,
+      "title": "Estimated days of remaining pool capacity",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "((unpoller_unas_pool_capacity_bytes{job=\"unas\",host=~\"$nas\"} - unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"}) / (deriv(unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"}[6h]) > 0) / 86400) and (count_over_time(unpoller_unas_pool_usage_bytes{job=\"unas\",host=~\"$nas\"}[6h]) >= 60)",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{name}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Linear forecast for growing pools with at least 60 samples (about one hour). Flat/decreasing usage or insufficient history produces no estimate."
+    },
+    {
+      "id": 14,
+      "title": "Backup metrics age",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "time() - homelab_backup_collection_timestamp_seconds",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "NUC backup collector"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 600
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Verification blocked by a repository lock",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "homelab_backup_repository_busy",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "Repository lock busy"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Only reports locks encountered during the current verification; it is not an inventory of running jobs."
+    },
+    {
+      "id": 16,
+      "title": "Last successful complete backup verification age",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "time() - homelab_backup_verified_timestamp_seconds",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "NUC backup / NAS mirror verification"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 600
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "SSD cache utilization",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "100 * unpoller_unas_pool_cache_used_bytes{job=\"unas\",host=~\"$nas\"} / unpoller_unas_pool_cache_size_bytes{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "SSD cache read hit rate",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 52,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_pool_cache_read_hit_percent{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "SSD rated endurance remaining",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_life_span_percent{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 slot {{slot_id}} {{disk_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "Dirty SSD cache bytes",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 60,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_pool_cache_dirty_bytes{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "RAID rebuild / expansion progress",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 68,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_raid_group_progress_percent{job=\"unas\",host=~\"$nas\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 {{pool_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "Drive read / write throughput",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 68,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_read_kbps{job=\"unas\",host=~\"$nas\"} * 1024",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 slot {{slot_id}} {{disk_type}} read"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_unas_disk_write_kbps{job=\"unas\",host=~\"$nas\"} * 1024",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{host}} \u00b7 slot {{slot_id}} {{disk_type}} write"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 76,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "NAS metrics require the local monitoring account on each console. An empty NAS panel means telemetry is unavailable. Backup collection runs every five minutes and preserves previously verified timestamps during failures; check its age. Repository busy is distinct from a backup failure. UniFi Drive cloud-backup job success and snapshot age are not collected. The NAS filter applies to storage panels; Borg verification is the NUC-wide backup workflow."
+      }
+    }
+  ]
+}

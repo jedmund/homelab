@@ -19,7 +19,6 @@ pcsx2_broker_mod: ghcr.io/loneangelfayt/pcsx2-romm-integration-mod:v1.3
 # shared firewall group, and leaving the defaults free keeps room for a
 # third emulator later. Container-side ports are fixed by the image.
 pcsx2_selkies_http_port: 3010
-pcsx2_selkies_https_port: 3011
 pcsx2_broker_port: 8010
 
 # GPU pinning. nvidia-smi index, matching the indices documented in
@@ -41,10 +40,20 @@ pcsx2_shm_size: 1gb
 
 pcsx2_broker_log_level: INFO
 
-# Basic auth on the container's own Selkies listener. This is the second
-# gate, behind TinyAuth on the Traefik route; it covers direct LAN access
-# to max:3011 which does not pass through Traefik at all. Leaving it
-# unset means the image falls back to abc/abc.
+# Basic auth on the container's own Selkies listener, off by default.
+#
+# TinyAuth already gates the only route in (pcsx2.atelier.house), so this
+# was a second gate on the same path. RomM embeds the stream in an iframe
+# and a basic-auth challenge inside that frame prompts the browser for
+# credentials on top of the TinyAuth login the user just completed.
+#
+# The image keys off the presence of PASSWORD, not its value: init-nginx
+# tests `${PASSWORD+x}` and uncomments the auth_basic directives whenever
+# the variable exists. An empty PASSWORD= would enable auth with an empty
+# password, so the env template omits both lines entirely when this is
+# false. vault_pcsx2_selkies_password stays in the vault so flipping this
+# back on needs no other change.
+pcsx2_selkies_auth_enabled: false
 pcsx2_selkies_user: justin
 pcsx2_selkies_password: "{{ vault_pcsx2_selkies_password }}"
 

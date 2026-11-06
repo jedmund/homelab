@@ -1,0 +1,27 @@
+---
+# deploy-all-exclude: degoog_maps -- Explicit compatibility patch for a user-installed plugin.
+- name: Patch the installed Degoog Maps frontend
+  hosts: degoog
+  become: true
+  tasks:
+    - name: Reconcile Maps tab and API identifiers
+      ansible.builtin.script:
+        cmd: >-
+          {{ playbook_dir }}/../roles/degoog/files/patch_maps.py
+          /opt/docker/degoog/data/plugins/lazerleif-degoog-maps-maps/script.js
+          {{ '--check' if ansible_check_mode else '' }}
+        executable: python3
+      register: degoog_maps_patch
+      check_mode: false
+      changed_when: degoog_maps_patch.stdout | trim == 'changed'
+
+    - name: Scope CARTO origin referrers to Places tile images
+      ansible.builtin.script:
+        cmd: >-
+          {{ playbook_dir }}/../roles/degoog/files/patch_maps.py
+          /opt/docker/degoog/data/plugins/sopat712-degoog-toolkit-osm-slot/script.js
+          --places {{ '--check' if ansible_check_mode else '' }}
+        executable: python3
+      register: degoog_places_patch
+      check_mode: false
+      changed_when: degoog_places_patch.stdout | trim == 'changed'

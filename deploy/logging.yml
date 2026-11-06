@@ -1,0 +1,6 @@
+---
+- name: Deploy the retained homelab log store
+  hosts: logging
+  become: true
+  roles:
+    - logging

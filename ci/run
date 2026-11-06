@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+mode=${1:-full}
+if [ "$#" -gt 0 ]; then
+    shift
+fi
+case "$mode" in
+    full|static|lifecycle) ;;
+    *)
+        echo "Unknown validation mode: $mode" >&2
+        exit 2
+        ;;
+esac
+
+name="homelab-validation-$(date +%s)-$$-${RANDOM}"
+image="$name:local"
+results="${CI_RESULTS_DIR:-ci-results}"
+mkdir -p "$results"
+logs_pid=
+wait_pid=
+
+cleanup() {
+    result=$?
+    trap - EXIT
+    for pid in "$logs_pid" "$wait_pid"; do
+        if [ -n "$pid" ]; then
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+        fi
+    done
+    if docker container inspect "$name" >/dev/null 2>&1; then
+        docker cp "$name:/results/." "$results/" >/dev/null 2>&1 || true
+        docker rm --force --volumes "$name" >/dev/null 2>&1 || true
+    fi
+    docker image rm "$image" >/dev/null 2>&1 || true
+    exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [ "$mode" = full ]; then
+    python3 tests/test_validation.py
+    fast_arguments=(fast --report "$results/fast.json")
+    if [ -n "${VALIDATION_BASE_SHA:-}" ]; then
+        fast_arguments+=(--base "$VALIDATION_BASE_SHA")
+    fi
+    python3 ci/validation.py "${fast_arguments[@]}"
+fi
+
+build_started=$SECONDS
+docker build --progress plain --file ci/Dockerfile --tag "$image" .
+build_seconds=$((SECONDS - build_started))
+
+create_arguments=(--name "$name")
+if [ "$mode" != static ]; then
+    create_arguments+=(--privileged --cpus 3 --memory 6g)
+fi
+docker create "${create_arguments[@]}" "$image" "$mode" "$@" >/dev/null
+execution_started=$SECONDS
+docker start "$name" >/dev/null
+docker logs --follow "$name" &
+logs_pid=$!
+docker wait "$name" > "$results/exit-code" &
+wait_pid=$!
+# Waiting on a child lets the signal traps clean up promptly on cancellation.
+wait "$wait_pid"
+wait "$logs_pid"
+execution_seconds=$((SECONDS - execution_started))
+printf '{"phase":"launcher","mode":"%s","image_seconds":%s,"execution_seconds":%s}\n' \
+    "$mode" "$build_seconds" "$execution_seconds" > "$results/launcher-timing.json"
+test "$(cat "$results/exit-code")" = 0

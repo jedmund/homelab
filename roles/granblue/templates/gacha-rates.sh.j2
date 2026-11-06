@@ -1,0 +1,11 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Runs the fetcher at start and then {{ granblue_gacha_rates_minute }} minutes past each
+# hour. Until the uploaded banner ends, a run makes no requests to the game.
+while true; do
+  ruby /app/fetch_gacha_rates.rb
+  now=$(date +%s)
+  next=$((now - now % 3600 + {{ granblue_gacha_rates_minute * 60 }}))
+  [ "$next" -le "$now" ] && next=$((next + 3600))
+  sleep $((next - now))
+done

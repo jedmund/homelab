@@ -5,4 +5,6 @@
 
   roles:
     - gpu_tools
+    - role: model_storage
+      tags: [model_storage]
     - ai

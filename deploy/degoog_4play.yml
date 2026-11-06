@@ -1,0 +1,8 @@
+---
+# deploy-all-exclude: degoog_4play -- Experimental native Firefox/Xorg client; deploy explicitly after checking EDID.
+- name: Deploy the Degoog 4play native browser client
+  hosts: degoog_4play
+  become: true
+  gather_facts: true
+  roles:
+    - degoog_4play

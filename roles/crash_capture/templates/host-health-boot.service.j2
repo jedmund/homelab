@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Report how the previous boot ended to Gatus
+Wants=network-online.target
+After=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/host-health-report boot
+SyslogIdentifier=host-health
+# Pushes retry for up to 10 minutes while Gatus comes up.
+TimeoutStartSec=15min
+
+[Install]
+WantedBy=multi-user.target

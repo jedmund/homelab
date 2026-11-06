@@ -1,0 +1,24 @@
+---
+# Crash capture for hosts that freeze without leaving a record. The receiver
+# is configured first so the monitored host's netconsole has a listener as
+# soon as it starts. See roles/crash_capture/README.md.
+- name: Receive netconsole
+  hosts: netconsole_receiver
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Configure the netconsole receiver
+      ansible.builtin.include_role:
+        name: crash_capture
+        tasks_from: receiver
+
+- name: Configure crash capture
+  hosts: crash_capture
+  become: true
+  gather_facts: true
+  gather_subset:
+    - "!all"
+    - "!min"
+    - network
+  roles:
+    - crash_capture

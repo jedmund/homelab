@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Replace only this table, atomically; preserve Docker, UFW, and other roles.
+# Flushing a table leaves named sets intact, including revoked source IPs.
+# Overlapping host and subnet entries are merged by the named set.
+add table inet homelab_llama_swap
+delete table inet homelab_llama_swap
+table inet homelab_llama_swap {
+    set allowed_v4 {
+        type ipv4_addr
+        flags interval
+        auto-merge
+        elements = { {{ ([ai_llama_swap_bind_address ~ '/32', '127.0.0.1/32'] + ai_llama_swap_allowed_sources) | join(', ') }} }
+    }
+    chain forwarded_api {
+        type filter hook forward priority -10; policy accept;
+        meta l4proto tcp ct direction original ct original ip daddr {{ ai_llama_swap_bind_address }} ct original proto-dst {{ llama_swap_port }} ip saddr != @allowed_v4 drop
+    }
+    chain host_api {
+        type filter hook input priority -10; policy accept;
+        ip daddr {{ ai_llama_swap_bind_address }} tcp dport {{ llama_swap_port }} ip saddr != @allowed_v4 drop
+    }
+}

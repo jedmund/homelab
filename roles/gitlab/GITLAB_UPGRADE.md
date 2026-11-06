@@ -7,20 +7,58 @@ runner with `roles/gitlab`, and the `max-docker` runner with
 
 The instance was upgraded from GitLab 17.5.2 to 19.2.0 on 2026-07-24, then
 patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
-(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). It moves to 19.3.2 on
-2026-09-16 for the critical patch release described below. Recheck GitLab's
-current upgrade path and version notes before using this runbook for a later
-release.
+(CVE-2026-19478, CVSS 9.4, and CVE-2026-19650, CVSS 7.1). It moved to 19.3.2 on
+2026-09-16 and moves to 19.4.1 on 2026-09-23 for the critical patch releases
+described below. Recheck GitLab's current upgrade path and version notes before
+using this runbook for a later release.
 
-## Current versions
+## Recorded versions (2026-09-23)
+
+This table records the September upgrade. It is not a live inventory.
 
 | Component | Version |
 | --- | --- |
-| GitLab CE | `19.3.2-ce.0` |
-| `nuc-mini-docker` runner, ID 1 | `19.3.3` |
-| `max-docker` runner, ID 3 | `19.3.3` |
-| Embedded PostgreSQL | `17.10` |
-| `mac-mini-xcode` runner, ID 2 | `19.3.x` |
+| GitLab CE | `19.4.1-ce.0` |
+| `nuc-mini-docker` runner, ID 1 | `19.4.0` |
+| `max-docker` runner, ID 3 | `19.4.0` |
+| Embedded PostgreSQL | `17.11` |
+| `mac-mini-xcode` runner, ID 2 | `19.4.0` |
+
+## 19.5.0 to 19.5.1 preparation (2026-10-21)
+
+The operator reported that the live server runs `19.5.0-ce.0`; read-only
+container inspection on `nuc-mini` confirmed that image and the local
+runner's `v19.5.0` image on 2026-10-21.
+[defaults/main.yml](defaults/main.yml) now prepares `19.5.1-ce.0`, pinned to
+the published multi-platform index digest
+`sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e991ecdd6cae11ca7d7e5d36fc3`.
+The index includes `linux/amd64` and `linux/arm64` images. This entry records
+preparation, not a completed deployment or a verified live migration state.
+
+Read the [19.5.1 patch advisory](https://docs.gitlab.com/releases/patches/patch-release-gitlab-19-5-1-released/)
+and [GitLab 19 upgrade notes](https://docs.gitlab.com/update/versions/gitlab_19_changes/)
+before applying the patch. The source and target are in the same minor series;
+there is no intermediate minor stop for this hop. Check regular and batched
+migration state before and after, and do not run `pg-upgrade` as part of this
+patch preparation.
+
+Pause and drain CI, then take and verify the database and `/etc/gitlab` backup
+pair under the actual running `19.5.0-ce.0` image before changing it. Recovery
+must use that exact source version and its matching backup pair; the older
+repository pin is not the rollback source for this deployment.
+
+This role's runner pin is reconciled to the verified live `v19.5.0` image so a
+full role deployment retains that version. Read-only inspection found the
+`max` runner still on `v19.4.0`, matching `roles/development_linux`; its
+alignment to 19.5 is separate work. The macOS runner version was not verified.
+This patch does not deploy a runner upgrade. The full role also manages
+Renovate, registry cleanup, and CI cache settings, so review its complete
+deployment scope.
+
+After applying an authorized deployment, verify the server version, readiness,
+migration state, sign-in, repository access, registry operations, and a CI job
+before resuming the normal runner workload. Record the deployed image digest
+and backup artifacts when those checks complete.
 
 ## Path used for the 17.5 to 19.2 upgrade
 
@@ -51,7 +89,8 @@ finished. GitLab's advisory directs administrators to continue to the required
 
 ## 19.2 to 19.3 (2026-09-16)
 
-19.3.2 is the newest 19.3 patch. It is a critical patch release, so this hop is
+19.3.2 was the newest 19.3 patch when this hop ran. It is a critical patch
+release, so this hop is
 not optional maintenance: it fixes CVE-2026-85706 (CVSS 10.0), an
 unauthenticated path traversal in the repository commits API that reads
 arbitrary files off the server, and CVE-2026-87719 (CVSS 9.9), insecure
@@ -92,7 +131,11 @@ The instance has been running an affected version since the 19.2.0 hop on
 2026-07-24, so this upgrade stops the problem for groups created from now on
 but does not retroactively clear it. Any group created between 2026-07-24 and
 this hop may still carry the setting. Existing groups from before 19.2 were
-never touched. After the upgrade, check the groups created in that window:
+never touched.
+
+This instance was not affected: the check below found no group created in that
+window, and all three groups predate 19.2. Rerun it anyway on a later hop, and
+on any instance where groups are created more often:
 
 ```sh
 ssh nuc
@@ -103,11 +146,86 @@ docker exec gitlab gitlab-rails runner \
 Clear it per group in Settings, General, Merge requests, or leave it on if the
 group has no API-driven merges.
 
+### What actually happened
+
+The hop was clean. 19.3.2 came up in a single boot with `RestartCount` 0, so
+the automatic mid-upgrade restart seen on the 19.2 hop did not recur. All five
+batched background migrations that the upgrade queued drained to zero in about
+eight minutes with no failures, and `gitlab:check` and `gitlab:doctor:secrets`
+both passed on the first run.
+
+One unrelated task failed partway through the deploy and skipped the container
+registry cleanup tasks behind it. MinIO has withdrawn `minio/mc` and
+`minio/minio` from Docker Hub, where both now 404, and the CI cache lifecycle
+task had been running on a stale locally cached `minio/mc:latest`, because
+`docker run` pulls only when the image is absent. The image now comes from
+quay.io on a pinned tag. The task carries `no_log: true`, so the playbook
+reports nothing but a censored failure: reproduce the rendered `docker run` by
+hand on the host to see the real error.
+
+Expect the macOS Local Network gate. The Homebrew upgrade to 19.3.3 installed a
+fresh binary and stranded runner 2 exactly as described below.
+
+## 19.3 to 19.4 (2026-09-23)
+
+19.4.1 is a critical patch release, so this hop is not optional maintenance. It
+fixes CVE-2026-93577 (CVSS 9.9), an integer overflow in the regular expression
+compiler that lets an authenticated user run arbitrary commands on the server
+through a crafted CI/CD regular expression, and CVE-2026-89078, a double free in
+the regular expression parser, plus a High-severity XSS in the merge request
+diff viewer (CVE-2026-84739). It also carries CVE-2026-92874 (incorrect
+authorization in MCP API scope enforcement), CVE-2026-92530 (Direct Transfer
+import user mapping), CVE-2026-8937 (Epic Issues REST API), and CVE-2026-4523
+(GraphQL CI job trace API). The EE-only fixes for Duo AI job troubleshooting,
+Duo Workflow Service, and memberRoles dependentSecurityPolicies do not apply to
+a CE instance. 19.3.2 is vulnerable to both regex issues.
+
+| Stop | GitLab CE | Runner |
+| ---: | --- | --- |
+| 1 | `19.4.1-ce.0` | `19.4.0` |
+
+Only one stop. The required stops in 19.x are 19.2, 19.5, 19.8, and 19.11. 19.4
+is not itself a required stop, but the instance is clear to travel from the
+19.2 stop, and the target is 19.4.1, the newest 19.4 patch. This is a minor hop
+and still carries schema and background migrations, so run the full per-hop
+procedure below, not the shortened patch procedure.
+
+The runner moves to `19.4.0`, the newest 19.4 runner image. There is no
+`v19.4.1` runner image, so the runner now sits one patch behind the server
+instead of one ahead. That is fine: only major/minor have to match.
+
+PostgreSQL does not move. Both the 19.3.1+ line and every 19.4 release bundle
+PostgreSQL 17.11, so the source and target here both run embedded PostgreSQL
+17.11. 17 remains the 19.x minimum, and 18.4 is still opt-in for fresh Linux
+package installations only; GitLab does not support upgrading an existing
+cluster to it. Do not attempt `pg-upgrade`.
+
+The macOS runner gains a fresh binary with the Homebrew upgrade to 19.4.0, so
+expect the Local Network gate and confirm runner 2 reconnects as described
+below.
+
+## Update discovery
+
+Renovate tracks `gitlab_image` in
+[defaults/main.yml](defaults/main.yml) through the repository's
+[custom manager](../../.renovaterc.json). It recognizes the GitLab CE release
+tag and optional OCI digest in the full image reference. Docker versioning
+preserves the `-ce.0` compatibility suffix when proposing newer releases.
+Proposals use the `maintenance::application-image` label and require review;
+there is no minor-version ceiling and no automatic merge or deployment.
+
+Komodo's digest checks compare the image tag already rendered in Compose.
+The GitLab stack is excluded from the shared digest report. New GitLab release
+discovery belongs to Renovate; apply approved versions through this runbook.
+Renovate's host schedule is Monday at 08:00 unless overridden, so a newly
+published patch is not necessarily proposed immediately.
+
 ## Patch releases inside one minor series
 
-A patch hop such as 19.2.0 to 19.2.4 stays inside the same minor series and
-carries no database migrations, so it needs no intermediate stop and no
-PostgreSQL check. Still honor the invariants below: pause and drain the
+A patch hop stays inside the same minor series and needs no intermediate
+minor stop. Patch releases can include database migrations; read the notes for
+the exact target instead of assuming that every patch has none. Honor the
+invariants below: pause and drain the
 runners, take the rollback pair, and require a clean migration gate before and
 after. Runners do not need a matching patch version, only a matching
 major/minor, so leave them alone unless the advisory names the runner.
@@ -331,6 +449,24 @@ All three runners must be online on the intended version. Treat a null
 `platform`, `architecture`, or `version` as not connected even when `status`
 reads online. GitLab only rewrites `contacted_at` every 40 to 55 minutes, so a
 frozen timestamp is not by itself a fault.
+
+## Registry garbage collection
+
+The managed `gitlab.rb` explicitly sets `registry['database']['enabled']` to
+`false` because this deployment uses filesystem metadata and schedules offline
+garbage collection. GitLab's default `prefer` mode can serve filesystem metadata
+while the offline collector rejects that configuration before scanning any data.
+See [metadata backend selection](https://docs.gitlab.com/administration/packages/container_registry_metadata_database/#prefer-mode).
+
+The weekly `gitlab-ctl registry-garbage-collect -m` job removes untagged manifests
+and unreferenced blobs after tag expiration. It stops the registry during the
+scan, so pushes and pulls fail for that window. After an authorized deployment,
+verify `database.enabled: false` in `/var/opt/gitlab/registry/config.yml` inside
+the GitLab container, registry health, and a successful scheduled collection.
+
+A future metadata-database migration must replace this explicit filesystem
+setting and retire the offline GC job in favor of online garbage collection.
+Do not disable a metadata database that already holds registry data.
 
 ## macOS Local Network permission on the Xcode runner
 

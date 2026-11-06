@@ -22,6 +22,7 @@
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
+    src: "{{ item.src | default(omit) }}"
     delete: true
   loop: "{{ firewall_ports_revoked }}"
   when: firewall_enabled | bool

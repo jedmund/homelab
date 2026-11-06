@@ -1,0 +1,38 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  protomaps:
+    container_name: protomaps
+    image: {{ protomaps_nginx_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - {{ protomaps_data_path }}:/srv/protomaps:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:{{ protomaps_nginx_port }}/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      # Public and unauthenticated: MapLibre fetches tiles cross-origin
+      # without credentials, so forward auth would block every request.
+      # No compress middleware; range responses must be served as stored.
+      traefik.enable: "true"
+      traefik.http.routers.protomaps.rule: "Host(`{{ protomaps_domain }}`)"
+      traefik.http.routers.protomaps.entrypoints: "websecure"
+      traefik.http.routers.protomaps.tls.certresolver: "letsencrypt"
+      traefik.http.services.protomaps.loadbalancer.server.port: "{{ protomaps_nginx_port }}"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true

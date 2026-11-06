@@ -4,10 +4,19 @@ stack_name: backup
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Borgmatic image (extended via Dockerfile to add rsync + nfs-common)
-borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:latest
+borgmatic_upstream_image: ghcr.io/borgmatic-collective/borgmatic:2.1.9
 
-# Borg repo (host-local on nuc-mini, mounted into container at /repo)
-borg_repo_host_path: /var/backup/borg
+# Borg repo (host-local on nuc-mini, mounted into container at /repo). It lives
+# on the dedicated data NVMe rather than the root volume, so backups neither
+# fill nor share a disk with the data they protect.
+borg_repo_host_path: /mnt/data/borg
+# Filesystem holding the repo. The role mounts it with nofail, so a missing
+# drive cannot stop the host from booting, and refuses to deploy unless it is
+# mounted. borgmatic checks for the repo config before each backup, so a
+# backup never writes into an unmounted mount point on the root volume.
+backup_repo_mount_path: /mnt/data
+backup_repo_mount_src: UUID=19ce6af3-1576-4d01-92c6-674077e7059f
+backup_repo_mount_fstype: ext4
 borg_repo_container_path: /repo
 borg_repo_label: nuc-mini
 
@@ -63,6 +72,11 @@ borg_named_volumes:
   # metadata volume is captured here.
   - volume: kaneo_kaneo-garage-meta
     path: /kaneo-garage-meta
+  # phpBB board code, config.php, and the template cache. The MariaDB dump
+  # below covers the board database; attachment files live on the Files NAS
+  # share and are outside Borg coverage (see roles/phpbb/README.md).
+  - volume: phpbb-root
+    path: /phpbb-root
 
 # Patterns to exclude (relative to source paths)
 # musicbrainz: reproducible from upstream MetaBrainz dumps per its README
@@ -78,9 +92,23 @@ borg_named_volumes:
 #   Backing it up dominated the repo for no recovery value: a lost image
 #   is rebuilt by re-running the pipeline that produced it.
 borg_exclude_patterns:
+  # Collector buffers are live replay state, not consistent restore artifacts.
+  - /opt/docker/vector/data
+  - /opt/docker/alloy/data
+  # Loki's NAS objects and Garage's consistent snapshots are the recovery
+  # inputs. Do not copy live databases, caches, or the high-volume local WAL.
+  - /opt/docker/logging/loki-state
+  # Consistent Prometheus snapshots live in logging/backup/prometheus instead.
+  - /opt/docker/logging/prometheus-data
+  - /opt/docker/logging/grafana-data
+  - /opt/docker/logging/garage-meta/db.sqlite
+  - /opt/docker/logging/garage-meta/db.sqlite-wal
+  - /opt/docker/logging/garage-meta/db.sqlite-shm
   - /opt/docker/musicbrainz
   - /opt/docker/backup
   - /opt/docker/gitlab/data/postgresql
+  # stereo: live Postgres files; the nightly pg_dump is the restore artifact.
+  - /opt/docker/stereo/postgres
   - /opt/docker/gitlab/data/redis
   - /opt/docker/gitlab/data/prometheus
   - /opt/docker/gitlab/logs
@@ -98,7 +126,7 @@ borg_dumps_host_path: /var/backup/dumps
 borg_dumps_container_path: /dumps
 
 # borg-ui (web frontend)
-borg_ui_image: ainullcode/borg-ui:latest
+borg_ui_image: ainullcode/borg-ui:2.3.10
 borg_ui_domain: backup.atelier.house
 borg_ui_container_port: 8081
 # OIDC against PocketID is configured manually via the borg-ui Settings
@@ -109,7 +137,7 @@ borg_ui_container_port: 8081
 # by container hostname. All declared external because they're created by
 # other stacks.
 borg_networks:
-  - backend-internal   # mastodon, synapse, mas, komodo, n8n, kaneo, miniflux, romm
+  - backend-internal   # mastodon, synapse, mas, komodo, n8n, kaneo, miniflux, romm, stereo
   - shared-network     # immich postgres
   - proxy-network      # couchdb (obsidian_livesync)
 
@@ -126,6 +154,8 @@ borg_networks:
 #   vault_kaneo_db_password
 #   vault_kizuna_postgres_password
 #   vault_hugginghack_postgres_password
+#   vault_stereo_postgres_password
+#   vault_phpbb_db_root_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -154,12 +184,16 @@ dawarich_db_username: dawarich
 kaneo_db_name: kaneo
 kaneo_db_user: kaneo
 kaneo_db_password: "{{ vault_kaneo_db_password }}"
+phpbb_db_root_password: "{{ vault_phpbb_db_root_password }}"
 kizuna_db_name: kizuna_api_production
 kizuna_db_user: kizuna
 kizuna_db_password: "{{ vault_kizuna_postgres_password }}"
 hugginghack_db_name: hugginghack
 hugginghack_db_user: hugginghack
 hugginghack_db_password: "{{ vault_hugginghack_postgres_password }}"
+stereo_db_name: stereo
+stereo_db_user: stereo
+stereo_db_password: "{{ vault_stereo_postgres_password }}"
 obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace
@@ -181,4 +215,37 @@ nas_nfs_server: 192.168.1.3        # UniFi NAS
 # UniFi Drive exports each Shared Drive at /volume/<storage-uuid>/.srv/.unifi-drive/<name>/.data.
 # UUID is per-NAS-instance; rediscover with `showmount -e 192.168.1.3` if the NAS is ever rebuilt.
 nas_nfs_export: /volume/3184c922-dd97-43b0-b873-8bcb99ac2668/.srv/.unifi-drive/Homelab/.data
-nas_nfs_options: "rw,soft,timeo=30,retrans=2,noatime,_netdev,nofail"
+# Use the TCP default of 60 seconds; 3-second retries caused write EIO errors.
+# Keep soft failure semantics for this replica so a NAS outage cannot hold the
+# local Borg repository lock indefinitely. Rsync failures remain fatal.
+nas_nfs_options: "rw,soft,timeo=600,retrans=2,noatime,_netdev,nofail"
+
+# Scheduled verification thresholds and fixed restore-proof input.
+backup_verification_max_age_hours: 27
+komodo_core_backup_host_path: "{{ docker_base_path }}/infra-core/backups"
+komodo_core_required_artifacts:
+  - Action.gz
+  - Alerter.gz
+  - ApiKey.gz
+  - Permission.gz
+  - Procedure.gz
+  - ResourceSync.gz
+  - Server.gz
+  - Stack.gz
+  - Tag.gz
+  - User.gz
+  - UserGroup.gz
+  - Variable.gz
+prowlarr_restore_archive_path: dumps/sqlite/prowlarr_config_prowlarr.db
+
+# Request one cached build even when recorded inputs and local images match.
+backup_force_rebuild: false
+
+# Enable after the max baseline and restricted SSH path have been verified.
+backup_minecraft_enabled: false
+backup_minecraft_path: /var/backup/minecraft
+backup_minecraft_ssh_path: "{{ config_base }}/minecraft-ssh"
+# Trusted public host key, obtained through an existing authenticated connection.
+backup_minecraft_host_key: ""
+# Bound NFS write pressure; the NAS can time out with unbounded rsync writes.
+backup_nas_rsync_kib_per_second: 50000

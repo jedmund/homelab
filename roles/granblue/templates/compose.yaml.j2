@@ -1,0 +1,53 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  # The stack's own VPN. Other services share its network namespace, so they
+  # have no route out except the tunnel.
+  gluetun:
+    image: {{ granblue_gluetun_image }}
+    container_name: granblue-gluetun
+    restart: {{ restart_policy }}
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    env_file:
+      - ./env/gluetun.env
+    volumes:
+      - ./gluetun:/gluetun
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  gacha-rates:
+    image: {{ granblue_gacha_rates_image }}
+    container_name: granblue-gacha-rates
+    restart: {{ restart_policy }}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        # Rejoins the tunnel's network namespace when gluetun is recreated
+        restart: true
+    user: "{{ granblue_gacha_rates_uid }}:{{ granblue_gacha_rates_gid }}"
+    command: ["sh", "/app/run.sh"]
+    env_file:
+      - ./env/gacha-rates.env
+    volumes:
+      - ./gacha-rates/fetch_gacha_rates.rb:/app/fetch_gacha_rates.rb:ro
+      - ./gacha-rates/run.sh:/app/run.sh:ro
+      - ./gacha-rates/data:/data
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}

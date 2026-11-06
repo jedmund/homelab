@@ -1,0 +1,57 @@
+---
+- name: Install snapshot copy utility
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+
+- name: Create private Minecraft snapshot storage
+  ansible.builtin.file:
+    path: "{{ minecraft_snapshot_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install Minecraft snapshot utility
+  ansible.builtin.template:
+    src: snapshot.py.j2
+    dest: /usr/local/sbin/minecraft-snapshot
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install Minecraft snapshot systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: '0644'
+  loop:
+    - minecraft-snapshot.service
+    - minecraft-snapshot.timer
+
+- name: Enable idle snapshot timer
+  ansible.builtin.systemd_service:
+    name: minecraft-snapshot.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Create restricted snapshot transfer user
+  ansible.builtin.user:
+    name: minecraft-backup
+    create_home: true
+    shell: /bin/sh
+
+- name: Permit only fixed snapshot export through sudo
+  ansible.builtin.copy:
+    content: "minecraft-backup ALL=(root) NOPASSWD: /usr/local/sbin/minecraft-snapshot export\n"
+    dest: /etc/sudoers.d/minecraft-backup
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Authorize restricted backup pull key
+  ansible.posix.authorized_key:
+    user: minecraft-backup
+    key: "{{ minecraft_backup_public_key }}"
+    key_options: 'restrict,from="{{ hostvars["nuc-mini"].ansible_host }}",command="sudo /usr/local/sbin/minecraft-snapshot export"'
+  when: minecraft_backup_public_key | length > 0

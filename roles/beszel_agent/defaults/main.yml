@@ -33,11 +33,14 @@ beszel_agent_intel_gpu_device: drm:/dev/dri/card0
 beszel_agent_install_macmon: "{{ gpu_type | default('') == 'apple_silicon' }}"
 
 # Docker agent can monitor additional filesystems by bind-mounting a marker
-# directory from each filesystem into /extra-filesystems.
+# directory from each filesystem into /extra-filesystems. The role creates
+# each source directory. The name is the partition's kernel name (lsblk
+# KNAME), which Beszel uses for I/O stats, optionally followed by
+# __<display name>.
 # Example:
 # beszel_agent_extra_filesystems:
 #   - source: /mnt/media/.beszel
-#     name: media
+#     name: sdb1__Media
 beszel_agent_extra_filesystems: []
 
 beszel_agent_credentials_configured: >-
@@ -49,7 +52,7 @@ beszel_agent_credentials_configured: >-
 # macOS agent. Homebrew is not on PATH in Ansible's non-login shell, so call
 # brew by absolute path; launchctl owns the service state.
 beszel_agent_brew_binary: /opt/homebrew/bin/brew
-beszel_agent_launchd_label: homebrew.mxcl.beszel-agent
+beszel_agent_launchd_label: sh.brew.beszel-agent
 # `latest` keeps the Homebrew agent current; Homebrew ships no auto-updater.
 # Set to `present` to freeze the installed version instead.
 beszel_agent_homebrew_state: latest

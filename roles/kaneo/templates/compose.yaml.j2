@@ -11,6 +11,9 @@ services:
     networks:
       - proxy
       - backend
+{% if kaneo_agent_inspections_enabled %}
+      - inspection-api
+{% endif %}
     depends_on:
       kaneo-postgres:
         condition: service_healthy
@@ -133,3 +136,9 @@ networks:
   backend:
     name: {{ backend_network }}
     external: true
+
+{% if kaneo_agent_inspections_enabled %}
+  inspection-api:
+    external: true
+    name: kaneo-inspection-api
+{% endif %}

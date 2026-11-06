@@ -1,0 +1,9 @@
+// {{ ansible_managed }}
+// Keep the extension's local settings in storage.js so Ansible can seed them
+// before Firefox starts. Firefox otherwise migrates the data to IndexedDB.
+user_pref("extensions.webextensions.ExtensionStorageIDB.enabled", false);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.startup.homepage", "about:blank");
+user_pref("browser.startup.page", 0);
+user_pref("browser.privatebrowsing.autostart", false);
+user_pref("browser.sessionstore.resume_from_crash", false);

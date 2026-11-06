@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Degoog 4play Xorg display
+Requires=degoog-4play-bridge.service
+After=degoog-4play-bridge.service
+PartOf=degoog-4play-bridge.service
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/libexec/degoog-4play-xauth
+ExecStart=/usr/lib/xorg/Xorg {{ degoog_4play_display }} -config /etc/degoog-4play/xorg.conf -auth {{ degoog_4play_xauthority }} -nolisten tcp -noreset -keeptty vt7
+ExecStartPost=/usr/bin/chown {{ degoog_4play_user }}:{{ degoog_4play_group }} {{ degoog_4play_xauthority }}
+ExecStartPost=/usr/bin/chmod 0640 {{ degoog_4play_xauthority }}
+Restart=on-failure
+RestartSec=3
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+[Install]
+WantedBy=multi-user.target

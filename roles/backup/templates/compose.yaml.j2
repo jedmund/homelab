@@ -12,6 +12,7 @@ services:
       context: ./build
       dockerfile: Dockerfile
     image: {{ stack_name }}/borgmatic:local
+    pull_policy: build
     restart: {{ restart_policy }}
     env_file:
       - ./env/borgmatic.env
@@ -22,6 +23,11 @@ services:
     volumes:
       - ./config/borgmatic:/etc/borgmatic.d:ro
       - ./scripts:/scripts:ro
+{% if backup_minecraft_enabled %}
+      - {{ backup_minecraft_path }}:/minecraft
+      - {{ backup_minecraft_ssh_path }}:/minecraft-ssh:ro
+{% endif %}
+      - ./restore-tests:/restore-tests
       - {{ borg_repo_host_path }}:{{ borg_repo_container_path }}
       - {{ borg_dumps_host_path }}:{{ borg_dumps_container_path }}
       # rslave so the autofs-triggered NFS mount on the host propagates into
@@ -44,6 +50,7 @@ services:
   borg-ui:
     container_name: borg-ui
     image: {{ borg_ui_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     environment:
       - TZ={{ timezone }}

@@ -1,4 +1,19 @@
 # {{ ansible_managed }}
+{% set pocketid_aasa_nginx_conf %}
+server {
+    listen 80;
+    server_name _;
+
+    location = {{ pocketid_aasa_path }} {
+        default_type application/json;
+        return 200 '{{ pocketid_aasa | to_json(separators=(',', ':')) }}';
+    }
+
+    location / {
+        return 404;
+    }
+}
+{% endset %}
 name: {{ stack_name }}
 
 services:
@@ -24,6 +39,41 @@ services:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
 
+  # Serves only the Apple app-site-association path; every other request on
+  # {{ pocketid_domain }} still routes to Pocket ID.
+  pocketid-aasa:
+    container_name: pocketid-aasa
+    image: {{ pocketid_aasa_image }}
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    configs:
+      - source: pocketid_aasa_nginx
+        target: /etc/nginx/conf.d/default.conf
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1{{ pocketid_aasa_path }}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      # Recreate the responder when the inline nginx config changes.
+      house.atelier.config-hash: "{{ pocketid_aasa_nginx_conf | hash('sha1') }}"
+      traefik.enable: "true"
+      traefik.http.routers.pocketid-aasa.rule: "Host(`{{ pocketid_domain }}`) && Path(`{{ pocketid_aasa_path }}`)"
+      traefik.http.routers.pocketid-aasa.entrypoints: "websecure"
+      traefik.http.routers.pocketid-aasa.tls.certresolver: "letsencrypt"
+      traefik.http.routers.pocketid-aasa.service: "pocketid-aasa"
+      traefik.http.services.pocketid-aasa.loadbalancer.server.port: "80"
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+configs:
+  pocketid_aasa_nginx:
+    content: |
+{{ pocketid_aasa_nginx_conf | indent(6, true) }}
 networks:
   proxy:
     name: {{ proxy_network }}

@@ -1,0 +1,7 @@
+# Partly managed by Ansible: streaming is reconciled on every deployment.
+# Legacy roms/bios folder keys are migrated once; explicit filesystem structures
+# and all other settings remain owned by RomM's Library Management UI.
+{% set filesystem = romm_existing_config.get('filesystem', {}) %}
+{% set preserved = filesystem | dict2items | rejectattr('key', 'in', ['roms_folder', 'firmware_folder']) | list | items2dict %}
+{% set migrated = preserved | combine({'structure': filesystem.get('structure', romm_filesystem_structure)}) %}
+{{ romm_existing_config | combine({'filesystem': migrated, 'streaming': {'enabled': romm_streaming_enabled, 'containers': romm_streaming_containers}}) | to_nice_yaml(indent=2) }}

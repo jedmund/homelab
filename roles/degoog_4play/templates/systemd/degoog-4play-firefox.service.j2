@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Degoog 4play Firefox client
+Requires=degoog-4play-session.service degoog-4play-bridge.service
+After=degoog-4play-session.service degoog-4play-bridge.service
+PartOf=degoog-4play-session.service
+
+[Service]
+Type=simple
+User={{ degoog_4play_user }}
+Group={{ degoog_4play_group }}
+WorkingDirectory={{ degoog_4play_home }}
+Environment=HOME={{ degoog_4play_home }}
+Environment=DISPLAY={{ degoog_4play_display }}
+Environment=XAUTHORITY={{ degoog_4play_xauthority }}
+ExecStartPre=/usr/local/libexec/degoog-4play-profile
+ExecStart=/usr/bin/dbus-run-session -- {{ degoog_4play_firefox_binary }} --no-remote --profile {{ degoog_4play_profile }} --kiosk about:blank
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
