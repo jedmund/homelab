@@ -218,6 +218,11 @@ gatus_endpoints:
     url: "https://kaneo.atelier.house/"
     status: 200
     description: "Kaneo is not answering — project boards are unreachable."
+  - name: Inbox Zero
+    group: apps
+    url: "https://mail.atelier.house/"
+    status: 200
+    description: "Inbox Zero is not answering — the AI email assistant is unreachable."
   - name: HuggingHack
     group: apps
     url: "https://hf.atelier.house/"

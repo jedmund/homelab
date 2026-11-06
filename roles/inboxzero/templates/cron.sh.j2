@@ -1,0 +1,69 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Port of the upstream docker-compose `cron` service: pings Inbox Zero's
+# scheduled-task endpoints on the same intervals. Runs in curlimages/curl,
+# so no package installs are needed. CRON_SECRET comes from the stack env.
+set -u
+
+BASE="http://inboxzero-web:{{ inboxzero_port }}"
+
+echo "[cron] Waiting for web..."
+until curl -fs -o /dev/null "$BASE/"; do
+  sleep 5
+done
+
+# loop INTERVAL DELAY PATH LABEL — one bearer-authenticated GET per interval.
+loop() {
+  interval=$1
+  delay=$2
+  path=$3
+  label=$4
+  sleep "$delay"
+  while :; do
+    echo "[cron] $label"
+    curl -fsS -X GET "$BASE$path" -H "Authorization: Bearer $CRON_SECRET" \
+      || echo "[cron] Warning: $label request failed"
+    sleep "$interval"
+  done
+}
+
+retention() {
+  for job in reasoning-retention mobile-push-retention email-send-operation-retention draft-cleanup; do
+    echo "[cron] $job"
+    curl -fsS -X GET "$BASE/api/cron/$job" -H "Authorization: Bearer $CRON_SECRET" \
+      || echo "[cron] Warning: $job request failed"
+  done
+}
+
+# Every 5-15 minutes: assistant scheduling and push-subscription renewal.
+loop 900 0 /api/cron/scheduled-actions "scheduled-actions" &
+loop 900 0 /api/cron/automation-jobs "automation-jobs" &
+loop 300 0 /api/meeting-recorder/schedule "meeting-recorder" &
+loop 900 0 /api/meeting-briefs "meeting-briefs" &
+loop 3600 0 /api/follow-up-reminders "follow-up-reminders" &
+# Every 30 minutes / 6 hours: digests and Gmail watch renewal.
+loop 1800 0 /api/resend/digest/all "digest" &
+loop 21600 0 /api/watch/all "watch-renewal" &
+
+# Daily / weekly, five minutes after startup.
+( sleep 300
+  while :; do
+    retention
+    sleep 86400
+  done ) &
+( sleep 300
+  while :; do
+    echo "[cron] inbox-health"
+    curl -fsS -X GET "$BASE/api/resend/inbox-health/all" -H "Authorization: Bearer $CRON_SECRET" \
+      || echo "[cron] Warning: inbox-health request failed"
+    sleep 86400
+  done ) &
+( sleep 300
+  while :; do
+    echo "[cron] summary"
+    curl -fsS -X GET "$BASE/api/resend/summary/all" -H "Authorization: Bearer $CRON_SECRET" \
+      || echo "[cron] Warning: summary request failed"
+    sleep 604800
+  done ) &
+
+wait

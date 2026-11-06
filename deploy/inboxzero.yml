@@ -1,0 +1,6 @@
+---
+- name: Deploy Inbox Zero stack
+  hosts: inboxzero
+  become: true
+  roles:
+    - inboxzero

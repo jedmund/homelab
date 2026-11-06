@@ -1,0 +1,148 @@
+---
+# Inbox Zero product stack: web, PostgreSQL, Redis, HTTP-Redis proxy, BullMQ
+# worker, and the cron sidecar. Pocket ID OIDC is seeded after deployment.
+
+- name: Validate Inbox Zero Vault configuration
+  ansible.builtin.assert:
+    that:
+      - (inboxzero_db_password | default('') | length) >= 16
+      - (inboxzero_redis_password | default('') | length) >= 32
+      - (inboxzero_redis_password | default('')) is match('^[A-Fa-f0-9]+$')
+      - (inboxzero_redis_http_token | default('') | length) >= 16
+      - (inboxzero_auth_secret | default('') | length) >= 32
+      - (inboxzero_email_encrypt_secret | default('') | length) >= 32
+      - (inboxzero_email_encrypt_salt | default('') | length) >= 16
+      - (inboxzero_internal_api_key | default('') | length) >= 32
+      - (inboxzero_cron_secret | default('') | length) >= 32
+      - (inboxzero_google_client_id | default('') | string | length) > 0
+      - (inboxzero_google_client_secret | default('') | length) > 0
+      - inboxzero_google_pubsub_topic_name | default('') is match('^projects/[^/]+/topics/[^/]+$')
+      - (inboxzero_google_pubsub_verification_token | default('') | length) >= 16
+      - (inboxzero_openwebui_api_key | default('') | length) > 0
+      - (inboxzero_llm_base_url | default('') | length) > 0
+      - (inboxzero_llm_provider | default('') | length) > 0
+      - (inboxzero_llm_default_model | default('') | length) > 0
+      - (inboxzero_llm_nano_model | default('') | length) > 0
+      - not inboxzero_worker_enabled or (inboxzero_queue_backend == 'bullmq')
+      - not (inboxzero_external_api_enabled | bool) or (inboxzero_api_key_salt | default('') | length) >= 32
+      - not (inboxzero_sso_enabled | bool) or ((inboxzero_oidc_client_id | default('') | string | length) > 0 and (inboxzero_oidc_client_secret | default('') | length) > 0)
+      - inboxzero_resend_gated or (inboxzero_resend_api_key | default('') | length) > 0
+      - (inboxzero_admin_emails | default('') | string | length) > 0
+      - (inboxzero_allowed_emails | default('') | string | length) > 0
+      - inboxzero_admin_list | length > 0
+      - inboxzero_admin_list | difference(inboxzero_allowed_list) | length == 0
+    fail_msg: >-
+      Inbox Zero requires the Vault inputs documented in roles/inboxzero/README.md
+      (database, Redis, auth secrets, Google OAuth and Pub/Sub, Open WebUI API
+      key, and PocketID OIDC when SSO is enabled). Email-delivering features
+      (digests, reminders, briefs) additionally require the Resend key while
+      their flags are enabled. Every admin email must also appear in the
+      sign-up allowlist.
+
+  no_log: true
+  tags:
+    - preflight
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/env"
+
+- name: Deploy cron schedule script
+  ansible.builtin.template:
+    src: cron.sh.j2
+    dest: "{{ config_base }}/config/cron.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  register: inboxzero_deploy_cron_script
+
+- name: Deploy {{ stack_name }} compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy {{ stack_name }} environment files
+  ansible.builtin.template:
+    src: "env/{{ item }}.env.j2"
+    dest: "{{ config_base }}/env/{{ item }}.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  loop:
+    - inboxzero
+    - postgres
+    - redis
+    - redis-http
+  no_log: true
+  register: inboxzero_deploy_environment_files
+
+# Inbox Zero's admin UI only registers SAML providers; this SQL seeds the
+# Better Auth SSO plugin's OIDC provider from Vault instead (see the seed
+# template header). Rendered here, applied after the web health wait below —
+# startup migrations create the tables it writes.
+- name: Deploy PocketID OIDC seed
+  ansible.builtin.template:
+    src: oidc-seed.sql.j2
+    dest: "{{ config_base }}/config/oidc-seed.sql"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  when: inboxzero_sso_enabled | bool
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ inboxzero_pull_policy | default(docker_pull_policy | default('missing')) }}"
+    recreate: >-
+      {{ 'always' if
+         (inboxzero_deploy_cron_script.changed | default(false)) or
+         (inboxzero_deploy_environment_files.changed | default(false))
+      else 'auto' }}
+  register: inboxzero_compose_result
+
+- name: Wait for {{ stack_name }} PostgreSQL readiness
+  ansible.builtin.command:
+    cmd: docker exec inboxzero_db pg_isready -U {{ inboxzero_db_user }} -d {{ inboxzero_db_name }}
+  register: inboxzero_postgres_readiness
+  until: inboxzero_postgres_readiness.rc == 0
+  retries: 24
+  delay: 10
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Wait for {{ stack_name }} web health
+  ansible.builtin.command:
+    cmd: >-
+      docker exec inboxzero_web node -e
+      "fetch('http://127.0.0.1:{{ inboxzero_port }}/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"
+  register: inboxzero_web_health
+  until: inboxzero_web_health.rc == 0
+  retries: 40
+  delay: 15
+  changed_when: false
+  when: not ansible_check_mode
+
+# Idempotent upsert (org insert-if-absent, provider row upsert) so vault-side
+# PocketID client rotations propagate; safe to re-run on every deploy. Runs
+# after web health because the server starts only after its migrations have
+# created the tables this writes.
+- name: Apply PocketID OIDC seed
+  ansible.builtin.shell:
+    cmd: >-
+      docker exec -i inboxzero_db psql
+      -U {{ inboxzero_db_user }} -d {{ inboxzero_db_name }}
+      -v ON_ERROR_STOP=1 -f /dev/stdin < {{ config_base }}/config/oidc-seed.sql
+  changed_when: false
+  no_log: true
+  when:
+    - inboxzero_sso_enabled | bool
+    - not ansible_check_mode

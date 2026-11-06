@@ -534,6 +534,18 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "inbox-zero"
+description = "Inbox Zero AI email assistant"
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/inbox-zero"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "kavita"
 description = "Kavita"
 tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]

@@ -156,6 +156,7 @@ borg_networks:
 #   vault_hugginghack_postgres_password
 #   vault_stereo_postgres_password
 #   vault_phpbb_db_root_password
+#   vault_inboxzero_postgres_password
 #   komodo_db_username, komodo_db_password
 #   romm_db_root_password
 #   obsidian_livesync_couchdb_user, obsidian_livesync_couchdb_password
@@ -194,6 +195,9 @@ hugginghack_db_password: "{{ vault_hugginghack_postgres_password }}"
 stereo_db_name: stereo
 stereo_db_user: stereo
 stereo_db_password: "{{ vault_stereo_postgres_password }}"
+inboxzero_db_name: inboxzero
+inboxzero_db_user: inboxzero
+inboxzero_db_password: "{{ vault_inboxzero_postgres_password }}"
 obsidian_livesync_couchdb_port: 5984
 
 # Monitoring (Healthchecks.io). Create a check with a 1-day-and-some grace

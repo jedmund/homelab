@@ -39,6 +39,7 @@ ddclient_atelier_subdomains:
   - kv.atelier.house
   - li.atelier.house
   - logs.atelier.house
+  - mail.atelier.house
   - maps.atelier.house
   - matrix.atelier.house
   - matrix-admin.atelier.house

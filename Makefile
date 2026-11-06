@@ -223,6 +223,10 @@ deploy-karakeep: ## Deploy Karakeep
 	@echo "$(BLUE)Deploying Karakeep...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/karakeep.yml $(VAULT_FLAG)
 
+deploy-inboxzero: ## Deploy Inbox Zero (AI email assistant at mail.atelier.house)
+	@echo "$(BLUE)Deploying Inbox Zero...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/inboxzero.yml $(VAULT_FLAG)
+
 deploy-kavita: ## Deploy Kavita
 	@echo "$(BLUE)Deploying Kavita...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/kavita.yml $(VAULT_FLAG)

@@ -103,6 +103,10 @@ postgresql_databases:
       hostname: stereo_postgres
       username: {{ stereo_db_user }}
       password: "{{ stereo_db_password }}"
+    - name: {{ inboxzero_db_name }}
+      hostname: inboxzero_db
+      username: {{ inboxzero_db_user }}
+      password: "{{ inboxzero_db_password }}"
 
 # Native MariaDB hooks for RomM and the phpBB board. Using root since
 # MARIADB_ROOT_PASSWORD is what's set on the containers; mysqldump needs

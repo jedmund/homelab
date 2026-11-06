@@ -1,0 +1,145 @@
+---
+# Stack identity
+stack_name: inbox-zero
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Images. The application tag is a upstream release tag (v-prefix stripped);
+# bump it deliberately per the runbook's upgrade procedure, not on a schedule.
+inboxzero_image: ghcr.io/elie222/inbox-zero
+inboxzero_image_tag: "2.30.0"
+# Pinned immutable release tag; the shared "always" policy would re-check the
+# registry on every deploy for no benefit. Override with -e to force pulls.
+inboxzero_pull_policy: missing
+
+inboxzero_db_image: postgres:16-alpine
+inboxzero_redis_image: redis:7-alpine
+# HTTP Redis proxy speaking the Upstash REST protocol for the app's cache and
+# rate limits. 0.0.10 is the newest non-alpha tag; upstream Compose floats
+# :latest on this image.
+inboxzero_redis_http_image: hiett/serverless-redis-http:0.0.10
+# Cron sidecar: curl built in, so the schedule script needs no apk installs.
+inboxzero_cron_image: curlimages/curl:8.23.0
+
+# Public route (Traefik labels on the web container)
+inboxzero_domain: mail.atelier.house
+inboxzero_base_url: "https://{{ inboxzero_domain }}"
+inboxzero_port: 3000
+
+# PostgreSQL
+inboxzero_db_name: inboxzero
+inboxzero_db_user: inboxzero
+inboxzero_db_password: "{{ vault_inboxzero_postgres_password | default('') }}"
+inboxzero_database_url: >-
+  postgresql://{{ inboxzero_db_user }}:{{ inboxzero_db_password }}@inboxzero-db:5432/{{ inboxzero_db_name }}?schema=public
+
+# Redis: cache/rate limits over the HTTP proxy, BullMQ queue over the native
+# protocol. Ephemeral by design (kaneo precedent); Postgres is the source of
+# truth and the cron container re-triggers periodic work after a restart.
+inboxzero_redis_password: "{{ vault_inboxzero_redis_password | default('') }}"
+inboxzero_redis_http_token: "{{ vault_inboxzero_redis_http_token | default('') }}"
+inboxzero_redis_http_url: http://inboxzero-redis-http:80
+inboxzero_redis_url: "redis://:{{ inboxzero_redis_password }}@inboxzero-redis:6379"
+# bullmq | qstash | internal. bullmq pairs with the worker container below.
+inboxzero_queue_backend: bullmq
+inboxzero_worker_enabled: true
+
+# Auth / access control. Sign-up allowlist gates which emails may become
+# users (SSO sign-in, Google login, and mailbox links all pass through it);
+# the Google/Microsoft buttons stay available because mailbox connection
+# requires the provider OAuth grant.
+inboxzero_admin_emails: justin@jedmund.com
+inboxzero_allowed_emails: justin@jedmund.com,hello@jedmund.com
+inboxzero_sso_enabled: "true"
+# Seed the organization + Pocket ID OIDC provider directly. Requires the
+# PocketID client below; the org is created if absent and the provider row is
+# upserted on every deploy so vault-side client rotations propagate.
+inboxzero_auto_join_org: "false"
+inboxzero_oidc_org_name: Atelier
+inboxzero_oidc_org_slug: atelier
+# Deterministic row ids; nothing in the app depends on the id format.
+inboxzero_oidc_org_id: inboxzero-org-atelier
+inboxzero_oidc_provider_id: pocketid
+inboxzero_oidc_provider_row_id: inboxzero-sso-pocketid
+# SSO identity domain; SSO sign-in matches the provider by organization slug.
+inboxzero_oidc_domain: jedmund.com
+inboxzero_oidc_issuer: https://id.atelier.house
+inboxzero_oidc_discovery_url: https://id.atelier.house/.well-known/openid-configuration
+inboxzero_oidc_scopes:
+  - openid
+  - email
+  - profile
+inboxzero_oidc_client_id: "{{ vault_inboxzero_oidc_client_id | default('') }}"
+inboxzero_oidc_client_secret: "{{ vault_inboxzero_oidc_client_secret | default('') }}"
+# JSON body of the ssoProvider.oidcConfig column (Better Auth SSO plugin).
+inboxzero_oidc_config:
+  discoveryEndpoint: "{{ inboxzero_oidc_discovery_url }}"
+  clientId: "{{ inboxzero_oidc_client_id }}"
+  clientSecret: "{{ inboxzero_oidc_client_secret }}"
+  scopes: "{{ inboxzero_oidc_scopes }}"
+  pkce: true
+inboxzero_oidc_config_json: "{{ inboxzero_oidc_config | to_json }}"
+
+# Secrets (generated with `openssl rand -hex 32`; salt with -hex 16)
+inboxzero_auth_secret: "{{ vault_inboxzero_auth_secret | default('') }}"
+inboxzero_email_encrypt_secret: "{{ vault_inboxzero_email_encrypt_secret | default('') }}"
+inboxzero_email_encrypt_salt: "{{ vault_inboxzero_email_encrypt_salt | default('') }}"
+inboxzero_internal_api_key: "{{ vault_inboxzero_internal_api_key | default('') }}"
+inboxzero_api_key_salt: "{{ vault_inboxzero_api_key_salt | default('') }}"
+inboxzero_cron_secret: "{{ vault_inboxzero_cron_secret | default('') }}"
+
+# Google Cloud (Gmail mailboxes). OAuth client redirect:
+#   https://mail.atelier.house/api/auth/callback/google
+# Pub/Sub push subscription endpoint:
+#   https://mail.atelier.house/api/google/webhook
+inboxzero_google_client_id: "{{ vault_inboxzero_google_client_id | default('') }}"
+inboxzero_google_client_secret: "{{ vault_inboxzero_google_client_secret | default('') }}"
+inboxzero_google_pubsub_topic_name: "{{ vault_inboxzero_google_pubsub_topic_name | default('') }}"
+inboxzero_google_pubsub_verification_token: "{{ vault_inboxzero_google_pubsub_verification_token | default('') }}"
+
+# LLMs through Open WebUI (roles/open_webui) on nuc-mini. Both stacks share
+# proxy-network, so the web container resolves the Open WebUI container
+# directly; the public alternative is https://ai.atelier.house/openai/v1.
+# The API key is the per-user key from Open WebUI Settings > Account.
+inboxzero_openwebui_api_key: "{{ vault_inboxzero_openwebui_api_key | default('') }}"
+# Open WebUI's native OpenAI-compatible endpoint: the app appends
+# /chat/completions to this base. The /openai/v1 passthrough path 404s
+# upstream on the deployed Open WebUI 0.12.4, so /api is the reliable surface.
+inboxzero_llm_base_url: http://open_webui:8080/api
+# Model ids as exposed by Open WebUI's catalog (GET /api/models with the API
+# key) — the llama-swap catalog names, not their aliases. Verify with:
+#   curl -H "Authorization: Bearer $KEY" http://open_webui:8080/api/models
+# The 2.30.0 release uses the legacy provider/model environment style; the
+# DEFAULT_LLMS chain format arrives in later releases (see the runbook when
+# bumping the tag).
+inboxzero_llm_provider: openai-compatible
+inboxzero_llm_default_model: qwen3.8
+inboxzero_llm_nano_model: qwen3-small
+# Lock account-level model settings to the deployment values above.
+inboxzero_lock_model_settings: "true"
+
+# Transactional email (Resend; the only supported provider). Digests,
+# follow-up reminders, meeting briefs, and sign-in codes deliver through it.
+inboxzero_resend_api_key: "{{ vault_inboxzero_resend_api_key | default('') }}"
+# jedmund.com must be a verified domain in the Resend account.
+inboxzero_resend_from_email: "Inbox Zero <noreply@jedmund.com>"
+
+# Feature flags (self-hosted defaults). Email-delivering features render only
+# when the Resend key is present; see the env template. Flags that do not
+# exist in the 2.30.0 schema (MCP server, delete/integration rule actions)
+# are omitted until the image tag is bumped; see the runbook.
+inboxzero_contacts_enabled: "true"
+inboxzero_digest_enabled: "true"
+inboxzero_meeting_briefs_enabled: "true"
+inboxzero_follow_up_reminders_enabled: "true"
+inboxzero_integrations_enabled: "true"
+inboxzero_external_api_enabled: "true"
+inboxzero_email_send_enabled: "true"
+inboxzero_bypass_premium_checks: "true"
+
+# Derived preflight values (not for direct deployment)
+# The email-delivering features only function with a Resend key present.
+inboxzero_resend_gated: "{{ (inboxzero_digest_enabled == 'true')
+  or (inboxzero_meeting_briefs_enabled == 'true')
+  or (inboxzero_follow_up_reminders_enabled == 'true') }}"
+inboxzero_admin_list: "{{ inboxzero_admin_emails.split(',') | map('trim') | reject('equalto', '') | list }}"
+inboxzero_allowed_list: "{{ inboxzero_allowed_emails.split(',') | map('trim') | reject('equalto', '') | list }}"
