@@ -5,7 +5,7 @@
 #
 # atelier.house DNS records that resolve to this VM (keep current as apps
 # are onboarded):
-#   dokploy.atelier.house        - admin UI
+#   deploy.atelier.house         - admin UI
 #   *.apps.atelier.house         - default per-app wildcard
 #   <add per-app overrides here, e.g. music.sort.atelier.house>
 
@@ -16,8 +16,7 @@ vm_static_ip: 192.168.1.8
 vm_gateway: 192.168.1.1
 vm_netmask_bits: 24
 vm_dns_servers:
-  - 1.1.1.1
-  - 1.0.0.1
+  - "{{ vm_gateway }}"
 
 # VM resources
 vm_vcpus: 4

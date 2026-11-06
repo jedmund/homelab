@@ -34,6 +34,17 @@ requirements, and confirm a recoverable VM backup. Verify the guest is running
 and SSH is reachable. Provision a new guest separately with
 `make deploy-dokploy-host`; it can change host networking.
 
+The host role allows this guest's outbound traffic and inbound TCP 22/80/443
+and UDP 443 through UFW on `br0`. These forwarding rules are required when
+bridge netfilter is enabled; host-to-guest access alone does not verify LAN
+reachability. The gateway passes TLS for `deploy.atelier.house` and application
+hostnames under `apps.atelier.house` to the guest.
+
+The guest role routes `atelier.house` DNS queries to the homelab resolver at
+`192.168.1.1` through a systemd-resolved drop-in. Public resolvers do not resolve
+the private registry record. New guests also receive the homelab resolver in
+their cloud-init network configuration.
+
 From the repository root, when deployment is authorized:
 
 ```sh
@@ -45,6 +56,6 @@ selects the fork image and configures its Traefik instance for Cloudflare DNS-01
 A repeat run can resolve a newer digest for the moving `canary` tag.
 
 After deployment, inspect `docker service ls` and `docker ps` inside the guest.
-Verify [dokploy.atelier.house](https://dokploy.atelier.house), PocketID login,
+Verify [deploy.atelier.house](https://deploy.atelier.house), PocketID login,
 and a deployed application's route. Registry publishing alone does not establish
 VM or application health.

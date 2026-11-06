@@ -565,7 +565,7 @@ tcp:
       # subdomain depth under apps.atelier.house. This covers both
       # flat (test.apps.atelier.house) and Vercel-style
       # (pr-42.stereo.apps.atelier.house) preview hostnames.
-      rule: "HostSNI(`dokploy.{{ traefik_domain }}`) || HostSNIRegexp(`^.+\\.apps\\.atelier\\.house$`)"
+      rule: "HostSNI(`deploy.{{ traefik_domain }}`) || HostSNIRegexp(`^.+\\.apps\\.atelier\\.house$`)"
       tls:
         passthrough: true
       service: dokploy-vm

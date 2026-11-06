@@ -63,6 +63,33 @@
     group: root
     mode: '0711'
 
+# Bridge netfilter passes guest traffic through UFW's forwarding policy.
+# Keep these exceptions scoped to this guest instead of disabling filtering.
+- name: Allow Dokploy guest outbound traffic across the bridge
+  community.general.ufw:
+    route: true
+    rule: allow
+    interface_in: "{{ bridge_iface }}"
+    interface_out: "{{ bridge_iface }}"
+    src: "{{ vm_static_ip }}"
+    comment: Dokploy VM outbound
+  when: firewall_enabled | default(true) | bool
+
+- name: Allow Dokploy guest web and SSH access across the bridge
+  community.general.ufw:
+    route: true
+    rule: allow
+    interface_in: "{{ bridge_iface }}"
+    interface_out: "{{ bridge_iface }}"
+    dest: "{{ vm_static_ip }}"
+    proto: "{{ item.proto }}"
+    port: "{{ item.port }}"
+    comment: Dokploy VM access
+  loop:
+    - { proto: tcp, port: '22,80,443' }
+    - { proto: udp, port: '443' }
+  when: firewall_enabled | default(true) | bool
+
 - name: Download Ubuntu 24.04 cloud image
   get_url:
     url: "{{ vm_image_url }}"
