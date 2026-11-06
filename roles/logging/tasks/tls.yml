@@ -1,0 +1,48 @@
+---
+- name: Create persistent logging CA and server private keys
+  community.crypto.openssl_privatekey:
+    path: "{{ config_base }}/tls/{{ item }}.key"
+    type: ECC
+    curve: secp256r1
+    mode: '0600'
+  loop: [ca, server]
+  no_log: true
+
+- name: Create logging CA request
+  community.crypto.openssl_csr:
+    path: "{{ config_base }}/tls/ca.csr"
+    privatekey_path: "{{ config_base }}/tls/ca.key"
+    common_name: Homelab logging CA
+    basic_constraints: ['CA:TRUE']
+    basic_constraints_critical: true
+    key_usage: [keyCertSign, cRLSign]
+    key_usage_critical: true
+
+- name: Sign the persistent logging CA
+  community.crypto.x509_certificate:
+    path: "{{ config_base }}/tls/ca.crt"
+    csr_path: "{{ config_base }}/tls/ca.csr"
+    privatekey_path: "{{ config_base }}/tls/ca.key"
+    provider: selfsigned
+    selfsigned_not_after: '+3650d'
+    mode: '0644'
+
+- name: Create logging ingestion certificate request
+  community.crypto.openssl_csr:
+    path: "{{ config_base }}/tls/server.csr"
+    privatekey_path: "{{ config_base }}/tls/server.key"
+    common_name: Homelab logging ingestion
+    subject_alt_name: ["IP:{{ logging_bind_address }}"]
+    extended_key_usage: [serverAuth]
+    key_usage: [digitalSignature]
+
+- name: Sign logging ingestion certificate
+  community.crypto.x509_certificate:
+    path: "{{ config_base }}/tls/server.crt"
+    csr_path: "{{ config_base }}/tls/server.csr"
+    ownca_path: "{{ config_base }}/tls/ca.crt"
+    ownca_privatekey_path: "{{ config_base }}/tls/ca.key"
+    provider: ownca
+    ownca_not_after: '+825d'
+    mode: '0644'
+  register: logging_server_certificate

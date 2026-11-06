@@ -34,6 +34,25 @@ kizuna_screenshotter_image_tag: latest
 # sidecar unauthenticated (dev only) and still lets the API call it.
 kizuna_screenshotter_secret: "{{ vault_kizuna_screenshotter_secret | default('') }}"
 
+# ---- Widget compiler sidecar (Node) ----
+# Compiles and validates model-written OpenUI Lang into the stored chat-widget
+# tree for AiWidgetJob, and serves the widget system prompt at /catalog. Built
+# by kizuna-app CI from apps/widget-compiler/Dockerfile and pushed to a nested
+# path under the kizuna-app project registry (same read_registry deploy token).
+# Backend-only with no egress: no proxy network and no Traefik route;
+# kizuna-api and the workers reach it at http://kizuna-widget-compiler:4100.
+kizuna_widget_compiler_image: registry.atelier.house/kizuna/kizuna-app/widget-compiler
+kizuna_widget_compiler_image_tag: latest
+# Shared secret: the API sends it as the X-Widget-Compiler-Secret header and
+# the sidecar checks it. Generate once (`openssl rand -hex 32`) and store in
+# the vault; api.env and widget-compiler.env read the same value. Blank leaves
+# the sidecar unauthenticated (dev only) and still lets the API call it.
+kizuna_widget_compiler_secret: "{{ vault_kizuna_widget_compiler_secret | default('') }}"
+
+# Shared internal geo services. Blank URLs disable the corresponding widget feature.
+kizuna_geocoder_url: http://photon:2322
+kizuna_router_url: http://valhalla:8002
+
 # Registry auth. Use a single GitLab deploy token scoped to
 # `read_registry` at the kizuna group level so one credential covers
 # both project registries.
@@ -82,6 +101,9 @@ kizuna_video_archive_sub_langs: "en.*,en"
 # Keep CPU-, network-, and disk-heavy yt-dlp/ffmpeg work serialized while the
 # default worker remains responsive to enrichment and application jobs.
 kizuna_media_worker_concurrency: 1
+# Chat replies hold a thread for their whole run (up to the run deadline), so
+# this bounds how many replies, follow-ups, and visuals stream at once.
+kizuna_chat_worker_concurrency: 5
 # PDF extraction has its own queue because rendering/OCR is CPU-, disk-, and
 # GPU-service-heavy. Two jobs can make progress concurrently while each job
 # claims pages in small resumable batches.
@@ -102,8 +124,9 @@ kizuna_garage_bucket: kizuna
 # Garage keeps its small SQLite metadata volume on the NUC, while the large
 # immutable object blocks live on the Files NAS share. This moves
 # uploaded media and archived videos off the NUC without changing the S3 API
-# consumed by Rails or the browser. Set false for an immediate rollback to the
-# retained Compose-managed local volume.
+# consumed by Rails or the browser. Set false to use the Compose-managed
+# local volume; restoring current data there is a separate operation
+# (see README.md).
 kizuna_garage_data_nas_enabled: true
 kizuna_garage_data_nas_share: Files
 kizuna_garage_data_nas_seed_volume: kizuna-files-nas-root
@@ -112,8 +135,6 @@ kizuna_garage_data_nfs_root_device: ":{{ nfs_base_path }}/{{ kizuna_garage_data_
 kizuna_garage_data_nfs_device: "{{ kizuna_garage_data_nfs_root_device }}/{{ kizuna_garage_data_nas_subdirectory }}"
 kizuna_garage_data_nfs_options: "{{ nfs_base_opts }}"
 kizuna_garage_data_volume_name: kizuna-garage-data-nas
-kizuna_garage_legacy_data_volume_name: "{{ stack_name }}_kizuna-garage-data"
-kizuna_garage_data_migration_marker: "{{ config_base }}/.garage-data-migrated-to-nas"
 # yt-dlp needs scratch space for the selected stream plus its merged/re-encoded
 # output. Keep that transient data on the Files NAS as well so best-quality
 # archives are not constrained by the NUC's root filesystem.
@@ -170,6 +191,7 @@ kizuna_ar_encryption_key_derivation_salt: "{{ vault_kizuna_ar_encryption_key_der
 kizuna_oidc_issuer: https://id.atelier.house
 kizuna_oidc_client_id: "{{ vault_kizuna_oidc_client_id | default('') }}"
 kizuna_oidc_client_secret: "{{ vault_kizuna_oidc_client_secret | default('') }}"
+kizuna_ios_oidc_client_id: "{{ vault_kizuna_oidc_public_client_id | default('') }}"
 kizuna_oidc_redirect_uri: "{{ kizuna_api_origin }}/auth/pocketid/callback"
 
 # The API callback is a top-level browser navigation, so it must return to
@@ -189,8 +211,8 @@ kizuna_allowed_origins: "{{ kizuna_web_origin }}"
 kizuna_cookie_domain: "{{ kizuna_web_domain | regex_replace('^(api|www)\\.', '') }}"
 
 # ---- Shared AI services ----
-# OCR and SearXNG are owned by the ai stack on max. Kizuna consumes those
-# services; this role must not deploy duplicate containers on nuc-mini.
+# OCR is owned by the ai stack on max. Kizuna consumes it without deploying
+# a duplicate container. Search providers are managed in Kizuna Admin.
 max_server_ip: "{{ hostvars['max'].ansible_host }}"
 kizuna_pdf_ocr_port: 11434
 kizuna_pdf_ocr_base_url: "http://{{ max_server_ip }}:{{ kizuna_pdf_ocr_port }}"
@@ -201,11 +223,6 @@ kizuna_pdf_ocr_timeout_seconds: 180
 # disabling OCR or discarding previously enriched content.
 kizuna_pdf_visual_enrichment_mode: "on"
 kizuna_pdf_visual_retrieval_enabled: "true"
-kizuna_searxng_port: 8889
-kizuna_searxng_base_url: "http://{{ max_server_ip }}:{{ kizuna_searxng_port }}"
-kizuna_searxng_name: "Atelier SearXNG"
-kizuna_searxng_enabled: "true"
-kizuna_searxng_api_key: "{{ vault_kizuna_searxng_api_key | default('') }}"
 
 # The upload reaper is the stack's one scheduled hard-delete path. New
 # deployments start in audit-only mode; flip this to "0" in a dedicated

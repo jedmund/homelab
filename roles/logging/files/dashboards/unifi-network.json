@@ -1,0 +1,818 @@
+{
+  "uid": "homelab-unifi-network",
+  "title": "UniFi network health",
+  "description": "Internet, Wi-Fi, device health and client bandwidth from UniFi Network.",
+  "tags": [
+    "homelab",
+    "managed"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "type": "link",
+      "title": "Log browser",
+      "url": "/d/homelab-log-browser",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Web traffic",
+      "url": "/d/homelab-web-traffic",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "AI performance",
+      "url": "/d/homelab-ai-performance",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Network",
+      "url": "/d/homelab-unifi-network",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Hosts",
+      "url": "/d/homelab-host-capacity",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "type": "link",
+      "title": "Storage & backups",
+      "url": "/d/homelab-storage-backups",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "label": "Site",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "homelab-prometheus"
+        },
+        "query": "label_values(unpoller_device_uptime_seconds, site_name)",
+        "definition": "label_values(unpoller_device_uptime_seconds, site_name)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "WAN availability",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "min(unpoller_device_wan_availability_percent{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "title": "WAN latency",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "max(unpoller_device_wan_latency_seconds{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Reporting network devices",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "count(unpoller_device_uptime_seconds{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Reporting clients",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "count(unpoller_client_uptime_seconds{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "Unknown"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Clients present in the controller response; not a count of all historical clients."
+    },
+    {
+      "id": 5,
+      "title": "WAN download / upload",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "sum by (name,port)(rate(unpoller_device_wan_receive_bytes_total{job=\"unifi\",site_name=~\"$site\"}[$__rate_interval])) * 8",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}} {{port}} download"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "sum by (name,port)(rate(unpoller_device_wan_transmit_bytes_total{job=\"unifi\",site_name=~\"$site\"}[$__rate_interval])) * 8",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}} {{port}} upload"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "WAN latency over time",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_device_wan_latency_seconds{job=\"unifi\",site_name=~\"$site\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}} {{port}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Top clients by combined bandwidth",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "topk(12, sum by (name,mac)(rate(unpoller_client_receive_bytes_total{job=\"unifi\",site_name=~\"$site\"}[$__rate_interval])) + sum by (name,mac)(rate(unpoller_client_transmit_bytes_total{job=\"unifi\",site_name=~\"$site\"}[$__rate_interval]))) * 8",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}} \u00b7 {{mac}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false,
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Weakest reported Wi-Fi signals",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "bottomk(12,unpoller_client_radio_signal_db{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}} \u00b7 {{ap_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false,
+          "fields": ""
+        }
+      },
+      "description": "Signal strength in dBm; values closer to zero are stronger. This does not measure Internet latency."
+    },
+    {
+      "id": 9,
+      "title": "CPU utilization by network device",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "100 * unpoller_device_cpu_utilization_ratio{job=\"unifi\",site_name=~\"$site\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Memory utilization by network device",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "100 * unpoller_device_memory_utilization_ratio{job=\"unifi\",site_name=~\"$site\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Wi-Fi client transmit retries / second",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "sum by (ap_name)(rate(unpoller_client_transmit_retries_total{job=\"unifi\",site_name=~\"$site\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{ap_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Retry event rate; not a retry percentage. Client counter resets are handled by rate()."
+    },
+    {
+      "id": 12,
+      "title": "Device temperatures",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_device_temperature_celsius{job=\"unifi\",site_name=~\"$site\"}",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "PoE draw by switch",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "sum by (name)(unpoller_device_port_poe_watts{job=\"unifi\",site_name=~\"$site\"})",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Device uptime",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "homelab-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "homelab-prometheus"
+          },
+          "expr": "unpoller_device_uptime_seconds{job=\"unifi\",site_name=~\"$site\"}",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false,
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "WAN throughput comes from gateway interface counters. Top-client traffic can include LAN transfers and must not be summed as Internet usage. Reporting devices/clients reflect the controller response; a missing device needs investigation in UniFi. Polling is once per minute."
+      }
+    }
+  ]
+}

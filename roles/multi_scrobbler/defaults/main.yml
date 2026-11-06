@@ -4,7 +4,7 @@ stack_name: multi-scrobbler
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # Multi-Scrobbler settings
-multi_scrobbler_image: foxxmd/multi-scrobbler:latest
+multi_scrobbler_image: foxxmd/multi-scrobbler:0.19.2
 multi_scrobbler_port: 9078
 multi_scrobbler_base_url: "https://scrobble.atelier.house"
 # musicbrainz_web_port matches the port published by the musicbrainz role on

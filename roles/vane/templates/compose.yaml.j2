@@ -5,7 +5,10 @@ services:
   vane:
     container_name: vane
     image: "{{ vane_image }}:{{ vane_image_tag }}"
-    restart: {{ restart_policy }}
+    restart: {{ restart_policy if vane_enabled | bool else '"no"' }}
+{% if not vane_enabled | bool %}
+    profiles: ["vane"]
+{% endif %}
     networks:
       - proxy
     volumes:
@@ -13,12 +16,16 @@ services:
     env_file:
       - ./env/vane.env
     labels:
+{% if vane_enabled | bool %}
       # Native OIDC handles auth; no tinyauth middleware on this route.
       traefik.enable: "true"
       traefik.http.routers.vane.rule: "Host(`{{ vane_domain }}`)"
       traefik.http.routers.vane.entrypoints: "websecure"
       traefik.http.routers.vane.tls.certresolver: "letsencrypt"
       traefik.http.services.vane.loadbalancer.server.port: "{{ vane_port }}"
+{% else %}
+      traefik.enable: "false"
+{% endif %}
     logging:
       driver: {{ logging_driver }}
       options:

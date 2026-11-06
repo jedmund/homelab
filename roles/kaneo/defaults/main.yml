@@ -3,10 +3,10 @@
 stack_name: kaneo
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Pin the reviewed 2.24.0 tree with GitLab workflow controls. This image is loaded by kaneo-upgrade.yml
-# from a retained archive on the host; no mutable registry tag is published.
+# Pin the fork's 2.47.0 merge commit by its immutable commit-SHA image. kaneo-upgrade.yml loads it from
+# an archive on the host; never point this at the mutable latest tag.
 kaneo_image: registry.atelier.house/jedmund/kaneo
-kaneo_image_tag: workflow-40a1e34ac728
+kaneo_image_tag: 0d8d1eb84e2f8b45625ac80dff0283843543361d
 kaneo_pull_policy: missing
 kaneo_registry_url: https://registry.atelier.house
 kaneo_registry_username: "{{ vault_kaneo_registry_username | default('') }}"
@@ -78,6 +78,12 @@ kaneo_github_app_id: "{{ vault_kaneo_github_app_id | default('') }}"
 kaneo_github_app_name: "{{ vault_kaneo_github_app_name | default('') }}"
 kaneo_github_webhook_secret: "{{ vault_kaneo_github_webhook_secret | default('') }}"
 kaneo_github_private_key_base64: "{{ vault_kaneo_github_private_key_base64 | default('') }}"
+
+# GitHub OAuth App for linking a GitHub account to an existing user, so the
+# integration can verify repository admin access. The env template always sets
+# GITHUB_OAUTH_DISABLE_SIGN_UP, so GitHub never creates accounts.
+kaneo_github_oauth_client_id: "{{ vault_kaneo_github_oauth_client_id | default('') }}"
+kaneo_github_oauth_client_secret: "{{ vault_kaneo_github_oauth_client_secret | default('') }}"
 
 # Garage S3 object storage for private image/attachment uploads.
 #

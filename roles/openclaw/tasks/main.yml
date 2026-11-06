@@ -1,8 +1,0 @@
----
-- name: Shut down openclaw when disabled
-  ansible.builtin.import_tasks: disabled.yml
-  when: not (openclaw_enabled | bool)
-
-- name: Install and configure openclaw when enabled
-  ansible.builtin.import_tasks: enabled.yml
-  when: openclaw_enabled | bool

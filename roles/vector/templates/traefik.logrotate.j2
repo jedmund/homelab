@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+{{ vector_traefik_volume.volume.Mountpoint }}/access.log {
+    daily
+    maxsize 100M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    sharedscripts
+    postrotate
+        if /usr/bin/docker inspect -f '{{ '{{' }}.State.Running{{ '}}' }}' traefik 2>/dev/null | /usr/bin/grep -qx true; then
+            /usr/bin/docker kill --signal=USR1 traefik >/dev/null
+        fi
+    endscript
+}

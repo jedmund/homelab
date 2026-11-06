@@ -1,0 +1,6 @@
+---
+- name: Deploy shared Photon geocoder
+  hosts: photon
+  become: true
+  roles:
+    - photon

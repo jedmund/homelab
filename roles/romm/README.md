@@ -5,6 +5,64 @@ ROM library manager at `rom.atelier.house`, running on nuc-mini.
 Most of the role is unremarkable. This file covers the one part that is
 not: emulator streaming, which spans four roles and two hosts.
 
+## Upgrading RomM
+
+The application image is pinned to 5.4.0. Review release notes before changing
+it; minor releases can migrate both configuration and the database. Keep the
+MariaDB image unchanged during application upgrades.
+
+Before deployment, retain the running image and back up the database with
+routines, events, and triggers; `/opt/docker/romm`; and the `romm-resources`,
+`romm-redis-data`, and `games_assets` volumes. Stop RomM for the final backup so
+save files and their database records agree. Mount NFS-backed volumes in a
+read-only backup helper while RomM is stopped; Docker may unmount their host
+mountpoints when the last consuming container stops. Verify a database restore and run
+the target migrations against that isolated copy before upgrading production.
+Keep the rehearsal off the production network and mount the game library read-only.
+
+The role migrates the legacy `roms`/`bios` layout to
+`filesystem.structure.default: "roms/{platform}/{game}"` and
+`filesystem.structure.firmware: "bios/{platform}"`. It preserves explicit
+structures, platform aliases, exclusions, and other UI settings. Custom legacy
+folder names fail validation and need an explicit migration. Streaming uses one
+entry per container with platform mappings; the existing emulator broker
+protocol and save namespaces remain unchanged.
+
+After pre-pulling the reviewed application image, verify that the cached
+MariaDB image still matches the running database and deploy with:
+
+```bash
+ansible-playbook deploy/romm.yml -e docker_pull_policy=missing
+```
+
+The readiness timeout and health-check startup allowance are 30 minutes.
+[RomM 5.4.0](https://github.com/rommapp/romm/releases/tag/5.4.0) can spend
+15–20 minutes migrating a large library. Monitor migration progress and do not
+restart the container during it. Check the heartbeat version, login, library
+counts, artwork, downloads, save/state records, and streaming configuration.
+Configuration hashes on the application service limit configuration-triggered
+recreation to RomM. A repeated deployment should not recreate either container.
+The focused configuration checks run with the Ansible Python environment:
+
+```bash
+ANSIBLE_LOCAL_TEMP=$PWD/.ansible/tmp python3 tests/test_romm_config.py
+```
+
+Rollback requires the old application image together with its matching database
+and configuration backup; changing the image alone does not undo migrations.
+Restore save assets from the same backup if they changed. The database engine
+and persistent volume identities must remain unchanged.
+
+## Library access
+
+The 2026-10-11 upgrade checks found pre-existing NFS permission failures in
+several platform directories, including `roms/3DS`, `roms/3DS-eShop`, and
+`roms/WII`. Read-only probes with both the retained 5.2.0 image and 5.4.0 returned
+the same failures. PS2 samples were readable. Check access from inside the
+application container before rescanning or troubleshooting downloads; metadata
+and artwork availability do not establish that ROM files are readable. Resolve
+NAS ownership and ACLs separately from application upgrades.
+
 ## Emulator streaming
 
 RomM 5.1 can launch a game into a native emulator running in a separate
@@ -16,8 +74,8 @@ Two containers are wired up, both on max:
 
 | Platform slugs | Emulator | Role           | Selkies       | Broker     |
 | -------------- | -------- | -------------- | ------------- | ---------- |
-| `ps2`          | PCSX2    | `roles/pcsx2`  | max:3010/3011 | max:8010   |
-| `ngc`, `wii`   | Dolphin  | `roles/dolphin`| max:3020/3021 | max:8020   |
+| `ps2`          | PCSX2    | `roles/pcsx2`  | max:3010      | max:8010   |
+| `ngc`, `wii`   | Dolphin  | `roles/dolphin`| max:3020      | max:8020   |
 
 RomM's own docs list `wiiu` against Dolphin. Dolphin does not emulate the
 Wii U, so that slug is not configured.
@@ -54,9 +112,9 @@ emulators outright.
 
 ## Host prerequisites on max
 
-None of these are handled by Ansible, and at the time of writing **none
-of them are satisfied**. The roles will deploy but the containers will
-not come up until these are done.
+The driver and DRM failures below describe the initial deployment. Live checks
+on 2026-10-11 passed NVIDIA access and DRM modeset/fbdev, and found a PS2 BIOS.
+Recheck current host state before applying the historical remediation steps.
 
 ### 1. The NVIDIA driver is mismatched
 
@@ -130,6 +188,14 @@ creates the directory and warns when it is empty, but cannot supply the
 file. Without it PCSX2 parks on an error dialog rather than crashing, so
 `/status` reports healthy while nothing plays.
 
+The role owns that directory as `puid`/`pgid` and re-chowns its contents
+on every run, because PCSX2 writes `.mec` and `.nvm` files next to the
+dump on first boot. A dump copied in by hand arrives owned by whoever
+copied it, and the image's init chowns `/config` without recursing into
+subdirectories, so the symptom is `Failed to write MEC file. Check your
+BIOS/permission settings.` in the emulator. Re-running the playbook is
+the fix.
+
 ### 4. PCSX2 memory card type
 
 In-game save sync needs the Slot 1 memory card to be `Folder` type, not
@@ -149,8 +215,8 @@ secret across per-group vaults would let the two copies drift.
 
 ```yaml
 vault_romm_streaming_broker_secret: <shared secret>
-vault_pcsx2_selkies_password: <basic auth password>
-vault_dolphin_selkies_password: <basic auth password>
+vault_pcsx2_selkies_password: <basic auth password, unused while disabled>
+vault_dolphin_selkies_password: <basic auth password, unused while disabled>
 ```
 
 ```bash
@@ -169,14 +235,30 @@ opening the launch API.
 
 ## Authentication
 
-Two layers, for two different paths:
+TinyAuth on the Traefik route is the only gate, per the usual pattern for
+services on max.
 
-- **Through Traefik** (`pcsx2.atelier.house`, `dolphin.atelier.house`):
-  TinyAuth, per the usual pattern for services on max.
-- **Direct to max on 3011/3021**: the container's own Selkies basic auth,
-  from `CUSTOM_USER` and `PASSWORD`. Unset, these images default to
-  `abc`/`abc`, which is why they are set even though Traefik is the
-  normal path.
+The containers' own Selkies basic auth is off
+(`pcsx2_selkies_auth_enabled` / `dolphin_selkies_auth_enabled`, both
+`false`). It used to be on as a second layer, but the only path in goes
+through TinyAuth already, and a basic-auth challenge inside RomM's iframe
+prompts the browser for credentials on top of the TinyAuth login the user
+just completed. The vault passwords are kept so flipping either flag back
+to `true` is the whole change.
+
+Note the images key off `PASSWORD` *existing*, not its value: init-nginx
+tests `${PASSWORD+x}` and uncomments the `auth_basic` directives whenever
+the variable is defined. An empty `PASSWORD=` would gate the UI behind an
+empty password, so the env templates omit the lines entirely.
+
+With basic auth off, the self-signed HTTPS listeners are no longer
+published to the host at all. Traefik's plain-HTTP backends on 3010/3020
+are the only Selkies ports exposed, and the ufw rules pin those plus the
+brokers to nuc-mini. Be aware that ufw does not actually contain them:
+Docker's iptables chains run ahead of ufw's filter rules and DOCKER-USER
+is empty, so a LAN host can still reach 3010/3020 directly. That is the
+same posture as the other unauthenticated services on max (llama-swap,
+tei, whisper, searxng), not a regression specific to this stack.
 
 There is a wrinkle. RomM embeds the stream in its player view, and a
 forward-auth redirect cannot complete inside that frame. The first visit
@@ -191,8 +273,8 @@ is also a two-way editor target for RomM's Library Management UI, which
 already owns the exclude rules and emulatorjs settings on this instance.
 
 The role therefore does not template the file. It reads the existing one,
-merges only the `streaming` key, and writes it back, so UI-authored keys
-survive a deploy. The first run reformats the file, since the merge is
+reconciles the `streaming` key, migrates retired filesystem keys, and writes it
+back. Explicit filesystem structures and other UI-authored keys survive a deploy. The first run reformats the file, since the merge is
 done through a YAML round trip; runs after that are idempotent.
 
 Editing the streaming block through the UI will work until the next

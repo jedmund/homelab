@@ -16,6 +16,11 @@
 - import_playbook: prerequisites.yml
   tags: [always, prerequisites]
 
+# The Degoog role refuses an empty deployment until degoog_migrate has restored
+# the max data onto nuc-mini. Run the explicit migration before deploy-all.
+- import_playbook: degoog.yml
+  tags: [degoog]
+
 # Infrastructure layer
 - import_playbook: traefik.yml
   tags: [infra, traefik]
@@ -43,11 +48,18 @@
 - import_playbook: beszel_agents.yml
   tags: [monitoring, beszel_agents]
 
+# Host tooling: fastfetch system summary on every compute host
+- import_playbook: fastfetch.yml
+  tags: [fastfetch]
+
 # Gatus uptime and invariant checks (status.atelier.house)
 - import_playbook: gatus.yml
   tags: [monitoring, gatus]
 
 # Media stack
+- import_playbook: flaresolverr.yml
+  tags: [flaresolverr]
+
 - import_playbook: gluetun.yml
   tags: [media, gluetun]
 
@@ -124,8 +136,14 @@
 - import_playbook: homebox.yml
   tags: [homebox]
 
-- import_playbook: album_sort.yml
-  tags: [album_sort]
+- import_playbook: granblue.yml
+  tags: [granblue]
+
+- import_playbook: stereo.yml
+  tags: [stereo]
+
+- import_playbook: photon.yml
+  tags: [photon, geo]
 
 - import_playbook: dawarich.yml
   tags: [dawarich]
@@ -181,6 +199,9 @@
 - import_playbook: copyparty.yml
   tags: [copyparty]
 
+- import_playbook: bentopdf.yml
+  tags: [bentopdf]
+
 - import_playbook: hugginghack.yml
   tags: [hugginghack]
 
@@ -193,8 +214,15 @@
 - import_playbook: kibble.yml
   tags: [kibble]
 
+- import_playbook: valhalla.yml
+  tags: [valhalla, geo]
+
 - import_playbook: kizuna.yml
   tags: [kizuna]
+
+# Protomaps basemap archive, fonts, and sprites (maps.atelier.house)
+- import_playbook: protomaps.yml
+  tags: [protomaps]
 
 # Kaneo project management stack
 - import_playbook: kaneo.yml
@@ -208,14 +236,18 @@
 - import_playbook: matrix.yml
   tags: [matrix]
 
+# phpBB forum stack (board.fireplace.cafe)
+- import_playbook: phpbb.yml
+  tags: [phpbb]
+
 # AI stack (targets the `ai` group — currently `max` only)
 # Includes gpu_tools role (hwsummary, gpu-burn helpers in /usr/local/bin)
 - import_playbook: ai.yml
   tags: [ai]
 
-# Openclaw (targets the `openclaw` group, currently `mac-mini` only)
-- import_playbook: openclaw.yml
-  tags: [openclaw]
+# Crash capture on max, netconsole receiver on nuc-mini
+- import_playbook: crash_capture.yml
+  tags: [crash_capture]
 
 # frp tunnel proxy
 - import_playbook: frp.yml
@@ -233,6 +265,16 @@
 - import_playbook: ddclient.yml
   tags: [ddclient]
 
+- import_playbook: minecraft.yml
+  tags: [minecraft]
+
+# Retained logging backend before collectors.
+- import_playbook: logging.yml
+  tags: [logging]
+
+- import_playbook: vector.yml
+  tags: [vector]
+
 # Backup stack (deploy last - snapshots whatever is on disk)
 - import_playbook: backup.yml
   tags: [backup]
@@ -241,6 +283,9 @@
 # The deploy-all-exclude annotations are checked by bin/check-deploy-all.
 #
 # deploy-all-exclude: ai_split -- Explicitly switches the GPU allocation mode and starts a vLLM profile.
+# deploy-all-exclude: degoog_4play -- Experimental native Firefox/Xorg client; deploy explicitly after checking EDID.
+# deploy-all-exclude: degoog_migrate -- Explicit stopped-data cutover from max to nuc-mini.
+# deploy-all-exclude: degoog_maps -- Explicit compatibility patch for a user-installed plugin.
 # deploy-all-exclude: dokploy_host -- Provisions host networking and a VM; run as an explicit bootstrap.
 # deploy-all-exclude: dokploy -- Bootstraps the guest and requires first-run operator setup.
 # deploy-all-exclude: gpu_tools -- The gpu_tools role is already applied by ai.yml.
@@ -248,5 +293,5 @@
 # deploy-all-exclude: sglang -- Parked experimental stack; no model is deployed by default.
 # deploy-all-exclude: vllm -- Rendered and started by ai_split.yml when split-mode inference is requested.
 
-# deploy-all-exclude: kaneo-inspection -- Requires reviewed images, repository grants, and a deliberate pilot rollout.
-# deploy-all-exclude: kaneo-upgrade -- Performs an explicit backed-up upgrade and requires operator-selected inputs.
+# deploy-all-exclude: kaneo-inspection -- Coordinated rollout requires idle jobs and a Kaneo backup.
+# deploy-all-exclude: kaneo-upgrade -- Explicit maintenance workflow requires a reviewed image archive and upgrade inputs.

@@ -14,6 +14,14 @@ source_directories:
     - {{ vol.path }}
 {% endfor %}
     - {{ borg_dumps_container_path }}
+{% if backup_minecraft_enabled %}
+    - /minecraft/snapshot.tar
+{% endif %}
+
+{% if backup_minecraft_enabled %}
+# Hold a shared transfer lock throughout every Borg operation.
+local_path: /scripts/borg-locked.sh
+{% endif %}
 
 repositories:
     - path: {{ borg_repo_container_path }}
@@ -91,15 +99,23 @@ postgresql_databases:
       hostname: hugginghack-postgres
       username: {{ hugginghack_db_user }}
       password: "{{ hugginghack_db_password }}"
+    - name: {{ stereo_db_name }}
+      hostname: stereo_postgres
+      username: {{ stereo_db_user }}
+      password: "{{ stereo_db_password }}"
 
-# Native MariaDB hook for RomM. Using root since MARIADB_ROOT_PASSWORD is
-# what's set on the container; mysqldump needs LOCK TABLES which the romm
-# user may not have.
+# Native MariaDB hooks for RomM and the phpBB board. Using root since
+# MARIADB_ROOT_PASSWORD is what's set on the containers; mysqldump needs
+# LOCK TABLES which the per-application users may not have.
 mariadb_databases:
     - name: all
       hostname: romm-db
       username: root
       password: "{{ romm_db_root_password }}"
+    - name: all
+      hostname: phpbb-db
+      username: root
+      password: "{{ phpbb_db_root_password }}"
 
 # Native MongoDB hook for Komodo. Dumps the admin database which contains
 # Komodo's stack and deploy state.
@@ -118,6 +134,13 @@ commands:
       when:
           - create
       run:
+          # An unmounted data drive leaves an empty bind mount; stop before any
+          # dump or Borg write rather than fail obscurely or fill the root volume.
+          # Quoted: the message's ": " would otherwise make YAML read a mapping.
+          - 'test -f {{ borg_repo_container_path }}/config || { echo "ERROR: no Borg repo at {{ borg_repo_container_path }}; is {{ backup_repo_mount_path }} mounted?" >&2; exit 1; }'
+{% if backup_minecraft_enabled %}
+          - /scripts/pull-minecraft.sh
+{% endif %}
           - /scripts/dump-couchdb.sh
           - /scripts/dump-sqlite.sh
     - after: action

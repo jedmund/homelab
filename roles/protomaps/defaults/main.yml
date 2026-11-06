@@ -1,0 +1,65 @@
+---
+# Stack identity
+stack_name: protomaps
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Static file server for the Protomaps basemap archive and its font and
+# sprite assets. nginx answers byte-range requests natively (206,
+# Content-Range, Accept-Ranges, ETag), which PMTiles clients depend on.
+protomaps_nginx_image: nginx:1.30.5-alpine
+protomaps_nginx_port: 80
+protomaps_domain: maps.atelier.house
+
+# go-pmtiles CLI, used by fetch_archive.sh for regional extracts and for
+# verifying any downloaded archive before it is published.
+protomaps_pmtiles_image: protomaps/go-pmtiles:v1.31.2
+
+# Served data lives outside /opt/docker so Borg does not copy an archive
+# that can be downloaded again from upstream. The root NVMe on nuc-mini has
+# the space; /mnt/data is reserved for the Borg repository.
+protomaps_data_path: /srv/protomaps
+
+# ---- Basemap archive ----
+# Official daily Protomaps planet build (basemap tile schema v4, used by
+# @protomaps/basemaps v5). List builds, sizes, and checksums at
+# https://build-metadata.protomaps.dev/builds.json; build files are deleted
+# upstream after a few weeks. Changing the build publishes a new URL,
+# /basemaps/<archive>, so cached ranges from an old archive never mix with a
+# new one. See README.md for the update procedure.
+protomaps_build: "20261014"
+protomaps_source_url: "https://build.protomaps.com/{{ protomaps_build }}.pmtiles"
+# Hex MD5 of the planet file, converted from the base64 md5sum in
+# builds.json. Used only for full-planet downloads (empty bbox).
+protomaps_planet_md5: 1a25ab109cab8d19b1809bda6ef9d50a
+# Empty = full planet. For a regional archive, set a bbox
+# "min_lon,min_lat,max_lon,max_lat" and a distinct archive name; the fetch
+# script then runs `pmtiles extract` against the source URL instead of
+# downloading the whole file. Every bbox must include Shimokitazawa
+# (139.67, 35.66), which the Kizuna stories use.
+protomaps_bbox: ""
+protomaps_maxzoom: ""
+protomaps_archive: "{{ protomaps_build }}.pmtiles"
+
+# ---- Fonts and sprites ----
+# protomaps/basemaps-assets has no release tags; pin the commit and the
+# GitHub tarball checksum. Sprites are under sprites/v4, the set used by
+# @protomaps/basemaps v5. The commit is part of the served path, so a new
+# pin is also a new cache key.
+protomaps_assets_commit: 028c18f713baecad011301ff7a69acc39bcc2ae7
+protomaps_assets_sha256: 57e40e8c512bd8042d0a3a251f19d0d1c8523ad963c666c3c6643bada4dc92d0
+protomaps_assets_url: "https://codeload.github.com/protomaps/basemaps-assets/tar.gz/{{ protomaps_assets_commit }}"
+
+# ---- CORS ----
+# Exact origins allowed to read the archive and assets. Production only by
+# default. For local development, override in inventory, for example:
+#   protomaps_cors_origins:
+#     - https://kizuna.fm
+#     - http://localhost:5176
+#     - http://localhost:6006
+#     - http://localhost:6106
+protomaps_cors_origins:
+  - https://kizuna.fm
+# nginx regular expressions for origins with variable names. The default
+# allows Kizuna Storybook review apps created by Komodo for merge requests.
+protomaps_cors_origin_patterns:
+  - '^https://storybook-mr-[0-9]+\.review\.atelier\.house$'

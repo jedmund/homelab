@@ -17,7 +17,9 @@ services:
     volumes:
       - ./config:/gluetun
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8000/v1/openvpn/status"]
+      # Gluetun's own check reports whether the tunnel is up. The control
+      # server's routes need authentication, so they can't serve as a probe.
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}

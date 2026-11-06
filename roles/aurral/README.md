@@ -6,7 +6,7 @@ flows, playlists, and downloads. The container uses Aurral's native OIDC
 support with PocketID; TinyAuth is only an initial-setup guard around the
 otherwise unauthenticated onboarding API.
 
-The role pins `ghcr.io/lklynet/aurral:2.8.0`. Bump
+The role pins `ghcr.io/lklynet/aurral:2.10.0`. Bump
 `aurral_image_tag` deliberately when upgrading.
 
 ## PocketID and Vault
@@ -74,6 +74,7 @@ Use these values in Aurral:
 - Downloads Folder: `/downloads/aurral`
 - Lidarr URL: `http://lidarr:8686`
 - slskd URL: `http://slskd:5030`
+- slskd API key: the `slskd_api_key` value from `group_vars/slskd/vault.yml`
 
 Lidarr and slskd already use `/music` and `/downloads`, so remote path mappings
 are unnecessary. Aurral can play canonical Lidarr files through its built-in

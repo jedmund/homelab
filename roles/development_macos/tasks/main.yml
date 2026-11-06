@@ -8,6 +8,70 @@
     name: gitlab-runner
     state: present
 
+- name: Install mise via Homebrew
+  community.general.homebrew:
+    name: mise
+    state: present
+
+- name: Install the pinned CI Ruby with mise
+  ansible.builtin.command:
+    argv:
+      - "{{ development_macos_mise_binary }}"
+      - install
+      - "ruby@{{ development_macos_ruby_version }}"
+      - --yes
+    creates: "{{ development_macos_ruby_prefix }}/bin/ruby"
+    chdir: "{{ gitlab_runner_macos_home }}"
+  environment:
+    MISE_DATA_DIR: "{{ development_macos_mise_data_dir }}"
+    MISE_RUBY_COMPILE: "false"
+    # Public runtime downloads must not depend on the interactive gh login.
+    MISE_GITHUB_GH_CLI_TOKENS: "false"
+    PATH: "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+- name: Ensure the runner gem directory exists
+  ansible.builtin.file:
+    path: "{{ development_macos_gem_home }}"
+    state: directory
+    owner: "{{ gitlab_runner_macos_user }}"
+    mode: '0755'
+
+- name: Check whether CI Ruby is installed
+  ansible.builtin.stat:
+    path: "{{ development_macos_ruby_prefix }}/bin/gem"
+  register: development_macos_ruby_executable
+
+- name: Install the required Bundler for CI Ruby
+  community.general.gem:
+    name: bundler
+    version: "{{ development_macos_bundler_version }}"
+    state: present
+    executable: "{{ development_macos_ruby_prefix }}/bin/gem"
+    install_dir: "{{ development_macos_gem_home }}"
+    user_install: false
+    include_doc: false
+  environment: "{{ development_macos_job_environment }}"
+  # A first check-mode run cannot execute a Ruby that is not installed yet.
+  when: not ansible_check_mode or development_macos_ruby_executable.stat.exists
+
+- name: Verify the Ruby selected by the job environment
+  ansible.builtin.command:
+    argv:
+      - ruby
+      - -e
+      - "abort RUBY_VERSION unless RUBY_VERSION == '{{ development_macos_ruby_version }}'; puts RUBY_VERSION"
+  environment: "{{ development_macos_job_environment }}"
+  changed_when: false
+
+- name: Verify the required Bundler in the job environment
+  ansible.builtin.command:
+    argv:
+      - bundle
+      - "_{{ development_macos_bundler_version }}_"
+      - --version
+  environment: "{{ development_macos_job_environment }}"
+  changed_when: false
+
 - name: Ensure runner config directory exists
   ansible.builtin.file:
     path: "{{ gitlab_runner_macos_config_dir }}"

@@ -1,0 +1,134 @@
+---
+# Crash capture for hosts that freeze without leaving a record. See the
+# runbook (README.md) for what each layer catches and how to read it after
+# an incident.
+
+# BMC watchdog. systemd pets /dev/watchdog; if the kernel or PID 1 stops for
+# longer than the runtime timeout, the BMC hard-resets the host and writes a
+# watchdog entry to its event log. ipmi_watchdog registers the legacy misc
+# device only, so the device path is set explicitly rather than relying on
+# systemd's /dev/watchdog0 default.
+crash_capture_watchdog_module: ipmi_watchdog
+crash_capture_watchdog_device: /dev/watchdog
+crash_capture_watchdog_runtime: 2min
+# Covers the reboot itself, including memory training during POST, until
+# systemd reopens the device on the next boot.
+crash_capture_watchdog_reboot: 10min
+
+# Turn detected lockups and oopses into panics so kdump captures them.
+# hung_task_panic stays off: this host mounts NFS, and a stalled share would
+# panic the box rather than log a warning.
+crash_capture_sysctl:
+  kernel.softlockup_panic: 1
+  kernel.hardlockup_panic: 1
+  kernel.softlockup_all_cpu_backtrace: 1
+  kernel.hardlockup_all_cpu_backtrace: 1
+  kernel.panic_on_oops: 1
+  # Reboot 10 seconds after a panic when kdump is not loaded.
+  kernel.panic: 10
+  # Console log level 5 sends emerg through warning to the consoles below,
+  # which covers lockups, MCE, AER, Xid, and OOM reports. Notice-level
+  # audit records stay off the wire.
+  kernel.printk: "5 4 1 7"
+
+# Kernel arguments appended through a GRUB drop-in. /etc/default/grub stays
+# hand managed (see roles/gpu_tools/README.md). The BMC exposes serial over
+# LAN, but the firmware publishes no SPCR table naming its port, so both
+# 16550 ports carry the console. tty0 is last so /dev/console stays on the
+# local display.
+crash_capture_kernel_args:
+  - console=ttyS0,115200n8
+  - console=ttyS1,115200n8
+  - console=tty0
+
+# Persistent journal cap. The default (10 percent of the filesystem, capped
+# at 4 GB) kept about three weeks on max, and freezes can be a week apart;
+# comparing the boots before each one needs more history than that.
+crash_capture_journal_max_use: 8G
+
+# kdump writes filtered vmcores here. -d 31 drops page cache, user, free,
+# and zero pages, which keeps a dump of this 512 GB host to kernel memory.
+# The crashkernel= range reserves 4 GB on hosts above 128 GB.
+crash_capture_kdump_dir: /var/crash
+crash_capture_kdump_makedumpfile_args: "-c -d 31"
+
+# Netconsole streams kernel messages over UDP to a receiver host. It needs
+# the NIC alive at the moment of the crash, unlike the serial console, but
+# it is recorded continuously without a BMC session.
+crash_capture_netconsole_receiver: "{{ groups['netconsole_receiver'] | first }}"
+crash_capture_netconsole_port: 6666
+crash_capture_netconsole_target: crash_capture
+
+# Receiver side. One file per sender address.
+crash_capture_netconsole_log_dir: /var/log/netconsole
+crash_capture_netconsole_senders: "{{ groups['crash_capture'] | map('extract', hostvars, 'ansible_host') | list }}"
+
+# BMC sensors whose events are switched off. Each flap is two event log
+# entries; on the earlier ASRock board CHA_FAN1/WP read 0 RPM at idle and
+# filled the 3,639-entry log within minutes of the June rebuild, after which
+# the BMC stopped recording anything. On the ASUS board CHA_FAN4 idles at
+# 240-480 RPM against a 240 RPM threshold and flaps the same way. The sensor
+# keeps reporting readings. The BMC forgets the setting when AC power is
+# removed, so the boot report re-applies it on every boot.
+crash_capture_bmc_quiet_sensors:
+  - CHA_FAN4
+# Warn when the BMC event log is at least this full.
+crash_capture_bmc_sel_warn_percent: 80
+
+# Host health reporting to Gatus external endpoints. The watchdog turns a
+# freeze into a reboot within minutes, which no polling check would notice,
+# so the host reports how each boot ended along with a heartbeat, cooling
+# readings, and new BMC or rasdaemon events. The Gatus side is
+# gatus_host_report_checks in roles/gatus; endpoint names there are
+# "<host> <check>" in group "hosts", which this reporter mirrors.
+crash_capture_gatus_url: https://status.atelier.house
+crash_capture_gatus_group: hosts
+# vault_gatus_push_token - defined in the gatus vault, read through the Gatus
+# host because the same token is configured on both sides.
+crash_capture_gatus_push_token: >-
+  {{ hostvars[groups['gatus'] | first].vault_gatus_push_token | default('') }}
+crash_capture_report_interval: 2min
+# PSU readings are logged (not pushed) more often, so the last line before a
+# power event is at most this old.
+crash_capture_psu_log_interval: 15s
+# The boot report waits for Gatus and Traefik when both hosts come up together.
+crash_capture_boot_push_attempts: 20
+crash_capture_report_error_max_length: 900
+
+# Cooling limits, matched against the ASUS Pro WS WRX90E-SAGE SE BMC's
+# sensor names and set below its upper non-critical thresholds so a warning
+# comes while there is still headroom: CPU 93C, DIMM 81C, LAN 93C, and PCIe
+# slot 90C. The board exposes no VRM temperature. Fans are the CPU and pump
+# headers, whose BMC lower critical is 360 RPM; a tach can read low for a
+# second at idle, which the Gatus failure threshold of two runs absorbs.
+crash_capture_sensor_limits:
+  - { sensor: CPU Package Temp, max: 88 }
+  - { sensor: "DIMM[A-H]1_Temp", max: 75 }
+  - { sensor: LAN Temp, max: 88 }
+  - { sensor: "PCIE0[0-9] Temp", max: 85 }
+  - { sensor: CPU_FAN, min: 200 }
+  - { sensor: "W_PUMP\\+", min: 200 }
+  # Corsair PSUs over USB (corsair-psu): <model>_<reading>. The driver
+  # reports 70C as the critical temperature for both sensors, and ATX allows
+  # the 12V rail to drift 5 percent either way.
+  - { sensor: "HX.*_(vrm|case)", max: 65 }
+  - { sensor: "HX.*_12v", min: 11.4, max: 12.6 }
+crash_capture_gpu_max_temp: 88
+crash_capture_nvme_max_temp: 75
+# Percent full at which the BMC event log is reported as a hardware event.
+crash_capture_sel_full_percent: 80
+# rasdaemon tables that are not hardware errors. signal_event records
+# processes being signalled; installing rasdaemon alone wrote eight rows.
+crash_capture_rasdaemon_ignore_tables:
+  - signal_event
+# BMC event log entries that are not hardware events. Watchdog resets are
+# reported by the unexpected-reboot check instead, and non-critical fan dips
+# by the cooling check.
+crash_capture_sel_ignore:
+  - Timestamp Clock Sync
+  - Log area reset/cleared
+  - OS Boot
+  - OS graceful shutdown
+  - OEM record
+  - Watchdog
+  - "Fan .*Lower Non-critical"

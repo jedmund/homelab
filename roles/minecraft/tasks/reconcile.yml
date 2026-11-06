@@ -1,0 +1,125 @@
+---
+- name: Inspect router before reconciliation
+  community.docker.docker_container_info:
+    name: minecraft-router
+  register: minecraft_router_before
+
+- name: Preserve existing RCON credentials in managed raw environment files
+  ansible.builtin.shell: |
+    set -eu
+    python3 - <<'PY'
+    from pathlib import Path
+    root = Path({{ config_base | to_json }})
+    name = {{ item.name | to_json }}
+    props = dict(line.split('=', 1) for line in (root / name / 'data/server.properties').read_text().splitlines()
+                 if '=' in line and not line.startswith('#'))
+    content = 'RCON_PASSWORD=' + props['rcon.password'] + '\n'
+    dest = root / 'env' / ('managed-' + name + '.env')
+    if not dest.exists() or dest.read_text() != content:
+        dest.write_text(content)
+        dest.chmod(0o600)
+        print('changed')
+    PY
+  register: minecraft_credentials
+  changed_when: "'changed' in minecraft_credentials.stdout"
+  loop: "{{ minecraft_servers }}"
+  no_log: true
+
+- name: Protect managed RCON environment files
+  ansible.builtin.file:
+    path: "{{ config_base }}/env/managed-{{ item.name }}.env"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ minecraft_servers }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Render Minecraft Compose
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    mode: '0644'
+  register: minecraft_compose_render
+
+- name: Set whether configuration requires backend reconciliation
+  ansible.builtin.set_fact:
+    minecraft_reconcile_backends: "{{ minecraft_compose_render.changed or minecraft_credentials.changed }}"
+
+- name: Reconcile Minecraft with router recovery
+  block:
+    # Only close the public wake path when managed backend configuration changes.
+    - name: Stop router during backend reconciliation
+      ansible.builtin.command: docker stop minecraft-router
+      when:
+        - not ansible_check_mode
+        - minecraft_reconcile_backends
+        - minecraft_router_before.exists
+        - minecraft_router_before.container.State.Running
+      changed_when: false
+
+    - name: Inspect backend states before configuration changes
+      community.docker.docker_container_info:
+        name: "minecraft-{{ item.name }}"
+      loop: "{{ minecraft_servers }}"
+      register: minecraft_before
+      when: minecraft_reconcile_backends
+
+    - name: Select previously awake backends for changed configuration
+      ansible.builtin.set_fact:
+        minecraft_awake: >-
+          {{ minecraft_before.results | selectattr('exists')
+             | selectattr('container.State.Running') | map(attribute='item.name') | list }}
+      when: minecraft_reconcile_backends
+
+    - name: Leave backend services out of unchanged Compose reconciliation
+      ansible.builtin.set_fact:
+        minecraft_awake: []
+      when: not minecraft_reconcile_backends
+
+    - name: Reconcile missing sleeping backend containers
+      ansible.builtin.command:
+        argv: "{{ ['docker', 'compose', '--profile', 'backends', 'create', '--pull', 'missing', item.name] }}"
+        chdir: "{{ config_base }}"
+      loop: "{{ minecraft_servers }}"
+      when:
+        - not ansible_check_mode
+        - item.name not in minecraft_awake
+      register: minecraft_created
+      changed_when: "'Created' in minecraft_created.stderr or 'Recreated' in minecraft_created.stderr"
+
+    - name: Deploy Minecraft infrastructure and previously awake backends
+      community.docker.docker_compose_v2:
+        project_src: "{{ config_base }}"
+        services: "{{ ['socket-proxy', 'router'] + minecraft_awake }}"
+        state: present
+        pull: missing
+        recreate: auto
+        remove_orphans: false
+      register: compose_result
+  always:
+    - name: Restore previously running router after a failed reconciliation
+      ansible.builtin.command: docker start minecraft-router
+      when:
+        - not ansible_check_mode
+        - minecraft_router_before.exists
+        - minecraft_router_before.container.State.Running
+      changed_when: false
+
+- name: Install Minecraft snapshot automation
+  ansible.builtin.include_tasks: snapshots.yml
+
+- name: Allow Minecraft router traffic
+  community.general.ufw:
+    rule: allow
+    port: "{{ minecraft_port }}"
+    proto: tcp
+    comment: Minecraft router
+
+- name: Remove the previous default-port firewall rule
+  community.general.ufw:
+    rule: allow
+    port: '25565'
+    proto: tcp
+    comment: Minecraft router
+    delete: true

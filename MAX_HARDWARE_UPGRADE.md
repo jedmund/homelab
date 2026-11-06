@@ -2,6 +2,18 @@
 
 Evaluated 2026-08-22 after expanding the GitLab Runner pool on `max`.
 
+> **Superseded on 2026-09-22.** This evaluation assumed CI throughput was the
+> binding constraint on this host. Measurement showed CI was bound by disk
+> fsync and per-job caps, not cores, and that the CPU sits ~94% idle while
+> memory is half-populated and already swapping. The
+> [CI performance report](docs/ci-performance-2026-09-22.md) recommends
+> memory instead. The CPU comparison below remains accurate as a
+> specification and throughput analysis.
+>
+> **Outcome as of 2026-10-24.** max now runs a 9985WX with 512 GB across all
+> eight channels on an ASUS Pro WS WRX90E-SAGE SE. See the
+> [hardware report update](docs/max-hardware-and-inference-report-2026-10-11.md#october-24-update-512-gb-installed-and-board-replaced).
+
 ## Recommendation
 
 The Ryzen Threadripper PRO 9975WX is the higher-value individual upgrade for

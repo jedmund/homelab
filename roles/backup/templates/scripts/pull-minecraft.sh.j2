@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+set -euo pipefail
+umask 077
+root=/minecraft
+exec 9>"$root/transfer.lock"
+flock -n 9 || { echo 'Minecraft transfer already active' >&2; exit 1; }
+part=$(mktemp "$root/.snapshot.XXXXXX")
+trap 'rm -f "$part"' EXIT
+# The remote forced command holds the snapshot lock for the entire stream.
+timeout 7200 ssh -T -i /minecraft-ssh/id_ed25519 \
+    -o BatchMode=yes -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/minecraft-ssh/known_hosts \
+    -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+    -p {{ hostvars['max'].ansible_port }} \
+    minecraft-backup@{{ hostvars['max'].ansible_host }} >"$part"
+tar -tf "$part" >/dev/null
+stamp=$(tar -xOf "$part" ./snapshot-time)
+[[ "$stamp" =~ ^[0-9]+$ ]]
+age=$(( $(date +%s) - stamp ))
+if (( age < 0 || age > {{ backup_verification_max_age_hours * 3600 }} )); then
+    echo "Minecraft snapshot stale: age_seconds=$age" >&2
+    exit 1
+fi
+# A single atomic file replacement lets Borg retain an already-open old inode.
+# A failed SSH/copy/validation leaves the previous complete tar untouched.
+mv -f "$part" "$root/snapshot.tar"
+echo "Minecraft snapshot transferred: age_seconds=$age"

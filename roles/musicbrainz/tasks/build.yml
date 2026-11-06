@@ -1,0 +1,93 @@
+---
+# Read only the effective build definitions; runtime environment and mounts
+# must not trigger image builds. Keep resolved configuration out of logs.
+- name: Inspect local build inputs
+  when: not ansible_check_mode
+  no_log: true
+  block:
+    - name: Read effective Compose configuration
+      ansible.builtin.command:
+        argv: [docker, compose, config, --format, json]
+        chdir: "{{ musicbrainz_upstream_path }}"
+      register: musicbrainz_build_compose
+      changed_when: false
+
+    - name: Reset build service list
+      ansible.builtin.set_fact:
+        musicbrainz_build_services: []
+
+    - name: Select local build definitions
+      ansible.builtin.set_fact:
+        musicbrainz_build_services: >-
+          {{ musicbrainz_build_services + [{
+            'name': item.key,
+            'image': item.value.image | default(
+              (musicbrainz_build_compose.stdout | from_json).name ~ '-' ~ item.key),
+            'platform': item.value.platform | default(''),
+            'build': item.value.build
+          }] }}
+      loop: "{{ (musicbrainz_build_compose.stdout | from_json).services | dict2items }}"
+      when: item.value.build is defined
+
+    - name: Check local build images
+      community.docker.docker_image_info:
+        name: "{{ item.image }}"
+      loop: "{{ musicbrainz_build_services }}"
+      register: musicbrainz_build_images
+
+    - name: Hash build Dockerfiles
+      ansible.builtin.stat:
+        path: >-
+          {{ [item.build.context, item.build.dockerfile | default('Dockerfile')] | path_join }}
+        checksum_algorithm: sha256
+      loop: "{{ musicbrainz_build_services }}"
+      when: item.build.dockerfile_inline is not defined
+      register: musicbrainz_build_dockerfiles
+
+    - name: Hash build ignore files
+      ansible.builtin.stat:
+        path: "{{ item.build.context }}/.dockerignore"
+        checksum_algorithm: sha256
+      loop: "{{ musicbrainz_build_services }}"
+      register: musicbrainz_build_ignore
+
+    - name: Hash Dockerfile-specific ignore files
+      ansible.builtin.stat:
+        path: >-
+          {{ ([item.build.context, item.build.dockerfile | default('Dockerfile')] | path_join) ~ '.dockerignore' }}
+        checksum_algorithm: sha256
+      loop: "{{ musicbrainz_build_services }}"
+      register: musicbrainz_build_dockerfile_ignore
+
+    - name: Calculate build fingerprint
+      ansible.builtin.set_fact:
+        musicbrainz_build_fingerprint: >-
+          {{ {
+            'version': 1,
+            'source': musicbrainz_git.after | default(''),
+            'services': musicbrainz_build_services,
+            'dockerfiles': musicbrainz_build_dockerfiles.results | map(attribute='stat.checksum', default='') | list,
+            'ignore': musicbrainz_build_ignore.results | map(attribute='stat.checksum', default='') | list,
+            'dockerfile_ignore': musicbrainz_build_dockerfile_ignore.results | map(attribute='stat.checksum', default='') | list
+          } | to_json(sort_keys=True) | hash('sha256') }}
+
+    - name: Check for previous successful build inputs
+      ansible.builtin.stat:
+        path: "{{ musicbrainz_upstream_path }}/.ansible-build-inputs.json"
+      register: musicbrainz_build_record
+
+    - name: Read previous successful build inputs
+      ansible.builtin.slurp:
+        src: "{{ musicbrainz_upstream_path }}/.ansible-build-inputs.json"
+      when: musicbrainz_build_record.stat.exists
+      register: musicbrainz_build_previous
+
+    - name: Decide whether local images need building
+      ansible.builtin.set_fact:
+        musicbrainz_build_required: >-
+          {{ musicbrainz_build_services | length > 0 and (
+            musicbrainz_force_rebuild | bool or
+            (musicbrainz_build_images.results | selectattr('images', 'equalto', []) | list | length > 0) or
+            ((musicbrainz_build_previous.content | default('e30=') | b64decode | from_json).fingerprint
+              | default('')) != musicbrainz_build_fingerprint
+          ) }}

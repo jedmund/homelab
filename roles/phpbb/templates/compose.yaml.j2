@@ -1,0 +1,125 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  phpbb:
+    image: {{ phpbb_image }}
+    container_name: phpbb
+    restart: {{ restart_policy }}
+    build:
+      context: ./config/phpbb
+      dockerfile: Dockerfile
+    pull_policy: build
+    env_file:
+      - ./env/phpbb.env
+    networks:
+      - proxy
+      - backend
+    depends_on:
+      phpbb-db:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - phpbb-root:/var/www/html
+      - phpbb-cache:/var/www/html/cache
+{% if phpbb_storage_nas_enabled %}
+{% for mount in phpbb_nas_mounts %}
+      - {{ mount.volume }}:/var/www/html/{{ mount.path }}
+{% endfor %}
+{% endif %}
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 60s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  phpbb-nginx:
+    image: {{ phpbb_nginx_image }}
+    container_name: phpbb-nginx
+    restart: {{ restart_policy }}
+    networks:
+      - proxy
+    depends_on:
+      phpbb:
+        condition: service_healthy
+    volumes:
+      - phpbb-root:/var/www/html:ro
+      - ./config/nginx/phpbb.conf:/etc/nginx/conf.d/phpbb.conf:ro
+{% if phpbb_storage_nas_enabled %}
+{% for mount in phpbb_nas_mounts if mount.nginx %}
+      - {{ mount.volume }}:/var/www/html/{{ mount.path }}:ro
+{% endfor %}
+{% endif %}
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "{{ proxy_network }}"
+      traefik.http.routers.phpbb.rule: "Host(`{{ phpbb_domain }}`)"
+      traefik.http.routers.phpbb.entrypoints: "websecure"
+      traefik.http.routers.phpbb.tls.certresolver: "letsencrypt"
+      traefik.http.services.phpbb.loadbalancer.server.port: "{{ phpbb_port }}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:{{ phpbb_port }}/health.php | grep -q '^ok'"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: 30s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  phpbb-db:
+    image: {{ phpbb_db_image }}
+    container_name: phpbb-db
+    restart: {{ restart_policy }}
+    # phpBB migrations and extensions can create triggers; without this the
+    # statement is refused while binary logging is on (same as roles/romm).
+    command: --log-bin-trust-function-creators=1
+    networks:
+      - backend
+    env_file:
+      - ./env/mariadb.env
+    volumes:
+      - phpbb-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: "5m"
+        max-file: {{ logging_max_file }}
+
+volumes:
+  phpbb-root:
+    name: phpbb-root
+  phpbb-cache:
+    name: phpbb-cache
+  phpbb-db-data:
+    name: phpbb-db-data
+{% if phpbb_storage_nas_enabled %}
+{% for mount in phpbb_nas_mounts %}
+  {{ mount.volume }}:
+    name: {{ mount.volume }}
+    external: true
+{% endfor %}
+{% endif %}
+
+networks:
+  proxy:
+    name: {{ proxy_network }}
+    external: true
+  backend:
+    name: {{ backend_network }}
+    external: true

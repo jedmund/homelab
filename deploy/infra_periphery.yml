@@ -1,6 +1,11 @@
 ---
+# No play-level become: the Linux tasks escalate in the role, and sudo on
+# macOS hosts needs a password. macOS SSH sessions don't put Homebrew on
+# PATH, so pin it for the play.
 - name: Deploy Komodo Periphery agent
   hosts: infra_periphery
-  become: true
+  gather_facts: true
+  environment:
+    PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   roles:
     - infra_periphery

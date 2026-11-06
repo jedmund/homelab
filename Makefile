@@ -61,7 +61,16 @@ deploy-prerequisites: ## Deploy prerequisites (Docker, networks, volumes)
 	@echo "$(BLUE)Deploying prerequisites...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/prerequisites.yml $(VAULT_FLAG)
 
+deploy-minecraft: ## Deploy Minecraft while preserving sleeping backends
+	@$(ANSIBLE) -i $(INVENTORY) deploy/minecraft.yml $(VAULT_FLAG)
+
 ##@ Deployment - Infrastructure
+
+deploy-logging: ## Deploy the retained logging backend
+	@$(ANSIBLE) -i $(INVENTORY) deploy/logging.yml $(VAULT_FLAG)
+
+deploy-vector: ## Deploy host log collectors
+	@$(ANSIBLE) -i $(INVENTORY) deploy/vector.yml $(VAULT_FLAG)
 
 deploy-infra: ## Deploy all infrastructure (core + gateway)
 	@echo "$(BLUE)Deploying infrastructure stack...$(NC)"
@@ -71,21 +80,31 @@ deploy-infra-core: ## Deploy infrastructure core (Komodo, MongoDB)
 	@echo "$(BLUE)Deploying infrastructure core...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_core.yml $(VAULT_FLAG)
 
-deploy-infra-periphery: ## Deploy Komodo Periphery agent (max)
+deploy-infra-periphery: ## Deploy Komodo Periphery agents (max, gaming-pc, mac-mini)
 	@echo "$(BLUE)Deploying Komodo Periphery agent...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_periphery.yml $(VAULT_FLAG)
 
-deploy-infra-gateway: ## Deploy infrastructure gateway (Traefik, AdGuard, etc.)
+deploy-infra-gateway: ## Deploy gateway services (Traefik, PocketID, TinyAuth, Line, OpenSpeedTest, ddclient)
 	@echo "$(BLUE)Deploying infrastructure gateway...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG)
+	@for stack in traefik pocketid tinyauth line openspeedtest ddclient; do \
+		$(ANSIBLE) -i $(INVENTORY) deploy/$$stack.yml $(VAULT_FLAG) || exit $$?; \
+	done
 
 deploy-beszel: ## Deploy Beszel monitoring hub
 	@echo "$(BLUE)Deploying Beszel hub...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel.yml $(VAULT_FLAG)
 
+deploy-gatus: ## Deploy Gatus and its Discord alert relay on nuc-mini
+	@echo "$(BLUE)Deploying Gatus...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/gatus.yml $(VAULT_FLAG)
+
 deploy-beszel-agents: ## Deploy Beszel agents on monitored machines
 	@echo "$(BLUE)Deploying Beszel agents...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/beszel_agents.yml $(VAULT_FLAG)
+
+deploy-fastfetch: ## Install fastfetch on every compute host
+	@echo "$(BLUE)Installing fastfetch...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/fastfetch.yml $(VAULT_FLAG)
 
 deploy-monitoring: ## Deploy Beszel hub and agents
 	@echo "$(BLUE)Deploying monitoring stack...$(NC)"
@@ -168,9 +187,9 @@ deploy-homebox: ## Deploy Homebox
 	@echo "$(BLUE)Deploying Homebox...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/homebox.yml $(VAULT_FLAG)
 
-deploy-album-sort: ## Deploy Album Sort
-	@echo "$(BLUE)Deploying Album Sort...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/album_sort.yml $(VAULT_FLAG)
+deploy-stereo: ## Deploy Stereo
+	@echo "$(BLUE)Deploying Stereo...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/stereo.yml $(VAULT_FLAG)
 
 deploy-romm: ## Deploy RomM
 	@echo "$(BLUE)Deploying RomM...$(NC)"
@@ -244,6 +263,10 @@ deploy-copyparty: ## Deploy Copyparty
 	@echo "$(BLUE)Deploying Copyparty...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/copyparty.yml $(VAULT_FLAG)
 
+deploy-bentopdf: ## Deploy BentoPDF
+	@echo "$(BLUE)Deploying BentoPDF...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/bentopdf.yml $(VAULT_FLAG)
+
 deploy-hugginghack: ## Deploy HuggingHack (HF model browser) on nuc-mini
 	@echo "$(BLUE)Deploying HuggingHack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/hugginghack.yml $(VAULT_FLAG)
@@ -288,11 +311,22 @@ deploy-backup: ## Deploy backup stack (Borgmatic)
 	@echo "$(BLUE)Deploying backup stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/backup.yml $(VAULT_FLAG)
 
-deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, searxng) on max; uses default ai_gpu_mode
+deploy-ai: ## Deploy AI stack (llama-swap, whisper, kokoro, TEI, Playwright) on max; uses default ai_gpu_mode
 	@echo "$(BLUE)Deploying AI stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG)
 
-deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM DeepSeek V4 Flash up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
+deploy-flaresolverr: ## Deploy the private FlareSolverr API on nuc-mini
+	@$(ANSIBLE) -i $(INVENTORY) deploy/flaresolverr.yml $(VAULT_FLAG)
+
+deploy-degoog: ## Deploy Degoog on nuc-mini after the explicit migration
+	@echo "$(BLUE)Deploying Degoog stack...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog.yml $(VAULT_FLAG)
+
+deploy-degoog-4play: ## Deploy the experimental native Degoog Firefox client on nuc-mini
+	@echo "$(BLUE)Deploying Degoog 4play client...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/degoog_4play.yml $(VAULT_FLAG)
+
+deploy-ai-split: ## Deploy AI stack in split mode and bring vLLM GLM 5.3 Flash Spark up on GPUs 0,1 (override profile with -e ai_split_vllm_profile=)
 	@echo "$(BLUE)Deploying AI stack in split mode + starting vLLM...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai_split.yml $(VAULT_FLAG) -e ai_gpu_mode=split
 
@@ -300,7 +334,7 @@ deploy-ai-shared: ## Deploy AI stack in shared mode (llama-swap on all 3 GPUs, s
 	@echo "$(BLUE)Deploying AI stack in shared mode (llama-swap on all 3 GPUs)...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/ai.yml $(VAULT_FLAG) -e ai_gpu_mode=shared
 
-deploy-vllm: ## Deploy vLLM stack on max (compose rendered; bring DeepSeek up via --profile)
+deploy-vllm: ## Deploy vLLM stack on max (compose rendered; start a model via --profile)
 	@echo "$(BLUE)Deploying vLLM stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/vllm.yml $(VAULT_FLAG)
 
@@ -315,10 +349,6 @@ deploy-development-macos: ## Deploy GitLab Runner (shell executor) on mac-mini
 deploy-development-linux: ## Deploy GitLab Runner (docker executor) on max
 	@echo "$(BLUE)Deploying development (Linux) stack...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/development_linux.yml $(VAULT_FLAG)
-
-deploy-openclaw: ## Reconcile Openclaw on mac-mini (disabled by default)
-	@echo "$(BLUE)Deploying Openclaw...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/openclaw.yml $(VAULT_FLAG)
 
 deploy-dokploy-host: ## Provision Dokploy VM on nuc-mini (libvirt + bridge)
 	@echo "$(BLUE)Provisioning Dokploy VM on nuc-mini...$(NC)"
@@ -336,7 +366,11 @@ deploy-petlibro: ## Deploy Petlibro stack (catbro-server + Mosquitto on nuc-mini
 
 deploy-traefik: ## Deploy only Traefik
 	@echo "$(BLUE)Deploying Traefik...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/infra_gateway.yml $(VAULT_FLAG) --tags traefik
+	@$(ANSIBLE) -i $(INVENTORY) deploy/traefik.yml $(VAULT_FLAG)
+
+deploy-pocketid: ## Deploy only PocketID
+	@echo "$(BLUE)Deploying PocketID...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/pocketid.yml $(VAULT_FLAG)
 
 ##@ Testing & Validation
 

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Download or extract the configured Protomaps archive into the served
+# directory. A planet download is about 140 GB and takes hours, so run this
+# on the host inside tmux rather than from Ansible:
+#
+#   tmux new -s protomaps '{{ config_base }}/fetch_archive.sh'
+#
+# Re-running resumes a partial planet download; curl treats an already
+# complete partial file as done (HTTP 416). The archive is published
+# under its final name only after `pmtiles verify` (and, for the planet, an
+# MD5 check) passes, so nginx never serves a partial file.
+
+set -euo pipefail
+
+SOURCE_URL="{{ protomaps_source_url }}"
+ARCHIVE="{{ protomaps_archive }}"
+BBOX="{{ protomaps_bbox }}"
+MAXZOOM="{{ protomaps_maxzoom }}"
+PLANET_MD5="{{ protomaps_planet_md5 }}"
+PMTILES_IMAGE="{{ protomaps_pmtiles_image }}"
+DEST_DIR="{{ protomaps_data_path }}/basemaps"
+
+dest="${DEST_DIR}/${ARCHIVE}"
+part="${dest}.part"
+
+pmtiles() {
+  docker run --rm --user "$(id -u):$(id -g)" \
+    -v "${DEST_DIR}:/data" "${PMTILES_IMAGE}" "$@"
+}
+
+if [ -f "${dest}" ]; then
+  echo "${dest} already exists; nothing to do."
+  exit 0
+fi
+
+if [ -z "${BBOX}" ]; then
+  echo "Downloading planet ${SOURCE_URL} to ${part}..."
+  attempt=1
+  until curl -fL --retry 5 --retry-delay 10 -C - -o "${part}" "${SOURCE_URL}"; do
+    if [ "${attempt}" -ge 20 ]; then
+      echo "Download failed after ${attempt} attempts; re-run to resume." >&2
+      exit 1
+    fi
+    attempt=$((attempt + 1))
+    echo "Download interrupted; resuming (attempt ${attempt})..." >&2
+    sleep 30
+  done
+  echo "Checking MD5..."
+  if ! echo "${PLANET_MD5}  ${part}" | md5sum -c -; then
+    echo "MD5 mismatch. Check protomaps_planet_md5 for this build, or delete ${part} and re-run." >&2
+    exit 1
+  fi
+else
+  echo "Extracting bbox ${BBOX} from ${SOURCE_URL} to ${part}..."
+  rm -f "${part}"
+  extract_args=(extract "${SOURCE_URL}" "/data/${ARCHIVE}.part" "--bbox=${BBOX}")
+  if [ -n "${MAXZOOM}" ]; then
+    extract_args+=("--maxzoom=${MAXZOOM}")
+  fi
+  pmtiles "${extract_args[@]}"
+fi
+
+echo "Verifying archive structure..."
+pmtiles verify "/data/${ARCHIVE}.part"
+mv "${part}" "${dest}"
+pmtiles show "/data/${ARCHIVE}"
+echo "Published ${dest}."

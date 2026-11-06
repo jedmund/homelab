@@ -1,0 +1,29 @@
+---
+- name: Check independently verified baseline receipt
+  ansible.builtin.stat:
+    path: "{{ minecraft_baseline_receipt }}"
+  register: minecraft_baseline
+
+- name: Require verified stopped baseline before deployment
+  ansible.builtin.assert:
+    that:
+      - minecraft_baseline.stat.exists
+    fail_msg: Verify the stopped baseline in Borg and NAS before creating the receipt described in the runbook.
+
+- name: Acquire Minecraft maintenance lock
+  ansible.builtin.command:
+    argv: [mkdir, /run/minecraft-maintenance.lock]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Reconcile Minecraft under maintenance lock
+  block:
+    - name: Apply Minecraft configuration and preserve backend state
+      ansible.builtin.include_tasks: reconcile.yml
+  always:
+    - name: Release Minecraft maintenance lock
+      ansible.builtin.file:
+        path: /run/minecraft-maintenance.lock
+        state: absent
+      changed_when: false
+      when: not ansible_check_mode

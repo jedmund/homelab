@@ -2,13 +2,77 @@
 # Ansible remains the source of truth for /opt/docker/<stack>/compose.yaml
 # and any env/config files. Komodo reads those host files and may redeploy
 # them on demand, but it should not clone stack repos or auto-update images.
+# Exception: the scheduled update-plex Action pulls and redeploys the
+# Ansible-rendered Plex stack on image digest changes (komodo/README.md).
+
+[[alerter]]
+name = "homelab-operations"
+description = "Operational alerts to the Discord destination shared with Gatus; see komodo/README.md."
+tags = ["homelab", "operations"]
+[alerter.config]
+enabled = true
+alert_types = [
+  "ServerUnreachable",
+  "ServerDisk",
+  "StackStateChange",
+  "BuildFailed",
+  "RepoBuildFailed",
+  "ProcedureFailed",
+  "ActionFailed",
+  "Custom",
+]
+# Custom posts the Alert JSON to the Gatus relay on the shared network, which
+# renders it in the same Discord embed format as Gatus alerts.
+[alerter.config.endpoint]
+type = "Custom"
+[alerter.config.endpoint.params]
+url = "http://gatus-relay:8080/komodo"
+
+[[stack]]
+name = "logging"
+description = "Retained logs, Prometheus metrics, private ingestion, and Grafana"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "logging"
+files_on_host = true
+run_directory = "/opt/docker/logging"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-nuc"
+description = "NUC container and host log collection"
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+[stack.config]
+server = "NUC"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vector-max"
+description = "Workstation container and host log collection"
+tags = ["homelab", "ansible", "max", "infrastructure"]
+[stack.config]
+server = "Workstation"
+project_name = "vector"
+files_on_host = true
+run_directory = "/opt/docker/vector"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
 
 [[stack]]
 name = "traefik"
 description = "Reverse proxy, TLS termination, and ACME certificates"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/traefik"
 file_paths = ["compose.yaml"]
@@ -20,7 +84,7 @@ name = "line"
 description = "Personal dashboard at atelier.house, built from source"
 tags = ["homelab", "ansible", "nuc-mini"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/line"
 file_paths = ["compose.yaml"]
@@ -35,9 +99,9 @@ run_build = true
 [[stack]]
 name = "openspeedtest"
 description = "LAN speed test at speed.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini"]
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/openspeedtest"
 file_paths = ["compose.yaml"]
@@ -47,9 +111,9 @@ auto_update = false
 [[stack]]
 name = "ddclient"
 description = "Dynamic DNS for the atelier.house and fireplace.cafe zones"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/ddclient"
 file_paths = ["compose.yaml"]
@@ -59,9 +123,9 @@ auto_update = false
 [[stack]]
 name = "tinyauth"
 description = "Forward auth middleware at auth.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/tinyauth"
 file_paths = ["compose.yaml"]
@@ -71,9 +135,9 @@ auto_update = false
 [[stack]]
 name = "pocketid"
 description = "OIDC provider at id.atelier.house"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/pocketid"
 file_paths = ["compose.yaml"]
@@ -83,9 +147,9 @@ auto_update = false
 [[stack]]
 name = "infra-core"
 description = "Komodo Core, Periphery, and MongoDB"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/infra-core"
 file_paths = ["compose.yaml"]
@@ -95,21 +159,38 @@ auto_update = false
 [[stack]]
 name = "infra-periphery"
 description = "Komodo Periphery agent on max"
-tags = ["homelab", "ansible", "max", "infrastructure"]
+tags = ["homelab", "ansible", "max", "infrastructure", "update-monitor"]
 [stack.config]
-server = "max"
+server = "Workstation"
 files_on_host = true
 run_directory = "/opt/docker/infra-periphery"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# gaming-pc is a desktop that is often off or booted into Windows, so its
+# stacks do not alert on state changes and stay out of the Monday
+# update-monitor digest check, which reports an unreachable server as a
+# failure.
+[[stack]]
+name = "infra-periphery-gaming-pc"
+description = "Komodo Periphery agent on gaming-pc"
+tags = ["homelab", "ansible", "gaming-pc", "infrastructure"]
+[stack.config]
+server = "Gaming PC"
+files_on_host = true
+run_directory = "/opt/docker/infra-periphery"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+send_alerts = false
+
 [[stack]]
 name = "beszel"
 description = "Beszel monitoring hub"
-tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+tags = ["homelab", "ansible", "nuc-mini", "monitoring", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/beszel"
 file_paths = ["compose.yaml"]
@@ -119,9 +200,9 @@ auto_update = false
 [[stack]]
 name = "beszel-agent-nuc-mini"
 description = "Beszel Docker agent on nuc-mini"
-tags = ["homelab", "ansible", "nuc-mini", "monitoring"]
+tags = ["homelab", "ansible", "nuc-mini", "monitoring", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/beszel-agent"
 file_paths = ["compose.yaml"]
@@ -131,9 +212,9 @@ auto_update = false
 [[stack]]
 name = "gluetun"
 description = "Gluetun VPN gateway"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/gluetun"
 file_paths = ["compose.yaml"]
@@ -141,11 +222,23 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "granblue"
+description = "Granblue Fantasy jobs for granblue.team, behind ProtonVPN"
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/granblue"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "prowlarr"
 description = "Prowlarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/prowlarr"
 file_paths = ["compose.yaml"]
@@ -155,9 +248,9 @@ auto_update = false
 [[stack]]
 name = "qbittorrent"
 description = "qBittorrent"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/qbittorrent"
 file_paths = ["compose.yaml"]
@@ -167,9 +260,9 @@ auto_update = false
 [[stack]]
 name = "sonarr"
 description = "Sonarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/sonarr"
 file_paths = ["compose.yaml"]
@@ -179,9 +272,9 @@ auto_update = false
 [[stack]]
 name = "radarr"
 description = "Radarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/radarr"
 file_paths = ["compose.yaml"]
@@ -191,9 +284,9 @@ auto_update = false
 [[stack]]
 name = "lidarr"
 description = "Lidarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/lidarr"
 file_paths = ["compose.yaml"]
@@ -203,9 +296,9 @@ auto_update = false
 [[stack]]
 name = "aurral"
 description = "OIDC-enabled music discovery companion for Lidarr"
-tags = ["homelab", "ansible", "nuc-mini", "music"]
+tags = ["homelab", "ansible", "nuc-mini", "music", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/aurral"
 file_paths = ["compose.yaml"]
@@ -215,9 +308,9 @@ auto_update = false
 [[stack]]
 name = "seerr"
 description = "Seerr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/seerr"
 file_paths = ["compose.yaml"]
@@ -227,9 +320,9 @@ auto_update = false
 [[stack]]
 name = "unpackerr"
 description = "Unpackerr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/unpackerr"
 file_paths = ["compose.yaml"]
@@ -239,9 +332,9 @@ auto_update = false
 [[stack]]
 name = "jdownloader"
 description = "JDownloader"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/jdownloader"
 file_paths = ["compose.yaml"]
@@ -251,9 +344,9 @@ auto_update = false
 [[stack]]
 name = "pinchflat"
 description = "Pinchflat"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/pinchflat"
 file_paths = ["compose.yaml"]
@@ -263,9 +356,9 @@ auto_update = false
 [[stack]]
 name = "slskd"
 description = "slskd"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/slskd"
 file_paths = ["compose.yaml"]
@@ -275,9 +368,9 @@ auto_update = false
 [[stack]]
 name = "qui"
 description = "Qui"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/qui"
 file_paths = ["compose.yaml"]
@@ -289,7 +382,7 @@ name = "musicbrainz"
 description = "MusicBrainz mirror"
 tags = ["homelab", "ansible", "nuc-mini", "media"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/musicbrainz/upstream"
 file_paths = ["local/compose.merged.yml"]
@@ -299,9 +392,9 @@ auto_update = false
 [[stack]]
 name = "romm"
 description = "RomM"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/romm"
 file_paths = ["compose.yaml"]
@@ -311,9 +404,9 @@ auto_update = false
 [[stack]]
 name = "plex"
 description = "Plex"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/plex"
 file_paths = ["compose.yaml"]
@@ -323,9 +416,9 @@ auto_update = false
 [[stack]]
 name = "multi-scrobbler"
 description = "Multi-Scrobbler"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/multi-scrobbler"
 file_paths = ["compose.yaml"]
@@ -335,9 +428,9 @@ auto_update = false
 [[stack]]
 name = "tunarr"
 description = "Tunarr"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/tunarr"
 file_paths = ["compose.yaml"]
@@ -347,9 +440,9 @@ auto_update = false
 [[stack]]
 name = "stash"
 description = "Stash"
-tags = ["homelab", "ansible", "nuc-mini", "media"]
+tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/stash"
 file_paths = ["compose.yaml"]
@@ -359,9 +452,9 @@ auto_update = false
 [[stack]]
 name = "immich"
 description = "Immich"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/immich"
 file_paths = ["compose.yaml"]
@@ -371,9 +464,9 @@ auto_update = false
 [[stack]]
 name = "papra"
 description = "Papra"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/papra"
 file_paths = ["compose.yaml"]
@@ -383,9 +476,9 @@ auto_update = false
 [[stack]]
 name = "homebox"
 description = "Homebox"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/homebox"
 file_paths = ["compose.yaml"]
@@ -393,13 +486,13 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "album-sort"
-description = "Album Sort"
+name = "stereo"
+description = "Stereo"
 tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
-run_directory = "/opt/docker/album-sort"
+run_directory = "/opt/docker/stereo"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
@@ -407,9 +500,9 @@ auto_update = false
 [[stack]]
 name = "dawarich"
 description = "Dawarich"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/dawarich"
 file_paths = ["compose.yaml"]
@@ -419,9 +512,9 @@ auto_update = false
 [[stack]]
 name = "miniflux"
 description = "Miniflux, Reactflux, and FiveFilters"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/miniflux"
 file_paths = ["compose.yaml"]
@@ -431,9 +524,9 @@ auto_update = false
 [[stack]]
 name = "karakeep"
 description = "Karakeep"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/karakeep"
 file_paths = ["compose.yaml"]
@@ -443,9 +536,9 @@ auto_update = false
 [[stack]]
 name = "kavita"
 description = "Kavita"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/kavita"
 file_paths = ["compose.yaml"]
@@ -457,7 +550,7 @@ name = "strudel"
 description = "Strudel"
 tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/strudel"
 file_paths = ["compose.yaml"]
@@ -467,9 +560,9 @@ auto_update = false
 [[stack]]
 name = "obsidian-livesync"
 description = "CouchDB backend for Obsidian LiveSync"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/obsidian-livesync"
 file_paths = ["compose.yaml"]
@@ -481,19 +574,21 @@ name = "gitlab"
 description = "GitLab, GitLab Runner, and Renovate"
 tags = ["homelab", "ansible", "nuc-mini", "development"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/gitlab"
 file_paths = ["compose.yaml"]
+# Renovate runs only through the cron profile; absence is expected.
+ignore_services = ["renovate"]
 poll_for_updates = false
 auto_update = false
 
 [[stack]]
 name = "open-webui"
 description = "Open WebUI"
-tags = ["homelab", "ansible", "nuc-mini", "development"]
+tags = ["homelab", "ansible", "nuc-mini", "development", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/open-webui"
 file_paths = ["compose.yaml"]
@@ -503,9 +598,9 @@ auto_update = false
 [[stack]]
 name = "paseo-relay"
 description = "Paseo Relay"
-tags = ["homelab", "ansible", "nuc-mini", "development"]
+tags = ["homelab", "ansible", "nuc-mini", "development", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/paseo-relay"
 file_paths = ["compose.yaml"]
@@ -515,21 +610,23 @@ auto_update = false
 [[stack]]
 name = "n8n"
 description = "n8n"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/n8n"
 file_paths = ["compose.yaml"]
+# Certificate initialization exits after success; its dependents enforce completion.
+ignore_services = ["sandbox-certs"]
 poll_for_updates = false
 auto_update = false
 
 [[stack]]
 name = "changedetection"
 description = "ChangeDetection.io"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/changedetection"
 file_paths = ["compose.yaml"]
@@ -539,9 +636,9 @@ auto_update = false
 [[stack]]
 name = "copyparty"
 description = "Copyparty"
-tags = ["homelab", "ansible", "nuc-mini", "product"]
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/copyparty"
 file_paths = ["compose.yaml"]
@@ -549,23 +646,39 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "vane"
-description = "Vane"
-tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+name = "bentopdf"
+description = "BentoPDF"
+tags = ["homelab", "ansible", "nuc-mini", "product", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/bentopdf"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "vane"
+description = "Vane (parked; container and data retained)"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "parked"]
+[stack.config]
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/vane"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+auto_pull = false
+extra_args = ["--no-start"]
+ignore_services = ["vane"]
+send_alerts = false
 
 [[stack]]
 name = "kibble"
 description = "Kibble"
 tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/feederhub"
 file_paths = ["compose.yaml"]
@@ -575,11 +688,80 @@ auto_update = false
 [[stack]]
 name = "kizuna"
 description = "Kizuna"
-tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci"]
+tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house", "ci", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/kizuna"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+# Kaneo is pinned to a locally loaded image and upgraded only through
+# deploy/kaneo-upgrade.yml (backup, preflight, image rollback). Use Komodo for
+# visibility, logs, and restarts, not image changes. Not update-monitor: the
+# private fork registry has no shared Komodo credential.
+[[stack]]
+name = "kaneo"
+description = "Kaneo project management (fork)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+# Kaneo inspection adapter, Paseo daemon, and egress proxies. Deploy images only
+# through deploy/kaneo-inspection.yml during an idle inspection window: the
+# adapter follows the floating `inspection` tag, so a pulling redeploy here can
+# switch versions under active runs. Use Komodo for visibility, logs, and
+# restarts. Not update-monitor: private fork registry without a shared credential.
+[[stack]]
+name = "kaneo-inspection"
+description = "Kaneo agent inspections (adapter, Paseo daemon, egress proxies)"
+tags = ["homelab", "ansible", "nuc-mini", "product", "in-house", "ai"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/kaneo-inspection"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "photon"
+description = "Shared worldwide Photon geocoder for Kizuna and Dawarich"
+tags = ["homelab", "ansible", "nuc-mini", "geo"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/photon"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "valhalla"
+description = "Shared Valhalla router (US and Japan)"
+tags = ["homelab", "ansible", "nuc-mini", "geo"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/valhalla"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "protomaps"
+description = "Protomaps basemap archive, fonts, and sprites at maps.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "utility", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/protomaps"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
@@ -589,7 +771,7 @@ name = "petlibro"
 description = "catbro and Mosquitto"
 tags = ["homelab", "ansible", "nuc-mini", "utility", "in-house"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/petlibro"
 file_paths = ["compose.yaml"]
@@ -599,9 +781,9 @@ auto_update = false
 [[stack]]
 name = "frp"
 description = "frps tunnel proxy"
-tags = ["homelab", "ansible", "nuc-mini", "infrastructure"]
+tags = ["homelab", "ansible", "nuc-mini", "infrastructure", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/frp"
 file_paths = ["compose.yaml"]
@@ -611,9 +793,9 @@ auto_update = false
 [[stack]]
 name = "social"
 description = "Mastodon"
-tags = ["homelab", "ansible", "nuc-mini", "social"]
+tags = ["homelab", "ansible", "nuc-mini", "social", "update-monitor"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/social"
 file_paths = ["compose.yaml"]
@@ -625,7 +807,7 @@ name = "matrix"
 description = "Synapse and Matrix Authentication Service"
 tags = ["homelab", "ansible", "nuc-mini", "social"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/matrix"
 file_paths = ["compose.yaml"]
@@ -633,11 +815,27 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "phpbb"
+description = "phpBB forum at board.fireplace.cafe, built from the pinned official release"
+tags = ["homelab", "ansible", "nuc-mini", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/phpbb"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+# The board image is built by Ansible from the pinned phpBB release tarball;
+# pulling would fail on the local tag, so the stack builds instead.
+auto_pull = false
+run_build = true
+
+[[stack]]
 name = "backup"
 description = "Borgmatic and Borg-UI"
 tags = ["homelab", "ansible", "nuc-mini", "backup"]
 [stack.config]
-server = "Atelier"
+server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/backup"
 file_paths = ["compose.yaml"]
@@ -647,21 +845,36 @@ auto_update = false
 [[stack]]
 name = "beszel-agent-max"
 description = "Beszel Docker agent on max"
-tags = ["homelab", "ansible", "max", "monitoring"]
+tags = ["homelab", "ansible", "max", "monitoring", "update-monitor"]
 [stack.config]
-server = "max"
+server = "Workstation"
 files_on_host = true
 run_directory = "/opt/docker/beszel-agent"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
 
+# Alerts and update-monitor off for the same reason as
+# infra-periphery-gaming-pc.
+[[stack]]
+name = "beszel-agent-gaming-pc"
+description = "Beszel Docker agent on gaming-pc"
+tags = ["homelab", "ansible", "gaming-pc", "monitoring"]
+[stack.config]
+server = "Gaming PC"
+files_on_host = true
+run_directory = "/opt/docker/beszel-agent"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+send_alerts = false
+
 [[stack]]
 name = "ai"
-description = "llama-swap, Whisper, Kokoro, TEI, SearXNG, and Playwright"
+description = "llama-swap, Whisper, Kokoro, TEI, and Playwright"
 tags = ["homelab", "ansible", "max", "ai"]
 [stack.config]
-server = "max"
+server = "Workstation"
 files_on_host = true
 run_directory = "/opt/docker/ai"
 file_paths = ["compose.yaml"]
@@ -669,14 +882,40 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
+name = "degoog"
+description = "Degoog on nuc-mini at search.atelier.house"
+tags = ["homelab", "ansible", "nuc-mini", "search", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/degoog"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
+name = "flaresolverr"
+description = "Private challenge-solving API on nuc-mini"
+tags = ["homelab", "ansible", "nuc-mini", "search", "update-monitor"]
+[stack.config]
+server = "NUC"
+files_on_host = true
+run_directory = "/opt/docker/flaresolverr"
+file_paths = ["compose.yaml"]
+poll_for_updates = false
+auto_update = false
+
+[[stack]]
 name = "vllm"
-description = "vLLM DeepSeek serving stack"
+description = "vLLM DeepSeek and GLM serving profiles"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]
 [stack.config]
-server = "max"
+server = "Workstation"
 files_on_host = true
 run_directory = "/opt/docker/vllm"
 file_paths = ["compose.yaml"]
+# GLM is the active profile; change this exclusion when selecting DeepSeek.
+ignore_services = ["deepseek-v4-flash-0731"]
 poll_for_updates = false
 auto_update = false
 
@@ -685,12 +924,251 @@ name = "sglang"
 description = "SGLang model serving stack"
 tags = ["homelab", "ansible", "max", "ai", "profiled"]
 [stack.config]
-server = "max"
+server = "Workstation"
 files_on_host = true
 run_directory = "/opt/docker/sglang"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
+
+[[action]]
+name = "bentopdf-maintenance-check"
+description = "Run fixed BentoPDF preflight and post-deployment maintenance gates"
+tags = ["homelab", "bentopdf", "maintenance"]
+[action.config]
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const phase = String(ARGS.phase ?? '')
+if (phase !== 'preflight' && phase !== 'postdeploy') {
+  throw new Error('phase must be preflight or postdeploy')
+}
+
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'NUC',
+  terminal: `bentopdf-maintenance-${phase}`,
+  command: `/opt/docker/bentopdf/scripts/maintenance-check.sh ${phase}`,
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`BentoPDF ${phase} check failed with exit code ${exitCode}`)
+}
+'''
+
+[[procedure]]
+name = "maintain-bentopdf"
+description = "Preflight, deploy, and verify the Git-pinned stateless BentoPDF stack"
+tags = ["homelab", "bentopdf", "maintenance"]
+[procedure.config]
+schedule_enabled = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Preflight"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "preflight", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Deploy host-rendered stack"
+executions = [
+  { execution.type = "DeployStack", execution.params.stack = "bentopdf", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Verify health and digest"
+executions = [
+  { execution.type = "RunAction", execution.params.action = "bentopdf-maintenance-check", execution.params.args.phase = "postdeploy", enabled = true },
+]
+
+[[action]]
+name = "report-image-digest-updates"
+description = "Check update-monitor stacks and send one digest-change or error report"
+tags = ["homelab", "maintenance", "reporting"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 9 ? * MON"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const stacks = await komodo.read('ListStacks', {
+  limit: 0,
+  query: { tags: ['update-monitor'] },
+})
+stacks.sort((left, right) => left.name.localeCompare(right.name))
+
+const changes: string[] = []
+const errors: string[] = []
+for (const stack of stacks) {
+  try {
+    const result = await komodo.write('CheckStackForUpdate', {
+      stack: stack.name,
+      skip_auto_update: true,
+      wait_for_auto_update: true,
+    })
+    const changed = result.services.filter((service) => service.update_available)
+    for (const service of changed) {
+      changes.push(`${stack.name}/${service.service}: ${service.image}`)
+    }
+    console.log(`${stack.name}: ${changed.length} image change(s)`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : JSON.stringify(error)
+    errors.push(`${stack.name}: ${message}`)
+    console.error(`${stack.name}: ${message}`)
+  }
+}
+
+if (changes.length === 0 && errors.length === 0) {
+  console.log(`No image digest changes across ${stacks.length} monitored stacks`)
+} else {
+  const sections: string[] = []
+  if (changes.length > 0) sections.push(`Changes:\n${changes.map((item) => `- ${item}`).join('\n')}`)
+  if (errors.length > 0) sections.push(`Lookup failures:\n${errors.map((item) => `- ${item}`).join('\n')}`)
+  const update = await komodo.execute_and_poll('SendAlert', {
+    level: errors.length > 0 ? 'CRITICAL' : 'WARNING',
+    message: 'Homelab image digest report',
+    details: sections.join('\n\n'),
+    alerters: ['homelab-operations'],
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error('Failed to deliver image digest report')
+  }
+}
+'''
+
+[[action]]
+name = "update-plex"
+description = "Redeploy the Ansible-rendered Plex stack when its image digest changes"
+tags = ["homelab", "plex", "maintenance"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 30 4 * * ?"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+const STACK = 'plex'
+const SERVER = 'NUC'
+
+const update = await komodo.write('CheckStackForUpdate', {
+  stack: STACK,
+  skip_auto_update: true,
+  wait_for_auto_update: true,
+})
+const changed = update.services.filter((service) => service.update_available)
+
+if (changed.length === 0) {
+  console.log('Plex image is current')
+} else {
+  for (const service of changed) {
+    console.log(`Update available for ${service.service}: ${service.image}`)
+  }
+  let exitCode = 'Early exit without code'
+  await komodo.execute_server_terminal({
+    server: SERVER,
+    terminal: 'update-plex',
+    command: 'docker compose -f /opt/docker/plex/compose.yaml pull plex && docker compose -f /opt/docker/plex/compose.yaml up -d plex',
+    init: { command: 'bash', recreate: 'Always' },
+  }, {
+    onLine: (line) => console.log(line),
+    onFinish: (code) => { exitCode = code },
+  })
+  if (exitCode !== '0') {
+    throw new Error(`Plex update failed with exit code ${exitCode}`)
+  }
+  await komodo.execute_and_poll('SendAlert', {
+    level: 'WARNING',
+    message: 'Plex image updated',
+    details: changed.map((service) => `${service.service}: ${service.image}`).join('\n'),
+    alerters: ['homelab-operations'],
+  })
+}
+'''
+
+[[procedure]]
+name = "Backup Core Database"
+description = "Create the scheduled Komodo Core database backup"
+tags = ["homelab", "system", "backup"]
+[procedure.config]
+schedule_format = "English"
+schedule = "Every day at 01:00"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+
+[[procedure.config.stage]]
+name = "Back up Core database"
+executions = [
+  { execution.type = "BackupCoreDatabase", execution.params = {}, enabled = true },
+]
+
+[[action]]
+name = "verify-backup-status"
+description = "Require fresh matching local, NAS, and Komodo Core backup artifacts"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 4 * * ?"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'NUC',
+  terminal: 'verify-backup-status',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-backup-status.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Backup status verification failed with exit code ${exitCode}`)
+}
+'''
+
+[[action]]
+name = "verify-prowlarr-restore"
+description = "Extract and integrity-check the latest Prowlarr SQLite backup in temporary storage"
+tags = ["homelab", "backup", "verification"]
+[action.config]
+schedule_format = "Cron"
+schedule = "0 0 5 ? * SUN"
+schedule_enabled = true
+schedule_timezone = "America/Los_Angeles"
+schedule_alert = false
+failure_alert = true
+webhook_enabled = false
+file_contents = '''
+let exitCode = 'Early exit without code'
+await komodo.execute_server_terminal({
+  server: 'NUC',
+  terminal: 'verify-prowlarr-restore',
+  command: 'docker exec -e BORG_DIRECT=true borgmatic /scripts/verify-prowlarr-restore.sh',
+  init: { command: 'bash', recreate: 'Always' },
+}, {
+  onLine: (line) => console.log(line),
+  onFinish: (code) => { exitCode = code },
+})
+if (exitCode !== '0') {
+  throw new Error(`Prowlarr restore verification failed with exit code ${exitCode}`)
+}
+'''
 
 [[action]]
 name = "kizuna-storybook-review"
@@ -701,7 +1179,7 @@ failure_alert = true
 file_contents = '''
 type Operation = 'deploy' | 'destroy'
 
-const SERVER = 'Atelier'
+const SERVER = 'NUC'
 const REVIEW_DOMAIN = 'review.atelier.house'
 const PROXY_NETWORK = 'proxy-network'
 const AUTH_MIDDLEWARE = 'tinyauth@file'
@@ -728,7 +1206,7 @@ if (operation !== 'deploy' && operation !== 'destroy') {
 
 const reviewId = matches('review_id', /^[1-9][0-9]*$/)
 const stackName = `kizuna-storybook-mr-${reviewId}`
-const stacks = await komodo.read('ListStacks', {})
+const stacks = await komodo.read('ListStacks', { limit: 0 })
 const existing = stacks.find((stack) => stack.name === stackName)
 
 if (operation === 'destroy') {
@@ -807,8 +1285,182 @@ if (operation === 'destroy') {
 '''
 
 [[user_group]]
+name = "agent-readonly"
+description = "Read-only visibility for the OpenCode Komodo MCP identity (agent-ro). Read on all resource types with the Logs feature gate; no Execute, Write, Inspect, or Terminal anywhere."
+users = ["agent-ro"]
+permissions = []
+all.Server = { level = "Read", specific = ["Logs"] }
+all.Stack = { level = "Read", specific = ["Logs"] }
+all.Deployment = { level = "Read", specific = ["Logs"] }
+all.Build = "Read"
+all.Repo = "Read"
+all.Alerter = "Read"
+all.ResourceSync = "Read"
+all.Builder = "Read"
+all.Procedure = "Read"
+all.Action = "Read"
+
+[[user_group]]
 name = "kizuna-storybook-review-ci"
 users = ["kizuna-storybook-review-ci"]
 permissions = [
   { target.type = "Action", target.id = "kizuna-storybook-review", level = "Execute" },
+]
+
+[[action]]
+name = "stereo-storybook"
+description = "Manage private Stereo main and merge-request Storybook catalogs"
+tags = ["homelab", "stereo", "ci", "review-app"]
+[action.config]
+failure_alert = true
+file_contents = '''
+type Operation = 'deploy' | 'destroy'
+
+const SERVER = 'NUC'
+const REVIEW_DOMAIN = 'review.atelier.house'
+const PROXY_NETWORK = 'proxy-network'
+const AUTH_MIDDLEWARE = 'tinyauth@file'
+const CERTIFICATE_RESOLVER = 'letsencrypt'
+const IMAGE_REPOSITORY = 'registry.atelier.house/jedmund/stereo-app/storybook'
+
+const required = (name: string): string => {
+  const value = String(ARGS[name] ?? '').trim()
+  if (!value) throw new Error(`Missing Action argument: ${name}`)
+  return value
+}
+
+const matches = (name: string, pattern: RegExp): string => {
+  const value = required(name)
+  if (!pattern.test(value)) throw new Error(`Invalid Action argument: ${name}`)
+  return value
+}
+
+const operation = required('operation') as Operation
+if (operation !== 'deploy' && operation !== 'destroy') {
+  throw new Error('operation must be deploy or destroy')
+}
+
+const target = matches('target', /^(main|[1-9][0-9]*)$/)
+if (target === 'main' && operation === 'destroy') throw new Error('Main catalog cannot be destroyed by CI')
+const stackName = target === 'main' ? 'music-storybook' : `music-storybook-mr-${target}`
+const stacks = await komodo.read('ListStacks', { limit: 0 })
+const existing = stacks.find((stack) => stack.name === stackName)
+
+if (operation === 'destroy') {
+  if (!existing) {
+    console.log(`${stackName} is already absent`)
+  } else {
+    const { config: current } = await komodo.read('GetStack', { stack: existing.id })
+    // Built from IMAGE_REPOSITORY so a repository rename can't leave catalog images behind.
+    const imagePattern = new RegExp(`${IMAGE_REPOSITORY.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}:[a-f0-9]{40}`, 'g')
+    const images = [
+      ...new Set(String(current.file_contents ?? '').match(imagePattern) ?? []),
+    ]
+    // A merged MR's preview can be destroyed by storybook:stop and storybook:merged at
+    // the same time. The losing run fails with "Resource is busy" while the other is
+    // still destroying, so wait up to a minute for the stack to disappear.
+    const removedElsewhere = async () => {
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const stacks = await komodo.read('ListStacks', { limit: 0 })
+        if (!stacks.some((stack) => stack.id === existing.id)) return true
+        await new Promise((resolve) => setTimeout(resolve, 5000))
+      }
+      return false
+    }
+    try {
+      const update = await komodo.execute_and_poll('DestroyStack', {
+        stack: existing.id,
+        remove_orphans: true,
+        stop_time: 10,
+      })
+      if (Array.isArray(update) || !update.success) {
+        throw new Error(`Failed to destroy ${stackName}`)
+      }
+      await komodo.write('DeleteStack', { id: existing.id })
+    } catch (error) {
+      if (!(await removedElsewhere())) throw error
+      console.log(`${stackName} was removed by a concurrent destroy`)
+    }
+    // Each review revision is its own tag and the weekly prune only removes
+    // dangling images, so remove the catalog image with its stack. Not fatal:
+    // another stack may still use the same revision.
+    for (const image of images) {
+      const removed = await komodo
+        .execute_and_poll('DeleteImage', { server: SERVER, name: image })
+        .catch(() => undefined)
+      console.log(!removed || Array.isArray(removed) || !removed.success ? `Kept ${image}: in use or absent` : `Removed ${image}`)
+    }
+    console.log(`Destroyed and deleted ${stackName}`)
+  }
+} else {
+  const revision = matches('revision', /^[a-f0-9]{40}$/)
+  const image = `${IMAGE_REPOSITORY}:${revision}`
+  const host = `${stackName}.${REVIEW_DOMAIN}`
+  const router = stackName
+
+  const compose: DockerCompose = {
+    services: {
+      storybook: {
+        image,
+        restart: 'unless-stopped',
+        read_only: true,
+        tmpfs: ['/var/cache/nginx', '/var/run'],
+        security_opt: ['no-new-privileges:true'],
+        labels: {
+          'traefik.enable': 'true',
+          'traefik.docker.network': PROXY_NETWORK,
+          [`traefik.http.routers.${router}.rule`]: `Host(\`${host}\`)`,
+          [`traefik.http.routers.${router}.entrypoints`]: 'websecure',
+          [`traefik.http.routers.${router}.tls`]: 'true',
+          [`traefik.http.routers.${router}.tls.certresolver`]: CERTIFICATE_RESOLVER,
+          [`traefik.http.routers.${router}.middlewares`]: AUTH_MIDDLEWARE,
+          [`traefik.http.services.${router}.loadbalancer.server.port`]: '80',
+        },
+        networks: [PROXY_NETWORK],
+      },
+    },
+    networks: {
+      [PROXY_NETWORK]: {
+        external: true,
+      },
+    },
+  }
+
+  const config = {
+    server_id: SERVER,
+    // Never let Komodo's shared docker login replace Kizuna credentials.
+    registry_provider: '',
+    registry_account: '',
+    compose_cmd_wrapper: 'env DOCKER_CONFIG=/etc/komodo/stereo-storybook [[COMPOSE_COMMAND]]',
+    compose_cmd_wrapper_include: ['config', 'pull', 'up', 'run'],
+    project_name: stackName,
+    auto_pull: true,
+    file_contents: YAML.stringify(compose),
+    links: [`https://${host}`],
+    send_alerts: false,
+  }
+
+  const stack = existing
+    ? await komodo.write('UpdateStack', { id: existing.id, config })
+    : await komodo.write('CreateStack', { name: stackName, config })
+
+  const update = await komodo.execute_and_poll('DeployStack', {
+    stack: stack.name,
+    stop_time: 10,
+  })
+  if (Array.isArray(update) || !update.success) {
+    throw new Error(`Failed to deploy ${stackName}`)
+  }
+
+  console.log(`Deployed ${stackName} at https://${host} (${revision})`)
+}
+'''
+
+
+[[user_group]]
+name = "stereo-storybook-ci"
+# A Komodo user account (it holds the CI API key), so it keeps its pre-Stereo name.
+users = ["album-sort-storybook-ci"]
+permissions = [
+  { target.type = "Action", target.id = "stereo-storybook", level = "Execute" },
 ]

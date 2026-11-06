@@ -6,6 +6,15 @@ works, API credentialed CORS is correct, and the private Garage endpoint accepts
 the expected upload preflight. The checks below cover the authenticated and
 stateful behavior that should not be automated with production credentials.
 
+## iOS OIDC client
+
+Set `vault_kizuna_oidc_public_client_id` in `group_vars/kizuna/vault.yml`
+to the iOS public OIDC client ID. The role maps it through
+`kizuna_ios_oidc_client_id` to `KIZUNA_IOS_OIDC_CLIENT_ID` in the shared
+API and worker environment file. It defaults to an empty string when unset.
+The web client continues to use `vault_kizuna_oidc_client_id` and
+`vault_kizuna_oidc_client_secret`.
+
 ## YouTube enrichment and archival
 
 Add the server-side YouTube Data API v3 key to the Kizuna vault before
@@ -16,9 +25,10 @@ vault_kizuna_youtube_api_key: your-restricted-server-key
 ```
 
 The role enables video archival by default and shares the resulting settings
-with Rails and both Sidekiq containers. `kizuna-worker` consumes only the
-default queue; `kizuna-media-worker` consumes only the media queue at
-concurrency 1. The media worker uses Deno, yt-dlp with its EJS support package,
+with Rails and the Sidekiq containers. `kizuna-worker` consumes only the
+default queue; `kizuna-chat-worker` consumes only the chat queue (chat replies,
+follow-up suggestions, and chat visuals) at `kizuna_chat_worker_concurrency`;
+`kizuna-media-worker` consumes only the media queue at concurrency 1. The media worker uses Deno, yt-dlp with its EJS support package,
 and ffmpeg from the Kizuna API image to store an MP4, poster, and selected
 captions in the existing Garage bucket. Subtitle selection defaults to
 `en.*,en`; override `kizuna_video_archive_sub_langs` in inventory if needed.
@@ -57,18 +67,16 @@ but its large object-block directory is stored under
 local `kizuna_kizuna-garage-meta` volume because database metadata should not
 live on NFS.
 
-The first deployment performs a one-time, consistent migration:
+The local-to-NAS migration has completed on `nuc-mini`. Routine deployment
+creates the NAS directory and volume, but no longer stops services or copies
+the old local data. See [retired migrations](../../docs/retired-migrations.md)
+for completion evidence and the archived implementation.
 
-1. Create the NAS subdirectory and dedicated `kizuna-garage-data-nas` NFS
-   volume.
-2. Stop the API, both workers, and Garage briefly.
-3. Copy the existing `kizuna_kizuna-garage-data` contents to the NAS.
-4. Record a migration marker and start the stack against the NAS volume.
-
-The old local volume is deliberately retained as a rollback copy. To roll
-back, set `kizuna_garage_data_nas_enabled: false` and redeploy. Remove the old
-volume only after uploads, archived playback, and a Garage integrity check
-have all passed:
+The old local volume is a historical snapshot, not a current rollback copy.
+Setting `kizuna_garage_data_nas_enabled: false` selects that local volume;
+returning to local storage requires a separate consistent transfer of current
+data before redeployment. Retain the old volume until uploads, archived
+playback, and a Garage integrity check have all passed:
 
 ```sh
 docker volume inspect kizuna-garage-data-nas
@@ -81,38 +89,59 @@ backs up only Garage metadata; it no longer duplicates the unbounded media
 library. The `Files/Kizuna/Garage` directory therefore needs to be included
 in the NAS's own snapshot or offsite-backup policy.
 
-## Web search
+## Web and image search
 
-SearXNG is deployed by `roles/ai` on `max`; Kizuna reuses it and does not run
-a second search container on `nuc-mini`. The endpoint is derived from the
-`max` inventory address plus `kizuna_searxng_port`, not a duplicated IP
-literal. After every healthy Compose deployment, the Kizuna role runs the
-API's idempotent `agent_tools:provision` task. Enabling probes the shared
-JSON search endpoint before changing the database, so a failed probe stops
-the Ansible run while leaving the running stack and prior connection intact.
+Search providers are database rows managed in Kizuna Admin → Agent tools.
+Degoog runs on `nuc-mini` and is reachable from the Kizuna API and workers
+at `http://degoog:4444` through `proxy-network`; do not use the public URL,
+which requires TinyAuth. See the [Degoog runbook](../degoog/README.md).
 
-Verify the non-secret connection state and probe from inside the API:
+The role no longer renders `KIZUNA_SEARXNG_*` or runs
+`agent_tools:provision`. Routine deployments preserve provider URLs,
+priorities, credentials, and enabled states set in Admin. A fresh instance
+needs its first provider added in Admin; no provider is seeded from the
+homelab environment. Removing the environment variables does not disable
+an existing SearXNG database row.
 
-```sh
-docker exec kizuna-api bin/rails runner \
-  'puts AiToolConnection.where(user_id: nil, kind: "searxng").pick(:base_url, :enabled, :last_status).inspect'
+### Cut over from SearXNG
 
-docker exec kizuna-api bin/rails runner \
-  'connection = AiToolConnection.where(user_id: nil, kind: "searxng").sole; result = AiToolConnections::SearxngClient.new(connection).probe; abort(result.error) unless result.ok?; puts "ok"'
-```
+1. Merge and deploy [Kizuna API MR !360](https://git.atelier.house/kizuna/kizuna-api/-/merge_requests/360)
+   before relying on Degoog image search. Earlier API images reject image
+   searches through Degoog.
+2. Deploy this role to remove the legacy SearXNG environment and recurring
+   provisioning. In Admin → Agent tools, add or confirm an enabled Degoog
+   provider at `http://degoog:4444`, ahead of SearXNG in priority.
+3. Verify web and image searches from the API and chat worker. This probe
+   prints only result counts, never API keys or image-proxy signatures:
 
-Do not print `api_key` or dump the container environment. Confirm
-`docker compose -f /opt/docker/kizuna/compose.yaml ps` remains healthy and
-that no Kizuna-owned SearXNG container exists on `nuc-mini`. Then sign in and
-ask chat for current information; the completed run should have at least one
-`AiSource` with `kind: "web"` and a working citation. A second
-`make deploy-kizuna` should report the provisioning task unchanged. Open
-WebUI and Vane continue to use this same shared service.
+   ```sh
+   for container in kizuna-api kizuna-chat-worker; do
+     docker exec "$container" bin/rails runner '
+       connection = AiToolConnection.where(user_id: nil, kind: "degoog", enabled: true).by_priority.first!
+       client = AiToolConnections::DegoogClient.new(connection)
+       web = client.search("Balmy Alley murals", limit: 1, record_status: false)
+       images = client.search("Balmy Alley murals", images: true, limit: 1, record_status: false)
+       abort "web search failed" unless web.ok? && web.results.any?
+       abort "image search failed" unless images.ok? && images.results.any? { |entry| entry[:image_url].present? }
+       puts "web=#{web.results.length} images=#{images.results.length}"
+     '
+   done
+   ```
 
-To roll back, set `kizuna_searxng_enabled: "false"` and redeploy. Provisioning
-skips the probe, disables the instance connection, and Kizuna stops
-advertising `web_search`. This does not change the shared SearXNG deployment
-or its Open WebUI/Vane consumers.
+4. Disable the instance SearXNG provider in Admin. Ask chat for current
+   information and then for pictures; confirm citations and visible images
+   with Degoog as the only enabled provider. Redeploy Kizuna and confirm
+   SearXNG remains disabled.
+5. Before retiring the shared SearXNG container, verify every other consumer
+   has switched. Open WebUI defaults to Degoog, but persisted settings can
+   override deployment defaults. Check n8n and Vane configuration and saved
+   settings too. The [AI retirement procedure](../ai/README.md#retire-the-shared-searxng-service)
+   removes the shared service on `max` after Kizuna's provider is disabled.
+
+To disable live search, disable the enabled providers in Admin. After
+SearXNG retirement, restoring it as a fallback requires restoring and verifying
+the AI service first, then re-enabling its provider in Admin. Keep the disabled
+provider row for recovery; do not leave it enabled against a retired endpoint.
 
 ## PDF visual understanding
 
@@ -165,12 +194,70 @@ To stop new semantic enrichment, restore the mode to `off`. To disable page
 inspection independently, restore retrieval to `false`. Existing OCR text and
 semantic descriptions remain available for retrieval after either rollback.
 
+## Chat widgets
+
+`kizuna-widget-compiler` compiles model-written OpenUI Lang into the stored
+widget tree for `AiWidgetJob`. It joins only the internal `backend` network,
+so it has no egress and no Traefik route. The image is built by kizuna-app CI
+as `registry.atelier.house/kizuna/kizuna-app/widget-compiler`; `latest` is
+published only from the kizuna-app default branch. It must exist before this
+role deploys, because the Compose deployment pulls it and waits for its
+health check.
+
+Add the shared secret to the Kizuna vault before deploying. Generate it once
+with `openssl rand -hex 32`:
+
+```yaml
+vault_kizuna_widget_compiler_secret: generated-hex-value
+```
+
+The role renders it as `WIDGET_COMPILER_SECRET` in both
+`env/widget-compiler.env` and the shared API and worker environment file,
+together with `WIDGET_COMPILER_URL=http://kizuna-widget-compiler:4100`. A
+blank URL in the API disables widgets; a blank secret disables the sidecar's
+header check.
+
+After deployment, verify the container is healthy, the API received both
+settings, and the API can reach the sidecar, without printing the secret:
+
+```sh
+docker inspect --format '{{.State.Health.Status}}' kizuna-widget-compiler
+docker exec kizuna-api sh -c \
+  'test -n "$WIDGET_COMPILER_URL" && test -n "$WIDGET_COMPILER_SECRET"'
+docker exec kizuna-worker sh -c \
+  'test -n "$WIDGET_COMPILER_URL" && test -n "$WIDGET_COMPILER_SECRET"'
+docker exec kizuna-api curl --fail --silent http://kizuna-widget-compiler:4100/health
+```
+
+To disable widgets without removing the sidecar, blank
+`WIDGET_COMPILER_URL` in `templates/env/api.env.j2` and redeploy.
+
+## Shared geo services
+
+PlaceMap address lookup uses the shared [Photon](../photon/README.md) stack;
+walking routes use [Valhalla](../valhalla/README.md). Deploy both before Kizuna.
+They have independent Compose projects and Komodo Stack resources.
+
+`kizuna_geocoder_url` defaults to `http://photon:2322` and
+`kizuna_router_url` to `http://valhalla:8002`. Blank URLs disable the respective
+feature: places render without map pins, or routes use straight-line estimates.
+The API and workers share these settings through `WIDGET_GEOCODER_URL` and
+`WIDGET_ROUTER_URL`. Both endpoints are private on `backend-internal`.
+
+The shared services retain `kizuna-geocoder` and `kizuna-router` as network
+aliases for existing clients. Photon shares the worldwide `dawarich-photon-data`
+volume with Dawarich's client; Valhalla retains its US/Japan routing data at
+`/srv/kizuna-router`. See the [Photon runbook](../photon/README.md) for the
+consolidation procedure and data refresh requirements.
+
 ## First acceptance pass
 
 1. Deploy this role and the backup role, then merge one API or app change so its
    default-branch pipeline exercises the Komodo completion and revision gates.
-2. Confirm `docker compose ps` reports the API, Postgres, Redis, and
-   screenshotter as healthy. Confirm both workers are running.
+2. Confirm `docker compose ps` reports the API, Postgres, Redis,
+   screenshotter, and widget compiler as healthy. Verify the shared Photon
+   and Valhalla stacks separately, then query both from the API. Confirm
+   the workers are running.
 3. Sign in through PocketID. Sign out and back in with the password path as a
    second check when password login is enabled.
 4. Create and edit a two-line note, reload it, and confirm autosave preserved

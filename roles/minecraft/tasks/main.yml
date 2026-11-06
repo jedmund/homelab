@@ -1,0 +1,16 @@
+---
+- name: Validate existing Minecraft data without exposing credentials
+  ansible.builtin.script:
+    cmd: "validate-data.py {{ config_base | quote }}"
+    executable: python3
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Prepare snapshot tools without changing Compose or starting servers
+  ansible.builtin.include_tasks: snapshots.yml
+  when: minecraft_prepare_only | bool
+
+- name: Deploy the verified Minecraft stack
+  ansible.builtin.include_tasks: deploy.yml
+  when: not (minecraft_prepare_only | bool)

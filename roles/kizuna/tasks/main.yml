@@ -36,7 +36,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_garage_config
 
 - name: Deploy compose file
   template:
@@ -44,7 +44,6 @@
     dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
-  notify: Restart {{ stack_name }} stack
 
 - name: Deploy environment files
   template:
@@ -57,8 +56,9 @@
     - postgres
     - garage
     - screenshotter
+    - widget-compiler
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_environment_files
 
 - name: Deploy optional YouTube cookies
   template:
@@ -67,7 +67,7 @@
     owner: "{{ ansible_user }}"
     mode: '0600'
   no_log: true
-  notify: Restart {{ stack_name }} stack
+  register: kizuna_deploy_optional_youtube_cookies
 
 - name: Stage Garage bootstrap script
   copy:
@@ -133,79 +133,6 @@
           device: "{{ kizuna_garage_data_nfs_device }}"
         state: present
 
-    - name: Inspect legacy local Garage data volume
-      community.docker.docker_volume_info:
-        name: "{{ kizuna_garage_legacy_data_volume_name }}"
-      register: kizuna_garage_legacy_data_volume
-
-    - name: Check whether Garage data already migrated to the NAS
-      ansible.builtin.stat:
-        path: "{{ kizuna_garage_data_migration_marker }}"
-      register: kizuna_garage_data_migration
-
-    - name: Migrate existing Garage object blocks to the NAS
-      when:
-        - kizuna_garage_legacy_data_volume.exists
-        - not kizuna_garage_data_migration.stat.exists
-      block:
-        - name: Stop Kizuna services for a consistent Garage data copy
-          community.docker.docker_compose_v2:
-            project_src: "{{ config_base }}"
-            services:
-              - kizuna-api
-              - kizuna-worker
-              - kizuna-media-worker
-              - kizuna-pdf-worker
-              - kizuna-garage
-            state: stopped
-
-        - name: Copy legacy Garage object blocks to the NAS
-          community.docker.docker_container:
-            name: kizuna-garage-data-migration
-            image: "{{ kizuna_storage_init_image }}"
-            command:
-              - sh
-              - -c
-              - cp -R /source/. /destination/ && sync
-            volumes:
-              - "{{ kizuna_garage_legacy_data_volume_name }}:/source:ro"
-              - "{{ kizuna_garage_data_volume_name }}:/destination"
-            network_mode: none
-            detach: false
-            cleanup: true
-            state: started
-
-        - name: Record successful Garage NAS migration
-          ansible.builtin.file:
-            path: "{{ kizuna_garage_data_migration_marker }}"
-            state: touch
-            owner: "{{ ansible_user }}"
-            mode: '0600'
-      rescue:
-        - name: Restart existing Kizuna containers after migration failure
-          community.docker.docker_container:
-            name: "{{ item.name }}"
-            image: "{{ item.image }}"
-            state: started
-            comparisons:
-              image: ignore
-          loop:
-            - name: kizuna-garage
-              image: "{{ kizuna_garage_image }}"
-            - name: kizuna-api
-              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
-            - name: kizuna-worker
-              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
-            - name: kizuna-media-worker
-              image: "{{ kizuna_api_image }}:{{ kizuna_api_image_tag }}"
-
-        - name: Stop deployment after Garage migration failure
-          ansible.builtin.fail:
-            msg: >-
-              Garage data migration failed. Existing containers were restarted
-              against the retained local volume; inspect the migration error
-              before retrying.
-
 - name: Prepare NAS-backed video archive scratch space
   when: kizuna_video_scratch_nas_enabled
   block:
@@ -255,11 +182,19 @@
     pull: "{{ docker_pull_policy | default('missing') }}"
     wait: true
     wait_timeout: 180
+    recreate: >-
+      {{ 'always' if
+         (kizuna_deploy_garage_config.changed | default(false)) or
+         (kizuna_deploy_environment_files.changed | default(false)) or
+         (kizuna_deploy_optional_youtube_cookies.changed | default(false))
+         else 'auto' }}
+  # Pull with the credentials the login task above wrote for Komodo; root's
+  # default Docker config has no registry login.
+  environment:
+    DOCKER_CONFIG: "{{ kizuna_registry_config_path | dirname }}"
   register: compose_result
 
-# Apply storage access before optional external-tool provisioning so a
-# SearXNG outage cannot leave browser uploads or PDF range reads broken after
-# the stack itself has already deployed.
+# Apply storage access after the stack is healthy.
 # The one-time garage_bootstrap.sh handles layout + bucket + key creation
 # (the key secret has to be captured into the vault by a human). Its two
 # idempotent, declarative steps — granting the key access and setting CORS —
@@ -316,19 +251,6 @@
             )
       changed_when: false
       when: kizuna_garage_bucket_info.rc == 0
-
-- name: Provision Kizuna agent tool connections
-  command:
-    argv:
-      - docker
-      - exec
-      - kizuna-api
-      - bin/rails
-      - agent_tools:provision
-  register: kizuna_agent_tools_provision
-  changed_when: >-
-    'created searxng' in kizuna_agent_tools_provision.stdout or
-    'updated searxng' in kizuna_agent_tools_provision.stdout
 
 # Search documents are a rebuildable projection. Running this after every
 # healthy deploy covers both first-time migrations and any rows missed while

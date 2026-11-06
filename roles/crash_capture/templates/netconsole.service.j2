@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Send kernel messages to {{ crash_capture_netconsole_receiver }} over netconsole
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/netconsole-target start
+ExecStop=/usr/local/sbin/netconsole-target stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,74 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  photon:
+    container_name: photon
+    # Shared worldwide forward and reverse geocoder. Reuse the existing
+    # external index volume; this process only serves it.
+    image: "{{ photon_image }}"
+    # Run the jar directly instead of the image's process manager, which
+    # downloads and updates databases on its own schedule. The image's
+    # entrypoint would also chown the whole database on every start.
+    user: "{{ photon_uid }}:{{ photon_gid }}"
+    entrypoint:
+      - java
+      - --add-modules
+      - jdk.incubator.vector
+      - --enable-native-access=ALL-UNNAMED
+      - -Des.gateway.auto_import_dangling_indices=true
+      - -Des.cluster.routing.allocation.batch_mode=true
+      - -Dlog4j2.disable.jmx=true
+      - -Xms{{ photon_java_heap }}
+      - -Xmx{{ photon_java_heap }}
+      - -jar
+      - /photon/photon.jar
+    command:
+      - serve
+      - -data-dir
+      - /photon/data
+      # Photon listens on 127.0.0.1 by default, unreachable from other
+      # containers.
+      - -listen-ip
+      - 0.0.0.0
+      - -listen-port
+      - "2322"
+    restart: {{ restart_policy }}
+    networks:
+      # Kizuna uses backend; Dawarich uses shared. No host port or Traefik
+      # route is published. The jar does not run the image's index updater.
+      backend:
+        aliases:
+          - kizuna-geocoder
+      shared:
+        aliases:
+          - dawarich-photon
+          - dawarich_photon
+    volumes:
+      - photon-data:/photon/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:2322/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The deploy waits at most 180 s for health; probe often while starting.
+      start_period: 120s
+      start_interval: 5s
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  photon-data:
+    name: {{ photon_data_volume }}
+    external: true
+
+networks:
+  backend:
+    name: {{ backend_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
+    external: true

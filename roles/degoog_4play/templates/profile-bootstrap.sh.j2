@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+profile={{ degoog_4play_profile }}
+storage_dir="$profile/browser-extension-data/{{ degoog_4play_extension_id }}"
+storage_file="$storage_dir/storage.js"
+desired=/etc/degoog-4play/extension-storage.json
+
+install -d -o {{ degoog_4play_user }} -g {{ degoog_4play_group }} -m 0700 "$storage_dir"
+
+if [ ! -r "$storage_file" ] || ! cmp -s "$desired" "$storage_file"; then
+  install -o {{ degoog_4play_user }} -g {{ degoog_4play_group }} -m 0600 "$desired" "$storage_file"
+fi

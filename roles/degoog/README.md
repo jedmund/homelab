@@ -1,0 +1,203 @@
+# Degoog
+
+Degoog's desired host is `nuc-mini`, at `/opt/docker/degoog`. The existing
+installation on `max` must be transferred with the explicit migration below
+before ordinary deployment. The role refuses to start an empty replacement.
+
+The public URL remains `https://search.atelier.house`. Traefik reaches the
+container through `proxy-network`; TinyAuth continues to allow every PocketID
+account. Only the NUC loopback interface publishes port 4444, for provisioning
+and the native 4play bridge. There is no LAN backend listener.
+
+## Forward-only migration
+
+This procedure stops Degoog on `max` and causes a brief search outage. It does
+not deploy FlareSolverr, configure consumers, upgrade the Degoog image, reset
+credentials, change installed extensions, or restart the Firefox/Xorg desktop.
+
+Before the authorized window:
+
+- Update the main checkout and retain the existing encrypted
+  `group_vars/degoog/vault.yml`. Required inputs remain
+  `vault_degoog_settings_password` and `vault_degoog_4play_password`.
+- Verify SSH and privilege escalation for both hosts, available NUC disk space,
+  the NUC proxy network, and the existing native 4play bridge.
+- Reconcile the changed Komodo declaration before cutover so it no longer
+  attempts to deploy Degoog on `max`. Do not run an empty NUC deployment.
+- Run static checks and disposable migration tests.
+
+```sh
+make check
+python3 tests/test_degoog_migration.py
+git diff --check
+ansible-playbook -i inventory/hosts.yml deploy/degoog_migrate.yml \
+  -e degoog_migration_confirm=true
+```
+
+The explicit confirmation is required. Check mode is rejected rather than
+pretending to simulate a data transfer. Do not use `--limit nuc-mini` as an
+isolation boundary: the play intentionally delegates source operations to max.
+
+The playbook verifies destination safety, reserves headroom for staging, and
+pulls the unchanged image before stopping the source. It retires
+`max:/opt/docker/degoog/compose.yaml` to `compose.retired.yaml` and removes
+the source container without removing volumes or data. This also prevents the
+boot-time Compose scanner from resurrecting a second instance.
+
+Stopped data is checked for SQLite integrity, archived with restrictive
+permissions, transferred through a private temporary controller directory, and
+verified by SHA-256 before extraction. Symlinks and special archive entries are
+rejected. The destination data directory is installed atomically, with a
+checkpoint that distinguishes prepared, restored, and completed transfers.
+Re-running the play resumes an incomplete cutover but never replaces restored
+data with the old archive. Unexpected destination data causes a refusal.
+
+The destination starts without extension provisioning; routing switches to
+Traefik Docker labels and only the native WebSocket bridge is reloaded. The
+obsolete source-scoped UFW rule is removed from both hosts. Source data and
+root-only transfer archives remain; their deletion is a separate authorized
+operation. Controller temporary files are removed even after failure.
+
+There is no automatic rollback or reverse-copy path. On failure, inspect the
+failed phase and rerun after correcting it. Do not remove checkpoints or replace
+destination data to bypass a refusal. After completion the play only checks readiness.
+
+## Verify the cutover
+
+- NUC `http://127.0.0.1:4444/readyz` returns 200.
+- Anonymous public requests redirect to authentication; sign in with a PocketID
+  account and verify the search UI and settings password.
+- Confirm existing engines, settings, and indexed data are present; run a known
+  working engine query and test the 4play connection.
+- Confirm Firefox retained its existing profile and the bridge points to
+  `127.0.0.1:4444`.
+- Confirm no Degoog container remains on max and neither host offers port 4444
+  over the LAN. Inspect Komodo's host assignment after resource synchronization.
+- Repeat the migration command: it must not copy data or restart the application.
+
+Automated redirect/readiness checks do not establish a successful PocketID login
+or browser extension reconnection. Report those checks separately.
+
+## Routine deployment
+
+```sh
+make deploy-degoog
+```
+
+Extension provisioning can be skipped with `-e degoog_manage_extensions=false`.
+The migration always skips it. Changing the transport through normal provisioning
+retains its existing settings-password authentication and restart behavior.
+
+## Consumers
+
+Open WebUI uses Degoog for web search through its SearXNG engine, at
+`http://degoog:4444/api/search?q=<query>&format=json` on `proxy-network`
+(`open_webui_searxng_query_url` in `roles/open_webui/defaults/main.yml`).
+It reads only the `url`, `title`, `content`, and `score` fields of
+Degoog's native results, so Degoog's SearX compatibility setting is not
+required. Renaming the `degoog` container or removing it from
+`proxy-network` breaks Open WebUI search.
+
+Open WebUI keeps the query URL in its database after first boot, and the
+saved value overrides the environment. Change or revert it under
+Admin Panel > Settings > Web Search. To check the path Open WebUI uses:
+
+```sh
+docker exec open_webui python3 -c "import json,urllib.request; print(len(json.load(urllib.request.urlopen('http://degoog:4444/api/search?q=test&format=json', timeout=60))['results']))"
+```
+
+n8n and Vane also use Degoog through their SearXNG clients, with
+`http://degoog:4444/api` as the base URL. Deployment and verification are
+covered in the [n8n runbook](../n8n/README.md) and
+[Vane runbook](../vane/README.md). Vane's saved search URL must be changed
+separately on existing installations. Kizuna uses its native Degoog client;
+see the [Kizuna cutover](../kizuna/README.md#cut-over-from-searxng).
+These defaults take effect after deployment and, for Vane, a saved-setting
+update. Verify saved application settings and cold-query response times before
+stopping SearXNG.
+
+## Release upgrades
+
+`degoog_image` pins a release by its multi-arch index digest. Routine
+deployment pulls and recreates the container, but extension provisioning only
+installs missing items; it does not update installed Store extensions. Degoog
+1.1.0 requires matching versions of the 4play transport and Store engines.
+
+After deploying a new release:
+
+1. Open Settings, then Store, refresh the repositories, and update the
+   official `4play (lolcat)` transport and the installed engines, including
+   Google.
+2. Restart Degoog (`docker compose restart degoog` in `/opt/docker/degoog`) so
+   the transport WebSocket route is registered from the updated transport.
+3. Reapply the [Maps compatibility patch](#maps-frontend-compatibility) if the Maps
+   plugin was updated.
+4. Verify 4play and Google as described below.
+
+## 4play and Google
+
+Google requires the 4play transport; plain fetch and curl clients are blocked.
+The native Firefox client on `nuc-mini` connects to `ws://127.0.0.1:3031/cnc`,
+and the bridge forwards to
+`/ws/degoog-org-official-extensions-lolcat-4play-transport/<password>`.
+Degoog returns 404 for any other transport path, which appears in the Degoog
+log as `4play: no browser extension connected`. Routine `make deploy-degoog`
+does not render the bridge. If that message appears, check the `proxy_pass`
+path in `/etc/degoog-4play/nginx.conf` and redeploy the native client with
+`make deploy-degoog-4play`. A bridge-only change reloads Nginx and does not
+restart Xorg or Firefox.
+
+The role enables the transport's container isolation. With it disabled, the
+log repeats `origin warmup for https://www.google.com did not reach a usable
+search session (reached=true, session=false)` and Google returns no results,
+because captured headers are stored under Firefox's default container while
+warmup looks them up under the transport's default key.
+
+In Settings, Engines, Google, set the outgoing HTTP client to `4play (lolcat)`.
+Verify with a `!g` search, and with `!4play` if the `4play status` plugin is
+installed. A CAPTCHA tab is left open in Firefox on display `:1` and must be
+solved on the NUC display.
+
+FlareSolverr remains a separate standalone service. Its URL is not configured by
+this migration. Consumer cutovers are independent of the host migration;
+see [Consumers](#consumers) for the current endpoints and verification steps.
+
+## Maps frontend compatibility
+
+The user-installed `lazerleif/degoog-maps` frontend hard-codes the old `maps`
+tab and route names. Apply the guarded compatibility patch with:
+
+```sh
+python3 tests/test_degoog_maps.py
+ansible-playbook deploy/degoog_maps.yml --check
+ansible-playbook deploy/degoog_maps.yml
+```
+
+The patch uses Degoog's injected plugin ID for the canonical tab and API path.
+The Maps tile layer uses OSM's canonical `https://tile.openstreetmap.org` host
+and `referrerPolicy: "strict-origin"`, preserving attribution and browser cache
+defaults. This supplies the site origin required by OSM's tile usage policy
+without sending the search query or changing the global referrer policy.
+It changes only the installed frontend, preserves other code and settings, and
+fails on unfamiliar upstream content. Repeat runs make no changes. Reapply after
+updating the plugin through the store. No service restart is requested; refresh
+the browser without cache after applying and verify the Maps tab renders tiles
+and markers. Check mode inspects the installed file but does not modify it.
+
+The separate HERE Places widget requires default coordinates. The playbook also
+adds `referrerpolicy="strict-origin"` only to its HTTPS CARTO tile images
+(`basemaps.cartocdn.com` and the `a` through `d` subdomains). CARTO receives the
+site origin, not the search path or query, so website-restricted keys work.
+Other tile providers retain `no-referrer`. The global application policy and
+tile credentials are unchanged.
+
+## Storage and native browser
+
+The NUC backup role includes `/opt/docker`, subject to its exclusions. This
+covers deployment files but does not guarantee a consistent live SQLite snapshot.
+Stop writers for a controlled copy and verify restored databases before relying
+on them; see the [backup runbook](../backup/README.md).
+
+The [native 4play role](../degoog_4play/README.md) remains separately managed and
+excluded from routine full deployments. Its Firefox profile, Xorg display
+`:1`, and local bridge URL `ws://127.0.0.1:3031/cnc` are preserved.

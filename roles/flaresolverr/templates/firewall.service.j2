@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Restrict the FlareSolverr published API
+Before=docker.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/flaresolverr/firewall.nft
+ExecReload=/usr/sbin/nft -f /etc/flaresolverr/firewall.nft
+# Stopping this unit deliberately does not remove the restriction.
+
+[Install]
+WantedBy=multi-user.target

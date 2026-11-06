@@ -1,0 +1,37 @@
+---
+- name: Require trusted Minecraft host key
+  ansible.builtin.assert:
+    that: backup_minecraft_host_key | length > 0
+
+- name: Create private Minecraft transfer directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop:
+    - "{{ backup_minecraft_path }}"
+    - "{{ backup_minecraft_ssh_path }}"
+
+- name: Create dedicated Minecraft transfer key if absent
+  ansible.builtin.command:
+    argv: [ssh-keygen, -t, ed25519, -N, '', -f, "{{ backup_minecraft_ssh_path }}/id_ed25519"]
+    creates: "{{ backup_minecraft_ssh_path }}/id_ed25519"
+  no_log: true
+
+- name: Install verified max SSH host key
+  ansible.builtin.copy:
+    content: "[{{ hostvars['max'].ansible_host }}]:{{ hostvars['max'].ansible_port }} {{ backup_minecraft_host_key }}\n"
+    dest: "{{ backup_minecraft_ssh_path }}/known_hosts"
+    mode: '0600'
+
+- name: Install Minecraft transfer hook
+  ansible.builtin.template:
+    src: "scripts/{{ item }}.j2"
+    dest: "{{ config_base }}/scripts/{{ item }}"
+    mode: '0755'
+  loop:
+    - pull-minecraft.sh
+    - borg-locked.sh
+  register: backup_minecraft_script

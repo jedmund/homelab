@@ -1,0 +1,28 @@
+---
+- name: Fail on unsupported OS families
+  ansible.builtin.fail:
+    msg: >-
+      fastfetch has no install path for os_family
+      {{ ansible_facts['os_family'] }} on {{ inventory_hostname }}.
+  when: ansible_facts['os_family'] not in ['Debian', 'Archlinux', 'Darwin']
+
+# apt compares the package version inside the .deb, so a pinned version
+# that is already installed reports no change.
+- name: Install fastfetch {{ fastfetch_version }} from the upstream release
+  ansible.builtin.apt:
+    deb: "{{ fastfetch_deb_url }}"
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install fastfetch with pacman
+  community.general.pacman:
+    name: fastfetch
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Install fastfetch with Homebrew
+  community.general.homebrew:
+    name: fastfetch
+    state: present
+  when: ansible_facts['os_family'] == 'Darwin'

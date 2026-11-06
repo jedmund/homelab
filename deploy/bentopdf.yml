@@ -1,0 +1,6 @@
+---
+- name: Deploy BentoPDF stack
+  hosts: bentopdf
+  become: true
+  roles:
+    - bentopdf

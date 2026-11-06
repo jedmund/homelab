@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+worker_processes 1;
+pid /run/degoog-4play/nginx.pid;
+error_log stderr warn;
+
+events {
+  worker_connections 128;
+}
+
+http {
+  access_log off;
+
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+  }
+
+  server {
+    listen 127.0.0.1:{{ degoog_4play_bridge_port }};
+
+    location = /cnc {
+      proxy_pass http://{{ degoog_4play_upstream_host }}:{{ degoog_4play_upstream_port }}/ws/{{ degoog_4play_transport_id }}/{{ degoog_4play_transport_password }};
+      proxy_http_version 1.1;
+      proxy_set_header Host {{ degoog_4play_upstream_host }}:{{ degoog_4play_upstream_port }};
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_buffering off;
+      proxy_read_timeout 1h;
+      proxy_send_timeout 1h;
+    }
+  }
+}

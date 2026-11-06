@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Report host health to Gatus every {{ crash_capture_report_interval }}
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec={{ crash_capture_report_interval }}
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

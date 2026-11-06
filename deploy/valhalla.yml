@@ -1,0 +1,6 @@
+---
+- name: Deploy shared Valhalla router
+  hosts: valhalla
+  become: true
+  roles:
+    - valhalla

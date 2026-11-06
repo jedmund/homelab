@@ -1,0 +1,33 @@
+---
+# Stack identity
+stack_name: granblue
+config_base: "{{ docker_base_path }}/{{ stack_name }}"
+
+# Granblue Fantasy jobs for granblue.team. Every service shares the stack's
+# own gluetun container, so their traffic leaves through ProtonVPN and never
+# from the host's address.
+
+# VPN (ProtonVPN over WireGuard)
+granblue_gluetun_image: qmcgaw/gluetun:v3.41.3
+granblue_wireguard_private_key: "{{ vault_granblue_wireguard_private_key | default('') }}"
+# Proton's WireGuard configurations all use this tunnel address
+granblue_wireguard_addresses: 10.2.0.2/32
+granblue_vpn_server_countries: Japan
+# Proton's free plan only connects to its free servers
+granblue_vpn_free_only: false
+
+# Gacha rates: fetches the game's current banner rates after each banner ends
+# and sends them to the granblue.team API
+granblue_gacha_rates_image: ruby:3.4.4-slim
+granblue_gacha_rates_script_commit: 04a8b24e69bc5255a2935c5632e34853ed24f7c6
+granblue_gacha_rates_script_url: >-
+  https://raw.githubusercontent.com/jedmund/hensei-api/{{ granblue_gacha_rates_script_commit }}/script/fetch_gacha_rates.rb
+granblue_gacha_rates_script_checksum: sha256:b287d6f62f46a073a11b962c552ebc07a610d7fe9f9153763a5bece69171aef3
+granblue_gacha_rates_api_url: https://api.granblue.team/v1/gacha/banners
+granblue_gacha_rates_api_token: "{{ vault_granblue_gacha_rates_api_token | default('') }}"
+granblue_gacha_rates_game_uid: "{{ vault_granblue_gacha_rates_game_uid | default('') }}"
+granblue_gacha_rates_alert_webhook: "{{ vault_granblue_gacha_rates_alert_webhook | default('') }}"
+# Minutes past each hour; banners change on the hour at 19:00 JST
+granblue_gacha_rates_minute: 5
+granblue_gacha_rates_uid: "{{ puid }}"
+granblue_gacha_rates_gid: "{{ pgid }}"

@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Snapshot idle Minecraft servers
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/minecraft-snapshot snapshot
+ExecStopPost=/usr/local/sbin/minecraft-snapshot recover
+TimeoutStartSec=2h
+TimeoutStopSec=90
+UMask=0077

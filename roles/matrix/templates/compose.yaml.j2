@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile.synapse
     # Local-only tag for the host-built image above, never pulled
     image: synapse-custom:latest
+    pull_policy: build
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -46,6 +47,7 @@ services:
   synapse-db:
     container_name: synapse_postgres
     image: {{ synapse_db_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     networks:
       - backend
@@ -69,6 +71,7 @@ services:
   mas:
     container_name: mas
     image: {{ mas_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     command: server --config /data/config.yaml
     networks:
@@ -102,6 +105,7 @@ services:
   mas-db:
     container_name: mas_postgres
     image: {{ mas_db_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     networks:
       - backend
@@ -125,6 +129,7 @@ services:
   element-web:
     container_name: element_web
     image: {{ element_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -148,6 +153,7 @@ services:
   synapse-admin:
     container_name: synapse_admin
     image: {{ synapse_admin_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     networks:
       - proxy
@@ -167,6 +173,7 @@ services:
   livekit:
     container_name: livekit
     image: {{ livekit_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     command: --config /etc/livekit.yaml
     networks:
@@ -191,6 +198,7 @@ services:
   lk-jwt-service:
     container_name: lk_jwt_service
     image: {{ lk_jwt_service_image }}
+    pull_policy: "{{ docker_pull_policy | default('missing') }}"
     restart: {{ restart_policy }}
     networks:
       - proxy

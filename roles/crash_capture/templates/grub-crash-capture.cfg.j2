@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+# Sourced after /etc/default/grub, which stays hand managed. kdump-tools
+# appends crashkernel= through its own drop-in.
+GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT {{ crash_capture_kernel_args | join(' ') }}"

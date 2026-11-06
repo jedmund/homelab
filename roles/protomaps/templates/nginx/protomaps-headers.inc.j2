@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Included by protomaps.conf. An empty origin value omits the header, so
+# unlisted origins receive no CORS grant.
+add_header Access-Control-Allow-Origin $protomaps_cors_origin always;
+add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
+add_header Access-Control-Allow-Headers "Range, If-Match, If-None-Match, If-Modified-Since, If-Range" always;
+add_header Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges, ETag" always;
+add_header Access-Control-Max-Age 86400 always;
+add_header Vary Origin always;
+add_header Accept-Ranges $protomaps_accept_ranges;
+# Without "always" this is limited to successful and redirect responses, so
+# a 404 for an archive that has not been downloaded yet is not cached.
+add_header Cache-Control "public, max-age=31536000, immutable";

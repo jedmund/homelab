@@ -1,0 +1,101 @@
+---
+# Protomaps basemap file server. Ansible manages the server, fonts, and
+# sprites; the archive itself is fetched by the staged fetch_archive.sh
+# because a planet download runs for hours (see README.md).
+
+- name: Validate Protomaps inputs
+  ansible.builtin.assert:
+    that:
+      - protomaps_build is match('^[0-9]{8}$')
+      - protomaps_archive is match('^[A-Za-z0-9._-]+\.pmtiles$')
+      - protomaps_bbox | length > 0 or protomaps_planet_md5 is match('^[0-9a-f]{32}$')
+      - protomaps_cors_origins | length > 0
+    fail_msg: >-
+      Set protomaps_build to a YYYYMMDD build, protomaps_archive to a
+      .pmtiles file name, protomaps_planet_md5 for a planet download, and at
+      least one CORS origin.
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/nginx/conf.d"
+    - "{{ protomaps_data_path }}"
+    - "{{ protomaps_data_path }}/basemaps"
+    - "{{ protomaps_data_path }}/assets"
+    - "{{ protomaps_data_path }}/downloads"
+    - "{{ protomaps_data_path }}/assets/{{ protomaps_assets_commit }}"
+
+- name: Download pinned basemaps-assets
+  ansible.builtin.get_url:
+    url: "{{ protomaps_assets_url }}"
+    dest: "{{ protomaps_data_path }}/downloads/basemaps-assets-{{ protomaps_assets_commit }}.tar.gz"
+    checksum: "sha256:{{ protomaps_assets_sha256 }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Extract basemaps-assets
+  ansible.builtin.unarchive:
+    src: "{{ protomaps_data_path }}/downloads/basemaps-assets-{{ protomaps_assets_commit }}.tar.gz"
+    dest: "{{ protomaps_data_path }}/assets/{{ protomaps_assets_commit }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: "{{ protomaps_data_path }}/assets/{{ protomaps_assets_commit }}/sprites/v4/light.json"
+    owner: "{{ ansible_user }}"
+
+- name: Deploy nginx configuration
+  ansible.builtin.template:
+    src: "nginx/{{ item }}.j2"
+    dest: "{{ config_base }}/nginx/conf.d/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  loop:
+    - protomaps.conf
+    - protomaps-headers.inc
+  register: protomaps_deploy_nginx_configuration
+
+- name: Stage archive fetch script
+  ansible.builtin.template:
+    src: fetch_archive.sh.j2
+    dest: "{{ config_base }}/fetch_archive.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    wait: true
+    wait_timeout: 60
+    recreate: >-
+      {{ 'always' if (protomaps_deploy_nginx_configuration.changed | default(false))
+         else 'auto' }}
+  register: compose_result
+
+- name: Check for the configured basemap archive
+  ansible.builtin.stat:
+    path: "{{ protomaps_data_path }}/basemaps/{{ protomaps_archive }}"
+    get_checksum: false
+  register: protomaps_archive_stat
+
+- name: Report a missing basemap archive
+  ansible.builtin.debug:
+    msg: |
+      {{ protomaps_archive }} is not present yet. On {{ inventory_hostname }}, run:
+        tmux new -s protomaps '{{ config_base }}/fetch_archive.sh'
+      Then verify https://{{ protomaps_domain }}/basemaps/{{ protomaps_archive }}.
+  when: not protomaps_archive_stat.stat.exists
