@@ -8,7 +8,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = tomllib.loads((ROOT / 'komodo/stacks.toml').read_text())
-ACTION = next(a for a in DATA['action'] if a['name'] == 'album-sort-storybook')
+ACTION = next(a for a in DATA['action'] if a['name'] == 'stereo-storybook')
+STACK_IMAGE = 'image: registry.atelier.house/jedmund/stereo-app/storybook:' + 'b' * 40
 
 
 class StorybookActionTests(unittest.TestCase):
@@ -17,8 +18,11 @@ class StorybookActionTests(unittest.TestCase):
 const ARGS = {json.dumps(args)};
 const calls = [];
 const YAML = {{ stringify: JSON.stringify }};
+globalThis.setTimeout = (resolve) => resolve();
 const komodo = {{
-  read: async () => {json.dumps([{'id': 'owned', 'name': 'music-storybook-mr-12'}] if existing else [])},
+  read: async (operation) => operation === 'GetStack'
+    ? {{ config: {{ file_contents: {json.dumps(STACK_IMAGE)} }} }}
+    : {json.dumps([{'id': 'owned', 'name': 'music-storybook-mr-12'}] if existing else [])},
   write: async (operation, params) => {{ calls.push({{operation, params}}); return {{name: params.name ?? 'owned'}}; }},
   execute_and_poll: async (operation, params) => {{ calls.push({{operation, params}}); return {{success: {str(succeeds).lower()}}}; }}
 }};
@@ -40,13 +44,13 @@ const komodo = {{
             config = result['calls'][0]['params']['config']
             compose = json.loads(config['file_contents'])
             service = compose['services']['storybook']
-            self.assertEqual(service['image'], 'registry.atelier.house/jedmund/album-sort/storybook:' + 'a' * 40)
+            self.assertEqual(service['image'], 'registry.atelier.house/jedmund/stereo-app/storybook:' + 'a' * 40)
             self.assertEqual(service['networks'], ['proxy-network'])
             self.assertNotIn('ports', service)
             self.assertIn('tinyauth@file', service['labels'].values())
             self.assertEqual(config['registry_account'], '')
             self.assertEqual(config['registry_provider'], '')
-            self.assertEqual(config['compose_cmd_wrapper'], 'env DOCKER_CONFIG=/etc/komodo/album-sort-storybook [[COMPOSE_COMMAND]]')
+            self.assertEqual(config['compose_cmd_wrapper'], 'env DOCKER_CONFIG=/etc/komodo/stereo-storybook [[COMPOSE_COMMAND]]')
             self.assertIn('pull', config['compose_cmd_wrapper_include'])
             self.assertIn('up', config['compose_cmd_wrapper_include'])
             expected = 'music-storybook' if target == 'main' else 'music-storybook-mr-12'
@@ -64,7 +68,8 @@ const komodo = {{
         args = {'operation': 'destroy', 'target': '12'}
         self.assertEqual(self.run_action(args)['calls'], [])
         result = self.run_action(args, existing=True)
-        self.assertEqual([c['operation'] for c in result['calls']], ['DestroyStack', 'DeleteStack'])
+        self.assertEqual([c['operation'] for c in result['calls']], ['DestroyStack', 'DeleteStack', 'DeleteImage'])
+        self.assertEqual(result['calls'][-1]['params']['name'], STACK_IMAGE.removeprefix('image: '))
         result = self.run_action(args, existing=True, succeeds=False)
         self.assertFalse(result['ok'])
         self.assertEqual([c['operation'] for c in result['calls']], ['DestroyStack'])

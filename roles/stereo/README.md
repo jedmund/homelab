@@ -1,23 +1,23 @@
-# Album Sort
+# Stereo
 
-Deploys Album Sort with its Beets and embedder services on `nuc-mini` at
+Deploys Stereo with its Beets and embedder services on `nuc-mini` at
 `https://music.atelier.house`, redirecting the old `music.sort.atelier.house`
 address there. GitLab CI publishes the three images;
-Ansible renders the stack under `/opt/docker/album-sort`.
+Ansible renders the stack under `/opt/docker/stereo`.
 
 ## Configuration
 
 [defaults/main.yml](defaults/main.yml) defines the image references, tag,
 OIDC provider, paths, and API settings. All images use
-`album_sort_image_tag`, which defaults to `latest`. CI publishes `latest`
+`stereo_image_tag`, which defaults to `latest`. CI publishes `latest`
 from the default branch and can request a Komodo redeployment. Use a published
 commit tag for a deployment freeze or compatible rollback.
 
-Store credentials in `group_vars/album_sort/vault.yml` as described in
-[Secrets](../../docs/secrets.md#groupvarsalbumsortvaultyml). Required inputs
+Store credentials in `group_vars/stereo/vault.yml` as described in
+[Secrets](../../docs/secrets.md#groupvarsstereovaultyml). Required inputs
 include registry access, PocketID credentials, and
-`vault_album_sort_user_secret_encryption_key`, and
-`vault_album_sort_postgres_password`.
+`vault_stereo_user_secret_encryption_key`, and
+`vault_stereo_postgres_password`.
 
 The encryption key is canonical base64 encoding of 32 random bytes. Provision
 it once and preserve it across deployments. Keep an encrypted recovery copy
@@ -26,15 +26,15 @@ protected by the old key.
 
 ## Deployment
 
-Traefik must be running before Album Sort. The role inspects Traefik's address
+Traefik must be running before Stereo. The role inspects Traefik's address
 on `proxy-network`, checks it against `traefik_proxy_ipv4_address` in inventory,
 and configures trust for that single address as a `/32`.
 
 From the repository root:
 
 ```sh
-make -C deploy syntax STACK=album_sort
-make -C deploy album_sort
+make -C deploy syntax STACK=stereo
+make -C deploy stereo
 ```
 
 The role renders configuration, logs into the registry, pulls both images,
@@ -43,7 +43,7 @@ request recreation in that same deployment, before the health check; there is
 no later Compose restart handler.
 
 Do not pin image IDs or change pull policy in the generated host Compose file.
-Set `album_sort_image_tag` in Ansible instead. Both the role and Compose
+Set `stereo_image_tag` in Ansible instead. Both the role and Compose
 configuration explicitly pull images; the shared `docker_pull_policy` override
 does not freeze this stack.
 
@@ -52,7 +52,7 @@ does not freeze this stack.
 The browser interface uses native PocketID OIDC. The current default also
 applies TinyAuth to the main browser route.
 
-When `album_sort_expose_rest_api` is enabled, `/rest` has separate routes for
+When `stereo_expose_rest_api` is enabled, `/rest` has separate routes for
 OpenSubsonic clients. These routes bypass browser-oriented TinyAuth. The
 application handles protocol authentication.
 
@@ -63,7 +63,7 @@ requests to the application's rejection path rather than redirecting them.
 Verify rejection after changes to the proxy or application image.
 
 If the proxy network or Traefik address changes, update the inventory pin and
-redeploy Traefik and Album Sort together. The role rejects an absent or
+redeploy Traefik and Stereo together. The role rejects an absent or
 unexpected proxy address. Do not replace the single-address trust rule with
 the entire Docker subnet.
 
@@ -71,17 +71,17 @@ the entire Docker subnet.
 
 | Item | Configuration |
 | --- | --- |
-| Application state | `/opt/docker/album-sort/data` |
-| Beets state | `/opt/docker/album-sort/beets-data` |
-| Postgres | `album_sort_postgres` (`postgres:17-alpine`), data in `/opt/docker/album-sort/postgres`. No published port: the app reaches it on the internal `backend` network through `DATABASE_URL`, and borgmatic on `backend-internal`. The cluster is initialised with `--locale=C --encoding=UTF8`, which the app requires. Borgmatic takes a nightly `pg_dump` and excludes the data directory from the raw capture. The SQLite-era app ignores `DATABASE_URL` |
-| Embedder | `album_sort_embedder` on the internal `backend` network at `http://embedder:8340` (`EMBEDDER_URL`); reads `/music` read-only and computes audio embeddings for similarity. Set `album_sort_embedder_enabled: false` to leave it out; the app then stops embedding new tracks |
+| Application state | `/opt/docker/stereo/data` |
+| Beets state | `/opt/docker/stereo/beets-data` |
+| Postgres | `stereo_postgres` (`postgres:17-alpine`), data in `/opt/docker/stereo/postgres`. No published port: the app reaches it on the internal `backend` network through `DATABASE_URL`, and borgmatic on `backend-internal`. The cluster is initialised with `--locale=C --encoding=UTF8`, which the app requires. Borgmatic takes a nightly `pg_dump` and excludes the data directory from the raw capture. The SQLite-era app ignores `DATABASE_URL` |
+| Embedder | `stereo_embedder` on the internal `backend` network at `http://embedder:8340` (`EMBEDDER_URL`); reads `/music` read-only and computes audio embeddings for similarity. Set `stereo_embedder_enabled: false` to leave it out; the app then stops embedding new tracks |
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
-| slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`album_sort_slskd_download_path`) and never modified |
-| qBittorrent downloads | Torrents Album Sort fetches land in qBittorrent's `album-sort` category at `/downloads/album-sort` (`album_sort_qbittorrent_download_path`, passed as `DOWNLOADS_PATH`); Album Sort only reads them, and refuses a finished torrent outside every download root |
-| Quarantine | `/downloads/album-sort-quarantine` (`album_sort_quarantine_path`), created by the role beside the download roots, never inside them; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
+| slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`stereo_slskd_download_path`) and never modified |
+| qBittorrent downloads | Torrents Stereo fetches land in qBittorrent's `stereo` category at `/downloads/stereo` (`stereo_qbittorrent_download_path`, passed as `DOWNLOADS_PATH`); Stereo only reads them, and refuses a finished torrent outside every download root |
+| Quarantine | `/downloads/stereo-quarantine` (`stereo_quarantine_path`), created by the role beside the download roots, never inside them; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
 | MusicBrainz | `http://musicbrainz:5000/ws/2` on the shared Docker network |
-| Cover Art Archive | Public service, configured by `album_sort_cover_art_archive_base_url` |
-| Multi-Scrobbler | `album_sort_multi_scrobbler_url`; users enter their own credentials in the application's Music settings |
+| Cover Art Archive | Public service, configured by `stereo_cover_art_archive_base_url` |
+| Multi-Scrobbler | `stereo_multi_scrobbler_url`; users enter their own credentials in the application's Music settings |
 
 slskd must keep its default download layout
 (`transfers.download.destination.subdirectory: ${SOURCE_DIRECTORY}`), and Album
@@ -109,20 +109,20 @@ procedure. The former M4 cutover verifier is retired.
 
 Storybook is an independent static catalog managed by the dedicated Komodo Action;
 it does not join the application network or require a music root. See the
-[Komodo activation runbook](../../komodo/README.md#album-sort-storybook-catalogs).
+[Komodo activation runbook](../../komodo/README.md#stereo-storybook-catalogs).
 
 Registry provisioning is disabled by default. Place
-`vault_album_sort_storybook_registry_username` and
-`vault_album_sort_storybook_registry_password` in this role's encrypted vault.
+`vault_stereo_storybook_registry_username` and
+`vault_stereo_storybook_registry_password` in this role's encrypted vault.
 After activation is authorized, the `storybook-registry` tag with
-`album_sort_storybook_registry_enabled=true` provisions only the dedicated Docker
+`stereo_storybook_registry_enabled=true` provisions only the dedicated Docker
 config. Do not reuse or replace `/etc/komodo/docker/config.json`: Kizuna owns that
 shared login. No Storybook service is deployed by this tag.
 
 ## Tag preparation concurrency
 
-`album_sort_tag_preflight_concurrency`, `album_sort_tag_staging_concurrency`, and
-`album_sort_tag_copy_concurrency` render the corresponding `TAG_*_CONCURRENCY`
+`stereo_tag_preflight_concurrency`, `stereo_tag_staging_concurrency`, and
+`stereo_tag_copy_concurrency` render the corresponding `TAG_*_CONCURRENCY`
 environment settings. All default to `1`; valid values are `1`, `2`, and `4`, with
 copies no greater than staging workers. Invalid settings fail before host changes.
 These require an application image with bounded tag preparation support.

@@ -53,7 +53,7 @@ write to this host's NVMe drives takes about 5 ms — they are consumer 990 PROs
 with no power-loss protection, so every flush is real. Measured 2026-09-22 with
 `dd oflag=dsync`: 844 kB/s on disk against 3.7 GB/s on `/dev/shm`.
 
-Album Sort's Vitest suite, same container and 12 CPUs, took **237 s with /tmp on
+Stereo's Vitest suite, same container and 12 CPUs, took **237 s with /tmp on
 the container overlay and 66 s on tmpfs**. Its migration-checkpoint file alone
 went from 104 s to 10 s. See
 [the CI performance report](../../docs/ci-performance-2026-09-22.md).

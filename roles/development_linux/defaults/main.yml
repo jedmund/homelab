@@ -45,8 +45,8 @@ gitlab_runner_linux_run_untagged: true
 # Concurrency. Two runner entries share this process: the general pool
 # (max-docker, up to 14 jobs capped at 6 CPUs / 8 GB each) and the large pool
 # (max-docker-large, 3 jobs capped at 12 CPUs / 24 GB each) for suites that
-# parallelize, such as album-sort's Vitest run. A single 3-CPU job cannot
-# use this host: album-sort's suite took 16-26 minutes across three 3-CPU
+# parallelize, such as Stereo's Vitest run. A single 3-CPU job cannot
+# use this host: Stereo's suite took 16-26 minutes across three 3-CPU
 # shards and under 4 minutes in one 16-CPU container.
 #
 # General jobs were sized for the earlier 32-thread CPU. Measured 2026-10-16,
@@ -90,7 +90,7 @@ gitlab_runner_linux_large_tmpfs_size: 8g
 
 # Job containers get a RAM-backed /tmp. Test suites that open SQLite
 # databases under os.tmpdir() fsync constantly, and the NVMe drives here take
-# about 5 ms per flush (no power-loss protection), which made album-sort's
+# about 5 ms per flush (no power-loss protection), which made Stereo's
 # Vitest run 3.6x slower on the overlay filesystem than on tmpfs (237 s vs
 # 66 s). tmpfs pages count against the job's memory limit, so each size
 # stays well under its pool's cap; a job that outgrows it gets ENOSPC.

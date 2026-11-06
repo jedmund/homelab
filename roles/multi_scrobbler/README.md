@@ -8,9 +8,9 @@ Runs on `nuc-mini` with persistent configuration and history under
 
 The pinned 0.19.2 release requires an explicit `id` for each source and client.
 Preserve `plex` and `lastfm`: these match the existing database component UIDs
-and retain their history. The Album Sort receiving endpoint uses `album-sort`.
+and retain their history. The Stereo receiving endpoint keeps its pre-Stereo id, `album-sort`, for the same reason.
 
-Album Sort submits ListenBrainz-compatible requests to Multi-Scrobbler. Its
+Stereo submits ListenBrainz-compatible requests to Multi-Scrobbler. Its
 source type is `endpointlz`, with the existing `multi_scrobbler_lze_token` used
 for local ingress authentication. The `listenbrainz` source type instead polls
 an external ListenBrainz account and requires a username; it does not implement
@@ -32,4 +32,4 @@ Check source and client readiness in the application and inspect startup logs
 for configuration validation or authentication failures. The Docker health check
 only tests the web UI. Verify the Plex source connects, the Last.fm client loads
 its existing credentials, and `/1/validate-token` on port 9078 recognizes the
-Album Sort endpoint. Do not submit fabricated scrobbles as a health check.
+Stereo endpoint. Do not submit fabricated scrobbles as a health check.

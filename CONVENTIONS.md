@@ -86,7 +86,7 @@ Existing host builds are supported exceptions:
 | `phpbb` | Repository-managed Dockerfile wrapping the official pinned phpBB release tarball |
 | `musicbrainz` | Upstream checkout and merged Compose configuration |
 
-Album Sort pulls CI-built application and Beets images. It no longer builds
+Stereo pulls CI-built application and Beets images. It no longer builds
 from a host checkout. Any new host-build exception needs a documented source
 revision and rebuild policy.
 
