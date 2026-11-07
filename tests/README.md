@@ -28,8 +28,8 @@ actual build and deployment tasks with fixture variables and files. It tests
 container identity, applied configuration, build decisions, failed-build retries,
 check mode, and removal of an optional service.
 
-The maintenance tests cover the staging allowlist, BentoPDF image/health and
-Procedure contracts, backup freshness and required artifacts, NFS archive
+The maintenance tests cover BentoPDF image/health configuration and Renovate
+discovery, backup freshness and required artifacts, NFS archive
 divergence, Prowlarr SQLite integrity failure, and temporary-file cleanup.
 
 The AI access tests render both GPU modes, published bindings, and empty and

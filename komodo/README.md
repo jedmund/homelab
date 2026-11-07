@@ -146,27 +146,16 @@ service users, agents, and MCP identities must not receive those permissions.
 Create a dedicated operator group only after a named account and required
 workflow set are known.
 
-### BentoPDF pilot
+### BentoPDF updates
 
-`maintain-bentopdf` is a manual, failure-alerting Procedure with three sequential
-stages:
+BentoPDF uses the normal Ansible deployment and its existing Komodo Stack.
+See the [BentoPDF runbook](../roles/bentopdf/README.md) for image updates,
+verification, and recovery.
 
-1. `bentopdf-maintenance-check` verifies the host-rendered image reference,
-   records the existing running container, and enforces its zero-mount backup
-   exemption.
-2. Komodo deploys the `bentopdf` Stack from the staged host file.
-3. The check Action waits for Docker health and verifies the running image's
-   pinned repository digest.
-
-Before running it, merge the approved image reference and stage the files with:
-
-```sh
-make -C deploy stage STACK=bentopdf
-```
-
-Staging does not invoke Compose. Record the container ID before and after staging
-to prove it was untouched. Recovery and the absence of persistent data are
-documented in the [BentoPDF runbook](../roles/bentopdf/README.md).
+When reconciling removal of the earlier pilot, inspect references and remove
+only the obsolete `maintain-bentopdf` Procedure and
+`bentopdf-maintenance-check` Action. Retain the `bentopdf` Stack. Keep routine
+Resource Sync deletion disabled and review these specific removals separately.
 
 ### GitLab manual updates
 
@@ -249,13 +238,10 @@ it. Resource deletion requires a separately reviewed reconciliation.
 
 ### Rollout records
 
-Roll out the BentoPDF, image-reporting, backup-verification, and Renovate work
-from separate merged changes. Deployment and Resource Sync require separate
-authorization. For the BentoPDF pilot, record the container ID and start time
-before staging, repeat them after staging, then record the final image reference,
-repository digest, Docker health, and Komodo Procedure execution URL. The first
-rehearsal uses the existing pinned digest; the first later image change proves
-container replacement.
+Roll out image-reporting, backup-verification, and Renovate work from separate
+merged changes. Deployment and Resource Sync require separate authorization.
+Record BentoPDF's deployed image reference, Docker health, and application
+verification results using its runbook.
 
 For backup rollout, record the newest Core backup timestamp, local and NAS Borg
 archive IDs, Prowlarr SQLite integrity result, temporary-directory cleanup, and

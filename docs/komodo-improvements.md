@@ -129,52 +129,23 @@ webhooks remain disabled.
 See the [alert runbook](../komodo/README.md#operational-alerts) for operation,
 credential rotation, monitoring exceptions, and coverage limits.
 
-### 3. Add a maintenance Procedure
+### 3. Use service deployment and recovery procedures
 
-Purpose: make an approved update repeatable and observable. Today an operator
-must remember backup checks, the deployed version, deployment commands, and
-post-deployment checks. A Procedure records those steps in one execution and
-stops when a prerequisite or readiness check fails. Its failure alert also
-covers an update that fails while the old containers remain running.
+BentoPDF uses the normal per-stack Ansible deployment and its existing Komodo
+Stack. Its earlier guarded maintenance pilot and render-only mode have been
+retired. Image tag/digest pins, Docker health, and Renovate discovery remain.
+See the [BentoPDF runbook](../roles/bentopdf/README.md) for deployment,
+verification, and recovery.
 
-The initial workflow should accept one named stack and an approved image
-revision. Check required backup freshness, record current image references,
-apply Ansible configuration if needed, deploy, and verify application readiness.
-Start with manual execution for one low-risk service. Keep automatic updates
-disabled; extending the workflow to other services requires their own health
-checks and recovery prerequisites. A successful container start alone is not
-a successful maintenance operation.
-
-- [x] Choose one low-risk stack as the initial target.
-- [x] Pin BentoPDF `2.8.8`, add Docker health, and enforce its zero-mount backup
-      exemption in the preflight.
-- [x] Add allowlisted Ansible staging and a fixed, sequential, failure-alerting
-      Komodo Procedure.
-- [ ] Deploy the health-check bootstrap, prove staging preserves container
-      identity, reconcile the resources, and rehearse at the existing digest.
-- [x] Stop the workflow on failure and retain the operation's results.
-- [x] Document recovery steps. Do not assume an image rollback can reverse a
-      database migration.
-- [x] Keep execution admin-only; expose nothing to CI, agents, or MCP.
-
-Done when a named-stack maintenance operation is repeatable, produces a useful
-execution record, and fails when the application fails to become ready.
-Use [Procedures and Actions](https://komo.do/docs/automate/procedures) for staged
-execution and application-specific checks.
-
-Repository implementation (2026-09-17): BentoPDF `2.8.8` is pinned to OCI index
-digest `sha256:3d62b8f8eece5fe947026ac3925ff08fda245b3d6ba2c3916b94da91e0010c74`.
-`make -C deploy stage STACK=bentopdf` renders its Compose and maintenance check
-without running Compose. `maintain-bentopdf` runs preflight, `DeployStack`, and
-post-deployment health/digest verification in separate stages. This repository
-work was not deployed; no container identities or Komodo execution URLs exist
-yet. The first real image upgrade remains the replacement test.
+Updates to stateful services retain their owning runbook's backup, migration,
+and recovery prerequisites. Keep automatic updates disabled unless a service
+has an explicitly documented automatic update policy.
 
 ### 4. Separate update discovery from deployment
 
 Benefit: one reviewable update list replaces repeated registry and dashboard
-checks. Discovery does not change running services; approved updates use the
-maintenance Procedure. Database upgrades remain separate decisions.
+checks. Discovery does not change running services; approved updates follow the
+owning service's deployment runbook. Database upgrades remain separate decisions.
 
 - [x] Evaluate direct image-update checks for registry-backed stacks without enabling
       automatic deployment.
@@ -182,8 +153,8 @@ maintenance Procedure. Database upgrades remain separate decisions.
       registry authentication.
 - [x] Produce one reviewable alert listing available changes and lookup errors.
 - [x] Classify Renovate application and database-engine proposals separately.
-- [ ] Route approved updates through the maintenance workflow and record the
-      deployed image versions.
+- [ ] Apply approved updates through the owning service's deployment procedure
+      and record the deployed image versions.
 
 Done when available updates are visible without changing running services, and
 applying an update has a defined validation and recovery procedure.
@@ -342,7 +313,7 @@ This work changes repository validation, not homelab deployment behavior.
 ## Suggested order
 
 Resource reconciliation and initial alerts are already applied. Publish the
-maintenance work as separate BentoPDF, image-reporting, backup-verification, and
+maintenance work as separate image-reporting, backup-verification, and
 post-GitLab Renovate changes. Roll out each merged change separately, with a
 no-deletion Resource Sync preview. Persistent read-only MCP access can be
 prepared independently; write access should follow the operational permission
