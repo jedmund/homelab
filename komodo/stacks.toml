@@ -590,6 +590,7 @@ server = "NUC"
 files_on_host = true
 run_directory = "/opt/docker/gitlab"
 file_paths = ["compose.yaml"]
+auto_pull = true
 # Renovate runs only through the cron profile; absence is expected.
 ignore_services = ["renovate"]
 poll_for_updates = false
