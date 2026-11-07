@@ -168,6 +168,13 @@ Staging does not invoke Compose. Record the container ID before and after stagin
 to prove it was untouched. Recovery and the absence of persistent data are
 documented in the [BentoPDF runbook](../roles/bentopdf/README.md).
 
+### GitLab manual updates
+
+The `gitlab` Stack pulls the moving stable `gitlab/gitlab-ce:latest` image when
+an operator deploys it in Komodo. Automatic deployment remains disabled. Follow
+the [GitLab upgrade runbook](../roles/gitlab/GITLAB_UPGRADE.md#manual-updates-through-komodo)
+for upgrade stops, CI draining, backups, version checks, and recovery.
+
 ### Image digest report
 
 `report-image-digest-updates` runs Mondays at 09:00

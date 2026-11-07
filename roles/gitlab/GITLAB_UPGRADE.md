@@ -12,6 +12,37 @@ patched to 19.2.4 on 2026-08-18 for the critical GraphQL advisory
 described below. Recheck GitLab's current upgrade path and version notes before
 using this runbook for a later release.
 
+## Manual updates through Komodo
+
+The server uses `gitlab/gitlab-ce:latest`, the moving stable release tag, without
+an image digest pin. Komodo's `gitlab` Stack reads
+`/opt/docker/gitlab/compose.yaml` and has `auto_pull = true`; manually deploying
+that Stack pulls the current stable image. `auto_update` and `poll_for_updates`
+remain disabled. Ansible deployments also pull according to the shared pull
+policy and can therefore upgrade the server.
+
+The server is excluded from Renovate, and its former tag/digest manager is
+retired. Runner image
+references remain configured separately in their owning roles; a server update
+does not update the runners on other hosts. Check runner compatibility for the
+selected target and update them as part of the maintenance window when needed.
+
+Before pressing Deploy, resolve the current `latest` version and review the
+[required upgrade stops](https://docs.gitlab.com/update/upgrade_paths/). A moving
+tag can advance beyond a required stop. Use an explicit intermediate image
+reference when the path requires it, wait for its migrations to finish, and
+then continue. The latest tag does not remove GitLab's migration requirements.
+
+Pause and drain CI, verify regular and batched migrations, and create the exact
+current-version database/configuration backup pair described below. Record the
+running image reference, resolved digest, and retained local image before each
+hop. After deployment, verify the version, readiness, migrations, repository and
+registry access, and a CI job before unpausing runners.
+
+For rollback, select the recorded exact source image and its matching backup
+pair. Re-pulling `latest` does not select the previous version. Keep application
+upgrades separate from any explicit PostgreSQL engine upgrade.
+
 ## Recorded versions (2026-09-23)
 
 This table records the September upgrade. It is not a live inventory.
@@ -29,7 +60,7 @@ This table records the September upgrade. It is not a live inventory.
 The operator reported that the live server runs `19.5.0-ce.0`; read-only
 container inspection on `nuc-mini` confirmed that image and the local
 runner's `v19.5.0` image on 2026-10-21.
-[defaults/main.yml](defaults/main.yml) now prepares `19.5.1-ce.0`, pinned to
+At that time, [defaults/main.yml](defaults/main.yml) prepared `19.5.1-ce.0`, pinned to
 the published multi-platform index digest
 `sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e991ecdd6cae11ca7d7e5d36fc3`.
 The index includes `linux/amd64` and `linux/arm64` images. This entry records
@@ -342,16 +373,16 @@ docker exec gitlab sh -lc \
 
 Record the backup ID, configuration archive, and current GitLab version.
 
-### 3. Change and validate the pins
+### 3. Select and validate the image references
 
-Update:
+For a normal manual Komodo deployment, the server follows `latest`. When a
+required intermediate stop or recovery needs an exact version, select that
+explicit `gitlab_image` in `roles/gitlab/defaults/main.yml` and apply the reviewed
+Compose reference before deploying. Runner image references are
+`gitlab_runner_image` in that same file and `gitlab_runner_linux_image` in
+`roles/development_linux/defaults/main.yml`.
 
-- `gitlab_image` and `gitlab_runner_image` in
-  `roles/gitlab/defaults/main.yml`
-- `gitlab_runner_linux_image` in
-  `roles/development_linux/defaults/main.yml`
-
-Then validate:
+Validate repository changes:
 
 ```sh
 ansible-playbook --syntax-check deploy/gitlab.yml
@@ -517,8 +548,8 @@ Rollback overwrites the newer database. Use it only when the current hop cannot
 be repaired.
 
 1. Keep all runners paused.
-2. Revert all three image pins to the immediately preceding version and deploy
-   that exact server/runner set.
+2. Set the server and runner image references to the recorded immediately
+   preceding versions and deploy that exact set. Do not use `latest` for recovery.
 3. Restore the matching `/etc/gitlab` state if the failed hop changed secrets.
 4. Stop Puma and Sidekiq:
 
