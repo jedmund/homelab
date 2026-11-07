@@ -43,7 +43,6 @@ Run these from the repository root after completing [setup](docs/operations.md#s
 make check
 make -C deploy list
 make -C deploy check STACK=prowlarr
-make -C deploy stage STACK=bentopdf
 make -C deploy prowlarr
 ```
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focused tests for staged maintenance and backup verification contracts."""
+"""Focused tests for image configuration and backup verification contracts."""
 
 from __future__ import annotations
 
@@ -32,96 +32,30 @@ def render_template(path: Path, **values: object) -> str:
     )
 
 
-class BentoPdfMaintenanceTests(unittest.TestCase):
-    def test_stage_allowlist_and_command(self):
-        approved = subprocess.run(
-            [
-                "make",
-                "stage",
-                "STACK=bentopdf",
-                "ANSIBLE=true",
-                "VAULT_PASS=/nonexistent",
-            ],
-            cwd=ROOT / "deploy",
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertEqual(approved.returncode, 0, approved.stderr)
-        rejected = subprocess.run(
-            [
-                "make",
-                "stage",
-                "STACK=prowlarr",
-                "ANSIBLE=true",
-                "VAULT_PASS=/nonexistent",
-            ],
-            cwd=ROOT / "deploy",
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        self.assertNotEqual(rejected.returncode, 0)
-        self.assertIn("has not implemented staging", rejected.stdout)
-
+class BentoPdfTests(unittest.TestCase):
     def test_rendered_healthcheck_and_digest_contract(self):
         defaults = yaml.safe_load(
             (ROOT / "roles/bentopdf/defaults/main.yml").read_text(encoding="utf-8")
         )
-        compose = (ROOT / "roles/bentopdf/templates/compose.yaml.j2").read_text(
-            encoding="utf-8"
-        )
         self.assertRegex(defaults["bentopdf_image_digest"], r"^sha256:[0-9a-f]{64}$")
-        self.assertIn('image: "{{ bentopdf_image_reference }}"', compose)
-        self.assertIn("wget --quiet --spider", compose)
-        self.assertIn("healthcheck:", compose)
         image_reference = (
             f"{defaults['bentopdf_image']}:{defaults['bentopdf_image_tag']}"
             f"@{defaults['bentopdf_image_digest']}"
         )
-        script = render_template(
-            ROOT / "roles/bentopdf/templates/maintenance-check.sh.j2",
-            config_base="/opt/docker/bentopdf",
-            bentopdf_image=defaults["bentopdf_image"],
-            bentopdf_image_reference=image_reference,
-            bentopdf_image_digest=defaults["bentopdf_image_digest"],
+        common = yaml.safe_load(
+            (ROOT / "group_vars/compute_servers/common.yml").read_text(encoding="utf-8")
         )
-        self.assertIn(image_reference, script)
-        self.assertNotIn("python3", script)
-        self.assertIn("docker container inspect --format", script)
-        self.assertIn("docker image inspect --format", script)
-        syntax = subprocess.run(
-            ["bash", "-n"],
-            input=script,
-            text=True,
-            capture_output=True,
-            check=False,
+        rendered = render_template(
+            ROOT / "roles/bentopdf/templates/compose.yaml.j2",
+            **(common | defaults | {"bentopdf_image_reference": image_reference}),
         )
-        self.assertEqual(syntax.returncode, 0, syntax.stderr)
-
-    def test_procedure_references_check_action_and_stack(self):
-        document = tomllib.loads(
-            (ROOT / "komodo/stacks.toml").read_text(encoding="utf-8")
-        )
-        procedure = next(
-            item for item in document["procedure"] if item["name"] == "maintain-bentopdf"
-        )
-        executions = [
-            item["execution"]
-            for stage in procedure["config"]["stage"]
-            for item in stage["executions"]
-        ]
+        service = yaml.safe_load(rendered)["services"]["bentopdf"]
+        self.assertEqual(service["image"], image_reference)
         self.assertEqual(
-            [execution["type"] for execution in executions],
-            ["RunAction", "DeployStack", "RunAction"],
+            service["healthcheck"]["test"],
+            ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:8080/ || exit 1"],
         )
-        self.assertEqual(executions[1]["params"]["stack"], "bentopdf")
-        self.assertTrue(
-            all(
-                execution["params"]["action"] == "bentopdf-maintenance-check"
-                for execution in (executions[0], executions[2])
-            )
-        )
+        self.assertNotIn("volumes", service)
 
     def test_renovate_detects_pinned_bentopdf_as_application_image(self):
         config = json.loads((ROOT / ".renovaterc.json").read_text(encoding="utf-8"))
