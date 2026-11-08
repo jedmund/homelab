@@ -85,6 +85,8 @@ merged Compose file.
 
 ## Service runbooks
 
+[Pocket ID](roles/pocketid/README.md) documents OIDC provider updates and rollback.
+
 [FlareSolverr](roles/flaresolverr/README.md) provides the private challenge-solving API.
 [Logs and metrics](roles/logging/README.md) covers the NAS-backed log store,
 Prometheus, Grafana dashboards, UniFi collection, and
