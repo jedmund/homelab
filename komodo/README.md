@@ -189,6 +189,11 @@ the image references already rendered in Compose; it does not discover a newer
 semantic tag when a Compose file pins an older tag. See Komodo's
 [Compose update behavior](https://komo.do/docs/deploy/compose).
 
+[Pocket ID](../roles/pocketid/README.md#updates) tracks the floating `v2` tag.
+After Ansible deploys that image reference, digest checks can discover new
+v2 releases. Its nginx sidecar is pinned to a digest, which Komodo skips during
+update checks to avoid Docker Hub lookups for the static responder.
+
 ### Plex updater
 
 `update-plex` runs daily at 04:30 `America/Los_Angeles`. It checks the `plex`
