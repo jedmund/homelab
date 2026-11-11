@@ -42,7 +42,9 @@ The host role allows this guest's outbound traffic and inbound TCP 22/80/443
 and UDP 443 through UFW on `br0`. These forwarding rules are required when
 bridge netfilter is enabled; host-to-guest access alone does not verify LAN
 reachability. The gateway passes TLS for `deploy.atelier.house` and application
-hostnames under `apps.atelier.house` to the guest.
+hostnames under `apps.atelier.house` to the guest. Browsers can reuse an HTTP/2
+connection opened for another `*.atelier.house` service, so the gateway proxies
+those `deploy.atelier.house` requests to the guest over HTTPS.
 
 The guest role routes `atelier.house` DNS queries to the homelab resolver at
 `192.168.1.1` through a systemd-resolved drop-in. Public resolvers do not resolve
