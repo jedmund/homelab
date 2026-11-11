@@ -64,6 +64,26 @@
   # dokploy-postgres, dokploy-redis, dokploy, and dokploy-traefik. The
   # script is deliberately not idempotent so we gate it on dokploy_present.
 
+# TZ only sets process time. PostgreSQL takes its timezone from postgresql.conf,
+# which must stay UTC because Dokploy's timestamp columns have no zone.
+- name: Set timezone on Dokploy data services
+  shell: |
+    set -o pipefail
+    before=$(docker service inspect {{ item }} --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
+    docker service update \
+      --env-add {{ ('TZ=' ~ dokploy_timezone) | quote }} \
+      --quiet \
+      {{ item }}
+    after=$(docker service inspect {{ item }} --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
+    [ "$before" != "$after" ] && echo SPEC_CHANGED || true
+  args:
+    executable: /bin/bash
+  loop:
+    - dokploy-postgres
+    - dokploy-redis
+  register: dokploy_data_service_timezone
+  changed_when: "'SPEC_CHANGED' in dokploy_data_service_timezone.stdout"
+
 # No `--force`: `docker service update --image repo:tag` resolves the
 # tag to a digest at update time, so Swarm rolls the service only when
 # canary actually moved to a new sha (or the env changed) and re-runs
@@ -78,6 +98,7 @@
       --env-add DOKPLOY_SSO_PRIMARY={{ dokploy_sso_primary | string | lower }} \
       --env-add {{ ('DOKPLOY_SSO_PROVIDER_ID=' ~ dokploy_sso_provider_id) | quote }} \
       --env-add {{ ('DOKPLOY_SSO_PROVIDER_NAME=' ~ dokploy_sso_provider_name) | quote }} \
+      --env-add {{ ('TZ=' ~ dokploy_timezone) | quote }} \
       --quiet \
       dokploy
     after=$(docker service inspect dokploy --format '{% raw %}{{json .Spec.TaskTemplate}}{% endraw %}' | sha256sum)
@@ -105,6 +126,7 @@
     recreate: "{{ dokploy_traefik_config.changed }}"
     env:
       CF_DNS_API_TOKEN: "{{ dokploy_cloudflare_token }}"
+      TZ: "{{ dokploy_timezone }}"
     volumes:
       - "{{ dokploy_traefik_config_path }}:/etc/traefik/traefik.yml"
       - "{{ dokploy_config_dir }}/traefik/dynamic:/etc/dokploy/traefik/dynamic"
