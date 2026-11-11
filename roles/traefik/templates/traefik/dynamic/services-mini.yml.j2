@@ -385,6 +385,19 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # Dokploy UI requests that arrive on a connection this Traefik terminated.
+    # Browsers reuse an open HTTP/2 connection for deploy.{{ traefik_domain }}
+    # because the *.{{ traefik_domain }} certificate covers it and the IP
+    # matches, so the request bypasses the SNI passthrough below.
+    # Do not change this rule to Host(): a Host() router on a TLS entrypoint
+    # takes precedence over the TCP passthrough for that SNI.
+    dokploy-reused-connection:
+      rule: "HostRegexp(`^deploy\\.atelier\\.house$`)"
+      service: dokploy-vm-http
+      entryPoints:
+        - websecure
+      tls: {}
+
   services:
     # Servarr Stack
     sonarr:
@@ -536,6 +549,16 @@ http:
         servers:
           - url: "http://{{ mini_server_ip }}:19999"
 
+    dokploy-vm-http:
+      loadBalancer:
+        serversTransport: dokploy-vm
+        servers:
+          - url: "https://{{ dokploy_vm_ip }}"
+
+  serversTransports:
+    dokploy-vm:
+      serverName: "deploy.{{ traefik_domain }}"
+
   middlewares:
     yardsale-strip-images:
       stripPrefix:
@@ -550,9 +573,8 @@ http:
 # Dokploy runs in a KVM VM at {{ dokploy_vm_ip }} with its own bundled
 # Traefik. nuc-mini's Traefik forwards the raw TLS stream by SNI so
 # Dokploy's Traefik terminates TLS with its own Let's Encrypt cert.
-# LAN clients reach the VM directly via UniFi DNS; WAN clients land
-# here via the existing 80/443 port forward. Same Let's Encrypt cert
-# either way. Avoids Cloudflare's CDN restrictions on streaming media
+# LAN and WAN clients both land here. Avoids Cloudflare's CDN
+# restrictions on streaming media
 # since the byte stream is end-to-end between client and Dokploy.
 tcp:
   routers:
