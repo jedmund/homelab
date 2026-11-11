@@ -51,6 +51,11 @@ The guest role routes `atelier.house` DNS queries to the homelab resolver at
 the private registry record. New guests also receive the homelab resolver in
 their cloud-init network configuration.
 
+The role sets the guest and Dokploy's own containers (`dokploy`, `dokploy-postgres`,
+`dokploy-redis`, and `dokploy-traefik`) to `dokploy_timezone`.
+PostgreSQL's own `timezone` setting stays UTC because Dokploy's timestamp columns
+have no zone. Deployed applications set their own `TZ`.
+
 From the repository root, when deployment is authorized:
 
 ```sh
