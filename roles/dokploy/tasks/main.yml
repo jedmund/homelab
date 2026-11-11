@@ -5,6 +5,14 @@
 # container's CF_DNS_API_TOKEN env. Idempotent: re-runs skip the
 # install step and re-apply the rest.
 
+# Tagged so the clock can be set without a full run, which can resolve a newer
+# digest for the moving canary image.
+- name: Set VM timezone
+  community.general.timezone:
+    name: "{{ dokploy_timezone }}"
+  notify: Restart cron
+  tags: [timezone]
+
 - name: Create systemd-resolved drop-in directory
   file:
     path: /etc/systemd/resolved.conf.d

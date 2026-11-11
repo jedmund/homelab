@@ -14,6 +14,9 @@
 #   dokploy_cloudflare_token  - Cloudflare API token, Zone.DNS:Edit on atelier.house
 #   dokploy_acme_email        - ACME registration email for Let's Encrypt
 
+# The VM is outside compute_servers, so it does not inherit `timezone`.
+dokploy_timezone: America/Los_Angeles
+
 # Dokploy track
 dokploy_version: canary
 dokploy_image: registry.atelier.house/jedmund/dokploy:canary

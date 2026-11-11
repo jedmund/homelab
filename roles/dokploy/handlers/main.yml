@@ -1,4 +1,11 @@
 ---
-# No handlers yet. Dokploy manages its own service lifecycle once the
-# install script has run; image swaps are explicit `docker service
-# update` calls in the task list rather than handler-driven.
+# Dokploy manages its own service lifecycle once the install script has run;
+# image swaps are explicit `docker service update` calls in the task list
+# rather than handler-driven.
+
+# cron reads the timezone once at startup, so a running crond keeps firing
+# jobs against the old offset until it is restarted.
+- name: Restart cron
+  ansible.builtin.service:
+    name: cron
+    state: restarted
