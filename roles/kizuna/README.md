@@ -232,6 +232,26 @@ docker exec kizuna-api curl --fail --silent http://kizuna-widget-compiler:4100/h
 To disable widgets without removing the sidecar, blank
 `WIDGET_COMPILER_URL` in `templates/env/api.env.j2` and redeploy.
 
+## AI run recovery
+
+`ReconcileAiRunsJob` runs every minute on the default queue
+(`kizuna-worker`). It recovers chat runs whose worker
+died, which happens on every deploy because the workers restart: lost
+enqueues, expired leases, missed deadlines, and pending cancellations.
+`kizuna_ai_run_reconciler_mode` renders as `KIZUNA_AI_RUN_RECONCILER_MODE`
+in the shared API and worker environment file and defaults to `enforce`.
+
+`report` logs and instruments the decisions the reconciler would make without
+changing any run. Use it as the kill switch: set
+`kizuna_ai_run_reconciler_mode: report` in inventory and redeploy. Returning
+to `enforce` needs no rollback. The API rejects any other value.
+
+After deployment, verify the worker received the mode:
+
+```sh
+docker exec kizuna-worker sh -c 'test "$KIZUNA_AI_RUN_RECONCILER_MODE" = enforce'
+```
+
 ## Shared geo services
 
 PlaceMap address lookup uses the shared [Photon](../photon/README.md) stack;
