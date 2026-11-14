@@ -250,8 +250,11 @@ API rejects any other value.
 After deployment, verify the worker received the mode:
 
 ```sh
-docker exec kizuna-worker sh -c 'test "$KIZUNA_AI_RUN_RECONCILER_MODE" = enforce'
+docker exec kizuna-worker sh -c 'echo "reconciler mode: ${KIZUNA_AI_RUN_RECONCILER_MODE:-MISSING}"'
 ```
+
+Expect `reconciler mode: enforce`. A bare `test` prints nothing whether it
+passes or fails, so it cannot confirm the setting.
 
 ## Web Push
 
@@ -279,10 +282,13 @@ printing it:
 
 ```sh
 for container in kizuna-api kizuna-worker; do
-  docker exec "$container" sh -c \
-    'test -n "$VAPID_PUBLIC_KEY" && test -n "$VAPID_PRIVATE_KEY" && test -n "$VAPID_SUBJECT"'
+  docker exec "$container" sh -c 'for v in VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do
+    eval "val=\$$v"; [ -n "$val" ] && echo "'"$container"' $v: set" || echo "'"$container"' $v: MISSING"; done'
 done
 ```
+
+Expect six lines ending in `set`. Only whether each variable is set is
+printed, never its value.
 
 ## Shared geo services
 
