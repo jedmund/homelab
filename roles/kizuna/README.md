@@ -232,6 +232,58 @@ docker exec kizuna-api curl --fail --silent http://kizuna-widget-compiler:4100/h
 To disable widgets without removing the sidecar, blank
 `WIDGET_COMPILER_URL` in `templates/env/api.env.j2` and redeploy.
 
+## AI run recovery
+
+`ReconcileAiRunsJob` runs every minute on the default queue
+(`kizuna-worker`). It recovers chat runs whose worker
+died, which happens on every deploy because the workers restart: lost
+enqueues, expired leases, missed deadlines, and pending cancellations.
+`kizuna_ai_run_reconciler_mode` renders as `KIZUNA_AI_RUN_RECONCILER_MODE`
+in the shared API and worker environment file and defaults to `enforce`.
+
+`report` logs and instruments the decisions the reconciler would make without
+changing any run. Use it as the kill switch: set
+`kizuna_ai_run_reconciler_mode: report` in inventory and redeploy. Switching
+to `report` needs no rollback, and `enforce` can be restored the same way. The
+API rejects any other value.
+
+After deployment, verify the worker received the mode:
+
+```sh
+docker exec kizuna-worker sh -c 'test "$KIZUNA_AI_RUN_RECONCILER_MODE" = enforce'
+```
+
+## Web Push
+
+Browser push for Tasks, Reminders, and Memory questions is signed with a
+VAPID P-256 key pair. Store both halves in the Kizuna vault in the base64url
+form produced by the `web-push` gem (`WebPush.generate_key`):
+
+```yaml
+vault_kizuna_vapid_public_key: "base64url-uncompressed-public-point"
+vault_kizuna_vapid_private_key: "base64url-private-scalar"
+```
+
+The role renders them as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in the
+shared API and worker environment file, together with `VAPID_SUBJECT` from
+`kizuna_vapid_subject` (default `mailto:info@kizuna.fm`). Blank keys
+disable push; the authenticated `/push/vapid_public_key` endpoint then
+returns `service_unavailable`.
+
+Generate the pair once and keep it. Browsers bind each subscription to the
+public key, so rotating the pair invalidates every existing subscription
+until each device subscribes again.
+
+After deployment, verify the API and workers received the pair without
+printing it:
+
+```sh
+for container in kizuna-api kizuna-worker; do
+  docker exec "$container" sh -c \
+    'test -n "$VAPID_PUBLIC_KEY" && test -n "$VAPID_PRIVATE_KEY" && test -n "$VAPID_SUBJECT"'
+done
+```
+
 ## Shared geo services
 
 PlaceMap address lookup uses the shared [Photon](../photon/README.md) stack;

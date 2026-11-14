@@ -327,8 +327,9 @@ Garage credentials.
 
 Use the [Kizuna runbook](../roles/kizuna/README.md) and
 [role defaults](../roles/kizuna/defaults/main.yml) for registry, PostgreSQL,
-Rails encryption, PocketID, Garage, and optional integration credentials.
-Preserve existing encryption keys when redeploying.
+Rails encryption, PocketID, Garage, Web Push, and optional integration
+credentials. Preserve existing encryption keys and the Web Push key pair
+when redeploying.
 
 ### group_vars/line/vault.yml
 
