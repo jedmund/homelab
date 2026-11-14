@@ -242,7 +242,7 @@ kizuna_ai_run_reconciler_mode: enforce
 kizuna_vapid_public_key: "{{ vault_kizuna_vapid_public_key | default('') }}"
 kizuna_vapid_private_key: "{{ vault_kizuna_vapid_private_key | default('') }}"
 # Contact URI sent to push services with every VAPID-signed request.
-kizuna_vapid_subject: "mailto:justin@jedmund.com"
+kizuna_vapid_subject: "mailto:info@kizuna.fm"
 
 # The upload reaper is the stack's one scheduled hard-delete path. New
 # deployments start in audit-only mode; flip this to "0" in a dedicated

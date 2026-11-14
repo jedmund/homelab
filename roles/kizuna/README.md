@@ -266,7 +266,7 @@ vault_kizuna_vapid_private_key: "base64url-private-scalar"
 
 The role renders them as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in the
 shared API and worker environment file, together with `VAPID_SUBJECT` from
-`kizuna_vapid_subject` (default `mailto:justin@jedmund.com`). Blank keys
+`kizuna_vapid_subject` (default `mailto:info@kizuna.fm`). Blank keys
 disable push; the authenticated `/push/vapid_public_key` endpoint then
 returns `service_unavailable`.
 
