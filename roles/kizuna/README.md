@@ -243,8 +243,9 @@ in the shared API and worker environment file and defaults to `enforce`.
 
 `report` logs and instruments the decisions the reconciler would make without
 changing any run. Use it as the kill switch: set
-`kizuna_ai_run_reconciler_mode: report` in inventory and redeploy. Returning
-to `enforce` needs no rollback. The API rejects any other value.
+`kizuna_ai_run_reconciler_mode: report` in inventory and redeploy. Switching
+to `report` needs no rollback, and `enforce` can be restored the same way. The
+API rejects any other value.
 
 After deployment, verify the worker received the mode:
 
