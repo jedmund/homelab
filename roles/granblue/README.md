@@ -19,6 +19,11 @@ Banners change on the hour at 19:00 JST. The script stores when the uploaded
 banner ends and makes no requests to the game until then; after that, each run
 checks the game until the next banner is listed and uploads it.
 
+While it waits, each run asks the API (`<GACHA_RATES_URL>/refetch`, not the
+game) whether a curator used Refresh rate-ups in the granblue.team Database.
+For each new request it checks the game once and uploads the banner again. The
+request it acted on is kept in the state file as `refetched`.
+
 The script is downloaded at the commit in
 `granblue_gacha_rates_script_commit` and checked against
 `granblue_gacha_rates_script_checksum`. To update it, change both in
