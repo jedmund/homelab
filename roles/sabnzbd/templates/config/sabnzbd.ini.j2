@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+# Initial SABnzbd configuration. Seeded only when sabnzbd.ini is absent;
+# SABnzbd owns this file afterward and generates its API keys on first start.
+[misc]
+host_whitelist = {{ sabnzbd_host_whitelist | join(', ') }}
+download_dir = /incomplete
+complete_dir = {{ sabnzbd_complete_dir }}
+[categories]
+[[*]]
+name = *
+order = 0
+pp = 3
+script = None
+priority = 0
+{% for category in sabnzbd_categories %}
+[[{{ category.name }}]]
+name = {{ category.name }}
+order = {{ loop.index }}
+dir = {{ category.dir }}
+{% endfor %}

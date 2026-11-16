@@ -69,6 +69,9 @@
 - import_playbook: qbittorrent.yml
   tags: [media, qbittorrent]
 
+- import_playbook: sabnzbd.yml
+  tags: [media, sabnzbd]
+
 - import_playbook: sonarr.yml
   tags: [media, sonarr]
 

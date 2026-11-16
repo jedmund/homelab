@@ -1,0 +1,46 @@
+---
+# SABnzbd product stack
+
+- name: Create {{ stack_name }} directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+
+- name: Create {{ stack_name }} incomplete download directory
+  ansible.builtin.file:
+    path: "{{ sabnzbd_incomplete_path }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+
+- name: Seed initial SABnzbd configuration
+  ansible.builtin.template:
+    src: config/sabnzbd.ini.j2
+    dest: "{{ config_base }}/config/sabnzbd.ini"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0600'
+    force: false
+  register: sabnzbd_config_result
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Deploy {{ stack_name }} stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ config_base }}"
+    state: present
+    remove_orphans: true
+    pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: "{{ 'always' if sabnzbd_config_result.changed | default(false) else 'auto' }}"
+  register: compose_result
