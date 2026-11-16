@@ -2,7 +2,7 @@
 
 This role deploys Kaneo, PostgreSQL, and Redis on `nuc-mini`, exposes the app
 at `https://kaneo.atelier.house`, uses PocketID for OIDC, and sends mail through
-the shared SendGrid account. Repository synchronization uses a GitHub App and
+the shared Resend account. Repository synchronization uses a GitHub App and
 the private fork's GitLab integration. All credentials and account-specific
 values are loaded from Ansible Vault files.
 
@@ -98,12 +98,14 @@ authorization, token, user-info, discovery, and logout endpoints, requests the
 registration, and the local login form are disabled; successful PocketID users
 are provisioned by Kaneo on first sign-in.
 
-## SendGrid SMTP
+## Resend SMTP
 
-Kaneo reuses `sendgrid_api_key` from `group_vars/compute_servers/vault.yml`.
-No Kaneo-specific SMTP secret is required. The role connects to
-`smtp.sendgrid.net:587` with STARTTLS, authenticates as `apikey`, and sends from
-the same verified `noreply@atelier.house` address used by Dawarich.
+Kaneo reuses `atelier_resend_api_key` from
+`group_vars/compute_servers/vault.yml`. No Kaneo-specific SMTP secret is
+required. The role connects to `smtp.resend.com:587` with STARTTLS,
+authenticates as `resend`, and sends from `noreply@atelier.house`, the address
+Dawarich and Gatus also use. `atelier.house` must be a verified domain in
+Resend.
 
 ## GitHub App
 

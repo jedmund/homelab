@@ -22,8 +22,8 @@
     fail_msg: >-
       phpBB requires the vault inputs documented in roles/phpbb/README.md:
       vault_phpbb_db_password, vault_phpbb_db_root_password, and
-      vault_phpbb_admin_password, plus vault_resend_api_key while email is
-      enabled. phpBB limits admin passwords to 30 characters, and $,
+      vault_phpbb_admin_password, plus fireplace_resend_api_key (compute_servers
+      vault) while email is enabled. phpBB limits admin passwords to 30 characters, and $,
       backtick, and backslash are rejected everywhere in it.
   no_log: true
   tags:

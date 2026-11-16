@@ -32,13 +32,13 @@ gatus_oidc_session_ttl: 8h
 gatus_oidc_client_id: "{{ vault_gatus_oidc_client_id | default('') }}"
 gatus_oidc_client_secret: "{{ vault_gatus_oidc_client_secret | default('') }}"
 
-# Alerting over the shared SendGrid relay, same path kaneo and dawarich use.
+# Alerting over the shared Resend relay, same path kaneo and dawarich use.
 # The alerting block is skipped while the recipient is empty.
-gatus_smtp_host: smtp.sendgrid.net
+gatus_smtp_host: smtp.resend.com
 gatus_smtp_port: 587
-gatus_smtp_user: apikey
-# sendgrid_api_key (shared across stacks, defined in compute_servers vault)
-gatus_smtp_password: "{{ sendgrid_api_key | default('') }}"
+gatus_smtp_user: resend
+# atelier_resend_api_key (shared across stacks, defined in compute_servers vault)
+gatus_smtp_password: "{{ atelier_resend_api_key | default('') }}"
 gatus_alert_from: "noreply@atelier.house"
 # vault_gatus_alert_to - defined in vault (public repo, no addresses here)
 gatus_alert_to: "{{ vault_gatus_alert_to | default('') }}"

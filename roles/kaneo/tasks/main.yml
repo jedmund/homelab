@@ -26,7 +26,7 @@
       - (kaneo_garage_metrics_token | default('') | length) > 0
     fail_msg: >-
       Kaneo requires database, Redis, auth, PocketID, GitHub App, GitLab OAuth,
-      SCM encryption, registry, Garage server tokens, and shared SendGrid
+      SCM encryption, registry, Garage server tokens, and shared Resend
       values documented in roles/kaneo/README.md. The Garage access key pair
       is deliberately not asserted: garage_bootstrap.sh generates it after the
       first deploy.
