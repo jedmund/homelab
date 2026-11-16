@@ -87,7 +87,8 @@ Shared secrets used by multiple stacks.
 
 | Variable | Description |
 | --- | --- |
-| `sendgrid_api_key` | SendGrid SMTP API key (used by Mastodon, Dawarich, and Kaneo) |
+| `atelier_resend_api_key` | Resend SMTP API key for `atelier.house` senders (used by Dawarich, Gatus, and Kaneo) |
+| `fireplace_resend_api_key` | Resend SMTP API key for `fireplace.cafe` senders (used by Mastodon and phpBB) |
 | `gitlab_cache_s3_access_key_id` | GitLab CI cache Garage S3 access key (shared by the nuc-mini and max runners) |
 | `gitlab_cache_s3_secret_access_key` | GitLab CI cache Garage S3 secret key |
 
@@ -441,7 +442,6 @@ Setup, DNS, Resend verification, and the upgrade procedure are in the
 | `vault_phpbb_db_password` | MariaDB application password |
 | `vault_phpbb_db_root_password` | MariaDB root password; also read by the backup role's dump hook |
 | `vault_phpbb_admin_password` | Founder account password; phpBB allows 8–30 characters |
-| `vault_resend_api_key` | Resend SMTP API key; required while board email is enabled |
 
 ### group_vars/pocketid/vault.yml
 

@@ -4,7 +4,7 @@ This role deploys [Gatus](https://github.com/TwiN/gatus) on `nuc-mini` and
 exposes it at `https://status.atelier.house`. It watches two different things:
 whether services respond, and whether a few invariants that plain uptime
 monitoring cannot see still hold. PocketID provides OIDC login and alerts go
-out over the shared SendGrid account.
+out over the shared Resend account.
 
 Every check is config-as-code in `defaults/main.yml`. Adding one is a defaults
 edit and a redeploy, reviewed in a PR like any other change. That is the reason

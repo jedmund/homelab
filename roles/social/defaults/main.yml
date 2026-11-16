@@ -33,7 +33,10 @@ mastodon_s3_hostname: s3.us-west-2.amazonaws.com
 mastodon_s3_permission: ""
 
 # SMTP
-mastodon_smtp_server: smtp.sendgrid.net
+# Resend; fireplace.cafe must be a verified domain in Resend.
+mastodon_smtp_server: smtp.resend.com
 mastodon_smtp_port: "587"
-mastodon_smtp_login: apikey
+mastodon_smtp_login: resend
+# fireplace_resend_api_key (shared with phpBB, defined in compute_servers vault)
+mastodon_smtp_password: "{{ fireplace_resend_api_key | default('') }}"
 mastodon_smtp_from_address: noreply@fireplace.cafe

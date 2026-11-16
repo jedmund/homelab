@@ -162,7 +162,6 @@ The generated credentials are lowercase hex. If you replace
 backslashes, and double quotes: the value travels through a shell-rendered
 installer file, and those characters are rejected by the preflight
 assertions.
-| `vault_resend_api_key` | Resend SMTP API key; required while `phpbb_email_enabled` is true |
 
 The founder account is `phpbb_admin_name` (default `Justin`) with
 `phpbb_admin_email`. Its password is only in the vault:
@@ -178,12 +177,13 @@ ansible-vault view group_vars/phpbb/vault.yml
    configuration (already in [roles/traefik](../traefik/templates/traefik/traefik.yml.j2)).
    The Cloudflare API token in the `traefik` vault must have Zone DNS Edit
    rights for `fireplace.cafe`, or certificate issuance fails.
-3. Resend: add `board.fireplace.cafe` as a sending domain (SPF/DKIM records
-   from the Resend dashboard), create an SMTP API key scoped to that domain,
-   and set it as `vault_resend_api_key`. phpBB authenticates as `resend` with
-   that key against `smtp.resend.com:587` and sends from `phpbb_board_email`
-   (default `noreply@board.fireplace.cafe`). Resend rejects envelope senders
-   outside the key's domain scope, so the two must match.
+3. Resend: `fireplace.cafe` must be a verified sending domain. phpBB uses
+   `fireplace_resend_api_key` from `group_vars/compute_servers/vault.yml`,
+   shared with Mastodon. It authenticates as `resend` against
+   `smtp.resend.com:587` and sends from `phpbb_board_email` (default
+   `noreply@fireplace.cafe`). Resend rejects envelope senders outside the
+   key's domains, so the two must match. A subdomain such as
+   `board.fireplace.cafe` is a separate Resend domain.
 4. The NFS volumes from `storage.yml` are created by the prerequisites play.
 
 ## First deploy
@@ -250,5 +250,5 @@ but always converges to the image's version.
 | 403 on every route | `/install/` is closed by design; a fresh board redirects there until the CLI installer finishes. Check `docker logs phpbb`. |
 | Certificate issuance fails | The `traefik` vault's Cloudflare token must cover the `fireplace.cafe` zone. |
 | Uploads or avatars fail to write | NFS export squashing root: the entrypoint's chmod fallback should cover it; check `docker exec phpbb ls -ln /var/www/html/files`. |
-| Email not delivered | Resend rejects envelope senders outside the key's domain scope (550 at DATA time). The sender is `phpbb_board_email`; it must live on the domain the `vault_resend_api_key` is scoped to. Check ACP → Communication → Email settings. |
+| Email not delivered | Resend rejects envelope senders outside the key's domain scope (550 at DATA time). The sender is `phpbb_board_email`; it must be on a domain `fireplace_resend_api_key` is authorized for. Check ACP → Communication → Email settings. |
 | Wrong client IPs in phpBB | `phpbb_trusted_proxy_ip` must match Traefik's proxy-network address (`traefik_proxy_ipv4_address` in inventory). |

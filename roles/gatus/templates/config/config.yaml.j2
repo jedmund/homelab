@@ -35,7 +35,7 @@ security:
 # email provider with no `to`, and a discord provider with no webhook URL.
 alerting:
 {% if gatus_alert_to | length > 0 %}
-  # Email over the shared SendGrid relay.
+  # Email over the shared Resend relay.
   email:
     from: "{{ gatus_alert_from }}"
     username: "{{ gatus_smtp_user }}"

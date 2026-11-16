@@ -63,14 +63,14 @@ kaneo_disable_password_registration: "true"
 kaneo_disable_login_form: "true"
 kaneo_custom_oauth_auto_login: "true"
 
-# SendGrid SMTP via the shared compute_servers Vault key.
-kaneo_smtp_host: smtp.sendgrid.net
+# Resend SMTP via the shared compute_servers Vault key.
+kaneo_smtp_host: smtp.resend.com
 kaneo_smtp_port: "587"
 kaneo_smtp_secure: "false"
 kaneo_smtp_require_tls: "true"
 kaneo_smtp_ignore_tls: "false"
-kaneo_smtp_user: apikey
-kaneo_smtp_password: "{{ sendgrid_api_key | default('') }}"
+kaneo_smtp_user: resend
+kaneo_smtp_password: "{{ atelier_resend_api_key | default('') }}"
 kaneo_smtp_from: "noreply@atelier.house"
 
 # GitHub App repository integration (not GitHub SSO).

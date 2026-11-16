@@ -35,10 +35,10 @@ dawarich_allow_email_password_registration: "false"
 # 1.7.8+: login is gated separately from registration; defaults true upstream
 dawarich_allow_email_password_login: "false"
 
-# Dawarich SMTP (SendGrid via shared key from compute_servers vault)
-dawarich_smtp_server: smtp.sendgrid.net
+# Dawarich SMTP (Resend via shared key from compute_servers vault)
+dawarich_smtp_server: smtp.resend.com
 dawarich_smtp_port: "587"
-dawarich_smtp_username: apikey
+dawarich_smtp_username: resend
 dawarich_smtp_from: "noreply@atelier.house"
 dawarich_smtp_domain: "atelier.house"
 dawarich_smtp_starttls: "true"
@@ -51,4 +51,4 @@ dawarich_photon_api_use_https: "false"
 # Dawarich secrets defined in vault:
 # dawarich_db_password, dawarich_secret_key_base
 # dawarich_oidc_client_id, dawarich_oidc_client_secret
-# sendgrid_api_key (shared across stacks, defined in compute_servers vault)
+# atelier_resend_api_key (shared across stacks, defined in compute_servers vault)

@@ -42,10 +42,10 @@ phpbb_admin_email: justin@jedmund.com
 phpbb_admin_password: "{{ vault_phpbb_admin_password | default('') }}"
 
 # Board contact address used as the envelope From on outgoing mail. The
-# Resend API key is scoped to the verified domain board.fireplace.cafe, so
-# the sender lives there; Resend rejects senders outside the key's domain
-# with a 550 at DATA time.
-phpbb_board_email: noreply@board.fireplace.cafe
+# shared fireplace_resend_api_key is authorized for the verified domain
+# fireplace.cafe, so the sender lives there; Resend rejects senders outside
+# the key's domains with a 550 at DATA time.
+phpbb_board_email: noreply@fireplace.cafe
 
 # MariaDB (backend network only)
 phpbb_db_host: phpbb-db
@@ -64,7 +64,8 @@ phpbb_smtp_host: smtp.resend.com
 phpbb_smtp_port: "587"
 phpbb_smtp_auth_method: LOGIN
 phpbb_smtp_username: resend
-phpbb_smtp_password: "{{ vault_resend_api_key | default('') }}"
+# fireplace_resend_api_key (shared with Mastodon, defined in compute_servers vault)
+phpbb_smtp_password: "{{ fireplace_resend_api_key | default('') }}"
 
 # Server settings written at install time. The board is only served through
 # Traefik TLS, so cookies are secure and the canonical protocol is https.
