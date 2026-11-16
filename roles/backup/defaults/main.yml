@@ -109,6 +109,8 @@ borg_exclude_patterns:
   - /opt/docker/gitlab/data/postgresql
   # stereo: live Postgres files; the nightly pg_dump is the restore artifact.
   - /opt/docker/stereo/postgres
+  # sabnzbd: in-progress Usenet jobs; incomplete downloads have no restore value.
+  - /opt/docker/sabnzbd/incomplete
   - /opt/docker/gitlab/data/redis
   - /opt/docker/gitlab/data/prometheus
   - /opt/docker/gitlab/logs
