@@ -176,6 +176,17 @@ http:
       tls:
         certResolver: letsencrypt
 
+    # SABnzbd - sab.{{ traefik_domain }}
+    sabnzbd:
+      rule: "Host(`sab.{{ traefik_domain }}`)"
+      service: sabnzbd
+      entryPoints:
+        - websecure
+      middlewares:
+        - tinyauth@file
+      tls:
+        certResolver: letsencrypt
+
     # slskd healthcheck bypass (no auth)
     slskd-health:
       rule: "Host(`sl.{{ traefik_domain }}`) && Path(`/health`)"
@@ -441,6 +452,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://{{ mini_server_ip }}:5800"
+
+    sabnzbd:
+      loadBalancer:
+        servers:
+          - url: "http://{{ mini_server_ip }}:8085"
 
     slskd:
       loadBalancer:

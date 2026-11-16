@@ -135,6 +135,10 @@ deploy-qbittorrent: ## Deploy qBittorrent
 	@echo "$(BLUE)Deploying qBittorrent...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/qbittorrent.yml $(VAULT_FLAG)
 
+deploy-sabnzbd: ## Deploy SABnzbd
+	@echo "$(BLUE)Deploying SABnzbd...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/sabnzbd.yml $(VAULT_FLAG)
+
 deploy-sonarr: ## Deploy Sonarr
 	@echo "$(BLUE)Deploying Sonarr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/sonarr.yml $(VAULT_FLAG)

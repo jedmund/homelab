@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+name: {{ stack_name }}
+
+services:
+  sabnzbd:
+    image: {{ sabnzbd_image }}
+    container_name: sabnzbd
+    restart: {{ restart_policy }}
+    networks:
+      - shared
+    ports:
+      - "{{ sabnzbd_port }}:8080"
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+    volumes:
+      - ./config:/config
+      - {{ sabnzbd_incomplete_path }}:/incomplete
+      - downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/api?mode=version"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+volumes:
+  downloads:
+    name: downloads
+    external: true
+
+networks:
+  shared:
+    name: {{ shared_network }}
+    external: true

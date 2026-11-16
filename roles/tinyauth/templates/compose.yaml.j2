@@ -30,6 +30,8 @@ services:
       tinyauth.apps.synapse-admin.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.jdownloader.config.domain: "jdl.{{ tinyauth_base_domain }}"
       tinyauth.apps.jdownloader.users.allow: "{{ tinyauth_allowed_user }}"
+      tinyauth.apps.sabnzbd.config.domain: "sab.{{ tinyauth_base_domain }}"
+      tinyauth.apps.sabnzbd.users.allow: "{{ tinyauth_allowed_user }}"
       tinyauth.apps.slskd.config.domain: "sl.{{ tinyauth_base_domain }}"
       tinyauth.apps.slskd.users.allow: "{{ tinyauth_allowed_user }}"
       # Aurral uses native OIDC after setup. TinyAuth only protects the
