@@ -78,6 +78,7 @@ the entire Docker subnet.
 | Music | NFS-backed volume mounted at `/music`; default input/output directories are `/music/Sort` and `/music/Sorted` |
 | slskd downloads | `downloads` (NFS Ingest) volume mounted at `/downloads`; finished Soulseek downloads are read from `/downloads/music/<remote folder name>` (`stereo_slskd_download_path`) and never modified |
 | qBittorrent downloads | Torrents Stereo fetches land in qBittorrent's `stereo` category at `/downloads/stereo` (`stereo_qbittorrent_download_path`, passed as `DOWNLOADS_PATH`); Stereo only reads them, and refuses a finished torrent outside every download root |
+| SABnzbd downloads | Finished Usenet jobs Stereo fetches are read from SABnzbd's completed folder, `/downloads/usenet/complete` (`stereo_sabnzbd_download_path`, passed as `SABNZBD_DOWNLOAD_DIR`; it must equal `sabnzbd_complete_dir`). Without it Stereo refuses every finished Usenet download as outside its download roots. Stereo's download cleanup removes only its own finished job folders under this root |
 | Quarantine | `/downloads/stereo-quarantine` (`stereo_quarantine_path`), created by the role beside the download roots, never inside them; finished downloads are hardlinked here for intake review, then copied into `/music/Sort` on admission |
 | MusicBrainz | `http://musicbrainz:5000/ws/2` on the shared Docker network |
 | Cover Art Archive | Public service, configured by `stereo_cover_art_archive_base_url` |

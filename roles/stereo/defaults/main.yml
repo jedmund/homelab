@@ -30,6 +30,11 @@ stereo_data_path: /data
 # them, on the same volume so handoff can hardlink.
 stereo_slskd_download_path: /downloads/music
 stereo_qbittorrent_download_path: /downloads/stereo
+# SABnzbd's completed folder as this container sees it, passed as SABNZBD_DOWNLOAD_DIR.
+# Must match sabnzbd_complete_dir: without it Stereo refuses every finished Usenet
+# download as outside its download roots (MUSIC-240). Stereo's download cleanup may
+# remove its own finished job folders under this root.
+stereo_sabnzbd_download_path: /downloads/usenet/complete
 # Category Stereo adds torrents under. Its save path is set in qBittorrent and
 # must be stereo_qbittorrent_download_path as qBittorrent sees it (MUSIC-167).
 stereo_qbittorrent_category: stereo

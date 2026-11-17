@@ -24,14 +24,19 @@ class AcquisitionHandoffTests(unittest.TestCase):
         self.assertEqual(self.rendered['volumes']['downloads'], {'external': True})
         self.assertEqual(self.service['environment']['SLSKD_DOWNLOAD_DIR'], '/downloads/music')
         self.assertEqual(self.service['environment']['DOWNLOADS_PATH'], '/downloads/stereo')
+        self.assertEqual(self.service['environment']['SABNZBD_DOWNLOAD_DIR'], '/downloads/usenet/complete')
         self.assertEqual(self.service['environment']['QBITTORRENT_CATEGORY'], 'stereo')
         self.assertEqual(self.service['environment']['QUARANTINE_PATH'], '/downloads/stereo-quarantine')
 
     def test_quarantine_does_not_overlap_download_or_library_roots(self):
         quarantine = PurePosixPath(self.values['stereo_quarantine_path'])
-        for key in ['stereo_slskd_download_path', 'stereo_qbittorrent_download_path', 'stereo_unsorted_path', 'stereo_sorted_path', 'stereo_data_path']:
+        for key in ['stereo_slskd_download_path', 'stereo_qbittorrent_download_path', 'stereo_sabnzbd_download_path', 'stereo_unsorted_path', 'stereo_sorted_path', 'stereo_data_path']:
             other = PurePosixPath(self.values[key])
             self.assertFalse(quarantine == other or other in quarantine.parents or quarantine in other.parents, key)
+
+    def test_sabnzbd_root_is_the_folder_sabnzbd_completes_into(self):
+        sabnzbd = yaml.safe_load((ROOT / 'roles/sabnzbd/defaults/main.yml').read_text())
+        self.assertEqual(self.values['stereo_sabnzbd_download_path'], sabnzbd['sabnzbd_complete_dir'])
 
     def test_creates_the_quarantine_before_deploying(self):
         tasks = yaml.safe_load((ROLE / 'tasks/main.yml').read_text())
