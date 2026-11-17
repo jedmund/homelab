@@ -19,7 +19,8 @@
     - prerequisites
     - firewall
     - docker
-    - networks
+    - role: networks
+      tags: networks
     - docker-volumes
     - security
 

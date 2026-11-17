@@ -1,13 +1,22 @@
 ---
+- name: Reconcile the proxy network address plan
+  ansible.builtin.import_tasks: proxy_ipam.yml
+  when: proxy_network_ipam is defined
+
 - name: Create Docker networks
   community.docker.docker_network:
     name: "{{ item.name }}"
     driver: "{{ item.driver | default('bridge') }}"
     internal: "{{ item.internal | default(false) }}"
+    # An empty list skips IPAM comparison. A non-empty list that differs from
+    # the live network makes the module detach every container and recreate
+    # it, so only pass a plan the network already matches or is created with.
+    ipam_config: "{{ item.ipam_config | default(omit) }}"
     state: present
   loop:
     - name: "{{ proxy_network }}"
       driver: bridge
+      ipam_config: "{{ networks_proxy_ipam_config | default([]) }}"
     - name: "{{ backend_network }}"
       driver: bridge
       internal: true
@@ -15,7 +24,7 @@
       driver: bridge
     - name: "{{ cibuild_network }}"
       driver: bridge
-    - name: vpn-network
+    - name: "{{ vpn_network | default('vpn-network') }}"
       driver: bridge
 
 - name: Create Minecraft networks on assigned hosts

@@ -40,6 +40,7 @@ run_static() {
     python tests/test_logging.py
     python tests/test_degoog_migration.py
     python tests/test_degoog_maps.py
+    python tests/test_networks.py
     python tests/compose_lifecycle.py --static-only --report /results/static-fixtures.json
     record_duration static "$((SECONDS - started))"
 }
@@ -77,6 +78,10 @@ run_lifecycle() {
         arguments+=(--roles "$@")
     fi
     python tests/compose_lifecycle.py "${arguments[@]}"
+    if [ "$#" -eq 0 ]; then
+        # Docker-backed proxy network recreation checks; skipped in the static phase.
+        python tests/test_networks.py
+    fi
     record_duration lifecycle "$((SECONDS - started))"
 }
 

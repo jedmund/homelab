@@ -9,6 +9,7 @@ python3 tests/test_maintenance.py
 python3 tests/test_compose_task_order.py
 python3 tests/test_ai_access.py
 python3 tests/test_logging.py
+python3 tests/test_networks.py
 python3 tests/compose_lifecycle.py --static-only
 python3 tests/compose_lifecycle.py
 ```
@@ -37,6 +38,13 @@ populated firewall allowlists with disposable values. They also check firewall
 ordering before Compose deployment and Docker boot dependencies. They do not
 contact managed hosts. Actual allowed/denied connectivity and reboot persistence
 must be checked separately; see [AI access](../roles/ai/README.md#llama-swap-access).
+
+The network tests check that static proxy addresses in inventory are outside
+each host's dynamic range. With local Docker, they also run the networks role's
+proxy IPAM tasks against a disposable network: a mismatched network is left
+attached without `networks_recreate_proxy`, check mode changes nothing, and
+recreation keeps static addresses and aliases. See the
+[networks runbook](../roles/networks/README.md#proxy-network-address-plan).
 
 Integration checks require a local Docker Unix socket. They use a small
 `alpine:3.20` image, pulling it if absent, and create UUID-named Compose projects
