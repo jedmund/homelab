@@ -1,0 +1,20 @@
+---
+# Optional per-host IPAM plan for the proxy network, set in inventory:
+#   proxy_network_ipam:
+#     subnet: 172.18.0.0/16
+#     gateway: 172.18.0.1
+#     iprange: 172.18.128.0/17
+# Docker assigns dynamic addresses only from iprange, so static addresses
+# elsewhere in the subnet (traefik_proxy_ipv4_address) cannot be taken by
+# another container. Unset leaves IPAM to Docker.
+
+# An existing network that differs from proxy_network_ipam is only recreated
+# when this is true. Recreation briefly detaches every container on it.
+networks_recreate_proxy: false
+
+# Containers restarted after recreation so they re-read peer addresses.
+networks_proxy_restart:
+  - traefik
+
+# Endpoint snapshots written before recreation, for recovery.
+networks_snapshot_dir: /var/backups/docker-networks

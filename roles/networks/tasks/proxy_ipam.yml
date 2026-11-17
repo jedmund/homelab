@@ -1,0 +1,63 @@
+---
+- name: Require a complete proxy network address plan
+  ansible.builtin.assert:
+    that:
+      - proxy_network_ipam.subnet | default('') | length > 0
+      - proxy_network_ipam.gateway | default('') | length > 0
+      - proxy_network_ipam.iprange | default('') | length > 0
+    fail_msg: proxy_network_ipam needs subnet, gateway, and iprange.
+
+- name: Inspect the proxy network
+  community.docker.docker_network_info:
+    name: "{{ proxy_network }}"
+  register: networks_proxy_info
+
+- name: Compare the proxy network with its address plan
+  ansible.builtin.set_fact:
+    networks_proxy_ipam_live: >-
+      {{ (networks_proxy_info.network.IPAM.Config | default([], true))
+         if networks_proxy_info.exists else [] }}
+
+- name: Decide whether the proxy network needs recreation
+  ansible.builtin.set_fact:
+    networks_proxy_ipam_pending: >-
+      {{ networks_proxy_info.exists and not (
+           networks_proxy_ipam_live | length == 1
+           and networks_proxy_ipam_live[0].Subnet | default('') == proxy_network_ipam.subnet
+           and networks_proxy_ipam_live[0].Gateway | default('') == proxy_network_ipam.gateway
+           and networks_proxy_ipam_live[0].IPRange | default('') == proxy_network_ipam.iprange) }}
+
+- name: Recreate the proxy network and reattach its containers
+  ansible.builtin.script:
+    cmd: >-
+      {{ role_path }}/files/recreate_network.py
+      --name {{ proxy_network | quote }}
+      --subnet {{ proxy_network_ipam.subnet | quote }}
+      --gateway {{ proxy_network_ipam.gateway | quote }}
+      --ip-range {{ proxy_network_ipam.iprange | quote }}
+      --snapshot-dir {{ networks_snapshot_dir | quote }}
+      {% for name in networks_proxy_restart %}--restart {{ name | quote }} {% endfor %}
+    executable: python3
+  register: networks_proxy_recreate
+  changed_when: "'recreated' in networks_proxy_recreate.stdout"
+  when:
+    - networks_proxy_ipam_pending | bool
+    - networks_recreate_proxy | bool
+
+- name: Report a proxy network that still needs its address plan
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ proxy_network }} on {{ inventory_hostname }} does not match
+      proxy_network_ipam and was left unchanged. Static addresses on it are not
+      reserved. Recreate it with -e networks_recreate_proxy=true; see
+      roles/networks/README.md.
+  when:
+    - networks_proxy_ipam_pending | bool
+    - not networks_recreate_proxy | bool
+
+- name: Select the proxy network IPAM configuration
+  ansible.builtin.set_fact:
+    networks_proxy_ipam_config: >-
+      {{ [proxy_network_ipam]
+         if (not networks_proxy_ipam_pending | bool or networks_proxy_recreate is changed)
+         else [] }}

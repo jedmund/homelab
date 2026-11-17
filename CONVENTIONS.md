@@ -141,6 +141,10 @@ Networks are created by the `networks` role. Compose aliases commonly map to:
 Docker bridge networks are local to each host. Reusing a name on `max` does
 not connect it to the network on `nuc-mini`.
 
+Static container addresses need a reserved range on their network so Docker
+cannot assign them to another container. See the
+[networks runbook](roles/networks/README.md#proxy-network-address-plan).
+
 For containers on Traefik's host and proxy network, declare routers and
 services with Docker labels. For other hosts, native services, and
 host-network containers, use the Traefik file provider:
