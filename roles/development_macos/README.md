@@ -4,6 +4,11 @@ The `development_macos` role manages the user-mode shell runner on `mac-mini`
 (`ssh mac`), its Ruby toolchain, job environment, and log rotation. It runs as
 `justin` so Xcode can access the existing login keychain.
 
+The runner Homebrew formula is unpinned. The role uses `state: latest` and
+restarts the service when the package changes. Deploy with no active jobs, and
+confirm the runner reconnects afterward; a new binary can require renewed
+[macOS Local Network access](../gitlab/GITLAB_UPGRADE.md#macos-local-network-permission-on-the-xcode-runner).
+
 ## Ruby and Bundler
 
 The role ensures mise is installed through Homebrew, then uses mise to install
@@ -47,7 +52,7 @@ make -C deploy deploy STACK=development_macos EXTRA_ARGS='--limit mac-mini --che
 make -C deploy deploy STACK=development_macos EXTRA_ARGS='--limit mac-mini'
 ```
 
-Config changes notify the existing runner restart handler. Deploy when the
+Package and config changes notify the existing runner restart handler. Deploy when the
 runner has no active jobs. The role verifies Ruby compatibility and the exact
 Bundler version under the job environment. Run the deployment a second time;
 it should report `changed=0` once packages and configuration are converged.
