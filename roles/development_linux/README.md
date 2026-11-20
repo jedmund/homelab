@@ -89,8 +89,15 @@ per-pool differences as macro arguments, not as a second copy of the block.
 
 ## Operating notes
 
+- **Image updates follow stable releases.** Both pools share
+  `gitlab/gitlab-runner:latest`. The shared Ansible pull policy is `always`;
+  a Komodo deployment with `auto_pull` enabled also pulls the current image.
+  Pause and drain both pools before deploying an image update, then verify
+  their reported versions and a CI job. Coordinate with the
+  [GitLab upgrade runbook](../gitlab/GITLAB_UPGRADE.md).
 - **Config reloads are live.** GitLab Runner watches `config.toml`, so changing
-  concurrency, caps or cache does not interrupt jobs in flight. Deploy any time.
+  concurrency, caps or cache does not itself interrupt jobs in flight. A
+  deployment can also pull a new runner image and restart the process.
 - **Verify a deploy:**
   ```sh
   ssh max "docker exec gitlab_runner cat /etc/gitlab-runner/config.toml" \

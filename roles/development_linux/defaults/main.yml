@@ -17,11 +17,9 @@ config_base: "{{ docker_base_path }}/{{ stack_name }}"
 #   gitlab_runner_linux_auth_token
 #   gitlab_runner_linux_large_auth_token
 
-# Runner image. Kept in step with roles/gitlab's runner and the GitLab
-# server itself; a runner on a newer major/minor than the server is
-# unsupported. The patch level may differ, and does here: the runner's
-# newest 19.4 patch is v19.4.0 while the server sits on 19.4.1.
-gitlab_runner_linux_image: gitlab/gitlab-runner:v19.4.0
+# Runner image. Follow stable releases when this stack is deployed, matching
+# the update policy of the server and runner in roles/gitlab.
+gitlab_runner_linux_image: gitlab/gitlab-runner:latest
 
 # Runner identity. Derived from the host so adding a second Linux runner
 # is just an inventory change. Registers in GitLab as `max-docker`,

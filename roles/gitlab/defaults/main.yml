@@ -26,7 +26,8 @@ gitlab_oidc_client_id: ""
 gitlab_oidc_client_secret: ""
 
 # GitLab Runner settings
-gitlab_runner_image: gitlab/gitlab-runner:v19.5.0
+# Follow stable releases when this stack is deployed.
+gitlab_runner_image: gitlab/gitlab-runner:latest
 gitlab_runner_name: nuc-mini-docker
 gitlab_runner_concurrent: 4
 # Host inotify instance cap for CI file watchers (see tasks/main.yml). Kernel

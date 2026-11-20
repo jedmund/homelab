@@ -21,11 +21,14 @@ that Stack pulls the current stable image. `auto_update` and `poll_for_updates`
 remain disabled. Ansible deployments also pull according to the shared pull
 policy and can therefore upgrade the server.
 
-The server is excluded from Renovate, and its former tag/digest manager is
-retired. Runner image
-references remain configured separately in their owning roles; a server update
-does not update the runners on other hosts. Check runner compatibility for the
-selected target and update them as part of the maintenance window when needed.
+The server and runner images are excluded from Renovate. Both Docker runner
+stacks use `gitlab/gitlab-runner:latest`, configured separately in their owning
+roles; a server stack update also updates its local runner but does not update
+the runners on other hosts. The `development_linux` stack on `max` serves both
+Linux runner pools. Deploy it separately with image pulling enabled. The native
+macOS role upgrades the unpinned Homebrew formula with `state: latest` and
+restarts the runner when the package changes. Check runner compatibility and
+pause and drain the affected runners before deploying these moving releases.
 
 Before pressing Deploy, resolve the current `latest` version and review the
 [required upgrade stops](https://docs.gitlab.com/update/upgrade_paths/). A moving
@@ -237,19 +240,12 @@ below.
 
 ## Update discovery
 
-Renovate tracks `gitlab_image` in
-[defaults/main.yml](defaults/main.yml) through the repository's
-[custom manager](../../.renovaterc.json). It recognizes the GitLab CE release
-tag and optional OCI digest in the full image reference. Docker versioning
-preserves the `-ce.0` compatibility suffix when proposing newer releases.
-Proposals use the `maintenance::application-image` label and require review;
-there is no minor-version ceiling and no automatic merge or deployment.
-
-Komodo's digest checks compare the image tag already rendered in Compose.
-The GitLab stack is excluded from the shared digest report. New GitLab release
-discovery belongs to Renovate; apply approved versions through this runbook.
-Renovate's host schedule is Monday at 08:00 unless overridden, so a newly
-published patch is not necessarily proposed immediately.
+The server and Docker runners follow `latest` without tag or digest pins.
+[Renovate configuration](../../.renovaterc.json) excludes both image names so
+Renovate does not propose pins. Review upstream release announcements and
+resolve each moving tag before deploying through Komodo or Ansible. The GitLab
+stack is excluded from the shared Komodo digest report. Use the manual update
+procedure above and record the resolved versions for recovery.
 
 ## Patch releases inside one minor series
 

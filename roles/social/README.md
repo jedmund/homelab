@@ -6,8 +6,9 @@ Deployment files are stored in `/opt/docker/social`.
 
 ## Configuration
 
-Application and streaming images are pinned to matching release tags in
-[defaults](defaults/main.yml). Keep both on glitch-soc when updating.
+Application and streaming images follow glitch-soc's `latest` tags in
+[defaults](defaults/main.yml). Web and Sidekiq share the application image.
+Both image names are excluded from Renovate so it does not propose pins.
 
 Store credentials in `group_vars/social/vault.yml`; see
 [Secrets](../../docs/secrets.md#groupvarssocialvaultyml). Preserve the three
@@ -17,12 +18,19 @@ application as `ACTIVE_RECORD_ENCRYPTION_*` environment variables.
 
 ## Deployment and upgrades
 
-Read the glitch-soc release notes for the target and every skipped release.
+Resolve both `latest` tags and read the glitch-soc release notes for the target
+and every skipped release. Confirm both images belong to the same release.
 Take a fresh PostgreSQL custom-format dump and retain the deployed Compose
-file, environment files, and image IDs before upgrading. Store these files
+file, environment files, image IDs, and resolved digests before upgrading. Store these files
 with restricted permissions outside the repository.
 
-Update both application image references, then run from the repository root:
+Ansible uses the shared `always` pull policy. A manual Komodo deployment with
+image pulling enabled also updates the application and streaming images.
+Komodo reads `/opt/docker/social/compose.yaml`; render the updated references
+on the host before using Komodo to update the stack. Automatic updates remain
+disabled.
+
+To deploy through Ansible, run from the repository root:
 
 ```sh
 make check
@@ -94,6 +102,8 @@ The instance response should report the intended version with the `+glitch`
 suffix. Also verify login, posting, media uploads, and background delivery.
 HTTP health checks do not cover those authenticated operations.
 
-An image rollback is appropriate only when compatible with the current
-database schema. Keep the pre-upgrade database dump and matching environment
-files until the upgrade has been verified.
+For rollback, select the recorded application and streaming image digests in
+[defaults](defaults/main.yml) and redeploy. An image rollback is appropriate
+only when compatible with the current database schema; otherwise restore the
+pre-upgrade database dump and matching application images and environment files.
+Keep those recovery artifacts until the upgrade has been verified.

@@ -17,8 +17,16 @@
   ],
   "packageRules": [
     {
-      "description": "GitLab stable image is updated manually through Komodo",
-      "matchPackageNames": ["gitlab/gitlab-ce"],
+      "description": "GitLab server and runner stable images are updated manually",
+      "matchPackageNames": ["gitlab/gitlab-ce", "gitlab/gitlab-runner"],
+      "enabled": false
+    },
+    {
+      "description": "Mastodon stable images are updated manually",
+      "matchPackageNames": [
+        "ghcr.io/glitch-soc/mastodon",
+        "ghcr.io/glitch-soc/mastodon-streaming"
+      ],
       "enabled": false
     },
     {
