@@ -22,6 +22,14 @@
       "enabled": false
     },
     {
+      "description": "Mastodon stable images are updated manually",
+      "matchPackageNames": [
+        "ghcr.io/glitch-soc/mastodon",
+        "ghcr.io/glitch-soc/mastodon-streaming"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Application image proposals require review",
       "matchDepTypes": ["application-image"],
       "addLabels": ["maintenance::application-image"],
