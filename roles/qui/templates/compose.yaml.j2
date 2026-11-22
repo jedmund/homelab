@@ -8,6 +8,8 @@ services:
     restart: {{ restart_policy }}
     networks:
       - proxy
+      # Reaches qBittorrent as http://qbittorrent:8090 through gluetun's alias
+      - shared
     env_file:
       - ./env/qui.env
     volumes:
@@ -32,4 +34,7 @@ services:
 networks:
   proxy:
     name: {{ proxy_network }}
+    external: true
+  shared:
+    name: {{ shared_network }}
     external: true
