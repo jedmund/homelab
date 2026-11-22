@@ -123,9 +123,9 @@ deploy-musicbrainz: ## Deploy MusicBrainz mirror
 
 ##@ Deployment - Product Stacks
 
-deploy-gluetun: ## Deploy Gluetun with qBittorrent, SABnzbd, and slskd
-	@echo "$(BLUE)Deploying Gluetun...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/gluetun.yml $(VAULT_FLAG)
+deploy-downloads: ## Deploy the downloads stack (gluetun, qBittorrent, SABnzbd, slskd)
+	@echo "$(BLUE)Deploying downloads...$(NC)"
+	@$(ANSIBLE) -i $(INVENTORY) deploy/downloads.yml $(VAULT_FLAG)
 
 deploy-prowlarr: ## Deploy Prowlarr
 	@echo "$(BLUE)Deploying Prowlarr...$(NC)"

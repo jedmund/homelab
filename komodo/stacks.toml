@@ -210,13 +210,13 @@ poll_for_updates = false
 auto_update = false
 
 [[stack]]
-name = "gluetun"
-description = "ProtonVPN tunnel with qBittorrent, SABnzbd, and slskd"
+name = "downloads"
+description = "qBittorrent, SABnzbd, and slskd behind a ProtonVPN gluetun tunnel"
 tags = ["homelab", "ansible", "nuc-mini", "media", "update-monitor"]
 [stack.config]
 server = "NUC"
 files_on_host = true
-run_directory = "/opt/docker/gluetun"
+run_directory = "/opt/docker/downloads"
 file_paths = ["compose.yaml"]
 poll_for_updates = false
 auto_update = false
