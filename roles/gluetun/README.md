@@ -1,23 +1,26 @@
 # Gluetun
 
-Shared ProtonVPN tunnel on nuc-mini for the media download clients:
-[qBittorrent](../qbittorrent/), [SABnzbd](../sabnzbd/), and [slskd](../slskd/).
-Each client runs in its own stack with `network_mode: container:gluetun`, so it
-has no network except gluetun's and no route out except the tunnel. Prowlarr,
-the Starr apps, Stereo, and Qui stay off the VPN and reach the clients through
-gluetun. The [granblue](../granblue/) stack runs a separate tunnel.
+ProtonVPN tunnel on nuc-mini and the media download clients that use it:
+qBittorrent, SABnzbd, and slskd. All run in one Compose stack at
+`/opt/docker/gluetun`. The clients use `network_mode: service:gluetun`, so
+they have no network except gluetun's and no route out except the tunnel.
+Prowlarr, the Starr apps, Stereo, and Qui stay off the VPN and reach the
+clients through gluetun. The [granblue](../granblue/) stack runs a separate
+tunnel. SABnzbd's setup and operation are in [SABnzbd](sabnzbd.md).
 
-| Client | Shared network address | Host port | Forwarded port |
-| --- | --- | --- | --- |
-| qBittorrent | `http://qbittorrent:8090` | 8080 | Second (higher) port, set by its port sync |
-| SABnzbd | `http://sabnzbd:8080` | 8085 | None |
-| slskd | `http://slskd:5030` | 5030 | First (lower) port, set by its VPN integration |
+| Client | Shared network address | Host port | Forwarded port | Data |
+| --- | --- | --- | --- | --- |
+| qBittorrent | `http://qbittorrent:8090` | 8090 | Second (higher), set by `qbittorrent-port-sync` | `/opt/docker/qbittorrent/config` |
+| SABnzbd | `http://sabnzbd:8080` | 8085 | None | `/opt/docker/sabnzbd/` |
+| slskd | `http://slskd:5030` | 5030 | First (lower), set by its VPN integration | `/opt/docker/slskd/config` |
 
 gluetun joins the shared network with the clients' names as aliases and
-publishes their web ports. Traefik's `sab.` and `sl.` routes and anything
-using `<nuc-mini>:<host port>` are unchanged. qBittorrent's web UI moved from
-8080 to 8090 inside the namespace because SABnzbd also listens on 8080, so any
-application that uses the `qbittorrent` container name needs port 8090.
+publishes their web ports. Traefik's `sab.` and `sl.` routes use host ports
+8085 and 5030. Qui joins the shared network to reach qBittorrent by name.
+
+qBittorrent's web UI is on 8090 because SABnzbd listens on 8080 in the same
+namespace. The host port is also 8090: qBittorrent answers 401 to any request
+whose `Host` header names a port other than the one it listens on.
 
 ## Port forwarding
 
@@ -30,25 +33,59 @@ every 45 seconds. It lists them in ascending order:
   the first port as its Soulseek listener without reconnecting. It waits for
   the tunnel and the port before connecting to Soulseek, and disconnects if
   gluetun stops answering.
-- `qbittorrent-port-sync` in the qBittorrent stack polls the same route every
-  30 seconds and sets qBittorrent's listening port to the second port. It is
-  healthy only while the two match.
+- `qbittorrent-port-sync` polls the same route every 30 seconds and sets
+  qBittorrent's listening port to the second port, re-applying it after a
+  qBittorrent restart. It is healthy only while the two match.
 
-Inbound peer traffic arrives through the tunnel, so the old host ports 6882
-and 50300 are no longer published. Router port forwards for them are unused.
+Proton maps the second port to internal port 56789, and gluetun redirects that
+to the external port number, so each client listens on the port peers see.
+Inbound peer traffic arrives through the tunnel; host ports 6882 and 50300 are
+not published.
 
 The control server listens on `127.0.0.1:8000` inside the namespace.
-`config/auth/config.toml` gives the API key access to
-`GET /v1/portforward` and `GET /v1/publicip/ip` only; other routes are refused.
+`config/auth/config.toml` gives the API key access to `GET /v1/portforward`
+and `GET /v1/publicip/ip` only; other routes are refused.
+
+## Network namespace and recovery
+
+A client keeps the network namespace it joined when it started. When gluetun
+is recreated or restarted, the old namespace is left with only a loopback
+interface, so the client must be recreated or restarted as well:
+
+| gluetun event | Handled by |
+| --- | --- |
+| Recreated by Compose (new image, configuration change, redeploy) | `depends_on` with `restart: true`: Compose recreates the clients |
+| Restarted by Compose (`docker compose restart`) | `depends_on` with `restart: true`: Compose restarts the clients |
+| Restarted by Docker and running again (process exit with the restart policy, `docker restart gluetun`) | deunhealth: the clients' health checks fail and it restarts them |
+| Stopped, or still down when deunhealth acts (crash loop, `docker stop`) | Nothing until the next `docker compose up`: a client restart fails while gluetun is not running, and the client stays exited |
+
+The first two rows and the last two were tested with disposable containers on
+nuc-mini (Docker 29.10). Komodo redeploys and restarts run Compose, so they
+should follow the first two rows; that is inferred, not tested. After fixing a
+gluetun that will not stay up, redeploy the stack (`make -C deploy gluetun` or
+Komodo) to start the clients.
+
+Each client's health check requires `eth0` in `/proc/net/dev`, which a
+stranded client no longer has. deunhealth restarts containers labeled
+`deunhealth.restart.on.unhealthy=true` when their health check fails for any
+reason, including an unresponsive web UI; with the shared health check
+settings this takes about one and a half minutes. The port sync is labeled
+too: stranded, it cannot reach gluetun's control server and its health check
+fails. deunhealth mounts the Docker socket, which gives it full control of the
+Docker daemon; `:ro` on the mount does not restrict the API.
+
+gluetun reconnects the tunnel inside the container without restarting it, so a
+tunnel outage does not strand the clients. Behavior after a host reboot or a
+Docker daemon restart has not been verified.
 
 ## Image
 
 `gluetun_image` is `qmcgaw/gluetun:latest`, upstream's main-branch build.
 Multi-port forwarding for ProtonVPN (`VPN_PORT_FORWARDING_PORTS_COUNT`) is not
-in v3.41.3 or the v3.41.4 release candidates. A deploy with the shared
-`always` pull policy updates the image, and a new image recreates gluetun and
-then all three clients, interrupting their transfers. The last verified build is revision
-`eb3c7ec79d9429b9b3e3185eccde7a4806f61179`, image index digest:
+in v3.41.3 or the v3.41.4 release candidates. A deploy with the shared `always`
+pull policy updates the image, and a new image recreates gluetun and then all
+three clients, interrupting their transfers. The last verified build is
+revision `eb3c7ec79d9429b9b3e3185eccde7a4806f61179`, image index digest:
 
 ```text
 qmcgaw/gluetun@sha256:3c43ec327d7ab2b5f1dc798b92a7640de9a1e1b74a81c9a5143adb383c03d28b
@@ -60,81 +97,60 @@ release without it forwards a single port: set
 `gluetun_forwarded_ports_count: 1`, and the port goes to slskd while
 qBittorrent's port sync reports no port.
 
-## Network namespace
-
-A client joins the namespace gluetun has when the client is created. If
-gluetun is recreated or restarted, the client keeps a namespace with only a
-loopback interface until it is recreated. Each client's health check probes
-gluetun's health server at `127.0.0.1:9999`, so a stranded client, or one
-whose tunnel is down, reports `unhealthy`.
-
-The gluetun role waits for gluetun to become healthy, then compares each
-client's network mode and network namespace with gluetun's and recreates any
-client stack that differs (`gluetun_clients`). A redeploy or restart from
-Komodo, or a gluetun crash, does not do this. Afterward run
-`make -C deploy gluetun`, or recreate the client stacks. Stopped clients that
-still reference the current gluetun container are left stopped; start them
-by deploying their roles.
-
-Behavior after a host or Docker daemon restart has not been verified. If a
-client is unhealthy afterward, run `make -C deploy gluetun`, then deploy the
-client roles.
-
-Each client role checks that gluetun is running before deploying, so a check
-mode run of a client fails on a host where gluetun is not running yet.
+The clients use floating `latest` tags. Each service's
+`homelab.config-checksum` label holds the checksums of its env and mounted
+files, so a configuration change recreates only that service; a gluetun change
+recreates every client.
 
 ## Prerequisites
 
 1. In the Proton account, create a WireGuard configuration: VPN → WireGuard
    configuration, platform GNU/Linux, NAT-PMP (Port Forwarding) on, Moderate
-   NAT off. Proton does not allow both. Name it `nuc-gluetun-media`. Only
-   `PrivateKey` is used; `Address` must be `10.2.0.2/32`. gluetun chooses
-   servers itself, so `[Peer]` is ignored.
+   NAT off. Proton does not allow both. Only `PrivateKey` is used; `Address`
+   must be `10.2.0.2/32`. gluetun chooses servers itself, so `[Peer]` is
+   ignored.
 2. Add the inputs in [Secrets](../../docs/secrets.md#groupvarsgluetunvaultyml)
-   to `group_vars/gluetun/vault.yml`. The control server API key is read by the
-   gluetun, qBittorrent, and slskd roles; nuc-mini is in all three groups.
-   Generate it with `openssl rand -hex 32`.
+   to `group_vars/gluetun/vault.yml`. Generate the control server API key with
+   `openssl rand -hex 32`. The slskd credentials stay in
+   [group_vars/slskd/vault.yml](../../docs/secrets.md#groupvarsslskdvaultyml);
+   the `slskd` inventory group exists only to load that file.
 3. In qBittorrent, enable Tools → Options → Web UI → Bypass authentication for
    clients on localhost. The port sync calls the API from `127.0.0.1` without
-   credentials. Every container in the namespace (SABnzbd, slskd, the port
-   sync, and gluetun) then has unauthenticated access to qBittorrent's API.
+   credentials. Every container in the namespace then has unauthenticated
+   access to qBittorrent's API.
 
-## First deployment
-
-The clients currently publish 8080, 8085, and 5030 and hold the
-`qbittorrent`, `sabnzbd`, and `slskd` names on the shared network. Stop them
-before gluetun takes the ports and aliases, then deploy the clients into its
-namespace:
+## Deployment
 
 ```sh
 make -C deploy check STACK=gluetun
-ssh nuc 'for s in qbittorrent sabnzbd slskd; do docker compose --project-directory /opt/docker/$s stop; done'
 make -C deploy gluetun
-make -C deploy qbittorrent
-make -C deploy sabnzbd
-make -C deploy slskd
 ```
 
-Then change the port of the qBittorrent download client from 8080 to 8090 in
-every application that uses `http://qbittorrent:8080` (check Sonarr, Radarr,
-Lidarr, Prowlarr, and Stereo). Applications that use host port 8080 are
-unaffected.
+The clients previously ran as standalone `qbittorrent`, `sabnzbd`, and `slskd`
+stacks with the same container names. The role stops and removes those Compose
+projects and their generated files when it finds their `compose.yaml`, and
+reuses their data directories. Komodo's Resource Sync does not delete
+resources, so remove the three retired stacks in Komodo by hand without
+destroying containers.
+
+Applications that connect to qBittorrent use port 8090: Sonarr, Radarr,
+Lidarr, Prowlarr, and Stereo as `http://qbittorrent:8090`, and Qui as well
+after its deployment adds it to the shared network.
 
 ## Verification
 
 ```sh
-ssh nuc 'docker inspect gluetun qbittorrent qbittorrent-port-sync sabnzbd slskd --format "{{.Name}} {{.State.Health.Status}}"'
-ssh nuc 'docker logs gluetun 2>&1 | grep -E "ports forwarded|public IP"'
+ssh nuc 'docker inspect gluetun qbittorrent qbittorrent-port-sync sabnzbd slskd deunhealth --format "{{.Name}} {{.State.Status}} {{.State.Health.Status}}"'
+ssh nuc 'docker logs gluetun 2>&1 | grep -E "ports forwarded|Public IP"'
 ssh nuc 'docker exec qbittorrent curl -fsS https://ipinfo.io/ip'
 ssh nuc 'docker logs --tail 5 qbittorrent-port-sync'
 ssh nuc 'docker exec slskd sh -c "wget -qO- --header \"X-API-Key: \${SLSKD_API_KEY##*;}\" http://127.0.0.1:5030/api/v0/application"' | grep -o '"vpn":{[^}]*}'
 ```
 
-Every container reports `healthy`. gluetun logs two forwarded ports and a
-Proton address, and qBittorrent's exit address matches it. The port sync logs
-the listening port it set. slskd reports `"isReady":true` for the VPN.
+Every client reports `healthy`. gluetun logs two forwarded ports and a Proton
+address, and qBittorrent's exit address matches it. The port sync logs the
+listening port it set. slskd reports `"isReady":true` for the VPN.
 
-Stopping gluetun (`docker stop gluetun`) must leave the clients without
-network access; `docker exec qbittorrent curl -m 5 https://ipinfo.io/ip`
-fails. Start it again with `make -C deploy gluetun`, which also recreates the
-clients.
+To check recovery, run `docker restart gluetun`. The clients lose network
+access until deunhealth restarts them, then report `healthy` again with
+Proton's exit address.

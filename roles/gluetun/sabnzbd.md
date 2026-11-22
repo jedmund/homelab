@@ -4,9 +4,10 @@ Usenet download client at `sab.atelier.house`, running on nuc-mini. Sonarr,
 Radarr, and Lidarr send NZBs to it; Prowlarr supplies the indexers. The Usenet
 provider is Newshosting.
 
-SABnzbd runs in the [gluetun](../gluetun/README.md) stack's network namespace,
-so its traffic leaves through ProtonVPN. gluetun publishes host port 8085 and
-carries the `sabnzbd` alias on the shared network. Deploy gluetun first.
+SABnzbd is deployed by the [gluetun](README.md) role and runs in its network
+namespace, so its traffic leaves through ProtonVPN. gluetun publishes host port
+8085 and carries the `sabnzbd` alias on the shared network. Its data stays in
+`/opt/docker/sabnzbd`.
 
 ## Layout
 
@@ -36,18 +37,18 @@ with any other hostname receive `403 Hostname verification failed`.
 
 ## Initial configuration
 
-The role seeds `config/sabnzbd.ini` only when it is absent. The seed sets the
+The gluetun role seeds `config/sabnzbd.ini` only when it is absent. The seed sets the
 host whitelist (`sabnzbd_host_whitelist`), the incomplete and complete folders, and the
 `movies`, `tv`, and `music` categories. SABnzbd generates its API and NZB keys
 on first start and owns the file afterward. Changing these defaults does not
 modify an existing configuration; edit it in the web UI.
 
-Deploy `sabnzbd`, then `traefik` and `tinyauth` for the
+Deploy `gluetun`, then `traefik` and `tinyauth` for the
 `sab.atelier.house` route and access label, and `backup` for the history
 dump and the `incomplete/` exclusion:
 
 ```bash
-make -C deploy sabnzbd
+make -C deploy gluetun
 make -C deploy traefik
 make -C deploy tinyauth
 make -C deploy backup
@@ -79,8 +80,8 @@ Then connect the other applications:
 3. Optionally add a delay profile in Sonarr and Radarr that prefers Usenet.
 
 The Newshosting credentials and the API keys are entered in the web UI and
-stored in `sabnzbd.ini`, which is covered by the `/opt/docker` backup. The role
-does not read them from the Ansible vault.
+stored in `sabnzbd.ini`, which is covered by the `/opt/docker` backup. The gluetun
+role does not read them from the Ansible vault.
 
 ## Verification
 
@@ -106,4 +107,4 @@ across a configuration version change.
 
 The nightly SQLite dump includes `config/admin/history1.db`. The rest of
 `config/` is copied live. `incomplete/` is excluded. Completed downloads on the
-Ingest share are not backed up by this role.
+Ingest share are not backed up by the gluetun role.
