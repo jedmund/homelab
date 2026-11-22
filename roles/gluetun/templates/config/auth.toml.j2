@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+# Gluetun control server roles. Routes without a role are refused.
+
+[[roles]]
+name = "clients"
+auth = "apikey"
+apikey = {{ gluetun_control_server_api_key | to_json }}
+routes = {{ gluetun_control_server_routes | to_json }}

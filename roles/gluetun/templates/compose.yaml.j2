@@ -2,6 +2,9 @@
 name: {{ stack_name }}
 
 services:
+  # Shared VPN for the download clients. qBittorrent, SABnzbd, and slskd run
+  # in their own stacks with network_mode container:gluetun, so this container
+  # carries their aliases and published ports.
   gluetun:
     image: {{ gluetun_image }}
     container_name: gluetun
@@ -11,14 +14,21 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     networks:
-      - vpn
+      shared:
+        aliases:
+{% for alias in gluetun_shared_aliases %}
+          - {{ alias }}
+{% endfor %}
+    ports:
+{% for port in gluetun_published_ports %}
+      - "{{ port.host }}:{{ port.container }}"
+{% endfor %}
     env_file:
       - ./env/gluetun.env
     volumes:
       - ./config:/gluetun
     healthcheck:
-      # Gluetun's own check reports whether the tunnel is up. The control
-      # server's routes need authentication, so they can't serve as a probe.
+      # Gluetun's own check reports whether the tunnel is up.
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
@@ -31,6 +41,6 @@ services:
         max-file: {{ logging_max_file }}
 
 networks:
-  vpn:
-    name: vpn-network
-    internal: false
+  shared:
+    name: {{ shared_network }}
+    external: true
