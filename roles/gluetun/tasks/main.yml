@@ -65,8 +65,9 @@
          (gluetun_deploy_environment_file.changed | default(false)) or
          (gluetun_deploy_control_server_roles.changed | default(false))
          else 'auto' }}
-    # The clients are reconnected below only once the tunnel is up.
-    wait: true
+    # The clients are reconnected below only once the tunnel is up. Check
+    # mode skips the wait: a dry run would judge the existing container.
+    wait: "{{ not ansible_check_mode }}"
     wait_timeout: 300
   register: compose_result
 
