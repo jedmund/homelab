@@ -6,10 +6,10 @@ services:
     image: {{ sabnzbd_image }}
     container_name: sabnzbd
     restart: {{ restart_policy }}
-    networks:
-      - shared
-    ports:
-      - "{{ sabnzbd_port }}:8080"
+    # All traffic leaves through the gluetun stack's tunnel. gluetun publishes
+    # port 8080 as host port 8085 and carries the sabnzbd alias on the shared
+    # network.
+    network_mode: container:gluetun
     environment:
       - TZ={{ timezone }}
       - PUID={{ puid }}
@@ -19,7 +19,9 @@ services:
       - {{ sabnzbd_incomplete_path }}:/incomplete
       - downloads:/downloads
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/api?mode=version"]
+      # The second check fails when the tunnel is down or this container was
+      # left in a namespace gluetun no longer owns.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null 'http://localhost:8080/api?mode=version' && curl -fsS -o /dev/null http://127.0.0.1:9999"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
@@ -32,9 +34,4 @@ services:
 volumes:
   downloads:
     name: downloads
-    external: true
-
-networks:
-  shared:
-    name: {{ shared_network }}
     external: true

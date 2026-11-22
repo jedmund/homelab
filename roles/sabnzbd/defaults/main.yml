@@ -10,12 +10,12 @@ sabnzbd_image: lscr.io/linuxserver/sabnzbd:latest
 sabnzbd_domain: sab.atelier.house
 # Hostnames SABnzbd accepts in the Host header. IP addresses are always
 # accepted. The container name is required for the Starr apps, which connect
-# over the shared network as http://sabnzbd:8080.
+# over the shared network as http://sabnzbd:8080 through gluetun's alias.
 sabnzbd_host_whitelist:
   - "{{ sabnzbd_domain }}"
   - sabnzbd
-# Host port. qBittorrent already publishes 8080 on nuc-mini.
-sabnzbd_port: 8085
+# SABnzbd listens on 8080 inside gluetun's network namespace. The gluetun
+# role publishes it on host port 8085 (gluetun_published_ports).
 
 # Incomplete jobs stay on local disk: par2 repair and unrar over the Ingest
 # NFS share are slow, and Unpackerr's folder watcher covers /downloads.
