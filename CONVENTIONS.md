@@ -136,7 +136,7 @@ Networks are created by the `networks` role. Compose aliases commonly map to:
 | `backend` | `backend-internal` | Database and internal service traffic; external egress is disabled |
 | `shared` | `shared-network` | Cross-stack traffic and services that need egress |
 | `cibuild` | `cibuild-network` | GitLab CI jobs and their supporting services |
-| Service-specific | `vpn-network` | VPN-related connectivity |
+| Service-specific | `vpn-network` | Created on every host; no current stack uses it. VPN clients join the [gluetun](roles/gluetun/README.md) namespace instead |
 
 Docker bridge networks are local to each host. Reusing a name on `max` does
 not connect it to the network on `nuc-mini`.

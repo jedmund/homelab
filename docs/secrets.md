@@ -214,15 +214,16 @@ an object-expiry lifecycle using `gitlab_cache_s3_expiry_days` (default 14).
 
 ### group_vars/gluetun/vault.yml
 
+Setup is in the [role runbook](../roles/gluetun/README.md#prerequisites).
+
 | Variable | Description |
 | --- | --- |
-| `gluetun_vpn_provider` | VPN provider |
-| `gluetun_vpn_type` | VPN type (`openvpn` or `wireguard`) |
-| `gluetun_openvpn_user` | OpenVPN username |
-| `gluetun_openvpn_password` | OpenVPN password |
-| `gluetun_wireguard_private_key` | WireGuard private key |
-| `gluetun_wireguard_addresses` | WireGuard address list |
-| `gluetun_server_countries` | Optional server country filter |
+| `vault_gluetun_wireguard_private_key` | `PrivateKey` from a ProtonVPN WireGuard configuration created with NAT-PMP (port forwarding) |
+| `vault_gluetun_control_server_api_key` | API key for gluetun's control server, at least 32 characters. Also read by the qBittorrent and slskd roles |
+
+The earlier ExpressVPN inputs (`gluetun_vpn_provider`, `gluetun_vpn_type`,
+`gluetun_openvpn_user`, `gluetun_openvpn_password`, `gluetun_server_countries`)
+are no longer read.
 
 ### group_vars/granblue/vault.yml
 
