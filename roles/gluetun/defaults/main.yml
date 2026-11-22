@@ -16,7 +16,9 @@ gluetun_image: qmcgaw/gluetun:latest
 gluetun_wireguard_private_key: "{{ vault_gluetun_wireguard_private_key | default('') }}"
 # Proton's WireGuard configurations all use this tunnel address
 gluetun_wireguard_addresses: 10.2.0.2/32
-gluetun_server_countries: United States
+# Not gluetun_server_countries: that name is the retired ExpressVPN vault input,
+# which still exists in some vaults and would override this default.
+gluetun_vpn_server_countries: United States
 
 # Port forwarding. Proton assigns random ports, which change on reconnect.
 # gluetun reports them in ascending order: slskd uses the first and

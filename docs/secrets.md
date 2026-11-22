@@ -223,7 +223,8 @@ Setup is in the [role runbook](../roles/gluetun/README.md#prerequisites).
 
 The earlier ExpressVPN inputs (`gluetun_vpn_provider`, `gluetun_vpn_type`,
 `gluetun_openvpn_user`, `gluetun_openvpn_password`, `gluetun_server_countries`)
-are no longer read.
+are no longer read and can be removed. The server country is
+`gluetun_vpn_server_countries` in the role defaults.
 
 ### group_vars/granblue/vault.yml
 
