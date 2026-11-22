@@ -6,12 +6,10 @@ services:
     image: {{ slskd_image }}
     container_name: slskd
     restart: {{ restart_policy }}
-    networks:
-      - shared
-    ports:
-      - "{{ slskd_web_port }}:5030"
-      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/tcp"
-      - "{{ slskd_listen_port }}:{{ slskd_listen_port }}/udp"
+    # All traffic leaves through the gluetun stack's tunnel. gluetun publishes
+    # the web UI and carries the slskd alias on the shared network. Peers
+    # reach the Soulseek listener through the port gluetun forwards.
+    network_mode: container:gluetun
     env_file:
       - ./env/slskd.env
     environment:
@@ -24,7 +22,9 @@ services:
       - music:/music:ro
       - downloads:/downloads
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5030/health"]
+      # The second check fails when the tunnel is down or this container was
+      # left in a namespace gluetun no longer owns.
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5030/health && wget -q -O /dev/null http://127.0.0.1:9999"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
@@ -40,9 +40,4 @@ volumes:
     external: true
   downloads:
     name: downloads
-    external: true
-
-networks:
-  shared:
-    name: {{ shared_network }}
     external: true

@@ -9,12 +9,29 @@
       - slskd_api_key_role in ['ReadOnly', 'ReadWrite', 'Administrator']
       - slskd_api_key_cidr | length > 0
       - "';' not in slskd_api_key_cidr"
+      - slskd_vpn_gluetun_api_key | length > 0
     fail_msg: >-
       slskd_api_key in group_vars/slskd/vault.yml must be empty or
       16 to 255 characters without semicolons. slskd_api_key_role must be
-      ReadOnly, ReadWrite or Administrator.
+      ReadOnly, ReadWrite or Administrator. vault_gluetun_control_server_api_key
+      in group_vars/gluetun/vault.yml is required for the VPN integration.
   tags:
     - preflight
+
+- name: Read gluetun container
+  community.docker.docker_container_info:
+    name: gluetun
+  register: slskd_gluetun_container
+
+- name: Require a running gluetun container
+  ansible.builtin.assert:
+    that:
+      - slskd_gluetun_container.exists
+      - slskd_gluetun_container.container.State.Running
+    fail_msg: >-
+      slskd joins gluetun's network namespace. Deploy gluetun first
+      (make -C deploy gluetun).
+    quiet: true
 
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
