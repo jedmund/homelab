@@ -123,21 +123,13 @@ deploy-musicbrainz: ## Deploy MusicBrainz mirror
 
 ##@ Deployment - Product Stacks
 
-deploy-gluetun: ## Deploy Gluetun
+deploy-gluetun: ## Deploy Gluetun with qBittorrent, SABnzbd, and slskd
 	@echo "$(BLUE)Deploying Gluetun...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/gluetun.yml $(VAULT_FLAG)
 
 deploy-prowlarr: ## Deploy Prowlarr
 	@echo "$(BLUE)Deploying Prowlarr...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/prowlarr.yml $(VAULT_FLAG)
-
-deploy-qbittorrent: ## Deploy qBittorrent
-	@echo "$(BLUE)Deploying qBittorrent...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/qbittorrent.yml $(VAULT_FLAG)
-
-deploy-sabnzbd: ## Deploy SABnzbd
-	@echo "$(BLUE)Deploying SABnzbd...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/sabnzbd.yml $(VAULT_FLAG)
 
 deploy-sonarr: ## Deploy Sonarr
 	@echo "$(BLUE)Deploying Sonarr...$(NC)"
@@ -170,10 +162,6 @@ deploy-jdownloader: ## Deploy JDownloader
 deploy-pinchflat: ## Deploy Pinchflat
 	@echo "$(BLUE)Deploying Pinchflat...$(NC)"
 	@$(ANSIBLE) -i $(INVENTORY) deploy/pinchflat.yml $(VAULT_FLAG)
-
-deploy-slskd: ## Deploy slskd
-	@echo "$(BLUE)Deploying slskd...$(NC)"
-	@$(ANSIBLE) -i $(INVENTORY) deploy/slskd.yml $(VAULT_FLAG)
 
 deploy-qui: ## Deploy Qui
 	@echo "$(BLUE)Deploying Qui...$(NC)"

@@ -167,7 +167,7 @@ for upgrade stops, CI draining, backups, version checks, and recovery.
 ### Image digest report
 
 `report-image-digest-updates` runs Mondays at 09:00
-`America/Los_Angeles`. It selects the 45 stacks tagged `update-monitor`, invokes
+`America/Los_Angeles`. It selects the 49 stacks tagged `update-monitor`, invokes
 `CheckStackForUpdate` separately with `skip_auto_update = true`, and collects
 both changed service images and lookup failures. It sends one Custom alert to
 `homelab-operations` only when either list is nonempty. A no-change run remains

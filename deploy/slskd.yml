@@ -1,6 +1,0 @@
----
-- name: Deploy slskd stack
-  hosts: slskd
-  become: true
-  roles:
-    - slskd

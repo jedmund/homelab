@@ -61,16 +61,10 @@
   tags: [flaresolverr]
 
 - import_playbook: gluetun.yml
-  tags: [media, gluetun]
+  tags: [media, gluetun, qbittorrent, sabnzbd, slskd]
 
 - import_playbook: prowlarr.yml
   tags: [media, prowlarr]
-
-- import_playbook: qbittorrent.yml
-  tags: [media, qbittorrent]
-
-- import_playbook: sabnzbd.yml
-  tags: [media, sabnzbd]
 
 - import_playbook: sonarr.yml
   tags: [media, sonarr]
@@ -92,9 +86,6 @@
 
 - import_playbook: pinchflat.yml
   tags: [media, pinchflat]
-
-- import_playbook: slskd.yml
-  tags: [media, slskd]
 
 - import_playbook: qui.yml
   tags: [media, qui]
