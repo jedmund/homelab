@@ -4,6 +4,10 @@ Usenet download client at `sab.atelier.house`, running on nuc-mini. Sonarr,
 Radarr, and Lidarr send NZBs to it; Prowlarr supplies the indexers. The Usenet
 provider is Newshosting.
 
+SABnzbd runs in the [gluetun](../gluetun/README.md) stack's network namespace,
+so its traffic leaves through ProtonVPN. gluetun publishes host port 8085 and
+carries the `sabnzbd` alias on the shared network. Deploy gluetun first.
+
 ## Layout
 
 | Path | Container path | Contents |

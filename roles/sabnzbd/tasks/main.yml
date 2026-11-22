@@ -1,6 +1,21 @@
 ---
 # SABnzbd product stack
 
+- name: Read gluetun container
+  community.docker.docker_container_info:
+    name: gluetun
+  register: sabnzbd_gluetun_container
+
+- name: Require a running gluetun container
+  ansible.builtin.assert:
+    that:
+      - sabnzbd_gluetun_container.exists
+      - sabnzbd_gluetun_container.container.State.Running
+    fail_msg: >-
+      SABnzbd joins gluetun's network namespace. Deploy gluetun first
+      (make -C deploy gluetun).
+    quiet: true
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"

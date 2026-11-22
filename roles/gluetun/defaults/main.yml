@@ -3,5 +3,56 @@
 stack_name: gluetun
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Gluetun settings
-gluetun_image: qmcgaw/gluetun
+# Shared ProtonVPN tunnel for the media download clients. qBittorrent,
+# SABnzbd, and slskd join this container's network namespace, so their
+# traffic has no route out except the tunnel. See the README.
+
+# Floating tag: ProtonVPN multi-port forwarding
+# (VPN_PORT_FORWARDING_PORTS_COUNT) is only in builds from upstream's main
+# branch. The README records the last verified revision and its rollback pin.
+gluetun_image: qmcgaw/gluetun:latest
+
+# VPN (ProtonVPN over WireGuard)
+gluetun_wireguard_private_key: "{{ vault_gluetun_wireguard_private_key | default('') }}"
+# Proton's WireGuard configurations all use this tunnel address
+gluetun_wireguard_addresses: 10.2.0.2/32
+gluetun_server_countries: United States
+
+# Port forwarding. Proton assigns random ports, which change on reconnect.
+# gluetun reports them in ascending order: slskd uses the first and
+# qBittorrent the second (qbittorrent_forwarded_port_index).
+gluetun_forwarded_ports_count: 2
+
+# Control server, reachable only inside the shared network namespace. The API
+# key may read only the routes the clients poll; every other route is refused.
+gluetun_control_server_address: 127.0.0.1:8000
+gluetun_control_server_api_key: "{{ vault_gluetun_control_server_api_key | default('') }}"
+gluetun_control_server_routes:
+  - GET /v1/portforward
+  - GET /v1/publicip/ip
+
+# Subnets the clients may reach outside the tunnel. Empty: none.
+gluetun_firewall_outbound_subnets: []
+
+# The clients' web interfaces, published from this container because the
+# clients have no network of their own. The aliases keep the container names
+# the Starr apps, Prowlarr, and Stereo use on the shared network.
+gluetun_shared_aliases:
+  - qbittorrent
+  - sabnzbd
+  - slskd
+gluetun_published_ports:
+  # qBittorrent web UI (qbittorrent_webui_port). Moved off 8080, which
+  # SABnzbd uses in the same namespace.
+  - { host: 8080, container: 8090 }
+  # SABnzbd web UI and API
+  - { host: 8085, container: 8080 }
+  # slskd web UI and API
+  - { host: 5030, container: 5030 }
+
+# Stacks whose containers join this namespace. After gluetun is recreated or
+# restarted they keep the old, disconnected namespace until recreated.
+gluetun_clients:
+  - { container: qbittorrent, project: "{{ docker_base_path }}/qbittorrent" }
+  - { container: sabnzbd, project: "{{ docker_base_path }}/sabnzbd" }
+  - { container: slskd, project: "{{ docker_base_path }}/slskd" }
