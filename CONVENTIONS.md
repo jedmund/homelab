@@ -107,7 +107,7 @@ any result changed; otherwise use `auto`. Use `changed | default(false)` for
 optional and skipped inputs. A registered loop result already aggregates
 changes across its items.
 
-The [gluetun](roles/gluetun/README.md) stack instead labels each service with
+The [downloads](roles/downloads/README.md) stack instead labels each service with
 the checksums of its env and mounted files, so a change recreates only the
 affected service rather than interrupting every download client.
 
@@ -140,7 +140,7 @@ Networks are created by the `networks` role. Compose aliases commonly map to:
 | `backend` | `backend-internal` | Database and internal service traffic; external egress is disabled |
 | `shared` | `shared-network` | Cross-stack traffic and services that need egress |
 | `cibuild` | `cibuild-network` | GitLab CI jobs and their supporting services |
-| Service-specific | `vpn-network` | Created on every host; no current stack uses it. VPN clients join the [gluetun](roles/gluetun/README.md) namespace instead |
+| Service-specific | `vpn-network` | Created on every host; no current stack uses it. The download clients join gluetun's namespace in the [downloads](roles/downloads/README.md) stack instead |
 
 Docker bridge networks are local to each host. Reusing a name on `max` does
 not connect it to the network on `nuc-mini`.

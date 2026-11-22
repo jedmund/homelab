@@ -212,9 +212,9 @@ The script source is [ci_cache_bootstrap.sh](../roles/gitlab/files/ci_cache_boot
 Without a configured access key, the runners use local caches. The role sets
 an object-expiry lifecycle using `gitlab_cache_s3_expiry_days` (default 14).
 
-### group_vars/gluetun/vault.yml
+### group_vars/downloads/vault.yml
 
-Setup is in the [role runbook](../roles/gluetun/README.md#prerequisites).
+Setup is in the [role runbook](../roles/downloads/README.md#prerequisites).
 
 | Variable | Description |
 | --- | --- |
@@ -478,7 +478,7 @@ Setup, DNS, Resend verification, and the upgrade procedure are in the
 
 ### group_vars/slskd/vault.yml
 
-Read by the [gluetun](../roles/gluetun/README.md) role, which deploys slskd.
+Read by the [downloads](../roles/downloads/README.md) role, which deploys slskd.
 The `slskd` inventory group exists only to load this file.
 
 | Variable | Description |

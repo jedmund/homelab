@@ -1,8 +1,8 @@
-# Gluetun
+# Downloads
 
-ProtonVPN tunnel on nuc-mini and the media download clients that use it:
-qBittorrent, SABnzbd, and slskd. All run in one Compose stack at
-`/opt/docker/gluetun`. The clients use `network_mode: service:gluetun`, so
+The media download clients on nuc-mini and the ProtonVPN tunnel they use:
+qBittorrent, SABnzbd, and slskd behind gluetun. All run in one Compose stack,
+`downloads`, at `/opt/docker/downloads`. The clients use `network_mode: service:gluetun`, so
 they have no network except gluetun's and no route out except the tunnel.
 Prowlarr, the Starr apps, Stereo, and Qui stay off the VPN and reach the
 clients through gluetun. The [granblue](../granblue/) stack runs a separate
@@ -62,7 +62,7 @@ interface, so the client must be recreated or restarted as well:
 The first two rows and the last two were tested with disposable containers on
 nuc-mini (Docker 29.10). Komodo redeploys and restarts run Compose, so they
 should follow the first two rows; that is inferred, not tested. After fixing a
-gluetun that will not stay up, redeploy the stack (`make -C deploy gluetun` or
+gluetun that will not stay up, redeploy the stack (`make -C deploy downloads` or
 Komodo) to start the clients.
 
 Each client's health check requires `eth0` in `/proc/net/dev`, which a
@@ -109,8 +109,8 @@ recreates every client.
    NAT off. Proton does not allow both. Only `PrivateKey` is used; `Address`
    must be `10.2.0.2/32`. gluetun chooses servers itself, so `[Peer]` is
    ignored.
-2. Add the inputs in [Secrets](../../docs/secrets.md#groupvarsgluetunvaultyml)
-   to `group_vars/gluetun/vault.yml`. Generate the control server API key with
+2. Add the inputs in [Secrets](../../docs/secrets.md#groupvarsdownloadsvaultyml)
+   to `group_vars/downloads/vault.yml`. Generate the control server API key with
    `openssl rand -hex 32`. The slskd credentials stay in
    [group_vars/slskd/vault.yml](../../docs/secrets.md#groupvarsslskdvaultyml);
    the `slskd` inventory group exists only to load that file.
@@ -122,16 +122,17 @@ recreates every client.
 ## Deployment
 
 ```sh
-make -C deploy check STACK=gluetun
-make -C deploy gluetun
+make -C deploy check STACK=downloads
+make -C deploy downloads
 ```
 
-The clients previously ran as standalone `qbittorrent`, `sabnzbd`, and `slskd`
-stacks with the same container names. The role stops and removes those Compose
-projects and their generated files when it finds their `compose.yaml`, and
-reuses their data directories. Komodo's Resource Sync does not delete
-resources, so remove the three retired stacks in Komodo by hand without
-destroying containers.
+This stack was previously the `gluetun` Compose project in
+`/opt/docker/gluetun`, with the same container names. When the role finds that
+project's `compose.yaml`, it stops the project and removes the directory. Its
+contents (env files, the control server roles, the port sync script, gluetun's
+server list) are regenerated here; the clients' data directories are
+unaffected. Komodo's Resource Sync does not delete resources, so remove the
+`gluetun` stack in Komodo by hand without destroying containers.
 
 Applications that connect to qBittorrent use port 8090: Sonarr, Radarr,
 Lidarr, Prowlarr, and Stereo as `http://qbittorrent:8090`, and Qui as well
