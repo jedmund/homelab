@@ -1,6 +1,6 @@
 ---
 # Stack identity
-stack_name: gluetun
+stack_name: downloads
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
 # ProtonVPN tunnel and the download clients that use it. qBittorrent, SABnzbd,
@@ -57,12 +57,9 @@ gluetun_published_ports:
 # loses eth0 and fails its health check; restarting it rejoins gluetun.
 gluetun_deunhealth_image: qmcgaw/deunhealth:v0.3.0
 
-# Standalone stacks the clients ran in before joining this one. Their data
-# directories are reused; only their Compose projects are removed.
-gluetun_retired_client_stacks:
-  - qbittorrent
-  - sabnzbd
-  - slskd
+# Directory of this stack's previous Compose project, "gluetun". Removed on
+# deployment; see the README.
+downloads_previous_project_dir: "{{ docker_base_path }}/gluetun"
 
 # qBittorrent
 qbittorrent_image: lscr.io/linuxserver/qbittorrent:latest
