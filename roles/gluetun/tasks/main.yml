@@ -1,5 +1,5 @@
 ---
-# Gluetun product stack
+# Gluetun stack: the ProtonVPN tunnel and the download clients that use it
 
 - name: Validate gluetun inputs
   ansible.builtin.assert:
@@ -17,6 +17,26 @@
   tags:
     - preflight
 
+- name: Validate slskd inputs
+  ansible.builtin.assert:
+    that:
+      - slskd_slsk_username | default('') | length > 0
+      - slskd_slsk_password | default('') | length > 0
+      - slskd_web_username | default('') | length > 0
+      - slskd_web_password | default('') | length > 0
+      - slskd_api_key | length == 0 or (slskd_api_key | length >= 16 and slskd_api_key | length <= 255)
+      - "';' not in slskd_api_key"
+      - slskd_api_key_role in ['ReadOnly', 'ReadWrite', 'Administrator']
+      - slskd_api_key_cidr | length > 0
+      - "';' not in slskd_api_key_cidr"
+    fail_msg: >-
+      Set the slskd Soulseek and web credentials in group_vars/slskd/vault.yml.
+      slskd_api_key must be empty or 16 to 255 characters without semicolons,
+      and slskd_api_key_role must be ReadOnly, ReadWrite or Administrator.
+    quiet: true
+  tags:
+    - preflight
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -28,15 +48,46 @@
     - "{{ config_base }}/env"
     - "{{ config_base }}/config"
     - "{{ config_base }}/config/auth"
+    - "{{ sabnzbd_base }}"
 
-- name: Deploy compose file
-  ansible.builtin.template:
-    src: compose.yaml.j2
-    dest: "{{ config_base }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    mode: '0644'
+# The client images chown their own configuration directories to their
+# runtime user, so these are only created, not re-owned.
+- name: Create download client configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ qbittorrent_config_path }}"
+    - "{{ sabnzbd_base }}/config"
+    - "{{ slskd_config_path }}"
 
-- name: Deploy environment file
+- name: Create SABnzbd incomplete download directory
+  ansible.builtin.file:
+    path: "{{ sabnzbd_incomplete_path }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+
+- name: Create slskd download directories in downloads volume
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - downloads:/downloads
+      - alpine:3.20
+      - sh
+      - -c
+      - mkdir -p /downloads/music /downloads/music/.incomplete
+  changed_when: false
+
+# Each service's label carries the checksums of its env and mounted files, so
+# a change recreates only that service (and, for gluetun, its dependents)
+# instead of interrupting every client.
+- name: Deploy gluetun environment file
   ansible.builtin.template:
     src: env/gluetun.env.j2
     dest: "{{ config_base }}/env/gluetun.env"
@@ -54,76 +105,97 @@
   no_log: true
   register: gluetun_deploy_control_server_roles
 
+- name: Deploy qBittorrent port sync script
+  ansible.builtin.copy:
+    src: port-sync.sh
+    dest: "{{ config_base }}/port-sync.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: gluetun_deploy_port_sync_script
+
+- name: Deploy qBittorrent port sync environment file
+  ansible.builtin.template:
+    src: env/port-sync.env.j2
+    dest: "{{ config_base }}/env/port-sync.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: gluetun_deploy_port_sync_environment_file
+
+- name: Seed initial SABnzbd configuration
+  ansible.builtin.template:
+    src: config/sabnzbd.ini.j2
+    dest: "{{ sabnzbd_base }}/config/sabnzbd.ini"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0600'
+    force: false
+
+- name: Deploy slskd configuration file
+  ansible.builtin.template:
+    src: config/slskd.yml.j2
+    dest: "{{ slskd_config_path }}/slskd.yml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: gluetun_deploy_slskd_configuration_file
+
+- name: Deploy slskd environment file
+  ansible.builtin.template:
+    src: env/slskd.env.j2
+    dest: "{{ config_base }}/env/slskd.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: gluetun_deploy_slskd_environment_file
+
+- name: Deploy compose file
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ config_base }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+# Migration: the clients ran as standalone stacks whose containers have the
+# same names. Remove those projects; their data directories are reused.
+- name: Find retired standalone client stacks
+  ansible.builtin.stat:
+    path: "{{ docker_base_path }}/{{ item }}/compose.yaml"
+  loop: "{{ gluetun_retired_client_stacks }}"
+  register: gluetun_retired_client_stack_files
+
+- name: Remove retired standalone client stacks
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-directory
+      - "{{ docker_base_path }}/{{ item.item }}"
+      - down
+  loop: "{{ gluetun_retired_client_stack_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  changed_when: true
+
+- name: Remove retired standalone client stack files
+  ansible.builtin.file:
+    path: "{{ docker_base_path }}/{{ item }}"
+    state: absent
+  loop:
+    - qbittorrent/compose.yaml
+    - qbittorrent/port-sync.sh
+    - qbittorrent/env
+    - sabnzbd/compose.yaml
+    - slskd/compose.yaml
+    - slskd/env
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
     project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
-    recreate: >-
-      {{ 'always' if
-         (gluetun_deploy_environment_file.changed | default(false)) or
-         (gluetun_deploy_control_server_roles.changed | default(false))
-         else 'auto' }}
-    # The clients are reconnected below only once the tunnel is up. Check
-    # mode skips the wait: a dry run would judge the existing container.
+    # Check mode skips the wait: a dry run would judge the existing containers.
     wait: "{{ not ansible_check_mode }}"
     wait_timeout: 300
   register: compose_result
-
-# A client keeps the network namespace it joined at creation. When gluetun is
-# recreated or restarted, the client is left with only a loopback interface
-# until it is recreated.
-- name: Read gluetun container
-  community.docker.docker_container_info:
-    name: gluetun
-  register: gluetun_container
-
-- name: Read VPN client containers
-  community.docker.docker_container_info:
-    name: "{{ item.container }}"
-  loop: "{{ gluetun_clients }}"
-  loop_control:
-    label: "{{ item.container }}"
-  register: gluetun_client_containers
-
-- name: Read network namespaces of gluetun and its clients
-  ansible.builtin.stat:
-    path: "/proc/{{ item.container.State.Pid }}/ns/net"
-    follow: false
-    get_checksum: false
-  loop: "{{ [gluetun_container] + gluetun_client_containers.results }}"
-  loop_control:
-    label: "{{ item.container.Name | default('absent') }}"
-  when:
-    - item.exists
-    - item.container.State.Running
-  register: gluetun_network_namespaces
-
-- name: Recreate clients outside gluetun's network namespace
-  ansible.builtin.command:
-    argv:
-      - docker
-      - compose
-      - --project-directory
-      - "{{ item.0.project }}"
-      - up
-      - --detach
-      - --force-recreate
-      - --pull
-      - never
-  loop: "{{ gluetun_clients | zip(gluetun_client_containers.results, gluetun_network_namespaces.results[1:]) | list }}"
-  loop_control:
-    label: "{{ item.0.container }}"
-  when:
-    - gluetun_container.exists
-    - gluetun_container.container.State.Running
-    - item.1.exists
-    # A client still on its own network has not been deployed into the
-    # namespace yet; its own role does that.
-    - item.1.container.HostConfig.NetworkMode is match('container:')
-    - >-
-      item.1.container.HostConfig.NetworkMode != 'container:' ~ gluetun_container.container.Id
-      or (item.1.container.State.Running and
-          item.2.stat.lnk_target | default('') != gluetun_network_namespaces.results[0].stat.lnk_target | default(''))
-  changed_when: true

@@ -1,10 +1,16 @@
 # {{ ansible_managed }}
 name: {{ stack_name }}
 
+# The download clients share gluetun's network namespace, so all their
+# traffic leaves through the tunnel. A client keeps the namespace it joined,
+# so it must be recreated or restarted whenever gluetun is:
+# - depends_on with restart: true makes Compose do this whenever it recreates
+#   or restarts gluetun, whether from Ansible or Komodo;
+# - deunhealth restarts a client whose health check fails, which covers gluetun
+#   restarting outside Compose. A stranded client has no eth0, and each
+#   client's health check requires it.
+
 services:
-  # Shared VPN for the download clients. qBittorrent, SABnzbd, and slskd run
-  # in their own stacks with network_mode container:gluetun, so this container
-  # carries their aliases and published ports.
   gluetun:
     image: {{ gluetun_image }}
     container_name: gluetun
@@ -25,6 +31,10 @@ services:
 {% endfor %}
     env_file:
       - ./env/gluetun.env
+    labels:
+      # Checksums of the env and mounted files, so a change recreates only
+      # the services that use them
+      homelab.config-checksum: "{{ gluetun_deploy_environment_file.checksum | default('') }}-{{ gluetun_deploy_control_server_roles.checksum | default('') }}"
     volumes:
       - ./config:/gluetun
     healthcheck:
@@ -34,11 +44,152 @@ services:
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
       start_period: {{ healthcheck_start_period }}
-    logging:
+    logging: &logging
       driver: {{ logging_driver }}
       options:
         max-size: {{ logging_max_size }}
         max-file: {{ logging_max_file }}
+
+  qbittorrent:
+    image: {{ qbittorrent_image }}
+    container_name: qbittorrent
+    restart: {{ restart_policy }}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - WEBUI_PORT={{ qbittorrent_webui_port }}
+      # No TORRENTING_PORT: it would reset the listening port that the port
+      # sync sets on every start.
+    volumes:
+      - {{ qbittorrent_config_path }}:/config
+      - downloads:/downloads
+      - private:/Private
+      - music:/Music
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:{{ qbittorrent_webui_port }} && grep -q eth0 /proc/net/dev"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging: *logging
+
+  # Sets qBittorrent's listening port to the port gluetun forwards for it.
+  # Healthy only while the two match.
+  qbittorrent-port-sync:
+    image: {{ qbittorrent_port_sync_image }}
+    container_name: qbittorrent-port-sync
+    restart: {{ restart_policy }}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    entrypoint: ["/bin/sh", "/port-sync.sh"]
+    env_file:
+      - ./env/port-sync.env
+    environment:
+      - GLUETUN_URL=http://{{ gluetun_control_server_address }}
+      - QBITTORRENT_URL=http://127.0.0.1:{{ qbittorrent_webui_port }}
+      - QBITTORRENT_PORT_INDEX={{ qbittorrent_forwarded_port_index }}
+      - PORT_SYNC_INTERVAL={{ qbittorrent_port_sync_interval }}
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+      homelab.config-checksum: "{{ gluetun_deploy_port_sync_script.checksum | default('') }}-{{ gluetun_deploy_port_sync_environment_file.checksum | default('') }}"
+    volumes:
+      - ./port-sync.sh:/port-sync.sh:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/in-sync"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging: *logging
+
+  sabnzbd:
+    image: {{ sabnzbd_image }}
+    container_name: sabnzbd
+    restart: {{ restart_policy }}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+    volumes:
+      - {{ sabnzbd_base }}/config:/config
+      - {{ sabnzbd_incomplete_path }}:/incomplete
+      - downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null 'http://localhost:8080/api?mode=version' && grep -q eth0 /proc/net/dev"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging: *logging
+
+  slskd:
+    image: {{ slskd_image }}
+    container_name: slskd
+    restart: {{ restart_policy }}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    env_file:
+      - ./env/slskd.env
+    environment:
+      - TZ={{ timezone }}
+      - PUID={{ puid }}
+      - PGID={{ pgid }}
+      - SLSKD_SLSK_LISTEN_PORT={{ slskd_listen_port }}
+    volumes:
+      - {{ slskd_config_path }}:/app
+      - music:/music:ro
+      - downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+      homelab.config-checksum: "{{ gluetun_deploy_slskd_configuration_file.checksum | default('') }}-{{ gluetun_deploy_slskd_environment_file.checksum | default('') }}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5030/health && grep -q eth0 /proc/net/dev"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
+    logging: *logging
+
+  deunhealth:
+    image: {{ gluetun_deunhealth_image }}
+    container_name: deunhealth
+    restart: {{ restart_policy }}
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging: *logging
+
+volumes:
+  downloads:
+    name: downloads
+    external: true
+  private:
+    name: private
+    external: true
+  music:
+    name: music
+    external: true
 
 networks:
   shared:

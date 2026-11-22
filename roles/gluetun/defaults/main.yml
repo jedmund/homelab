@@ -3,9 +3,10 @@
 stack_name: gluetun
 config_base: "{{ docker_base_path }}/{{ stack_name }}"
 
-# Shared ProtonVPN tunnel for the media download clients. qBittorrent,
-# SABnzbd, and slskd join this container's network namespace, so their
-# traffic has no route out except the tunnel. See the README.
+# ProtonVPN tunnel and the download clients that use it. qBittorrent, SABnzbd,
+# and slskd share gluetun's network namespace, so their traffic has no route
+# out except the tunnel. They are in this stack so Compose recreates or
+# restarts them whenever it recreates or restarts gluetun. See the README.
 
 # Floating tag: ProtonVPN multi-port forwarding
 # (VPN_PORT_FORWARDING_PORTS_COUNT) is only in builds from upstream's main
@@ -36,25 +37,86 @@ gluetun_control_server_routes:
 # Subnets the clients may reach outside the tunnel. Empty: none.
 gluetun_firewall_outbound_subnets: []
 
-# The clients' web interfaces, published from this container because the
-# clients have no network of their own. The aliases keep the container names
-# the Starr apps, Prowlarr, and Stereo use on the shared network.
+# The clients have no network of their own: gluetun carries their names on the
+# shared network and publishes their web ports.
 gluetun_shared_aliases:
   - qbittorrent
   - sabnzbd
   - slskd
 gluetun_published_ports:
-  # qBittorrent web UI (qbittorrent_webui_port). Moved off 8080, which
-  # SABnzbd uses in the same namespace.
-  - { host: 8080, container: 8090 }
+  # qBittorrent web UI. The host port must equal qbittorrent_webui_port:
+  # qBittorrent answers 401 when the Host header names a different port.
+  - { host: 8090, container: 8090 }
   # SABnzbd web UI and API
   - { host: 8085, container: 8080 }
   # slskd web UI and API
   - { host: 5030, container: 5030 }
 
-# Stacks whose containers join this namespace. After gluetun is recreated or
-# restarted they keep the old, disconnected namespace until recreated.
-gluetun_clients:
-  - { container: qbittorrent, project: "{{ docker_base_path }}/qbittorrent" }
-  - { container: sabnzbd, project: "{{ docker_base_path }}/sabnzbd" }
-  - { container: slskd, project: "{{ docker_base_path }}/slskd" }
+# Restarts a client whose health check fails. A client left in a namespace
+# that gluetun no longer owns (after gluetun itself restarts outside Compose)
+# loses eth0 and fails its health check; restarting it rejoins gluetun.
+gluetun_deunhealth_image: qmcgaw/deunhealth:v0.3.0
+
+# Standalone stacks the clients ran in before joining this one. Their data
+# directories are reused; only their Compose projects are removed.
+gluetun_retired_client_stacks:
+  - qbittorrent
+  - sabnzbd
+  - slskd
+
+# qBittorrent
+qbittorrent_image: lscr.io/linuxserver/qbittorrent:latest
+qbittorrent_config_path: "{{ docker_base_path }}/qbittorrent/config"
+# SABnzbd listens on 8080 in the same namespace
+qbittorrent_webui_port: 8090
+# Port sync: sets qBittorrent's listening port to the port gluetun forwards
+# for it, zero-based in gluetun's ascending list.
+qbittorrent_port_sync_image: curlimages/curl:8.23.0
+qbittorrent_forwarded_port_index: 1
+qbittorrent_port_sync_interval: 30
+
+# SABnzbd
+# Floating tag, matching the other linuxserver media images. See sabnzbd.md
+# for the update trigger and rollback.
+sabnzbd_image: lscr.io/linuxserver/sabnzbd:latest
+sabnzbd_domain: sab.atelier.house
+sabnzbd_base: "{{ docker_base_path }}/sabnzbd"
+# Hostnames SABnzbd accepts in the Host header. IP addresses are always
+# accepted. The container name is required for the Starr apps, which connect
+# over the shared network as http://sabnzbd:8080 through gluetun's alias.
+sabnzbd_host_whitelist:
+  - "{{ sabnzbd_domain }}"
+  - sabnzbd
+# Incomplete jobs stay on local disk: par2 repair and unrar over the Ingest
+# NFS share are slow, and Unpackerr's folder watcher covers /downloads.
+# Excluded from backups in roles/backup/defaults.
+sabnzbd_incomplete_path: "{{ sabnzbd_base }}/incomplete"
+# Completed jobs as SABnzbd and the Starr apps see them on the shared
+# downloads volume. Category folders are created under this path.
+sabnzbd_complete_dir: /downloads/usenet/complete
+# Categories seeded into a new sabnzbd.ini. Names match the Sonarr, Radarr,
+# and Lidarr download client defaults.
+sabnzbd_categories:
+  - { name: movies, dir: movies }
+  - { name: tv, dir: tv }
+  - { name: music, dir: music }
+
+# slskd
+slskd_image: slskd/slskd:latest
+slskd_domain: sl.atelier.house
+slskd_config_path: "{{ docker_base_path }}/slskd/config"
+# Soulseek listener used until gluetun reports the forwarded port, which
+# slskd then applies without reconnecting.
+slskd_listen_port: 50300
+# VPN integration: slskd polls gluetun's control server and waits for the
+# tunnel and its forwarded port before connecting to Soulseek. It takes the
+# first port gluetun forwards (the lowest).
+slskd_vpn_polling_interval_ms: 10000
+# Soulseek and web credentials (slskd_slsk_username, slskd_slsk_password,
+# slskd_web_username, slskd_web_password) and slskd_api_key are set in
+# group_vars/slskd/vault.yml.
+# API key for service integrations such as Stereo. Empty disables it. slskd
+# reads it from SLSKD_API_KEY as role;cidr;key.
+slskd_api_key: ""
+slskd_api_key_role: ReadWrite
+slskd_api_key_cidr: "0.0.0.0/0,::/0"

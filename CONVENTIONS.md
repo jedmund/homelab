@@ -107,6 +107,10 @@ any result changed; otherwise use `auto`. Use `changed | default(false)` for
 optional and skipped inputs. A registered loop result already aggregates
 changes across its items.
 
+The [gluetun](roles/gluetun/README.md) stack instead labels each service with
+the checksums of its env and mounted files, so a change recreates only the
+affected service rather than interrupting every download client.
+
 Do not also notify a Compose restart handler. Keep required non-Compose
 handlers, such as systemd reloads or application-specific reconfiguration.
 Apply configuration before deployment and run health checks and provisioning

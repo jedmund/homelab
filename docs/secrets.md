@@ -219,7 +219,7 @@ Setup is in the [role runbook](../roles/gluetun/README.md#prerequisites).
 | Variable | Description |
 | --- | --- |
 | `vault_gluetun_wireguard_private_key` | `PrivateKey` from a ProtonVPN WireGuard configuration created with NAT-PMP (port forwarding) |
-| `vault_gluetun_control_server_api_key` | API key for gluetun's control server, at least 32 characters. Also read by the qBittorrent and slskd roles |
+| `vault_gluetun_control_server_api_key` | API key for gluetun's control server, at least 32 characters. Used by qBittorrent's port sync and slskd in the same stack |
 
 The earlier ExpressVPN inputs (`gluetun_vpn_provider`, `gluetun_vpn_type`,
 `gluetun_openvpn_user`, `gluetun_openvpn_password`, `gluetun_server_countries`)
@@ -477,6 +477,9 @@ Setup, DNS, Resend verification, and the upgrade procedure are in the
 | `romm_retroachievements_api_key` | RetroAchievements API key |
 
 ### group_vars/slskd/vault.yml
+
+Read by the [gluetun](../roles/gluetun/README.md) role, which deploys slskd.
+The `slskd` inventory group exists only to load this file.
 
 | Variable | Description |
 | --- | --- |

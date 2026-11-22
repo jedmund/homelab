@@ -1,6 +1,0 @@
----
-- name: Deploy sabnzbd stack
-  hosts: sabnzbd
-  become: true
-  roles:
-    - sabnzbd
