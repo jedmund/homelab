@@ -35,7 +35,7 @@ class AcquisitionHandoffTests(unittest.TestCase):
             self.assertFalse(quarantine == other or other in quarantine.parents or quarantine in other.parents, key)
 
     def test_sabnzbd_root_is_the_folder_sabnzbd_completes_into(self):
-        sabnzbd = yaml.safe_load((ROOT / 'roles/gluetun/defaults/main.yml').read_text())
+        sabnzbd = yaml.safe_load((ROOT / 'roles/downloads/defaults/main.yml').read_text())
         self.assertEqual(self.values['stereo_sabnzbd_download_path'], sabnzbd['sabnzbd_complete_dir'])
 
     def test_creates_the_quarantine_before_deploying(self):

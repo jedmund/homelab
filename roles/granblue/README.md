@@ -3,7 +3,7 @@
 Jobs for [granblue.team](https://granblue.team) that talk to Granblue Fantasy.
 The stack runs its own gluetun container on ProtonVPN, and every other service
 shares its network namespace, so game traffic only leaves through the tunnel.
-It is separate from the media [gluetun](../gluetun/) stack.
+It is separate from the tunnel in the [downloads](../downloads/README.md) stack.
 
 | Service | Container | Purpose |
 | --- | --- | --- |

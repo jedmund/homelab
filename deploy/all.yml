@@ -60,8 +60,8 @@
 - import_playbook: flaresolverr.yml
   tags: [flaresolverr]
 
-- import_playbook: gluetun.yml
-  tags: [media, gluetun, qbittorrent, sabnzbd, slskd]
+- import_playbook: downloads.yml
+  tags: [media, downloads, gluetun, qbittorrent, sabnzbd, slskd]
 
 - import_playbook: prowlarr.yml
   tags: [media, prowlarr]

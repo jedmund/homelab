@@ -13,6 +13,16 @@ were deleted during this cleanup.
 | HuggingHack SQLite to PostgreSQL and PocketID linking | Both `.sqlite-postgres-migrated` and `.pocketid-owner-linked` exist under `/opt/docker/hugginghack/data`; PostgreSQL contains exactly one user with ID `local` and username `jedmund`. The ongoing owner-integrity check remains in the role. |
 | Kibble ONVIF alias IPs to macvlan | The old networkd drop-in is absent, `br0` has no feeder alias IPs, and `onvif0` through `onvif2` hold the feeder addresses on macvlan interfaces. |
 
+## Standalone download clients
+
+On 2026-11-22, `nuc-mini`, the sole target, completed the move of
+qBittorrent, SABnzbd, and slskd from their standalone Compose projects into
+the [downloads](../roles/downloads/README.md) stack: no containers carry the
+`qbittorrent`, `sabnzbd`, or `slskd` project labels, and those directories no
+longer contain `compose.yaml`. The tasks that stopped those projects and
+removed their generated files are preserved at
+`a20b6762b8c93971607df01146e6b1e5f0f957db` in `roles/gluetun/tasks/main.yml`.
+
 ## Historical implementation and recovery
 
 The complete pre-retirement tasks and defaults are preserved in Git at

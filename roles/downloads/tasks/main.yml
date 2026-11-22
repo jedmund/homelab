@@ -1,5 +1,6 @@
 ---
-# Gluetun stack: the ProtonVPN tunnel and the download clients that use it
+# Downloads stack: the gluetun ProtonVPN tunnel and the download clients
+# that use it
 
 - name: Validate gluetun inputs
   ansible.builtin.assert:
@@ -12,7 +13,7 @@
       Set vault_gluetun_wireguard_private_key (the PrivateKey of a ProtonVPN
       WireGuard configuration created with NAT-PMP) and
       vault_gluetun_control_server_api_key (at least 32 characters) in
-      group_vars/gluetun/vault.yml. ProtonVPN forwards 1 to 5 ports.
+      group_vars/downloads/vault.yml. ProtonVPN forwards 1 to 5 ports.
     quiet: true
   tags:
     - preflight
@@ -155,39 +156,30 @@
     owner: "{{ ansible_user }}"
     mode: '0644'
 
-# Migration: the clients ran as standalone stacks whose containers have the
-# same names. Remove those projects; their data directories are reused.
-- name: Find retired standalone client stacks
+# Migration: this stack was the "gluetun" Compose project in
+# /opt/docker/gluetun, with the same container names. Remove that project
+# and its directory; everything in it is regenerated here, and gluetun
+# rebuilds its server list.
+- name: Find the stack's previous Compose project
   ansible.builtin.stat:
-    path: "{{ docker_base_path }}/{{ item }}/compose.yaml"
-  loop: "{{ gluetun_retired_client_stacks }}"
-  register: gluetun_retired_client_stack_files
+    path: "{{ downloads_previous_project_dir }}/compose.yaml"
+  register: downloads_previous_project_file
 
-- name: Remove retired standalone client stacks
+- name: Remove the stack's previous Compose project
   ansible.builtin.command:
     argv:
       - docker
       - compose
       - --project-directory
-      - "{{ docker_base_path }}/{{ item.item }}"
+      - "{{ downloads_previous_project_dir }}"
       - down
-  loop: "{{ gluetun_retired_client_stack_files.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-  when: item.stat.exists
+  when: downloads_previous_project_file.stat.exists
   changed_when: true
 
-- name: Remove retired standalone client stack files
+- name: Remove the stack's previous directory
   ansible.builtin.file:
-    path: "{{ docker_base_path }}/{{ item }}"
+    path: "{{ downloads_previous_project_dir }}"
     state: absent
-  loop:
-    - qbittorrent/compose.yaml
-    - qbittorrent/port-sync.sh
-    - qbittorrent/env
-    - sabnzbd/compose.yaml
-    - slskd/compose.yaml
-    - slskd/env
 
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
