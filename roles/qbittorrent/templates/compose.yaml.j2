@@ -6,28 +6,55 @@ services:
     image: {{ qbittorrent_image }}
     container_name: qbittorrent
     restart: {{ restart_policy }}
-    networks:
-      - shared
-    ports:
-      - "{{ qbittorrent_web_port }}:8080"
-      - "{{ qbittorrent_torrenting_port }}:{{ qbittorrent_torrenting_port }}/tcp"
-      - "{{ qbittorrent_torrenting_port }}:{{ qbittorrent_torrenting_port }}/udp"
+    # All traffic leaves through the gluetun stack's tunnel. gluetun publishes
+    # the web UI and carries the qbittorrent alias on the shared network.
+    network_mode: container:gluetun
     environment:
       - TZ={{ timezone }}
       - PUID={{ puid }}
       - PGID={{ pgid }}
-      - WEBUI_PORT=8080
-      - TORRENTING_PORT={{ qbittorrent_torrenting_port }}
+      - WEBUI_PORT={{ qbittorrent_webui_port }}
+      # No TORRENTING_PORT: it would reset the listening port that the port
+      # sync sets on every start.
     volumes:
       - ./config:/config
       - downloads:/downloads
       - private:/Private
       - music:/Music
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080"]
+      # The second check fails when the tunnel is down or this container was
+      # left in a namespace gluetun no longer owns.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:{{ qbittorrent_webui_port }} && curl -fsS -o /dev/null http://127.0.0.1:9999"]
       interval: {{ healthcheck_interval }}
       timeout: {{ healthcheck_timeout }}
       retries: {{ healthcheck_retries }}
+    logging:
+      driver: {{ logging_driver }}
+      options:
+        max-size: {{ logging_max_size }}
+        max-file: {{ logging_max_file }}
+
+  port-sync:
+    image: {{ qbittorrent_port_sync_image }}
+    container_name: qbittorrent-port-sync
+    restart: {{ restart_policy }}
+    network_mode: container:gluetun
+    entrypoint: ["/bin/sh", "/port-sync.sh"]
+    env_file:
+      - ./env/port-sync.env
+    environment:
+      - GLUETUN_URL=http://127.0.0.1:8000
+      - QBITTORRENT_URL=http://127.0.0.1:{{ qbittorrent_webui_port }}
+      - QBITTORRENT_PORT_INDEX={{ qbittorrent_forwarded_port_index }}
+      - PORT_SYNC_INTERVAL={{ qbittorrent_port_sync_interval }}
+    volumes:
+      - ./port-sync.sh:/port-sync.sh:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/in-sync"]
+      interval: {{ healthcheck_interval }}
+      timeout: {{ healthcheck_timeout }}
+      retries: {{ healthcheck_retries }}
+      start_period: {{ healthcheck_start_period }}
     logging:
       driver: {{ logging_driver }}
       options:
@@ -43,9 +70,4 @@ volumes:
     external: true
   music:
     name: music
-    external: true
-
-networks:
-  shared:
-    name: {{ shared_network }}
     external: true

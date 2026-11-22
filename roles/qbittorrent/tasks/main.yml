@@ -1,6 +1,32 @@
 ---
 # qBittorrent product stack
 
+- name: Validate qBittorrent port sync configuration
+  ansible.builtin.assert:
+    that:
+      - qbittorrent_gluetun_api_key | length > 0
+    fail_msg: >-
+      vault_gluetun_control_server_api_key in group_vars/gluetun/vault.yml is
+      required: the port sync reads qBittorrent's forwarded port from gluetun.
+    quiet: true
+  tags:
+    - preflight
+
+- name: Read gluetun container
+  community.docker.docker_container_info:
+    name: gluetun
+  register: qbittorrent_gluetun_container
+
+- name: Require a running gluetun container
+  ansible.builtin.assert:
+    that:
+      - qbittorrent_gluetun_container.exists
+      - qbittorrent_gluetun_container.container.State.Running
+    fail_msg: >-
+      qBittorrent joins gluetun's network namespace. Deploy gluetun first
+      (make -C deploy gluetun).
+    quiet: true
+
 - name: Create {{ stack_name }} directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -8,20 +34,43 @@
     owner: "{{ ansible_user }}"
     mode: '0755'
   loop:
-    - "{{ docker_base_path }}/{{ stack_name }}"
-    - "{{ docker_base_path }}/{{ stack_name }}/config"
+    - "{{ config_base }}"
+    - "{{ config_base }}/config"
+    - "{{ config_base }}/env"
 
 - name: Deploy compose file
   ansible.builtin.template:
     src: compose.yaml.j2
-    dest: "{{ docker_base_path }}/{{ stack_name }}/compose.yaml"
+    dest: "{{ config_base }}/compose.yaml"
     owner: "{{ ansible_user }}"
     mode: '0644'
 
+- name: Deploy port sync script
+  ansible.builtin.copy:
+    src: port-sync.sh
+    dest: "{{ config_base }}/port-sync.sh"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+  register: qbittorrent_deploy_port_sync_script
+
+- name: Deploy port sync environment file
+  ansible.builtin.template:
+    src: env/port-sync.env.j2
+    dest: "{{ config_base }}/env/port-sync.env"
+    owner: "{{ ansible_user }}"
+    mode: '0600'
+  no_log: true
+  register: qbittorrent_deploy_port_sync_environment_file
+
 - name: Deploy {{ stack_name }} stack
   community.docker.docker_compose_v2:
-    project_src: "{{ docker_base_path }}/{{ stack_name }}"
+    project_src: "{{ config_base }}"
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    recreate: >-
+      {{ 'always' if
+         (qbittorrent_deploy_port_sync_script.changed | default(false)) or
+         (qbittorrent_deploy_port_sync_environment_file.changed | default(false))
+         else 'auto' }}
   register: compose_result
