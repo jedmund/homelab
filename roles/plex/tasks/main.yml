@@ -12,6 +12,87 @@
     - "{{ docker_base_path }}/{{ stack_name }}/config"
     - "{{ plex_transcode_path }}"
 
+- name: Create plugin download directory
+  ansible.builtin.file:
+    path: "{{ plex_plugin_download_path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+
+# Plex reads plugins from its data directory, which the container owns as
+# puid:pgid. Plex creates the rest of this tree on first start.
+- name: Create Plex plugin and scanner directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0755'
+  loop:
+    - "{{ plex_server_path }}/Plug-ins"
+    - "{{ plex_server_path }}/Scanners/Series"
+
+- name: Download HAMA archive
+  ansible.builtin.get_url:
+    url: "https://github.com/ZeroQI/Hama.bundle/archive/{{ plex_hama_commit }}.tar.gz"
+    dest: "{{ plex_plugin_download_path }}/Hama.bundle-{{ plex_hama_commit }}.tar.gz"
+    checksum: "{{ plex_hama_archive_checksum }}"
+    owner: "{{ ansible_user }}"
+    mode: '0644'
+
+# The bundle records the commit it was extracted from. A different or missing
+# commit replaces the whole bundle, so files removed upstream do not remain.
+- name: Read installed HAMA commit
+  ansible.builtin.slurp:
+    src: "{{ plex_server_path }}/Plug-ins/Hama.bundle/.homelab-commit"
+  register: plex_hama_installed
+  failed_when: false
+
+- name: Install HAMA
+  when: (plex_hama_installed.content | default('') | b64decode | trim) != plex_hama_commit
+  block:
+    - name: Remove previous HAMA bundle
+      ansible.builtin.file:
+        path: "{{ plex_server_path }}/Plug-ins/Hama.bundle"
+        state: absent
+
+    - name: Create HAMA bundle directory
+      ansible.builtin.file:
+        path: "{{ plex_server_path }}/Plug-ins/Hama.bundle"
+        state: directory
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: '0755'
+
+    - name: Extract HAMA
+      ansible.builtin.unarchive:
+        src: "{{ plex_plugin_download_path }}/Hama.bundle-{{ plex_hama_commit }}.tar.gz"
+        dest: "{{ plex_server_path }}/Plug-ins/Hama.bundle"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+
+    - name: Record installed HAMA commit
+      ansible.builtin.copy:
+        content: "{{ plex_hama_commit }}\n"
+        dest: "{{ plex_server_path }}/Plug-ins/Hama.bundle/.homelab-commit"
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: '0644'
+      register: plex_deploy_hama
+
+- name: Install Absolute Series Scanner
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/ZeroQI/Absolute-Series-Scanner/{{ plex_ass_commit }}/Scanners/Series/Absolute%20Series%20Scanner.py"
+    dest: "{{ plex_server_path }}/Scanners/Series/Absolute Series Scanner.py"
+    checksum: "{{ plex_ass_checksum }}"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: '0644'
+  register: plex_deploy_ass
+
 - name: Deploy compose file
   ansible.builtin.template:
     src: compose.yaml.j2
@@ -25,4 +106,6 @@
     state: present
     remove_orphans: true
     pull: "{{ docker_pull_policy | default('missing') }}"
+    # Plex loads plugins and scanners only at startup
+    recreate: "{{ 'always' if (plex_deploy_hama.changed | default(false)) or (plex_deploy_ass.changed | default(false)) else 'auto' }}"
   register: compose_result
