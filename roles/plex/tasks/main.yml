@@ -18,6 +18,7 @@
     state: directory
     owner: "{{ ansible_user }}"
     mode: '0755'
+  register: plex_plugin_download_directory
 
 # Plex reads plugins from its data directory, which the container owns as
 # puid:pgid. Plex creates the rest of this tree on first start.
@@ -31,6 +32,7 @@
   loop:
     - "{{ plex_server_path }}/Plug-ins"
     - "{{ plex_server_path }}/Scanners/Series"
+  register: plex_plugin_directories
 
 - name: Download HAMA archive
   ansible.builtin.get_url:
@@ -39,6 +41,9 @@
     checksum: "{{ plex_hama_archive_checksum }}"
     owner: "{{ ansible_user }}"
     mode: '0644'
+  register: plex_hama_archive
+  # Check mode does not create the download directory
+  when: not (ansible_check_mode and plex_plugin_download_directory is changed)
 
 # The bundle records the commit it was extracted from. A different or missing
 # commit replaces the whole bundle, so files removed upstream do not remain.
@@ -73,6 +78,8 @@
           - --strip-components=1
         owner: "{{ puid }}"
         group: "{{ pgid }}"
+      # Check mode does not download the archive
+      when: not ansible_check_mode or (plex_hama_archive is not changed and plex_hama_archive is not skipped)
 
     - name: Record installed HAMA commit
       ansible.builtin.copy:
@@ -92,6 +99,8 @@
     group: "{{ pgid }}"
     mode: '0644'
   register: plex_deploy_ass
+  # Check mode does not create the scanner directory
+  when: not (ansible_check_mode and plex_plugin_directories is changed)
 
 - name: Deploy compose file
   ansible.builtin.template:
