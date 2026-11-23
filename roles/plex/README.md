@@ -35,9 +35,17 @@ title search on the APIs HAMA uses. Newer versions search AniDB titles and map
 the result to the TheTVDB series. With any version, a series can be matched
 manually by entering its TheTVDB ID (for example `371310`) in Fix Match.
 
+Do not pin HAMA at or after upstream commit `570c860` (2026-10-03) until a
+release supplies TheTVDB v4 credentials. From that commit, search and metadata
+use TheTVDB's v4 API with a placeholder API key (`TVDB_API_KEY = 'TODO'`). The
+v4 login returns 401, so search returns no results and series matched to
+TheTVDB receive no TheTVDB metadata. `ae7fdee` is the search fix on the v2
+API, which still works for metadata.
+
 ### Update or roll back
 
-1. Choose the upstream commit and read the commits since the current pin.
+1. Choose the upstream commit and read the commits since the current pin,
+   including which TheTVDB module `Contents/Code/__init__.py` imports.
 2. Compute the checksums:
 
    ```sh
