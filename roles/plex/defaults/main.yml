@@ -13,3 +13,17 @@ plex_port: 32400
 plex_transcode_path: "{{ config_base }}/transcode"
 plex_advertise_ip: "http://{{ ansible_host }}:{{ plex_port }}/"
 plex_libva_driver_name: "iHD"
+
+# Plex's data directory inside the container's /config mount
+plex_server_path: "{{ config_base }}/config/Library/Application Support/Plex Media Server"
+# Pinned plugin downloads are kept here, outside Plex's data directory
+plex_plugin_download_path: "{{ config_base }}/plugins"
+
+# Anime library plugins, pinned to upstream commits. See the README for the
+# update procedure. A version change restarts Plex during deployment.
+# HAMA metadata agent: https://github.com/ZeroQI/Hama.bundle
+plex_hama_commit: cfddf8fc5dc37e568aaf004ff36898eb500db40e
+plex_hama_archive_checksum: sha256:6899e25e1f9e2839c8983fdfb2fecc5e8dfa6c6331a71ce7e53b91534d97b21c
+# Absolute Series Scanner: https://github.com/ZeroQI/Absolute-Series-Scanner
+plex_ass_commit: 73bb6b3119d21438fb123b2a953c52e5cddd9cd6
+plex_ass_checksum: sha256:c1bfa7f5c6fa84aced0a478bdc5e2566d7944d58bea839214b3ebda290cfba47
